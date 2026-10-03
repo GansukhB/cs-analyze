@@ -1,0 +1,116 @@
+/* The round replay, ported from cstat's match_detail.html. Its colours are the
+   app's palette (index.css, on :root); the page is dark, so the panel sits on it
+   directly. */
+.rp { --mono: ui-monospace, Menlo, monospace; color: var(--ink); }
+.rp button { cursor: pointer; }
+.rp .help { margin: 0; color: var(--ink-3); font-size: 12.5px; }
+
+/* Map on the left, feed on the right; they stack under 1000px. */
+.rp .replay { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; }
+@media (max-width: 1000px) { .rp .replay { grid-template-columns: minmax(0, 1fr); } }
+
+/* Who is ahead and who is still standing, grouped by side, not by club. */
+.rp .rp-score { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+                padding: 10px 14px; margin-bottom: 10px; }
+.rp .rp-score-top { display: flex; align-items: baseline; justify-content: center;
+                    gap: 14px; font-family: var(--mono); }
+.rp .rp-score-side { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1; }
+.rp .rp-score-side.t { flex-direction: row-reverse; text-align: right; }
+.rp .rp-score-side .nm { font-size: 13px; font-weight: 600; letter-spacing: .02em;
+                         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp .rp-score-side.ct .nm, .rp .rp-score-side.ct .rp-score-n { color: var(--ct); }
+.rp .rp-score-side.t .nm, .rp .rp-score-side.t .rp-score-n { color: var(--t); }
+.rp .rp-score-n { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rp .rp-score-mid { color: var(--ink-3); font-size: 10.5px; text-transform: uppercase;
+                    letter-spacing: .12em; flex: none; }
+.rp .rp-roster { display: flex; flex-wrap: wrap; gap: 5px 14px; margin-top: 9px; }
+.rp .rp-roster + .rp-roster { border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.rp .rp-chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono);
+               font-size: 11.5px; }
+.rp .rp-chip i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.rp .rp-chip b { font-weight: 500; transition: color .15s linear; }
+/* A dead man's chip dims the same way his dot on the map does. */
+.rp .rp-chip.dead { opacity: .38; }
+.rp .rp-chip.dead b { transition: none; }
+
+.rp .stage { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+             padding: 12px; position: relative; }
+.rp .stage canvas { width: 100%; height: auto; display: block; border-radius: 4px;
+                    background: var(--ground); }
+.rp .stage .loading { position: absolute; inset: 12px; display: flex; align-items: center;
+                      justify-content: center; background: rgba(13, 17, 22, .82); border-radius: 4px;
+                      font-family: var(--mono); font-size: 12px; color: var(--ink-3); z-index: 3; }
+.rp .stage .loading[hidden] { display: none; }
+
+.rp .hud { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.rp .hud .clock { font-family: var(--mono); font-size: 18px; font-variant-numeric: tabular-nums;
+                  min-width: 74px; }
+.rp .hud .alive { font-family: var(--mono); font-size: 13px; color: var(--ink-3); }
+.rp .hud .alive.bombclock { color: var(--crit); font-variant-numeric: tabular-nums; }
+.rp .hud button.play { padding: 8px 18px; min-width: 84px; background: var(--ct); color: #0d1116;
+                       border-radius: 5px; font-weight: 600; }
+.rp .hud .sp { display: flex; gap: 4px; }
+.rp .hud .sp button { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line);
+                      padding: 6px 10px; font-family: var(--mono); font-size: 11.5px; border-radius: 4px; }
+.rp .hud .sp button.on { background: var(--raised); color: var(--ink); border-color: var(--ct); }
+
+/* The scrubber carries the round's events, so a kill is somewhere to aim at. */
+.rp .track { position: relative; margin-top: 12px; height: 26px; }
+.rp .track input[type=range] { width: 100%; margin: 0; position: absolute; top: 8px; left: 0;
+                               accent-color: var(--ct); }
+.rp .track .marks { position: absolute; top: 0; left: 0; right: 0; height: 8px; }
+.rp .track .marks i { position: absolute; top: 0; width: 2px; height: 8px; border-radius: 1px; }
+.rp .track .marks i.ct { background: var(--ct); }
+.rp .track .marks i.t { background: var(--t); }
+.rp .track .marks i.bomb { background: var(--crit); width: 3px; }
+
+.rp .toggles { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px;
+               font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.rp .toggles label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.rp .toggles input { accent-color: var(--ct); width: 14px; height: 14px; }
+/* Floor picker, two-floor maps only; the `.now` dot is where auto has settled. */
+.rp .toggles .floors { display: inline-flex; gap: 4px; align-items: center; }
+.rp .toggles .floors b { color: var(--ink-3); font-weight: 400; margin-right: 2px; }
+.rp .toggles .floors button { background: var(--surface-2); color: var(--ink-2);
+                              border: 1px solid var(--line); padding: 4px 9px; font-family: var(--mono);
+                              font-size: 11px; border-radius: 4px; position: relative; }
+.rp .toggles .floors button.on { background: var(--raised); color: var(--ink); border-color: var(--ct); }
+.rp .toggles .floors button.now::after { content: ""; position: absolute; left: 50%; bottom: 2px;
+                                         width: 3px; height: 3px; margin-left: -1.5px;
+                                         border-radius: 50%; background: var(--ct); }
+
+/* Only the list of events scrolls; the round's summary stays put. */
+.rp .feed { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+            padding: 12px 14px; display: flex; flex-direction: column; max-height: 660px; }
+.rp .feed #rp-feed { overflow-y: auto; min-height: 0; }
+.rp .feed h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+               color: var(--ink-3); font-weight: 600; display: flex; align-items: baseline;
+               justify-content: space-between; gap: 10px; }
+.rp .feed h4 .fopt { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px;
+                     letter-spacing: 0; text-transform: none; font-weight: 400; cursor: pointer; }
+.rp .feed h4 .fopt input { accent-color: var(--ct); width: 12px; height: 12px; }
+.rp .feed .row { font-family: var(--mono); font-size: 11.5px; padding: 5px 0;
+                 border-bottom: 1px solid var(--line-soft); cursor: pointer; color: var(--ink-2); }
+.rp .feed .row:hover { color: var(--ink); }
+.rp .feed .row .tm { color: var(--ink-3); margin-right: 7px; }
+.rp .feed .row .ct { color: var(--ct); }
+.rp .feed .row .t { color: var(--t); }
+.rp .feed .row .w { color: var(--ink-3); }
+.rp .feed .row.bomb { color: var(--crit); }
+.rp .feed .row.dim { opacity: .32; }
+.rp .feed .row.hurt { color: var(--ink-3); font-size: 11px; }
+.rp .feed .rhead { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
+                   padding-bottom: 9px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.rp .feed .rhead b.ct { color: var(--ct); }
+.rp .feed .rhead b.t { color: var(--t); }
+.rp .feed .rhead span { color: var(--ink-3); }
+
+/* Round strip: one chip per round, coloured by the side that won it. */
+.rp .rounds { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 14px; }
+.rp .rounds .r { font-family: var(--mono); font-size: 11px; padding: 5px 8px; border-radius: 4px;
+                 border: 1px solid var(--line); background: var(--surface); color: var(--ink-3);
+                 min-width: 34px; text-align: center; }
+.rp .rounds .r.ct { border-color: rgba(91, 155, 216, .45); color: var(--ct); }
+.rp .rounds .r.t { border-color: rgba(211, 154, 85, .45); color: var(--t); }
+.rp .rounds .r.on { background: var(--raised); color: var(--ink); border-width: 2px; }
+.rp .rounds .brk { width: 1px; background: var(--line); margin: 0 6px; }

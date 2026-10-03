@@ -1,0 +1,34 @@
+# Infrastructure only. The apps run on the host: see the root package.json scripts.
+name: cs-analyze
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: cs_analyze
+      MYSQL_USER: cs
+      MYSQL_PASSWORD: cs
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      # Host port is overridable; 3306 is often taken by another local MySQL.
+      - "${MYSQL_HOST_PORT:-13306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_HOST_PORT:-16379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  mysql-data:

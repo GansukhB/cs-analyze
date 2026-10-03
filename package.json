@@ -1,0 +1,40 @@
+{
+  "name": "cs-analyze",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "apps/public"
+  ],
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "~6.0.3"
+    }
+  },
+  "scripts": {
+    "setup": "npm install && uv sync --directory apps/api && uv run --directory apps/api playwright install chromium && ([ -f apps/api/.env ] || cp apps/api/.env.example apps/api/.env)",
+    "dev": "npm run db:up && concurrently -k -n api,worker,public -c blue,magenta,green npm:dev:api npm:dev:worker npm:dev:public",
+    "dev:api": "npm run db:migrate && uv run --directory apps/api uvicorn app.main:app --reload --port 8000",
+    "dev:worker": "uv run --directory apps/api watchfiles --filter python \"celery -A app.celery_app worker --pool=threads --loglevel=info\" app",
+    "dev:public": "npm run dev -w public",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:migrate": "uv run --directory apps/api alembic upgrade head",
+    "db:migration": "uv run --directory apps/api alembic revision --autogenerate -m",
+    "user:create": "uv run --directory apps/api python -m app.cli create-user",
+    "user:deactivate": "uv run --directory apps/api python -m app.cli deactivate-user",
+    "user:activate": "uv run --directory apps/api python -m app.cli activate-user",
+    "data:import": "uv run --directory apps/api python -m app.cli import-tickdata",
+    "data:rebuild": "uv run --directory apps/api python -m app.cli rebuild-tickdata",
+    "openapi": "uv run --directory apps/api python -m app.openapi && npm run gen:api -w public",
+    "test:api": "uv run --directory apps/api pytest",
+    "lint": "npm run lint:api && npm run lint:public",
+    "lint:api": "uv run --directory apps/api ruff check . && uv run --directory apps/api ruff format --check .",
+    "lint:public": "npm run lint -w public && npm run typecheck -w public",
+    "build:public": "npm run build -w public"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/* cstat's dark palette, the one the replay, the radar and the player colours were
+   chosen against. Defined once on :root (replay.css reads the same variables) and
+   exposed to Tailwind as bg-surface, text-ink, text-ct and so on. */
+:root {
+  color-scheme: dark;
+  --ground: #0d1116;
+  --surface: #151a21;
+  --surface-2: #1c232b;
+  --raised: #222b34;
+  --ink: #e3e8ed;
+  --ink-2: #a2acb6;
+  --ink-3: #737e88;
+  --line: #262f38;
+  --line-soft: #1e252d;
+  --ct: #5b9bd8;
+  --t: #d39a55;
+  --good: #4fa77f;
+  --warn: #d39a55;
+  --crit: #cf6a56;
+  /* The two teams on a game plan, and their head-to-head. UI steps for headings
+     and rails; --mark-* are the same hues stepped for chart marks on the dark
+     surface (cstat's charts.py explains the split). */
+  --mine: #6f8ff5;
+  --theirs: #d9b23a;
+  --h2h: #d1495b;
+  --mine-soft: rgba(111, 143, 245, 0.34);
+  --theirs-soft: rgba(217, 178, 58, 0.34);
+  --h2h-soft: rgba(209, 73, 91, 0.34);
+  --mark-mine: #6e8ef3;
+  --mark-theirs: #b0902f;
+  --mark-h2h: #d1495b;
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-ct: var(--ct);
+  --color-t: var(--t);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-crit: var(--crit);
+  --color-mine: var(--mine);
+  --color-theirs: var(--theirs);
+}
+
+body {
+  background-color: var(--ground);
+  color: var(--ink);
+}

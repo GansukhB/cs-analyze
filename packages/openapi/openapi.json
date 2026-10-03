@@ -1,0 +1,3173 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "cs-analyze API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/auth/token": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "operationId": "login_auth_token_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_auth_token_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Me",
+        "operationId": "me_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/home": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Home",
+        "description": "What the scout form shows around itself.",
+        "operationId": "home_home_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeInfo"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/jobs": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "List Jobs",
+        "description": "The process viewer: every run, newest first.",
+        "operationId": "list_jobs_jobs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Create Job",
+        "operationId": "create_job_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/jobs/{public_id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job",
+        "description": "One job: also the polling fallback when the WebSocket is unavailable.",
+        "operationId": "get_job_jobs__public_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only events after this id",
+              "title": "After"
+            },
+            "description": "Only events after this id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{public_id}/cancel": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Cancel Job",
+        "description": "STOP. A running job is asked to stop itself between items (the threads\npool cannot kill it); a job still queued is revoked and finalised here,\nsince nothing would ever poll the flag for a task that never runs.",
+        "operationId": "cancel_job_jobs__public_id__cancel_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusPayload"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workers": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Workers",
+        "description": "What Redis and the workers say about themselves right now.",
+        "operationId": "workers_workers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrokerState"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/teams": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "List Teams",
+        "description": "Every team, sorted by parsed maps: the name is what a reader scans for, but\nthe sample size says whether the page behind it has anything on it.",
+        "operationId": "list_teams_teams_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/teams/{team_id}": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Get Team",
+        "operationId": "get_team_teams__team_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/{match_id}": {
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Get Match",
+        "description": "The match and its maps. ``default_map`` is where a bare match link lands:\nthe first replayable map, else the first parsed one (whose page can then say\nits bundle is gone), else none.",
+        "operationId": "get_match_matches__match_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/{match_id}/maps/{map_number}": {
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Get Match Map",
+        "description": "One map: its scene (the floor plan the replay draws on), round list and\nscoreboard. The Replay itself was cut from the Tick Data at ingest.",
+        "operationId": "get_match_map_matches__match_id__maps__map_number__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Match Id"
+            }
+          },
+          {
+            "name": "map_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Map Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchMapDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/{match_id}/maps/{map_number}/rounds/{number}": {
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Get Round",
+        "description": "One round's replay payload, sent exactly as stored: gzip JSON, which the\nbrowser decodes on its own (``Content-Encoding: gzip``).",
+        "operationId": "get_round_matches__match_id__maps__map_number__rounds__number__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Match Id"
+            }
+          },
+          {
+            "name": "map_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Map Number"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One round's replay payload (gzip JSON; see app/services/replay.py).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gameplan/teams": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Pick",
+        "description": "Every team with parsed maps, and how many: the picker's list.",
+        "operationId": "pick_gameplan_teams_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameplanPick"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/gameplan/{mine}/vs/{theirs}": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Header",
+        "description": "The page header and the tab list, on every tab.",
+        "operationId": "header_gameplan__mine__vs__theirs__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameplanHeader"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gameplan/{mine}/vs/{theirs}/s/{tab}": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Panel",
+        "description": "One panel's data, computed once per parse stamp.",
+        "operationId": "panel_gameplan__mine__vs__theirs__s__tab__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          },
+          {
+            "name": "tab",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tab"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameplanPanel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gameplan/{mine}/vs/{theirs}/playbook/{map_name}": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Playbook",
+        "description": "One Map's Playbook for the \u00ab\u042e\u0443 \u0445\u0438\u0439\u0445\u00bb tab, computed once per parse stamp.",
+        "operationId": "playbook_gameplan__mine__vs__theirs__playbook__map_name__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          },
+          {
+            "name": "map_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Map Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameplanPanel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gameplan/{mine}/vs/{theirs}/heatmap": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Heatmap",
+        "description": "One heatmap cell for a fixture: the positions and the map they go on (the page draws it).",
+        "operationId": "heatmap_gameplan__mine__vs__theirs__heatmap_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          },
+          {
+            "name": "team",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Map"
+            }
+          },
+          {
+            "name": "player",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Player"
+            }
+          },
+          {
+            "name": "side",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Side"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "kills",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Level"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Heatmap Gameplan  Mine  Vs  Theirs  Heatmap Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gameplan/{mine}/vs/{theirs}/movement": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Movement Map",
+        "description": "One movement cell for a fixture: the scene to animate and its tables.",
+        "operationId": "movement_map_gameplan__mine__vs__theirs__movement_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          },
+          {
+            "name": "team",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Map"
+            }
+          },
+          {
+            "name": "player",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Player"
+            }
+          },
+          {
+            "name": "side",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Side"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "routes",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Level"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Movement Map Gameplan  Mine  Vs  Theirs  Movement Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gameplan/{mine}/vs/{theirs}/tracks": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Tracks",
+        "description": "The real walked positions behind a movement selection (also sent with the\nmovement cell; kept as its own request for the page's upgrade path).",
+        "operationId": "tracks_gameplan__mine__vs__theirs__tracks_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          },
+          {
+            "name": "team",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Map"
+            }
+          },
+          {
+            "name": "player",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Player"
+            }
+          },
+          {
+            "name": "side",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Side"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Level"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Tracks Gameplan  Mine  Vs  Theirs  Tracks Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActiveTask": {
+        "properties": {
+          "worker": {
+            "type": "string",
+            "title": "Worker"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "worker",
+          "task",
+          "id"
+        ],
+        "title": "ActiveTask"
+      },
+      "Activity": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          },
+          "done": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Activity",
+        "description": "What the current step is doing right now; empty when nothing is."
+      },
+      "Body_login_auth_token_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^password$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "title": "Password"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": ""
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "format": "password",
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_auth_token_post"
+      },
+      "BrokerState": {
+        "properties": {
+          "redis_url": {
+            "type": "string",
+            "title": "Redis Url"
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "queued": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued"
+          },
+          "workers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Workers"
+          },
+          "active": {
+            "items": {
+              "$ref": "#/components/schemas/ActiveTask"
+            },
+            "type": "array",
+            "title": "Active"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "redis_url",
+          "connected",
+          "queued",
+          "workers",
+          "active",
+          "error"
+        ],
+        "title": "BrokerState"
+      },
+      "CalloutLabel": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "x",
+          "y"
+        ],
+        "title": "CalloutLabel"
+      },
+      "DemoState": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "cls": {
+            "type": "string",
+            "title": "Cls"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word",
+          "cls",
+          "why"
+        ],
+        "title": "DemoState"
+      },
+      "GameplanHeader": {
+        "properties": {
+          "my_team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "opponent": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "lede": {
+            "$ref": "#/components/schemas/GameplanLede"
+          },
+          "tabs": {
+            "items": {
+              "$ref": "#/components/schemas/GameplanTab"
+            },
+            "type": "array",
+            "title": "Tabs"
+          },
+          "default_tab": {
+            "type": "string",
+            "title": "Default Tab"
+          },
+          "stamp": {
+            "type": "string",
+            "title": "Stamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "my_team",
+          "opponent",
+          "lede",
+          "tabs",
+          "default_tab",
+          "stamp"
+        ],
+        "title": "GameplanHeader"
+      },
+      "GameplanLede": {
+        "properties": {
+          "my_maps": {
+            "type": "integer",
+            "title": "My Maps"
+          },
+          "opponent_maps": {
+            "type": "integer",
+            "title": "Opponent Maps"
+          },
+          "h2h_maps": {
+            "type": "integer",
+            "title": "H2H Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "my_maps",
+          "opponent_maps",
+          "h2h_maps"
+        ],
+        "title": "GameplanLede"
+      },
+      "GameplanPanel": {
+        "properties": {
+          "tab": {
+            "type": "string",
+            "title": "Tab"
+          },
+          "stamp": {
+            "type": "string",
+            "title": "Stamp"
+          },
+          "cached": {
+            "type": "boolean",
+            "title": "Cached"
+          },
+          "ms": {
+            "type": "number",
+            "title": "Ms"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tab",
+          "stamp",
+          "cached",
+          "ms",
+          "data"
+        ],
+        "title": "GameplanPanel",
+        "description": "One panel's data. Its shape differs per tab and is typed on the page."
+      },
+      "GameplanPick": {
+        "properties": {
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/GameplanTeam"
+            },
+            "type": "array",
+            "title": "Teams"
+          },
+          "parsed_maps": {
+            "type": "integer",
+            "title": "Parsed Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "teams",
+          "parsed_maps"
+        ],
+        "title": "GameplanPick"
+      },
+      "GameplanTab": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "grp": {
+            "type": "integer",
+            "title": "Grp"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "grp"
+        ],
+        "title": "GameplanTab"
+      },
+      "GameplanTeam": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "maps"
+        ],
+        "title": "GameplanTeam"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HomeInfo": {
+        "properties": {
+          "recent_jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobRow"
+            },
+            "type": "array",
+            "title": "Recent Jobs"
+          },
+          "known_teams": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Known Teams"
+          },
+          "parsed_maps": {
+            "type": "integer",
+            "title": "Parsed Maps"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/ScoutDefaults"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recent_jobs",
+          "known_teams",
+          "parsed_maps",
+          "defaults"
+        ],
+        "title": "HomeInfo"
+      },
+      "JobCreate": {
+        "properties": {
+          "my_team": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "My Team"
+          },
+          "opponent": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Opponent"
+          },
+          "n_my_matches": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "N My Matches",
+            "description": "Latest matches against anyone but the opponent."
+          },
+          "n_opponent_matches": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "N Opponent Matches",
+            "description": "Latest matches against anyone but my team."
+          },
+          "n_h2h_matches": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "N H2H Matches",
+            "description": "Latest matches the two played each other."
+          },
+          "download": {
+            "type": "boolean",
+            "title": "Download",
+            "description": "False: analyse only what is already stored.",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "my_team",
+          "opponent",
+          "n_my_matches",
+          "n_opponent_matches",
+          "n_h2h_matches"
+        ],
+        "title": "JobCreate",
+        "description": "The scout form: two team names, and how much to pull."
+      },
+      "JobCycle": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "of": {
+            "type": "integer",
+            "title": "Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "of"
+        ],
+        "title": "JobCycle",
+        "description": "Which match a match-by-match run is on: downloading, unpacking and\nparsing repeat for each one."
+      },
+      "JobDetail": {
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobRow"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusPayload"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/JobEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "words": {
+            "$ref": "#/components/schemas/JobWords"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job",
+          "status",
+          "events",
+          "result",
+          "words"
+        ],
+        "title": "JobDetail"
+      },
+      "JobEvent": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "level",
+          "stage",
+          "message",
+          "payload",
+          "at"
+        ],
+        "title": "JobEvent"
+      },
+      "JobList": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobRow"
+            },
+            "type": "array",
+            "title": "Jobs"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "jobs",
+          "counts"
+        ],
+        "title": "JobList"
+      },
+      "JobResult": {
+        "properties": {
+          "windows": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "$ref": "#/components/schemas/MatchSummary"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Windows"
+          },
+          "parsed_matches": {
+            "items": {
+              "$ref": "#/components/schemas/MatchSummary"
+            },
+            "type": "array",
+            "title": "Parsed Matches"
+          },
+          "scanned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scanned"
+          },
+          "h2h_found": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "H2H Found"
+          },
+          "totals": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Totals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "windows",
+          "parsed_matches",
+          "scanned",
+          "h2h_found",
+          "totals"
+        ],
+        "title": "JobResult"
+      },
+      "JobRow": {
+        "properties": {
+          "public_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Public Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "stage_label": {
+            "type": "string",
+            "title": "Stage Label"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "Progress"
+          },
+          "windows": {
+            "type": "string",
+            "title": "Windows"
+          },
+          "my_team_name": {
+            "type": "string",
+            "title": "My Team Name"
+          },
+          "opponent_name": {
+            "type": "string",
+            "title": "Opponent Name"
+          },
+          "download": {
+            "type": "boolean",
+            "title": "Download"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "public_id",
+          "label",
+          "kind",
+          "status",
+          "stage",
+          "stage_label",
+          "progress",
+          "windows",
+          "my_team_name",
+          "opponent_name",
+          "download",
+          "error",
+          "requested_by",
+          "created_at",
+          "duration"
+        ],
+        "title": "JobRow",
+        "description": "One run, as the lists show it."
+      },
+      "JobStatusPayload": {
+        "properties": {
+          "public_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Public Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "stage_label": {
+            "type": "string",
+            "title": "Stage Label"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "Progress"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "finished": {
+            "type": "boolean",
+            "title": "Finished"
+          },
+          "activity": {
+            "$ref": "#/components/schemas/Activity"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageRow"
+            },
+            "type": "array",
+            "title": "Stages"
+          },
+          "cycle": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobCycle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "public_id",
+          "status",
+          "stage",
+          "stage_label",
+          "progress",
+          "error",
+          "duration",
+          "finished",
+          "activity",
+          "stages"
+        ],
+        "title": "JobStatusPayload",
+        "description": "Mirrors what the WebSocket pushes as `status` (and inside `snapshot`)."
+      },
+      "JobWords": {
+        "properties": {
+          "stages": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Stages"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stages",
+          "counts"
+        ],
+        "title": "JobWords",
+        "description": "Mongolian stage and tally names, from the server's single dictionary."
+      },
+      "MapRecordRow": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "played": {
+            "type": "integer",
+            "title": "Played"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "lost": {
+            "type": "integer",
+            "title": "Lost"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "played",
+          "won",
+          "lost",
+          "pct"
+        ],
+        "title": "MapRecordRow"
+      },
+      "MatchInfo": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "hltv_id": {
+            "type": "integer",
+            "title": "Hltv Id"
+          },
+          "hltv_url": {
+            "type": "string",
+            "title": "Hltv Url"
+          },
+          "team1": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "team2": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "score": {
+            "type": "string",
+            "title": "Score"
+          },
+          "tournament": {
+            "type": "string",
+            "title": "Tournament"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/MatchMapTab"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "default_map": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Map"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "hltv_id",
+          "hltv_url",
+          "team1",
+          "team2",
+          "score",
+          "tournament",
+          "played_at",
+          "maps",
+          "default_map"
+        ],
+        "title": "MatchInfo"
+      },
+      "MatchMapDetail": {
+        "properties": {
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "parsed": {
+            "type": "boolean",
+            "title": "Parsed"
+          },
+          "playable": {
+            "type": "boolean",
+            "title": "Playable"
+          },
+          "scene": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Scene"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/RoundStripRow"
+            },
+            "type": "array",
+            "title": "Rounds"
+          },
+          "scoreboard": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreboardSide"
+            },
+            "type": "array",
+            "title": "Scoreboard"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_number",
+          "label",
+          "parsed",
+          "playable",
+          "scene",
+          "rounds",
+          "scoreboard"
+        ],
+        "title": "MatchMapDetail"
+      },
+      "MatchMapSummary": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "scoreline": {
+            "type": "string",
+            "title": "Scoreline"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "parsed": {
+            "type": "boolean",
+            "title": "Parsed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "map_number",
+          "scoreline",
+          "rounds",
+          "parsed"
+        ],
+        "title": "MatchMapSummary"
+      },
+      "MatchMapTab": {
+        "properties": {
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "scoreline": {
+            "type": "string",
+            "title": "Scoreline"
+          },
+          "parsed": {
+            "type": "boolean",
+            "title": "Parsed"
+          },
+          "playable": {
+            "type": "boolean",
+            "title": "Playable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_number",
+          "label",
+          "scoreline",
+          "parsed",
+          "playable"
+        ],
+        "title": "MatchMapTab"
+      },
+      "MatchRecord": {
+        "properties": {
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "lost": {
+            "type": "integer",
+            "title": "Lost"
+          },
+          "drawn": {
+            "type": "integer",
+            "title": "Drawn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "won",
+          "lost",
+          "drawn"
+        ],
+        "title": "MatchRecord"
+      },
+      "MatchSummary": {
+        "properties": {
+          "match_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Id"
+          },
+          "hltv_id": {
+            "type": "integer",
+            "title": "Hltv Id"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "team1": {
+            "type": "string",
+            "title": "Team1"
+          },
+          "team2": {
+            "type": "string",
+            "title": "Team2"
+          },
+          "score": {
+            "type": "string",
+            "title": "Score"
+          },
+          "tournament": {
+            "type": "string",
+            "title": "Tournament"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "demo": {
+            "type": "string",
+            "title": "Demo"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/MatchMapSummary"
+            },
+            "type": "array",
+            "title": "Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hltv_id",
+          "url",
+          "team1",
+          "team2",
+          "score",
+          "tournament",
+          "played_at",
+          "demo",
+          "maps"
+        ],
+        "title": "MatchSummary"
+      },
+      "Plate": {
+        "properties": {
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "extent": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Extent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "width",
+          "height",
+          "extent"
+        ],
+        "title": "Plate"
+      },
+      "RoundStripRow": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "winner_side": {
+            "type": "string",
+            "title": "Winner Side"
+          },
+          "winner": {
+            "type": "string",
+            "title": "Winner"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "planted": {
+            "type": "boolean",
+            "title": "Planted"
+          },
+          "site": {
+            "type": "string",
+            "title": "Site"
+          },
+          "score": {
+            "type": "string",
+            "title": "Score"
+          },
+          "mine": {
+            "type": "boolean",
+            "title": "Mine"
+          },
+          "half_break": {
+            "type": "boolean",
+            "title": "Half Break"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "winner_side",
+          "winner",
+          "reason",
+          "planted",
+          "site",
+          "score",
+          "mine",
+          "half_break"
+        ],
+        "title": "RoundStripRow"
+      },
+      "Scene": {
+        "properties": {
+          "plate": {
+            "$ref": "#/components/schemas/Plate"
+          },
+          "labels": {
+            "items": {
+              "$ref": "#/components/schemas/CalloutLabel"
+            },
+            "type": "array",
+            "title": "Labels"
+          },
+          "levels": {
+            "items": {
+              "$ref": "#/components/schemas/SceneLevel"
+            },
+            "type": "array",
+            "title": "Levels"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plate",
+          "labels",
+          "levels"
+        ],
+        "title": "Scene"
+      },
+      "SceneLevel": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "labels": {
+            "items": {
+              "$ref": "#/components/schemas/CalloutLabel"
+            },
+            "type": "array",
+            "title": "Labels"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "url",
+          "labels"
+        ],
+        "title": "SceneLevel"
+      },
+      "ScoreboardPlayer": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "deaths": {
+            "type": "integer",
+            "title": "Deaths"
+          },
+          "kd_diff": {
+            "type": "integer",
+            "title": "Kd Diff"
+          },
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "kast_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kast Pct"
+          },
+          "hs_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hs Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "kills",
+          "deaths",
+          "kd_diff",
+          "adr",
+          "kast_pct",
+          "hs_pct"
+        ],
+        "title": "ScoreboardPlayer"
+      },
+      "ScoreboardSide": {
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "won": {
+            "type": "boolean",
+            "title": "Won"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreboardPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "score",
+          "won",
+          "players"
+        ],
+        "title": "ScoreboardSide"
+      },
+      "ScoutDefaults": {
+        "properties": {
+          "matches": {
+            "type": "integer",
+            "title": "Matches"
+          },
+          "max_matches": {
+            "type": "integer",
+            "title": "Max Matches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matches",
+          "max_matches"
+        ],
+        "title": "ScoutDefaults"
+      },
+      "StageRow": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "label",
+          "state",
+          "seconds",
+          "summary",
+          "counts"
+        ],
+        "title": "StageRow"
+      },
+      "TeamDetail": {
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/TeamRow"
+          },
+          "record": {
+            "$ref": "#/components/schemas/MatchRecord"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/TeamResult"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "n_parsed_maps": {
+            "type": "integer",
+            "title": "N Parsed Maps"
+          },
+          "map_record": {
+            "items": {
+              "$ref": "#/components/schemas/MapRecordRow"
+            },
+            "type": "array",
+            "title": "Map Record"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/TeamPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          },
+          "plannable": {
+            "items": {
+              "$ref": "#/components/schemas/TeamRef"
+            },
+            "type": "array",
+            "title": "Plannable",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "record",
+          "results",
+          "n_parsed_maps",
+          "map_record",
+          "players"
+        ],
+        "title": "TeamDetail"
+      },
+      "TeamList": {
+        "properties": {
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/TeamRow"
+            },
+            "type": "array",
+            "title": "Teams"
+          },
+          "parsed_teams": {
+            "type": "integer",
+            "title": "Parsed Teams"
+          },
+          "total_matches": {
+            "type": "integer",
+            "title": "Total Matches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "teams",
+          "parsed_teams",
+          "total_matches"
+        ],
+        "title": "TeamList"
+      },
+      "TeamPlayer": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "maps",
+          "rounds",
+          "last"
+        ],
+        "title": "TeamPlayer"
+      },
+      "TeamRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "TeamRef"
+      },
+      "TeamResult": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "opponent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ours"
+          },
+          "theirs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theirs"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "score": {
+            "type": "string",
+            "title": "Score"
+          },
+          "tournament": {
+            "type": "string",
+            "title": "Tournament"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/TeamResultMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "n_parsed": {
+            "type": "integer",
+            "title": "N Parsed"
+          },
+          "demo": {
+            "$ref": "#/components/schemas/DemoState"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "played_at",
+          "opponent",
+          "ours",
+          "theirs",
+          "outcome",
+          "score",
+          "tournament",
+          "maps",
+          "n_parsed",
+          "demo"
+        ],
+        "title": "TeamResult"
+      },
+      "TeamResultMap": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "score": {
+            "type": "string",
+            "title": "Score"
+          },
+          "attributed": {
+            "type": "boolean",
+            "title": "Attributed"
+          },
+          "won": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Won"
+          },
+          "parsed": {
+            "type": "boolean",
+            "title": "Parsed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "number",
+          "score",
+          "attributed",
+          "won",
+          "parsed"
+        ],
+        "title": "TeamResultMap"
+      },
+      "TeamRow": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "hltv_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hltv Id"
+          },
+          "hltv_url": {
+            "type": "string",
+            "title": "Hltv Url"
+          },
+          "identified": {
+            "type": "boolean",
+            "title": "Identified"
+          },
+          "matches": {
+            "type": "integer",
+            "title": "Matches"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "hltv_id",
+          "hltv_url",
+          "identified",
+          "matches",
+          "maps",
+          "last"
+        ],
+        "title": "TeamRow"
+      },
+      "Token": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token"
+        ],
+        "title": "Token"
+      },
+      "UserRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username"
+        ],
+        "title": "UserRead"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "/auth/token"
+          }
+        }
+      }
+    }
+  }
+}

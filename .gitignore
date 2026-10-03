@@ -1,0 +1,16 @@
+# apps/public/.env holds non-secret defaults and is committed; only the API's .env is local.
+apps/api/.env
+*.local
+.DS_Store
+node_modules/
+dist/
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Downloaded archives, unpacked demos and parquet bundles (hundreds of MB each).
+/data/
+
+# JetBrains IDE settings (data sources, workspace) stay local.
+.idea/
