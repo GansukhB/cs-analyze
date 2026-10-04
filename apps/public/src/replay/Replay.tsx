@@ -73,9 +73,21 @@ export default function Replay(props: {
             </div>
 
             <div className="hud">
-              <button type="button" className="play" id="rp-play">Play</button>
-              <span className="sp" id="rp-speeds" />
+              <span className="transport" role="group" aria-label="Playback">
+                <button type="button" className="tp" id="rp-prev" aria-label="Previous round" title="Previous round ([)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z" /></svg>
+                </button>
+                <button type="button" className="tp play" id="rp-play" aria-label="Play" title="Play (space)">
+                  <svg className="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15L19.5 12z" /></svg>
+                  <svg className="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+                </button>
+                <button type="button" className="tp" id="rp-next" aria-label="Next round" title="Next round (])">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z" /></svg>
+                </button>
+              </span>
+              <span className="time" id="rp-time">0:00 / 0:00</span>
               <span className="alive" id="rp-note" />
+              <span className="sp" id="rp-speeds" />
             </div>
 
             <div className="track">

@@ -106,9 +106,23 @@
 .rp .hud { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .rp .hud .alive { font-family: var(--mono); font-size: 13px; color: var(--ink-3); }
 .rp .hud .alive.bombclock { color: var(--crit); font-variant-numeric: tabular-nums; }
-.rp .hud button.play { padding: 8px 18px; min-width: 84px; background: var(--ct); color: #0d1116;
-                       border-radius: 5px; font-weight: 600; }
-.rp .hud .sp { display: flex; gap: 4px; }
+/* A media player's transport: previous round, play/pause, next round. */
+.rp .hud .transport { display: flex; align-items: center; gap: 4px; }
+.rp .hud .tp { display: inline-flex; align-items: center; justify-content: center; width: 34px;
+               height: 34px; padding: 0; border-radius: 50%; background: transparent;
+               color: var(--ink-2); border: 0; }
+.rp .hud .tp svg { width: 18px; height: 18px; fill: currentColor; }
+.rp .hud .tp:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.rp .hud .tp:disabled { color: var(--ink-3); opacity: .45; cursor: default; }
+.rp .hud .tp.play { width: 42px; height: 42px; background: var(--ct); color: #0d1116; }
+.rp .hud .tp.play:hover { background: var(--ct); color: #0d1116; filter: brightness(1.12); }
+.rp .hud .tp.play svg { width: 22px; height: 22px; }
+.rp .hud .tp.play .i-pause,
+.rp .hud .tp.play.playing .i-play { display: none; }
+.rp .hud .tp.play.playing .i-pause { display: inline; }
+.rp .hud .time { font-family: var(--mono); font-size: 13px; color: var(--ink-2);
+                 font-variant-numeric: tabular-nums; }
+.rp .hud .sp { display: flex; gap: 4px; margin-left: auto; }
 .rp .hud .sp button { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line);
                       padding: 6px 10px; font-family: var(--mono); font-size: 11.5px; border-radius: 4px; }
 .rp .hud .sp button.on { background: var(--raised); color: var(--ink); border-color: var(--ct); }

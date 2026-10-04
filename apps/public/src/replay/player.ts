@@ -194,6 +194,10 @@ export function mountReplay(
   const seek = $<HTMLInputElement>('rp-seek')
   const marks = $('rp-marks')
   const floorBox = root.querySelector<HTMLElement>('#rp-floors')
+  const ROUNDS = [...root.querySelectorAll<HTMLElement>('#rp-rounds .r')].map((b) => Number(b.dataset.round))
+  const prevButton = $<HTMLButtonElement>('rp-prev')
+  const nextButton = $<HTMLButtonElement>('rp-next')
+  const timeEl = $('rp-time')
   let destroyed = false
   let frame = 0
   // Every listener goes through `on`, so teardown removes them all at once (React
@@ -326,7 +330,9 @@ export function mountReplay(
   }
 
   // ---- loading a round ------------------------------------------------------
+  // A round picked while the replay plays starts playing too, from its start.
   async function load(n: number) {
+    const resume = state.playing
     state.round = n
     state.playing = false
     setPlay()
@@ -354,6 +360,9 @@ export function mountReplay(
     buildMarks()
     renderFeed()
     loading.hidden = true
+    state.playing = resume
+    state.last = performance.now()
+    setPlay()
     draw()
   }
 
@@ -678,6 +687,8 @@ export function mountReplay(
     drawPlayers(f, t, floor)
 
     $('rp-clock').textContent = clock(t)
+    timeEl.textContent = `${clock(t)} / ${clock(d.seconds)}`
+    syncTransport()
     d.players.forEach((p) => {
       const s = at(p, f)
       const alive = !!(s && s.hp > 0)
@@ -1011,7 +1022,19 @@ export function mountReplay(
   // ---- playback -------------------------------------------------------------
   const playButton = $<HTMLButtonElement>('rp-play')
   function setPlay() {
-    playButton.textContent = state.playing ? 'Pause' : 'Play'
+    const label = state.playing ? 'Pause' : 'Play'
+    playButton.classList.toggle('playing', state.playing)
+    playButton.setAttribute('aria-label', label)
+    playButton.title = `${label} (space)`
+  }
+
+  // Like a music player: back restarts the round once it is under way, and only
+  // goes to the round before from (near) its start.
+  const RESTART_AFTER = 3
+  function syncTransport() {
+    const i = ROUNDS.indexOf(state.round ?? -1)
+    prevButton.disabled = i <= 0 && state.t <= RESTART_AFTER
+    nextButton.disabled = i < 0 || i >= ROUNDS.length - 1
   }
 
   function seekTo(t: number) {
@@ -1104,12 +1127,17 @@ export function mountReplay(
     if (b) void load(Number(b.dataset.round))
   })
 
-  const ROUNDS = [...root.querySelectorAll<HTMLElement>('#rp-rounds .r')].map((b) => Number(b.dataset.round))
   function step(delta: number) {
+    if (delta < 0 && state.data && state.t > RESTART_AFTER) {
+      seekTo(0)
+      return
+    }
     const i = ROUNDS.indexOf(state.round ?? -1)
     const next = ROUNDS[Math.max(0, Math.min(ROUNDS.length - 1, i + delta))]
     if (next && next !== state.round) void load(next)
   }
+  on(prevButton, 'click', () => step(-1))
+  on(nextButton, 'click', () => step(1))
 
   const onKey = (e: KeyboardEvent) => {
     if ((e.target as HTMLElement).matches('input, textarea, select')) return
