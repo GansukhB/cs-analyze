@@ -5,7 +5,7 @@ from sqlalchemy import text
 from app.cache import get_cache
 from app.config import get_settings
 from app.deps import DbSession
-from app.routers import auth, gameplan, jobs, matches, teams
+from app.routers import assistant, auth, gameplan, jobs, matches, teams
 
 app = FastAPI(title="cs-analyze API", version="0.1.0")
 
@@ -21,6 +21,7 @@ app.include_router(jobs.router)
 app.include_router(teams.router)
 app.include_router(matches.router)
 app.include_router(gameplan.router)
+app.include_router(assistant.router)
 
 
 @app.get("/health", tags=["health"])

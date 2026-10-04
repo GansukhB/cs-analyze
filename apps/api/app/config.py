@@ -46,6 +46,25 @@ class Settings(BaseSettings):
     analysis_default_matches: int = 1
     analysis_max_matches: int = 5
 
+    # The Assistant (app/services/assistant.py). Both halves are optional: with no
+    # Claude key the chat says it isn't configured; with no ElevenLabs pair it
+    # answers in text only and the mic is hidden.
+    claude_api_key: SecretStr = SecretStr("")
+    claude_model: str = "claude-sonnet-5-5"
+    # A chat turn is a few tool calls and a short answer, not a long agentic task.
+    claude_effort: str = "medium"
+    # Thinking counts against this too; the reply itself is five paragraphs at most.
+    claude_max_tokens: int = 16_000
+    # Prior turns resent with each question: bounds the bill and the memory.
+    claude_max_history_turns: int = 12
+    elevenlabs_api_key: SecretStr = SecretStr("")
+    elevenlabs_voice_id: str = ""
+    elevenlabs_model: str = "eleven_v3"
+    elevenlabs_stt_model: str = "scribe_v2"
+    # The Assistant's Users speak Mongolian; pinned so a short question isn't read as Russian.
+    elevenlabs_stt_language: str = "mon"
+    elevenlabs_timeout: int = 30
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -11,8 +11,8 @@ classification is **evidence-first**: every role assignment carries the signals
 that produced it and the sample it was measured over, with a confidence and the
 runner-up role rather than a certainty the sample cannot support.
 
-Ported from cstat's ``hltv/services/roles.py`` (minus the scouting-report and
-recruitment entry points, which no page here uses yet).
+Ported from cstat's ``hltv/services/roles.py`` (minus the recruitment entry
+points, which no page here uses yet).
 """
 
 from __future__ import annotations
@@ -1457,3 +1457,440 @@ def role_glossary() -> list[dict]:
         {"key": key, "label": spec["label"], "blurb": spec["blurb"], "sides": list(spec["sides"])}
         for key, spec in ROLES.items()
     ]
+
+
+# ------------------------------------------------------------ roster churn ---
+def roster_eras(team: Team, match_maps: Iterable[MatchMap]) -> list[dict]:
+    """The team's lineups over time, in the order they were fielded.
+
+    A roster change is not announced in the data; it has to be read off the
+    demos. Maps are walked in match order and a new era begins whenever the
+    five-man differs from the one before it. Stand-ins produce a one-match era,
+    which is correct -- a stand-in *is* a different lineup.
+    """
+    maps = sorted(
+        (m for m in match_maps if m.match and m.match.played_at),
+        key=lambda m: (m.match.played_at, m.map_number),
+    )
+    if not maps:
+        return []
+
+    by_map: dict[int, set] = defaultdict(set)
+    names: dict[int, str] = {}
+    for row in db().scalars(
+        select(MapRoster)
+        .options(joinedload(MapRoster.player))
+        .where(MapRoster.match_map_id.in_([m.id for m in maps]), MapRoster.team_id == team.id)
+    ):
+        by_map[row.match_map_id].add(row.player_id)
+        names[row.player_id] = row.player.name
+
+    eras: list[dict] = []
+    for m in maps:
+        fielded = by_map.get(m.id)
+        if not fielded:
+            continue
+        if eras and eras[-1]["lineup"] == fielded:
+            eras[-1]["maps"].append(m)
+        else:
+            eras.append({"lineup": fielded, "maps": [m]})
+
+    out = []
+    for i, era in enumerate(eras):
+        prior = eras[i - 1]["lineup"] if i else set()
+        out.append(
+            {
+                "index": i,
+                "players": sorted(names[p] for p in era["lineup"]),
+                "player_ids": sorted(era["lineup"]),
+                "maps": len(era["maps"]),
+                "match_maps": era["maps"],
+                "from": era["maps"][0].match.played_at,
+                "to": era["maps"][-1].match.played_at,
+                "joined": sorted(names[p] for p in (era["lineup"] - prior)) if i else [],
+                "left": sorted(names[p] for p in (prior - era["lineup"])) if i else [],
+            }
+        )
+    return out
+
+
+def roster_change_report(
+    team: Team,
+    match_maps: Iterable[MatchMap],
+    baseline: dict[str, dict] | None = None,
+    cohorts: dict[tuple, dict] | None = None,
+    min_maps: int = 2,
+) -> dict:
+    """Did the change work -- in role terms, which is the only fair way to ask.
+
+    Compares the eras on role coverage (which jobs the old lineup filled that
+    the new one does not), like-for-like (each arrival against the departure
+    whose role he came closest to inheriting) and the lineup's mean fit. Eras
+    shorter than ``min_maps`` are reported but never used for a verdict.
+    """
+    match_maps = list(match_maps)
+    if baseline is None:
+        baseline = league_baseline(match_maps)
+    if cohorts is None:
+        cohorts = role_cohorts(match_maps, baseline)
+
+    eras = roster_eras(team, match_maps)
+    if not eras:
+        return {
+            "team": team.name,
+            "eras": [],
+            "changes": [],
+            "current": None,
+            "note": "No parsed maps in this window.",
+        }
+
+    rated = []
+    for era in eras:
+        picture = rate_team(team, era["match_maps"], baseline=baseline, cohorts=cohorts)
+        rated.append(
+            {
+                "era": era,
+                "picture": picture,
+                "by_name": {p["name"]: p for p in picture["players"]},
+                "mean_fit": _mean_or_none(
+                    [p["rating"] for p in picture["players"] if p["rating"] is not None]
+                ),
+            }
+        )
+
+    if len(eras) < 2:
+        return {
+            "team": team.name,
+            "eras": [_era_row(r) for r in rated],
+            "changes": [],
+            "current": rated[-1]["picture"],
+            "note": "Only one lineup appears in this sample — nothing to compare it against.",
+        }
+
+    changes = []
+    for i in range(1, len(rated)):
+        before, after = rated[i - 1], rated[i]
+        if not (before["era"]["joined"] or after["era"]["joined"] or after["era"]["left"]):
+            continue
+        changes.append(_compare_eras(before, after, cohorts, min_maps))
+
+    return {
+        "team": team.name,
+        "eras": [_era_row(r) for r in rated],
+        "changes": changes,
+        "current": rated[-1]["picture"],
+        "note": "",
+    }
+
+
+def _era_row(rated: dict) -> dict:
+    """One era, without the MatchMap objects and with its fit attached."""
+    era = rated["era"]
+    return {k: v for k, v in era.items() if k != "match_maps"} | {"mean_fit": rated["mean_fit"]}
+
+
+def _compare_eras(before: dict, after: dict, cohorts: dict[tuple, dict], min_maps: int) -> dict:
+    """One lineup change, read as a set of jobs gained and lost."""
+    left, joined = after["era"]["left"], after["era"]["joined"]
+
+    def role_map(entry):
+        out = {}
+        for p in entry["picture"]["players"]:
+            for side, verdict in p["roles"].items():
+                if verdict["role"]:
+                    out.setdefault((side, verdict["role"]), []).append(p["name"])
+        return out
+
+    before_roles, after_roles = role_map(before), role_map(after)
+
+    # A job can only be called vacant on a side the new lineup actually played
+    # enough of; and a job left by someone still in the side is drift, not departure.
+    after_rounds = _side_rounds(after["picture"])
+    still_here = set(after["by_name"])
+    lost_jobs, unverifiable, gained_jobs = [], [], []
+    for key in before_roles:
+        if key in after_roles:
+            continue
+        side, role = key
+        holders = before_roles[key]
+        remaining = [h for h in holders if h in still_here]
+        row = {
+            "side": side,
+            "role": role,
+            "label": ROLES[role]["label"],
+            "was": holders,
+            "after_rounds": after_rounds.get(side, 0),
+            "cause": "drift" if remaining else "departure",
+            "drifted": [
+                {"name": h, "now": after["by_name"][h]["roles"].get(side, {}).get("label")}
+                for h in remaining
+            ],
+        }
+        if after_rounds.get(side, 0) >= MIN_ROUNDS_FOR_ROLE:
+            lost_jobs.append(row)
+        else:
+            unverifiable.append(row)
+    for key in after_roles:
+        if key not in before_roles:
+            side, role = key
+            gained_jobs.append(
+                {"side": side, "role": role, "label": ROLES[role]["label"], "now": after_roles[key]}
+            )
+
+    # Match arrivals to departures, best role overlap first and each departure
+    # spent only once.
+    candidates = []
+    for newcomer in joined:
+        new_p = after["by_name"].get(newcomer)
+        if not new_p:
+            continue
+        for departed in left:
+            old_p = before["by_name"].get(departed)
+            if not old_p:
+                continue
+            overlap = sum(
+                1
+                for side in ("t", "ct")
+                if old_p["roles"].get(side, {}).get("role")
+                and old_p["roles"][side]["role"] == new_p["roles"].get(side, {}).get("role")
+            )
+            candidates.append((overlap, newcomer, departed))
+    candidates.sort(key=lambda c: -c[0])
+    taken_new, taken_old = set(), set()
+    matched: dict[str, tuple] = {}
+    for overlap, newcomer, departed in candidates:
+        if newcomer in taken_new or departed in taken_old:
+            continue
+        taken_new.add(newcomer)
+        taken_old.add(departed)
+        matched[newcomer] = (departed, overlap)
+    pairs = []
+    for newcomer in joined:
+        new_p = after["by_name"].get(newcomer)
+        if not new_p:
+            continue
+        departed, overlap = matched.get(newcomer, (None, 0))
+        old_p = before["by_name"].get(departed) if departed else None
+        pairs.append(_pair_verdict(new_p, old_p, overlap))
+
+    thin = after["era"]["maps"] < min_maps or before["era"]["maps"] < min_maps
+    return {
+        "from": before["era"]["players"],
+        "to": after["era"]["players"],
+        "at": after["era"]["from"].isoformat() if after["era"]["from"] else None,
+        "left": left,
+        "joined": joined,
+        "maps_before": before["era"]["maps"],
+        "maps_after": after["era"]["maps"],
+        "mean_fit_before": before["mean_fit"],
+        "mean_fit_after": after["mean_fit"],
+        "fit_delta": (
+            round(after["mean_fit"] - before["mean_fit"], 2)
+            if before["mean_fit"] is not None and after["mean_fit"] is not None
+            else None
+        ),
+        "jobs_lost": lost_jobs,
+        "jobs_unverifiable": unverifiable,
+        "jobs_gained": gained_jobs,
+        "pairs": pairs,
+        "thin": thin,
+        "verdict": _change_verdict(
+            lost_jobs, unverifiable, pairs, before["mean_fit"], after["mean_fit"], thin
+        ),
+    }
+
+
+def _pair_verdict(new_p: dict, old_p: dict | None, overlap: int) -> dict:
+    """One arrival against the man whose job he took."""
+    row = {
+        "joined": new_p["name"],
+        "replaced": old_p["name"] if old_p else None,
+        "role_overlap_sides": overlap if overlap > 0 else 0,
+        "new_roles": {s: v["label"] for s, v in new_p["roles"].items() if v["role"]},
+        "old_roles": (
+            {s: v["label"] for s, v in old_p["roles"].items() if v["role"]} if old_p else {}
+        ),
+        "new_rating": new_p["rating"],
+        "old_rating": old_p["rating"] if old_p else None,
+        "sides": [],
+    }
+    if old_p:
+        for side in ("t", "ct"):
+            nf, of = new_p["fit"].get(side), old_p["fit"].get(side)
+            if not nf or not of or nf.get("score") is None or of.get("score") is None:
+                continue
+            same_role = new_p["roles"][side]["role"] == old_p["roles"][side]["role"]
+            row["sides"].append(
+                {
+                    "side": side,
+                    "new_role": new_p["roles"][side]["label"],
+                    "old_role": old_p["roles"][side]["label"],
+                    "same_role": same_role,
+                    "new_score": nf["score"],
+                    "old_score": of["score"],
+                    "delta": round(nf["score"] - of["score"], 2),
+                    # Only comparable inside one cohort.
+                    "comparable": same_role,
+                }
+            )
+    if row["new_rating"] is not None and row["old_rating"] is not None:
+        row["rating_delta"] = round(row["new_rating"] - row["old_rating"], 2)
+    else:
+        row["rating_delta"] = None
+    return row
+
+
+def _change_verdict(lost_jobs, unverifiable, pairs, before_fit, after_fit, thin) -> str:
+    """The sentence a coach reads first.
+
+    A rating delta between two men in *different* roles is two numbers from two
+    cohorts, so it is worded as a change of role, never as an upgrade.
+    """
+    bits = []
+    departures = [j for j in lost_jobs if j["cause"] == "departure"]
+    drifts = [j for j in lost_jobs if j["cause"] == "drift"]
+    if departures:
+        jobs = ", ".join(f"{j['label']} on {j['side'].upper()}" for j in departures)
+        bits.append(f"no one now fills: {jobs}")
+    for job in drifts:
+        who = ", ".join(
+            f"{d['name']} now reads as {d['now'].lower()}"
+            if d["now"]
+            else f"{d['name']} is now unclassified"
+            for d in job["drifted"]
+        )
+        bits.append(
+            f"{job['label']} on {job['side'].upper()} is no longer covered — "
+            f"not because anyone left, but because {who}"
+        )
+    for p in pairs:
+        delta = p["rating_delta"]
+        if delta is None or abs(delta) <= 0.2:
+            continue
+        if any(s["comparable"] for s in p["sides"]):
+            bits.append(f"{p['joined']} rates {delta:+.2f} on {p['replaced']}")
+        else:
+            bits.append(
+                f"{p['joined']} took a different job from {p['replaced']} "
+                f"({_role_phrase(p['old_roles'])} → {_role_phrase(p['new_roles'])}), "
+                f"and rates {delta:+.2f} in it"
+            )
+    if before_fit is not None and after_fit is not None:
+        bits.append(f"lineup fit {before_fit:+.2f} → {after_fit:+.2f}")
+    if not bits:
+        return "No measurable change in role coverage or fit."
+    sentence = "; ".join(bits) + "."
+    if unverifiable:
+        jobs = ", ".join(f"{j['label']} on {j['side'].upper()}" for j in unverifiable)
+        sentence += (
+            f" Cannot tell whether the new lineup still fills {jobs} — "
+            "too few rounds on that side since the change."
+        )
+    if thin:
+        sentence += " Too few maps on one side of the change to trust this."
+    return sentence
+
+
+def _side_rounds(picture: dict) -> dict[str, int]:
+    """Rounds the lineup actually played on each side, for sample guards."""
+    out: dict[str, int] = defaultdict(int)
+    for player in picture["players"]:
+        for side, bucket in player["sides"].items():
+            out[side] = max(out[side], bucket.get("rounds", 0))
+    return dict(out)
+
+
+# ------------------------------------------------------------ report entry ---
+def build_role_report(
+    my_team: Team,
+    opponent: Team,
+    my_maps: Iterable[MatchMap],
+    opp_maps: Iterable[MatchMap],
+    pool: Iterable[MatchMap] | None = None,
+) -> dict:
+    """The role section of a scouting report, for both teams at once.
+
+    The baseline and the cohorts are built once from every parsed map and then
+    shared: two teams scored against two different baselines cannot be put on
+    the same page. ``pool`` defaults to every parsed map, because a five-man
+    pool makes the top man an "entry fragger" by construction.
+    """
+    my_maps, opp_maps = list(my_maps), list(opp_maps)
+    if pool is None:
+        pool = list(
+            db()
+            .scalars(
+                select(MatchMap)
+                .where(MatchMap.parsed_at.is_not(None))
+                .options(joinedload(MatchMap.match), joinedload(MatchMap.game_map))
+            )
+            .unique()
+        )
+    else:
+        pool = list(pool)
+    if not pool:
+        return {"available": False, "note": "No parsed maps, so no roles could be read."}
+
+    baseline = league_baseline(pool)
+    cohorts = role_cohorts(pool, baseline)
+
+    section = {"available": True, "pool_maps": len(pool), "roles": role_glossary()}
+    for key, team, maps in (("my_team", my_team, my_maps), ("opponent", opponent, opp_maps)):
+        if not maps:
+            section[key] = {
+                "team": team.name,
+                "available": False,
+                "note": f"No parsed maps for {team.name}.",
+            }
+            continue
+        picture = rate_team(team, maps, baseline=baseline, cohorts=cohorts)
+        section[key] = {
+            "team": team.name,
+            "available": True,
+            "maps": len(maps),
+            "players": [_slim_player(p) for p in picture["players"]],
+            "coverage": picture["coverage"],
+            "current_lineup": picture["current_lineup"],
+            "best": [p["name"] for p in picture["best"]],
+            "worst": [p["name"] for p in picture["worst"]],
+            "changes": roster_change_report(team, maps, baseline=baseline, cohorts=cohorts)[
+                "changes"
+            ],
+            "moves": role_moves(picture, baseline),
+            "leaks": position_leaks(team, maps),
+            "routes": route_advice(team, maps),
+        }
+    return section
+
+
+def _slim_player(player: dict) -> dict:
+    """A player row trimmed to what a reader needs."""
+    sides = {}
+    for side, verdict in player["roles"].items():
+        bucket = player["sides"][side]
+        fit = player.get("fit", {}).get(side) or {}
+        sides[side] = {
+            "role": verdict["role"],
+            "label": verdict["label"],
+            "confidence": verdict["confidence"],
+            "rounds": bucket["rounds"],
+            "evidence": verdict["evidence"],
+            "runner_up": verdict["runner_up"],
+            "fit_score": fit.get("score"),
+            "fit_verdict": fit.get("verdict"),
+            "cohort_size": fit.get("cohort_size"),
+            "kpis": fit.get("kpis", []),
+            "weakest": fit.get("weakest"),
+            "strongest": fit.get("strongest"),
+        }
+    return {
+        "player_id": player["player_id"],
+        "name": player["name"],
+        "rating": player["rating"],
+        "rounds": player["overall"]["rounds"],
+        "adr": player["overall"]["adr"],
+        "kd_ratio": player["overall"]["kd_ratio"],
+        "in_current_lineup": player.get("in_current_lineup", True),
+        "summary": player["summary"],
+        "sides": sides,
+    }

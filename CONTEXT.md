@@ -150,3 +150,9 @@ _Avoid_: Own form (that's the numbers, not the habits)
 **Setup**:
 Where a Team's Players stand 20 seconds after buy time ends, on one Side of one Map: each Player's Callout, and how many lean toward A, mid and B (such as 2-1-2). On CT it is how they hold; on T it is their default.
 _Avoid_: Formation, position (in prose)
+
+## Asking
+
+**Assistant**:
+A chat, typed or spoken, that answers a User's questions about Teams, Maps and Fixtures. It states only what it read from the same parsed analysis the pages show, with how much data each answer rests on. It knows which page it was opened from: on a Game Plan it answers about that Fixture and its Lineups, on a Team page about that Team. It can answer aloud. A conversation lives only in the User's browser tab and is never stored.
+_Avoid_: Bot, chatbot, AI (in prose), Ask (that is the button)

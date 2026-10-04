@@ -428,6 +428,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/assistant/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Config
+         * @description Which halves are set up, so the page can hide what wouldn't work.
+         */
+        get: operations["config_assistant_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat
+         * @description One question, answered paragraph by paragraph as Claude writes it.
+         */
+        post: operations["chat_assistant_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assistant/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transcribe
+         * @description A recorded question as text (ElevenLabs Scribe, Mongolian, primed with team names).
+         */
+        post: operations["transcribe_assistant_transcribe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -480,6 +540,72 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** AssistantChat */
+        AssistantChat: {
+            /** Message */
+            message: string;
+            /**
+             * History
+             * @description Earlier turns as plain text, oldest first.
+             */
+            history?: components["schemas"]["AssistantTurn"][];
+            context?: components["schemas"]["AssistantContext"] | null;
+            /**
+             * Voice
+             * @description Speak each paragraph (base64 MP3 in the event).
+             * @default true
+             */
+            voice: boolean;
+        };
+        /** AssistantConfig */
+        AssistantConfig: {
+            /**
+             * Configured
+             * @description Claude is set up: the chat can answer.
+             */
+            configured: boolean;
+            /**
+             * Voice
+             * @description ElevenLabs is set up: answers are spoken, the mic works.
+             */
+            voice: boolean;
+        };
+        /**
+         * AssistantContext
+         * @description The page the Assistant was opened from. Unknown ids are ignored, not trusted.
+         */
+        AssistantContext: {
+            /** Mine */
+            mine?: number | null;
+            /** Theirs */
+            theirs?: number | null;
+            /**
+             * My Lineup
+             * @description Steam ids, at most five.
+             */
+            my_lineup?: string[];
+            /**
+             * Their Lineup
+             * @description Steam ids, at most five.
+             */
+            their_lineup?: string[];
+            /** Team */
+            team?: number | null;
+            /** Match */
+            match?: number | null;
+        };
+        /** AssistantTranscript */
+        AssistantTranscript: {
+            /** Text */
+            text: string;
+        };
+        /** AssistantTurn */
+        AssistantTurn: {
+            /** Role */
+            role: string;
+            /** Content */
+            content: string;
+        };
         /** Body_login_auth_token_post */
         Body_login_auth_token_post: {
             /** Grant Type */
@@ -503,6 +629,11 @@ export interface components {
              * Format: password
              */
             client_secret?: string | null;
+        };
+        /** Body_transcribe_assistant_transcribe_post */
+        Body_transcribe_assistant_transcribe_post: {
+            /** Audio */
+            audio: string;
         };
         /** BrokerState */
         BrokerState: {
@@ -1874,6 +2005,92 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    config_assistant_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConfig"];
+                };
+            };
+        };
+    };
+    chat_assistant_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistantChat"];
+            };
+        };
+        responses: {
+            /** @description Server-Sent Events: `status`, `paragraph` (`id`, `text`), `audio` (`id`, base64 MP3), `error`, then `done`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transcribe_assistant_transcribe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_transcribe_assistant_transcribe_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantTranscript"];
                 };
             };
             /** @description Validation Error */

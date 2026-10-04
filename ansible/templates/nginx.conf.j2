@@ -60,7 +60,8 @@ server {
 }
 
 {{ head(api_domain) }}
-    client_max_body_size 1m;
+    # A spoken question for the Assistant is uploaded whole (the API caps it at 10 MB).
+    client_max_body_size 10m;
 
     location / {
         proxy_pass http://127.0.0.1:{{ api_port }};

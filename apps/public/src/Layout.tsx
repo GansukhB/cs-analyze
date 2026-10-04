@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { NavLink, Outlet } from 'react-router'
 import { $api } from './api/client'
+import Assistant from './assistant/Assistant'
 import { tokenStore } from './auth/token'
 
 const link = ({ isActive }: { isActive: boolean }) =>
@@ -45,6 +46,7 @@ export default function Layout() {
       <main className="mx-auto max-w-5xl px-4 py-8">
         <Outlet />
       </main>
+      <Assistant />
     </>
   )
 }

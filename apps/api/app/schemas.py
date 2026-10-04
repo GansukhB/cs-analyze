@@ -510,3 +510,38 @@ class GameplanPanel(BaseModel):
     cached: bool
     ms: float
     data: dict[str, Any]
+
+
+# -- the Assistant -----------------------------------------------------------------
+class AssistantConfig(BaseModel):
+    configured: bool = Field(description="Claude is set up: the chat can answer.")
+    voice: bool = Field(description="ElevenLabs is set up: answers are spoken, the mic works.")
+
+
+class AssistantTurn(BaseModel):
+    role: str
+    content: str
+
+
+class AssistantContext(BaseModel):
+    """The page the Assistant was opened from. Unknown ids are ignored, not trusted."""
+
+    mine: int | None = None
+    theirs: int | None = None
+    my_lineup: list[str] = Field(default_factory=list, description="Steam ids, at most five.")
+    their_lineup: list[str] = Field(default_factory=list, description="Steam ids, at most five.")
+    team: int | None = None
+    match: int | None = None
+
+
+class AssistantChat(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    history: list[AssistantTurn] = Field(
+        default_factory=list, description="Earlier turns as plain text, oldest first."
+    )
+    context: AssistantContext | None = None
+    voice: bool = Field(True, description="Speak each paragraph (base64 MP3 in the event).")
+
+
+class AssistantTranscript(BaseModel):
+    text: str

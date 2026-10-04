@@ -644,3 +644,35 @@ def _pool_advice(rated, thin, unseen) -> list[str]:
 
 def _pct(numerator, denominator, nd: int = 1) -> float:
     return round(numerator / denominator * 100, nd) if denominator else 0.0
+
+
+# ------------------------------------------------------------ report entry ---
+def build_map_report(my_team: Team, opponent: Team, *, since=None, until=None) -> dict:
+    """The map section of a scouting report: both teams, plus the fixture.
+
+    Three views, because they answer different questions. Each team's own map
+    pool says what they are good at; the head-to-head slice says what has
+    actually happened when these two meet, which is often a different story and
+    always a smaller sample; and the veto block turns the first into a decision.
+    """
+    out = {
+        "available": True,
+        "window": {
+            "since": since.isoformat() if since else None,
+            "until": until.isoformat() if until else None,
+        },
+        "bombsite_health": bombsite_health(),
+        "plant_baselines": plant_baselines(),
+    }
+    for key, team, other in (("my_team", my_team, opponent), ("opponent", opponent, my_team)):
+        profiles = map_profiles(team, since=since, until=until)
+        h2h = map_profiles(team, since=since, until=until, opponent=other)
+        out[key] = {
+            "team": team.name,
+            "profiles": profiles,
+            "pool": map_pool(team, profiles=profiles),
+            "head_to_head": h2h,
+            "maps": len(profiles),
+        }
+    out["available"] = bool(out["my_team"]["profiles"] or out["opponent"]["profiles"])
+    return out

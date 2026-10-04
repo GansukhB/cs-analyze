@@ -1734,3 +1734,32 @@ def playbook_player(p: dict) -> dict:
         "lines": lines,
         "duels": ("h2h-д манайх (хожсон–алдсан): " + ", ".join(duels)) if duels else "",
     }
+
+
+# ----------------------------------------------------------------- Assistant --
+# Туслах (app.services.assistant): хэрэгсэл ажиллаж байх үеийн төлөв, тогтмол хариунууд.
+ASSISTANT_TOOL = {
+    "list_teams": "Баг хайж байна",
+    "team_overview": "Багийн үзүүлэлтийг уншиж байна",
+    "map_strategy": "Мапын стратеги уншиж байна",
+    "role_report": "Тоглогчдын үүргийг уншиж байна",
+    "scouting_report": "Скаутын тайлан гаргаж байна",
+    "gameplan_section": "Game Plan-ыг уншиж байна",
+}
+ASSISTANT_NOT_CONFIGURED = (
+    "Туслах энэ сервер дээр тохируулагдаагүй байна (CLAUDE_API_KEY алга). Админд хандана уу."
+)
+ASSISTANT_TOO_MANY_LOOKUPS = (
+    "Энэ асуулт нэг удаад зөвшөөрөгдсөнөөс олон хайлт шаардлаа. "
+    "Нэг баг эсвэл нэг мапаар нарийсгаад дахин асууна уу."
+)
+ASSISTANT_NOTHING = "Энэ асуултад хэлэх зүйл олдсонгүй."
+ASSISTANT_REFUSED = "Энэ асуултад хариулж чадахгүй нь. Өөрөөр асууж үзнэ үү."
+ASSISTANT_FAILED = "Туслах алдаа гаргалаа. Дахин оролдоно уу."
+
+
+def assistant_status(tool: str, names: list[str], extra: str = "") -> str:
+    """Хэрэгсэл ажиллаж байх үеийн нэг мөр: «Мапын стратеги уншиж байна — Vitality, MOUZ…»."""
+    label = ASSISTANT_TOOL.get(tool, tool)
+    bits = ", ".join([*names, *([extra] if extra else [])])
+    return f"{label} — {bits}…" if bits else f"{label}…"

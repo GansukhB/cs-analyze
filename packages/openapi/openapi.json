@@ -1294,6 +1294,123 @@
         }
       }
     },
+    "/assistant/config": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Config",
+        "description": "Which halves are set up, so the page can hide what wouldn't work.",
+        "operationId": "config_assistant_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantConfig"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/assistant/chat": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Chat",
+        "description": "One question, answered paragraph by paragraph as Claude writes it.",
+        "operationId": "chat_assistant_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantChat"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Server-Sent Events: `status`, `paragraph` (`id`, `text`), `audio` (`id`, base64 MP3), `error`, then `done`.",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/assistant/transcribe": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Transcribe",
+        "description": "A recorded question as text (ElevenLabs Scribe, Mongolian, primed with team names).",
+        "operationId": "transcribe_assistant_transcribe_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_transcribe_assistant_transcribe_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantTranscript"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -1444,6 +1561,163 @@
         "title": "Activity",
         "description": "What the current step is doing right now; empty when nothing is."
       },
+      "AssistantChat": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantTurn"
+            },
+            "type": "array",
+            "title": "History",
+            "description": "Earlier turns as plain text, oldest first."
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "voice": {
+            "type": "boolean",
+            "title": "Voice",
+            "description": "Speak each paragraph (base64 MP3 in the event).",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "AssistantChat"
+      },
+      "AssistantConfig": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "description": "Claude is set up: the chat can answer."
+          },
+          "voice": {
+            "type": "boolean",
+            "title": "Voice",
+            "description": "ElevenLabs is set up: answers are spoken, the mic works."
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured",
+          "voice"
+        ],
+        "title": "AssistantConfig"
+      },
+      "AssistantContext": {
+        "properties": {
+          "mine": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mine"
+          },
+          "theirs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theirs"
+          },
+          "my_lineup": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "My Lineup",
+            "description": "Steam ids, at most five."
+          },
+          "their_lineup": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Their Lineup",
+            "description": "Steam ids, at most five."
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "match": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match"
+          }
+        },
+        "type": "object",
+        "title": "AssistantContext",
+        "description": "The page the Assistant was opened from. Unknown ids are ignored, not trusted."
+      },
+      "AssistantTranscript": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "AssistantTranscript"
+      },
+      "AssistantTurn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "AssistantTurn"
+      },
       "Body_login_auth_token_post": {
         "properties": {
           "grant_type": {
@@ -1502,6 +1776,20 @@
           "password"
         ],
         "title": "Body_login_auth_token_post"
+      },
+      "Body_transcribe_assistant_transcribe_post": {
+        "properties": {
+          "audio": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Audio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audio"
+        ],
+        "title": "Body_transcribe_assistant_transcribe_post"
       },
       "BrokerState": {
         "properties": {
