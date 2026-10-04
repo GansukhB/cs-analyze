@@ -59,7 +59,9 @@ class Settings(BaseSettings):
     claude_max_history_turns: int = 12
     elevenlabs_api_key: SecretStr = SecretStr("")
     elevenlabs_voice_id: str = ""
-    elevenlabs_model: str = "eleven_v3"
+    # v4 is the first generation that supports Mongolian; turbo speaks about twice
+    # as fast as v4 (1.4 s vs 3 s a paragraph) for nearly the same clarity.
+    elevenlabs_model: str = "eleven_v4_turbo"
     elevenlabs_stt_model: str = "scribe_v2"
     # The Assistant's Users speak Mongolian; pinned so a short question isn't read as Russian.
     elevenlabs_stt_language: str = "mon"
