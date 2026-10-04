@@ -70,24 +70,22 @@
 .rp .rp-nm { font-size: 12.5px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden;
              text-overflow: ellipsis; white-space: nowrap; transition: color .15s linear; }
 .rp .rp-roster.t .rp-nm { text-align: right; }
-.rp .rp-gun { font-size: 12px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+.rp .rp-gun { font-size: 12px; font-weight: 600; color: var(--ink-3); white-space: nowrap;
+              display: inline-flex; opacity: .5; }
+/* CS2's equipment icons are white; the ones not in hand are dimmed. */
+.rp .gi { display: block; height: 12px; width: auto; }
+.rp .rp-gun .gi { height: 15px; }
 .rp .rp-l2 { margin-top: 3px; font-size: 10.5px; color: var(--ink-2); gap: 9px; }
 .rp .rp-armor { display: inline-flex; align-items: center; gap: 3px; color: var(--ink-2); }
 .rp .rp-armor.none { opacity: .35; }
 .rp .rp-armor em { font-style: normal; font-variant-numeric: tabular-nums; }
-.rp .rp-l2 svg { width: 12px; height: 12px; fill: currentColor; display: block; }
 .rp .rp-money { color: var(--good); font-variant-numeric: tabular-nums; }
 .rp .rp-rest { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-wrap: wrap; }
 .rp .rp-roster.t .rp-rest { margin-left: 0; margin-right: auto; flex-direction: row-reverse; }
-.rp .rp-side { color: var(--ink-3); }
-.rp .rp-nade { width: 13px; height: 13px; border-radius: 3px; color: #0d1116; font-size: 9px;
-               font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
-               opacity: .7; }
-.rp .rp-icon { color: var(--ink-3); display: inline-flex; }
-.rp .rp-icon.kit { color: var(--ct); }
+.rp .rp-side, .rp .rp-nade, .rp .rp-icon { color: var(--ink-3); display: inline-flex; opacity: .5; }
+.rp .rp-icon.kit { opacity: .8; }
 /* The Held weapon, wherever it sits in the row. */
-.rp .rp-gun.on, .rp .rp-side.on, .rp .rp-icon.on { color: var(--ink); }
-.rp .rp-nade.on { opacity: 1; box-shadow: 0 0 0 1.5px var(--ink); }
+.rp .rp-gun.on, .rp .rp-side.on, .rp .rp-nade.on, .rp .rp-icon.on { color: var(--ink); opacity: 1; }
 /* A dead player keeps only the name, dimmed like the dot on the map. */
 .rp .rp-pl.dead { opacity: .42; }
 .rp .rp-pl.dead .rp-l2, .rp .rp-pl.dead .rp-gun, .rp .rp-pl.dead .rp-fill { display: none; }
@@ -187,3 +185,8 @@
 .rp .rounds .r.t { border-color: rgba(211, 154, 85, .45); color: var(--t); }
 .rp .rounds .r.on { background: var(--raised); color: var(--ink); border-width: 2px; }
 .rp .rounds .brk { width: 1px; background: var(--line); margin: 0 6px; }
+
+/* The kill feed's gun and how the kill happened, as the game draws them. */
+.rp .feed .row .how { display: inline-flex; align-items: center; gap: 4px; margin: 0 7px;
+                      vertical-align: -2px; }
+.rp .feed .row .gi { display: inline-block; height: 13px; opacity: .85; vertical-align: -2px; }

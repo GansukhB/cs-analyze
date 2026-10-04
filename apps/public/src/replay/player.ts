@@ -7,6 +7,8 @@
  * calls `mountReplay`, which wires everything up and returns a teardown.
  */
 
+import { canvasIcon, equipmentUrl, iconEl, iconHtml, KILL_ICONS } from './icons'
+
 export interface Label {
   name: string
   x: number
@@ -117,22 +119,8 @@ interface Chip {
   shown?: string
 }
 
-// Small inline icons, drawn in currentColor.
-const ICONS = {
-  armor:
-    '<svg viewBox="0 0 16 16"><path d="M8 1 2.5 3v4.2C2.5 10.9 4.8 13.6 8 15c3.2-1.4 5.5-4.1 5.5-7.8V3z"/></svg>',
-  helmet:
-    '<svg viewBox="0 0 16 16"><path d="M2 10.5C2 6.4 4.7 3 8.3 3 11.8 3 14 5.7 14 9v1.5H9.5V13H3.2L2 11.6z"/></svg>',
-  kit:
-    '<svg viewBox="0 0 16 16"><path d="M3 4h10v8H3z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 2h5v2h-5zM7 6.5h2V9H7z"/></svg>',
-  c4: '<svg viewBox="0 0 16 16"><path d="M2 4h12v9H2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 6.5h4v1.6h-4zM4.5 9.3h4v1.6h-4z"/><circle cx="11.3" cy="8.5" r="1.4" fill="#cf6a56"/></svg>',
-}
-
-// A grenade's tag: the letter, on the colour the map draws its utility in.
-const NADE_TAG: Record<string, [string, string]> = {
-  flash: ['F', '#e8e0a0'], smoke: ['S', '#c8d2dc'], HE: ['H', '#cf6a56'],
-  molotov: ['M', '#e0854a'], incendiary: ['I', '#e0854a'], decoy: ['D', '#8fa0b0'],
-}
+// The Loadout's grenade labels.
+const NADES = new Set(['flash', 'smoke', 'HE', 'molotov', 'incendiary', 'decoy'])
 const PISTOLS = new Set(['Glock', 'USP-S', 'P2000', 'P250', 'Five-SeveN', 'Tec-9', 'CZ', 'Deagle', 'Duals', 'R8'])
 
 // The last change at or before frame `f` of a change list.
@@ -173,6 +161,9 @@ const NADE_COLOUR: Record<string, string> = {
 // round's clock: a third of live frames on Nuke have players on both floors.
 const AUTO_DWELL = 1.0
 const TRAIL_FRAMES = 24 // three seconds at 8 Hz
+// The Held weapon's icon beside a name on the map, in plate pixels.
+const ICON_H = 11
+const ICON_GAP = 5
 // cstat dims and desaturates the overview so the dots read over it; here a veil
 // over the drawn radar does the dimming.
 const RADAR_VEIL = 'rgba(13, 17, 22, .32)'
@@ -483,11 +474,21 @@ export function mountReplay(
         a.textContent = e.who || 'world'
         const w = document.createElement('span')
         w.className = 'w'
-        // A damage row carries the number and what it left: 12 and 89 damage
-        // are different rounds.
-        w.textContent = e.kind === 'kill'
-          ? ` [${gun(e.weapon)}${e.hs ? ' hs' : ''}] `
-          : ` ${e.dmg} [${gun(e.weapon)}${hit(e.hit) ? ' ' + hit(e.hit) : ''}] `
+        // A kill reads like the game's: the gun, then how (through a wall or a
+        // smoke, blind, headshot). A damage row carries the number and what it
+        // left: 12 and 89 damage are different rounds.
+        const url = equipmentUrl(e.weapon)
+        const weapon = url ? iconEl(url, gun(e.weapon)) : document.createTextNode(gun(e.weapon))
+        if (e.kind === 'kill') {
+          w.className = 'w how'
+          w.append(weapon)
+          for (const [flag, label] of [['wall', 'through a wall'], ['smoke', 'through smoke'],
+            ['blind', 'while blind'], ['hs', 'headshot']] as const) {
+            if (e[flag]) w.append(iconEl(KILL_ICONS[flag], label))
+          }
+        } else {
+          w.append(` ${e.dmg} [`, weapon, `${hit(e.hit) ? ' ' + hit(e.hit) : ''}] `)
+        }
         const v = document.createElement('span')
         v.className = e.side === 'ct' ? 't' : 'ct'
         v.textContent = e.whom || ''
@@ -587,9 +588,9 @@ export function mountReplay(
     chip.el.classList.toggle('low', hp <= 25)
     if (!chip.gun || !chip.kit) return
 
-    const guns = inv.filter((item) => !(item in NADE_TAG) && item !== 'C4' && item !== 'zeus')
+    const guns = inv.filter((item) => !NADES.has(item) && item !== 'C4' && item !== 'zeus')
     const main = guns.find((g) => !PISTOLS.has(g)) || guns[0] || ''
-    chip.gun.textContent = main
+    chip.gun.innerHTML = main ? iconHtml(main) : ''
     chip.gun.classList.toggle('on', !!main && main === held)
 
     const [, armor, helmet, kit, money] = gear || [0, 0, 0, 0, 0]
@@ -602,22 +603,17 @@ export function mountReplay(
       parts.push(el)
       return el
     }
-    add(`rp-armor${armor ? '' : ' none'}`, (helmet ? ICONS.helmet : ICONS.armor) + `<em>${armor}</em>`, false,
-      helmet ? 'armor + helmet' : 'armor')
+    add(`rp-armor${armor ? '' : ' none'}`,
+      iconHtml(helmet ? 'armor_helmet' : 'armor', helmet ? 'armor + helmet' : 'armor') + `<em>${armor}</em>`)
     add('rp-money', `$${money.toLocaleString('en-US')}`)
     const rest = document.createElement('span')
     rest.className = 'rp-rest'
-    for (const g of guns) if (g !== main) add('rp-side', g, g === held)
-    if (held === 'knife') add('rp-side', 'knife', true)
-    for (const item of inv) {
-      const tag = NADE_TAG[item]
-      if (!tag) continue
-      const el = add('rp-nade', tag[0], item === held, item)
-      el.style.background = tag[1]
-    }
-    if (inv.includes('zeus')) add('rp-side', 'zeus', held === 'zeus')
-    if (inv.includes('C4')) add('rp-icon c4', ICONS.c4, held === 'C4', 'bomb')
-    if (kit) add('rp-icon kit', ICONS.kit, false, 'defuse kit')
+    for (const g of guns) if (g !== main) add('rp-side', iconHtml(g), g === held)
+    if (held === 'knife') add('rp-side', iconHtml('knife'), true)
+    for (const item of inv) if (NADES.has(item)) add('rp-nade', iconHtml(item), item === held)
+    if (inv.includes('zeus')) add('rp-side', iconHtml('zeus'), held === 'zeus')
+    if (inv.includes('C4')) add('rp-icon c4', iconHtml('C4', 'bomb'), held === 'C4')
+    if (kit) add('rp-icon kit', iconHtml('defuser', 'defuse kit'))
     rest.append(...parts.splice(2))
     chip.kit.replaceChildren(...parts, rest)
   }
@@ -1006,14 +1002,19 @@ export function mountReplay(
 
       if (state.names) {
         const held = heldAt(p, Math.floor(f), t)
+        const icon = held ? canvasIcon(held, draw) : null
         ctx.font = '600 11.5px ui-monospace, Menlo, monospace'
-        ctx.textAlign = 'center'
+        ctx.textAlign = 'left'
         ctx.fillStyle = 'rgba(13, 17, 22, .72)'
-        const text = p.name + (held ? ' · ' + held : '') + (blind > 0 ? ' ✦' : '')
-        const w = ctx.measureText(text).width
+        // The Held weapon's icon after the name; its name while it has none.
+        const text = p.name + (held && !icon ? ' · ' + held : '') + (blind > 0 ? ' ✦' : '')
+        const tw = ctx.measureText(text).width
+        const iw = icon ? (icon.naturalWidth / icon.naturalHeight) * ICON_H : 0
+        const w = tw + (icon ? ICON_GAP + iw : 0)
         ctx.fillRect(x - w / 2 - 3, y - 24, w + 6, 14)
         ctx.fillStyle = dotColour
-        ctx.fillText(text, x, y - 13)
+        ctx.fillText(text, x - w / 2, y - 13)
+        if (icon) ctx.drawImage(icon, x - w / 2 + tw + ICON_GAP, y - 22.5, iw, ICON_H)
       }
       ctx.restore()
     })
