@@ -790,10 +790,9 @@ def matchups(opponent: Team, my_team: Team, rounds: list[_Round], detail: _Detai
                 "duels": duels.get(player, []),
             }
         )
-    # Only their Lineup, when one was picked: a man who will not play is no matchup.
-    picked = lineup.chosen(opponent)
-    if picked is not None:
-        out = [p for p in out if p["player_id"] in {x.id for x in picked}]
+    # Only their Lineup: a man who will not play is no matchup.
+    fielded = lineup.fielded(opponent)
+    out = [p for p in out if p["player_id"] in fielded]
     out.sort(key=lambda p: -sum(s["rounds"] for s in p["sides"].values()))
     return out
 
@@ -824,6 +823,9 @@ def _h2h_duels(opponent: Team, my_team: Team) -> dict[int, list[dict]]:
             pairs[(killer, victim)][0] += int(kills or 0)
         else:
             pairs[(victim, killer)][1] += int(kills or 0)
+    # Only our Lineup answers their man.
+    fielded = lineup.fielded(my_team)
+    pairs = {(t, o): kd for (t, o), kd in pairs.items() if o in fielded}
     ours = {o for _t, o in pairs}
     names = dict(
         db().execute(select(Player.id, Player.name).where(Player.id.in_(list(ours)))).all()
@@ -864,6 +866,12 @@ def maps(board: list[dict]) -> list[dict]:
     return out
 
 
+def _fielded_only(team: Team, habits: list[dict]) -> list[dict]:
+    """Drop a usual-spot habit of anyone outside the Team's Lineup; it will not be there."""
+    fielded = lineup.fielded(team)
+    return [h for h in habits if h["kind"] != "spot" or h["player_id"] in fielded]
+
+
 def build(my_team: Team, opponent: Team, map_name: str) -> dict:
     """One Map's Playbook, structured: what they do, what we do, and the evidence."""
     theirs = _team_rounds(opponent, my_team, map_name)
@@ -885,12 +893,13 @@ def build(my_team: Team, opponent: Team, map_name: str) -> dict:
         "sites_known": "A" in sites and "B" in sites,
         "sample": {"theirs": sample(opponent, theirs), "mine": sample(my_team, mine)},
         # Their T side is what my CT plan answers, and their CT side my T plan.
-        "their_t": side_habits(opponent.id, theirs, "t", detail, sites),
-        "their_ct": side_habits(opponent.id, theirs, "ct", detail, sites),
+        "their_t": _fielded_only(opponent, side_habits(opponent.id, theirs, "t", detail, sites)),
+        "their_ct": _fielded_only(opponent, side_habits(opponent.id, theirs, "ct", detail, sites)),
         "pistols": pistols(opponent.id, theirs, detail, sites),
         "economy": economy(opponent.id, all_theirs),
         "matchups": matchups(opponent, my_team, theirs, detail),
         "self_scout": {
-            side: side_habits(my_team.id, mine, side, detail, sites) for side in ("t", "ct")
+            side: _fielded_only(my_team, side_habits(my_team.id, mine, side, detail, sites))
+            for side in ("t", "ct")
         },
     }

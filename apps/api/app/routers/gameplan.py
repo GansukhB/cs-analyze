@@ -164,7 +164,7 @@ def header(
     with dbctx.using(db), lineup.using(picked):
         stamp = gameplan_view.stamp()
         part = lineup.cache_part(my_five, their_five)
-        key = f"gp:v5:{my_team.id}:{opponent.id}{part}:header:{stamp}"
+        key = f"gp:v6:{my_team.id}:{opponent.id}{part}:header:{stamp}"
         cached = _cache_get(key)
         if cached is None:
             report = gameplan.build(my_team, opponent)
@@ -207,7 +207,7 @@ def panel(
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()
         part = lineup.cache_part(my_five, their_five)
-        key = f"gp:v5:{my_team.id}:{opponent.id}{part}:{tab}:{stamp}"
+        key = f"gp:v6:{my_team.id}:{opponent.id}{part}:{tab}:{stamp}"
         data = _cache_get(key)
         hit = data is not None
         if data is None:
@@ -248,7 +248,7 @@ def playbook(
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()
         part = lineup.cache_part(my_five, their_five)
-        key = f"gp:v5:{my_team.id}:{opponent.id}{part}:playbook:{map_name}:{stamp}"
+        key = f"gp:v6:{my_team.id}:{opponent.id}{part}:playbook:{map_name}:{stamp}"
         data = _cache_get(key)
         hit = data is not None
         if data is None:

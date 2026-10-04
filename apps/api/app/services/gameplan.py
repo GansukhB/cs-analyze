@@ -778,9 +778,15 @@ class Report(Mapping):
         return roster_continuity(self.my_team, self.opponent, self._h2h_maps())
 
     def _key_linchpins(self):
+        # Counted over every Match Map, but only the Lineup is named: a man who
+        # will not play is nobody to kill first or to protect.
         return {
-            "mine": linchpins(self.my_team, self._own_maps(self.my_team)),
-            "opponent": linchpins(self.opponent, self._own_maps(self.opponent)),
+            key: [
+                pin
+                for pin in linchpins(team, self._own_maps(team))
+                if pin["player_id"] in lineup.fielded(team)
+            ]
+            for key, team in (("mine", self.my_team), ("opponent", self.opponent))
         }
 
     def _key_man_advantage(self):

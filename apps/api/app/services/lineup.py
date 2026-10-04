@@ -54,6 +54,12 @@ def names(team: Team, inferred: Callable[[], set[str]]) -> set[str]:
     return {p.name for p in picked} if picked is not None else inferred()
 
 
+def fielded(team: Team) -> set[int]:
+    """The ids in this Team's Lineup: the picked Players, else :func:`latest_five`."""
+    picked = chosen(team)
+    return {p.id for p in (picked if picked is not None else latest_five(team))}
+
+
 def latest_five(team: Team) -> list[Player]:
     """The Players who played for this Team in its most recent parsed Match."""
 

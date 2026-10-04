@@ -20,7 +20,7 @@ from app.models import (
 )
 from app.models.base import utcnow
 from app.routers import gameplan as gameplan_router
-from app.services import dbctx, gameplan, heatmap_groups, mapstrategy
+from app.services import dbctx, gameplan, heatmap_groups, lineup, mapstrategy, playbook
 
 TABS = ["decision", "verdict", "metrics", "h2h", "maps", "players", "duels", "roles", "edge",
         "heatmaps", "movement", "todo"]  # fmt: skip
@@ -228,6 +228,23 @@ def test_a_picked_lineup_decides_whose_numbers_show(client, auth, league, memory
     assert duels["has_rows"]
     # Each pair of Lineups is its own cached panel.
     assert any(":L" in key and ":players:" in key for key in memory_cache)
+
+
+def test_only_the_lineup_is_named_to_kill_first_or_protect(db, league, monkeypatch):
+    a, b = league["a"], league["b"]
+    monkeypatch.setattr(gameplan, "MIN_EARLY_DEATHS", 1)  # one map outside the Fixture
+    alpha = league["players"][a.id]
+
+    def named(chosen):
+        with dbctx.using(db), lineup.using(chosen):
+            pins = gameplan.build(a, b)["linchpins"]["mine"]
+            duels = playbook._h2h_duels(b, a)
+        return {p["name"] for p in pins}, {d["player"] for rows in duels.values() for d in rows}
+
+    # Unpicked, the Lineup is the latest five: A0 and A1 both die early every round.
+    assert named({}) == ({"A0", "A1"}, {"A0", "A1"})
+    # A0 benched: still counted in the team's rounds, never named.
+    assert named({a.id: alpha[1:]}) == ({"A1"}, {"A1"})
 
 
 def test_lineup_guards(client, auth, league):
