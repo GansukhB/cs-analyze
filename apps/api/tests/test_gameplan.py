@@ -187,6 +187,62 @@ def test_fixture_guards(client, auth, league):
     assert client.get(f"/gameplan/{a}/vs/{b}").status_code == 401
 
 
+def test_lineup_candidates_and_search(client, auth, league):
+    a = league["a"]
+    body = client.get(f"/gameplan/teams/{a.id}/players", headers=auth).json()
+    assert {p["name"] for p in body["players"]} == {f"A{i}" for i in range(5)}
+    assert all(p["default"] and p["maps"] == 2 for p in body["players"])
+    found = client.get("/gameplan/players?q=b3", headers=auth).json()["players"]
+    assert [(p["name"], p["team"]) for p in found] == [("B3", "Bravo")]
+    assert client.get("/gameplan/players?q=b", headers=auth).status_code == 422
+
+
+def test_a_picked_lineup_decides_whose_numbers_show(client, auth, league, memory_cache):
+    a, b, c = league["a"], league["b"], league["c"]
+    alpha, bravo, charlie = (league["players"][t.id] for t in (a, b, c))
+    url = f"/gameplan/{a.id}/vs/{b.id}"
+    default = client.get(url, headers=auth).json()["lineups"]
+    assert default["mine"]["picked"] is False and len(default["mine"]["players"]) == 5
+
+    # Three of mine plus a Charlie player as a new signing; two of theirs.
+    mine = ",".join(str(p.steamid) for p in (*alpha[:3], charlie[0]))
+    theirs = ",".join(str(p.steamid) for p in bravo[:2])
+    query = f"?my_lineup={mine}&their_lineup={theirs}"
+    res = client.get(url + query, headers=auth)
+    assert res.status_code == 200, res.text
+    header = res.json()["lineups"]
+    assert header["mine"]["picked"] and header["theirs"]["picked"]
+    assert [(m["name"], m["elsewhere"]) for m in header["mine"]["players"]] == [
+        ("A0", ""),
+        ("A1", ""),
+        ("A2", ""),
+        ("C0", "Charlie"),
+    ]
+
+    cards = client.get(f"{url}/s/players{query}", headers=auth).json()["data"]
+    shown = {(c["name"], c["elsewhere"]) for c in cards["cards"]}
+    assert shown == {("A0", ""), ("A1", ""), ("A2", ""), ("C0", "Charlie"), ("B0", ""), ("B1", "")}
+    signing = next(c for c in cards["cards"] if c["name"] == "C0")
+    assert signing["own"] and signing["vs"] is None
+    duels = client.get(f"{url}/s/duels{query}", headers=auth).json()["data"]
+    assert duels["has_rows"]
+    # Each pair of Lineups is its own cached panel.
+    assert any(":L" in key and ":players:" in key for key in memory_cache)
+
+
+def test_lineup_guards(client, auth, league):
+    a, b = league["a"], league["b"]
+    url = f"/gameplan/{a.id}/vs/{b.id}"
+    alpha = league["players"][a.id]
+    six = ",".join(str(p.steamid) for p in alpha) + ",1"
+    assert client.get(f"{url}?my_lineup={six}", headers=auth).status_code == 422
+    assert client.get(f"{url}?my_lineup=999999", headers=auth).status_code == 400
+    twice = f"{alpha[0].steamid},{alpha[0].steamid}"
+    assert client.get(f"{url}?my_lineup={twice}", headers=auth).status_code == 400
+    both = f"?my_lineup={alpha[0].steamid}&their_lineup={alpha[0].steamid}"
+    assert client.get(url + both, headers=auth).status_code == 400
+
+
 def test_heatmap_points_for_the_browser(client, auth, league, tmp_path):
     a, b = league["a"].id, league["b"].id
     url = f"/gameplan/{a}/vs/{b}/heatmap?team={a}&map=de_mirage&player=all&side=all&kind=kills"

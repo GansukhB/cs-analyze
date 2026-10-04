@@ -585,13 +585,111 @@
         ]
       }
     },
+    "/gameplan/teams/{team_id}/players": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Team Players",
+        "description": "Who has played for this team, most recent first: a Lineup's candidates.",
+        "operationId": "team_players_gameplan_teams__team_id__players_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineupPlayers"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gameplan/players": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Search Players",
+        "description": "Any player by a name they played under: a stand-in or a new signing.",
+        "operationId": "search_players_gameplan_players_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64,
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineupPlayers"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/gameplan/{mine}/vs/{theirs}": {
       "get": {
         "tags": [
           "gameplan"
         ],
         "summary": "Header",
-        "description": "The page header and the tab list, on every tab.",
+        "description": "The page header, the tab list and both Lineups, on every tab.",
         "operationId": "header_gameplan__mine__vs__theirs__get",
         "security": [
           {
@@ -616,6 +714,32 @@
               "type": "integer",
               "title": "Theirs"
             }
+          },
+          {
+            "name": "my_lineup",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(\\d{1,20}(,\\d{1,20}){0,4})?$",
+              "description": "Up to five Steam ids, comma-separated; empty for the most recent five.",
+              "default": "",
+              "title": "My Lineup"
+            },
+            "description": "Up to five Steam ids, comma-separated; empty for the most recent five."
+          },
+          {
+            "name": "their_lineup",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(\\d{1,20}(,\\d{1,20}){0,4})?$",
+              "description": "Up to five Steam ids, comma-separated; empty for the most recent five.",
+              "default": "",
+              "title": "Their Lineup"
+            },
+            "description": "Up to five Steam ids, comma-separated; empty for the most recent five."
           }
         ],
         "responses": {
@@ -648,7 +772,7 @@
           "gameplan"
         ],
         "summary": "Panel",
-        "description": "One panel's data, computed once per parse stamp.",
+        "description": "One panel's data, computed once per parse stamp and pair of Lineups.",
         "operationId": "panel_gameplan__mine__vs__theirs__s__tab__get",
         "security": [
           {
@@ -682,6 +806,32 @@
               "type": "string",
               "title": "Tab"
             }
+          },
+          {
+            "name": "my_lineup",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(\\d{1,20}(,\\d{1,20}){0,4})?$",
+              "description": "Up to five Steam ids, comma-separated; empty for the most recent five.",
+              "default": "",
+              "title": "My Lineup"
+            },
+            "description": "Up to five Steam ids, comma-separated; empty for the most recent five."
+          },
+          {
+            "name": "their_lineup",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(\\d{1,20}(,\\d{1,20}){0,4})?$",
+              "description": "Up to five Steam ids, comma-separated; empty for the most recent five.",
+              "default": "",
+              "title": "Their Lineup"
+            },
+            "description": "Up to five Steam ids, comma-separated; empty for the most recent five."
           }
         ],
         "responses": {
@@ -748,6 +898,32 @@
               "type": "string",
               "title": "Map Name"
             }
+          },
+          {
+            "name": "my_lineup",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(\\d{1,20}(,\\d{1,20}){0,4})?$",
+              "description": "Up to five Steam ids, comma-separated; empty for the most recent five.",
+              "default": "",
+              "title": "My Lineup"
+            },
+            "description": "Up to five Steam ids, comma-separated; empty for the most recent five."
+          },
+          {
+            "name": "their_lineup",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(\\d{1,20}(,\\d{1,20}){0,4})?$",
+              "description": "Up to five Steam ids, comma-separated; empty for the most recent five.",
+              "default": "",
+              "title": "Their Lineup"
+            },
+            "description": "Up to five Steam ids, comma-separated; empty for the most recent five."
           }
         ],
         "responses": {
@@ -1449,6 +1625,9 @@
           "stamp": {
             "type": "string",
             "title": "Stamp"
+          },
+          "lineups": {
+            "$ref": "#/components/schemas/GameplanLineups"
           }
         },
         "type": "object",
@@ -1458,7 +1637,8 @@
           "lede",
           "tabs",
           "default_tab",
-          "stamp"
+          "stamp",
+          "lineups"
         ],
         "title": "GameplanHeader"
       },
@@ -1484,6 +1664,45 @@
           "h2h_maps"
         ],
         "title": "GameplanLede"
+      },
+      "GameplanLineup": {
+        "properties": {
+          "picked": {
+            "type": "boolean",
+            "title": "Picked",
+            "description": "False: the five from the most recent parsed Match."
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/LineupMember"
+            },
+            "type": "array",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "picked",
+          "players"
+        ],
+        "title": "GameplanLineup",
+        "description": "One side's Lineup, as the plan was built with it."
+      },
+      "GameplanLineups": {
+        "properties": {
+          "mine": {
+            "$ref": "#/components/schemas/GameplanLineup"
+          },
+          "theirs": {
+            "$ref": "#/components/schemas/GameplanLineup"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mine",
+          "theirs"
+        ],
+        "title": "GameplanLineups"
       },
       "GameplanPanel": {
         "properties": {
@@ -2081,6 +2300,94 @@
         ],
         "title": "JobWords",
         "description": "Mongolian stage and tally names, from the server's single dictionary."
+      },
+      "LineupMember": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "elsewhere": {
+            "type": "string",
+            "title": "Elsewhere",
+            "description": "A new signing: the Team their numbers come from.",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name"
+        ],
+        "title": "LineupMember"
+      },
+      "LineupPlayer": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team",
+            "description": "The Team they played for here, or last played for."
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "last_played": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Played"
+          },
+          "default": {
+            "type": "boolean",
+            "title": "Default",
+            "description": "In the Team's most recent parsed Match."
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "team",
+          "maps",
+          "default"
+        ],
+        "title": "LineupPlayer",
+        "description": "One Player a Lineup can hold. ``steamid`` is a string: it outgrows a JS number."
+      },
+      "LineupPlayers": {
+        "properties": {
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/LineupPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "players"
+        ],
+        "title": "LineupPlayers"
       },
       "MapRecordRow": {
         "properties": {

@@ -29,7 +29,11 @@ export function TodoTab({ data, fixture, map }: { data: TodoPanel; fixture: Fixt
           <div className="filters">
             <span className="cap">Map</span>
             {data.maps.map((m) => (
-              <Link key={m.map} className={`chip ${m.map === chosen ? 'on' : ''}`} to={`${base}/m/${m.map}`}>
+              <Link
+                key={m.map}
+                className={`chip ${m.map === chosen ? 'on' : ''}`}
+                to={`${base}/m/${m.map}${fixture.search}`}
+              >
                 {m.label} <span className={`tag ${m.call}`}>{m.call_label}</span>{' '}
                 <small className="mono" title="Задлан шинжилсэн map: тэдний · манай">
                   {m.theirs}·{m.mine}
@@ -41,16 +45,16 @@ export function TodoTab({ data, fixture, map }: { data: TodoPanel; fixture: Fixt
           <p className="none">Аль ч багт задлан шинжилсэн map алга.</p>
         )}
       </section>
-      {chosen && <Playbook mine={fixture.mine.id} theirs={fixture.theirs.id} map={chosen} />}
+      {chosen && <Playbook fixture={fixture} map={chosen} />}
     </>
   )
 }
 
-function Playbook({ mine, theirs, map }: { mine: number; theirs: number; map: string }) {
+function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
   const query = $api.useQuery(
     'get',
     '/gameplan/{mine}/vs/{theirs}/playbook/{map_name}',
-    { params: { path: { mine, theirs, map_name: map } } },
+    { params: { path: { mine: fixture.mine.id, theirs: fixture.theirs.id, map_name: map }, query: fixture.query } },
     { staleTime: STALE },
   )
   if (query.isError) return <p className="caveat">Энэ map-ын Playbook-ийг тооцоолж чадсангүй.</p>

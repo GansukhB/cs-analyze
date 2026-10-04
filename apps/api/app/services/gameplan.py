@@ -41,7 +41,7 @@ from app.models import (
     Round,
     Team,
 )
-from app.services import mapstrategy, playerplan, roles, scouting
+from app.services import lineup, mapstrategy, playerplan, roles, scouting
 from app.services.dbctx import count_if, db, memo, total
 
 logger = logging.getLogger(__name__)
@@ -734,12 +734,26 @@ class Report(Mapping):
         )
 
     def _roles_for(self, team):
-        return self._part(
-            f"roles:{team.id}",
-            lambda: roles.rate_team(
+        def build():
+            picture = roles.rate_team(
                 team, self._window(team), baseline=self._baseline(), cohorts=self._cohorts()
-            ),
-        )
+            )
+            # A new signing in the Lineup is rated where they played (CONTEXT.md).
+            for player in lineup.newcomers(team):
+                found = lineup.elsewhere(player)
+                if not found or not found[1]:
+                    continue
+                there = roles.rate_team(
+                    found[0], found[1], baseline=self._baseline(), cohorts=self._cohorts()
+                )
+                entry = next((p for p in there["players"] if p["name"] == player.name), None)
+                if entry:
+                    picture["players"].append(
+                        {**entry, "in_current_lineup": True, "elsewhere": found[0].name}
+                    )
+            return picture
+
+        return self._part(f"roles:{team.id}", build)
 
     # -- the keys ------------------------------------------------------------
     def _key_my_team(self):

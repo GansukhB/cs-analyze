@@ -454,6 +454,44 @@ class GameplanLede(BaseModel):
     h2h_maps: int
 
 
+class LineupPlayer(BaseModel):
+    """One Player a Lineup can hold. ``steamid`` is a string: it outgrows a JS number."""
+
+    steamid: str
+    name: str
+    team: str = Field(description="The Team they played for here, or last played for.")
+    maps: int
+    last_played: dt.datetime | None = None
+    default: bool = Field(description="In the Team's most recent parsed Match.")
+
+    @field_validator("last_played")
+    @classmethod
+    def last_played_utc(cls, value: dt.datetime | None) -> dt.datetime | None:
+        return _utc(value)
+
+
+class LineupPlayers(BaseModel):
+    players: list[LineupPlayer]
+
+
+class LineupMember(BaseModel):
+    steamid: str
+    name: str
+    elsewhere: str = Field("", description="A new signing: the Team their numbers come from.")
+
+
+class GameplanLineup(BaseModel):
+    """One side's Lineup, as the plan was built with it."""
+
+    picked: bool = Field(description="False: the five from the most recent parsed Match.")
+    players: list[LineupMember]
+
+
+class GameplanLineups(BaseModel):
+    mine: GameplanLineup
+    theirs: GameplanLineup
+
+
 class GameplanHeader(BaseModel):
     my_team: TeamRef
     opponent: TeamRef
@@ -461,6 +499,7 @@ class GameplanHeader(BaseModel):
     tabs: list[GameplanTab]
     default_tab: str
     stamp: str
+    lineups: GameplanLineups
 
 
 class GameplanPanel(BaseModel):

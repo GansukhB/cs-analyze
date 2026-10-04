@@ -6,6 +6,10 @@ pays for what it shows (see :class:`app.services.gameplan.Report`). A computed
 panel is kept in Redis under the parse stamp: the first visit computes, every
 later one -- and every tab the page prefetched on hover -- is a cache read, and
 a new parse makes all of them recompute.
+
+Each side's Lineup (CONTEXT.md) rides along as a query parameter of Steam ids,
+so a picked plan is a link like any other; it joins the cache key, and a side
+left out keeps the five from the Team's most recent parsed Match.
 """
 
 import json
@@ -19,13 +23,24 @@ from redis.exceptions import RedisError
 
 from app.cache import get_cache
 from app.deps import CurrentUser, DbSession
-from app.models import Team
-from app.schemas import GameplanHeader, GameplanPanel, GameplanPick, TeamRef
+from app.models import Player, Team
+from app.schemas import (
+    GameplanHeader,
+    GameplanLineup,
+    GameplanLineups,
+    GameplanPanel,
+    GameplanPick,
+    LineupMember,
+    LineupPlayer,
+    LineupPlayers,
+    TeamRef,
+)
 from app.services import (
     dbctx,
     gameplan,
     gameplan_view,
     heatmap_groups,
+    lineup,
     movement,
     playbook_view,
     radar,
@@ -66,6 +81,47 @@ def _fixture(db, mine: int, theirs: int) -> tuple[Team, Team]:
     return my_team, opponent
 
 
+def _lineup_query():
+    # One Query per parameter: FastAPI keeps the alias on it, so a shared one
+    # would read the same parameter twice.
+    return Query(
+        "",
+        pattern=r"^(\d{1,20}(,\d{1,20}){0,4})?$",
+        description="Up to five Steam ids, comma-separated; empty for the most recent five.",
+    )
+
+
+def _lineups(db, my_team: Team, opponent: Team, mine: str, theirs: str):
+    """The two picked Lineups as Players, checked: five at most, known, on one side only."""
+    sides = []
+    for raw in (mine, theirs):
+        ids = [int(s) for s in raw.split(",") if s]
+        if len(set(ids)) != len(ids):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "A player is picked twice")
+        try:
+            with dbctx.using(db):
+                sides.append(lineup.resolve(ids))
+        except KeyError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Unknown player {exc}") from None
+    if {p.id for p in sides[0]} & {p.id for p in sides[1]}:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "A player cannot be on both sides")
+    return sides[0], sides[1]
+
+
+def _lineup_out(team: Team) -> GameplanLineup:
+    picked = lineup.chosen(team)
+    newcomers = {p.id for p in lineup.newcomers(team)}
+
+    def member(p: Player) -> LineupMember:
+        found = lineup.elsewhere(p) if p.id in newcomers else None
+        return LineupMember(
+            steamid=str(p.steamid), name=p.name, elsewhere=found[0].name if found else ""
+        )
+
+    players = picked if picked is not None else lineup.latest_five(team)
+    return GameplanLineup(picked=picked is not None, players=[member(p) for p in players])
+
+
 @router.get("/teams")
 def pick(db: DbSession, _: CurrentUser) -> GameplanPick:
     """Every team with parsed maps, and how many: the picker's list."""
@@ -73,13 +129,42 @@ def pick(db: DbSession, _: CurrentUser) -> GameplanPick:
         return GameplanPick(**gameplan_view.pick())
 
 
-@router.get("/{mine}/vs/{theirs}")
-def header(mine: int, theirs: int, db: DbSession, _: CurrentUser) -> GameplanHeader:
-    """The page header and the tab list, on every tab."""
-    my_team, opponent = _fixture(db, mine, theirs)
+@router.get("/teams/{team_id}/players")
+def team_players(team_id: int, db: DbSession, _: CurrentUser) -> LineupPlayers:
+    """Who has played for this team, most recent first: a Lineup's candidates."""
+    team = db.get(Team, team_id)
+    if team is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such team")
     with dbctx.using(db):
+        return LineupPlayers(players=[LineupPlayer(**p) for p in lineup.candidates(team)])
+
+
+@router.get("/players")
+def search_players(
+    db: DbSession, _: CurrentUser, q: str = Query(min_length=2, max_length=64)
+) -> LineupPlayers:
+    """Any player by a name they played under: a stand-in or a new signing."""
+    with dbctx.using(db):
+        return LineupPlayers(players=[LineupPlayer(**p) for p in lineup.search(q)])
+
+
+@router.get("/{mine}/vs/{theirs}")
+def header(
+    mine: int,
+    theirs: int,
+    db: DbSession,
+    _: CurrentUser,
+    my_lineup: str = _lineup_query(),
+    their_lineup: str = _lineup_query(),
+) -> GameplanHeader:
+    """The page header, the tab list and both Lineups, on every tab."""
+    my_team, opponent = _fixture(db, mine, theirs)
+    my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
+    picked = {my_team.id: my_five, opponent.id: their_five}
+    with dbctx.using(db), lineup.using(picked):
         stamp = gameplan_view.stamp()
-        key = f"gp:v5:{my_team.id}:{opponent.id}:header:{stamp}"
+        part = lineup.cache_part(my_five, their_five)
+        key = f"gp:v5:{my_team.id}:{opponent.id}{part}:header:{stamp}"
         cached = _cache_get(key)
         if cached is None:
             report = gameplan.build(my_team, opponent)
@@ -91,6 +176,7 @@ def header(mine: int, theirs: int, db: DbSession, _: CurrentUser) -> GameplanHea
                 ),
             }
             _cache_set(key, cached)
+        lineups = GameplanLineups(mine=_lineup_out(my_team), theirs=_lineup_out(opponent))
     return GameplanHeader(
         my_team=TeamRef(id=my_team.id, name=my_team.name),
         opponent=TeamRef(id=opponent.id, name=opponent.name),
@@ -98,19 +184,30 @@ def header(mine: int, theirs: int, db: DbSession, _: CurrentUser) -> GameplanHea
         tabs=cached["tabs"],
         default_tab=gameplan_view.DEFAULT_TAB,
         stamp=stamp,
+        lineups=lineups,
     )
 
 
 @router.get("/{mine}/vs/{theirs}/s/{tab}")
-def panel(mine: int, theirs: int, tab: str, db: DbSession, _: CurrentUser) -> GameplanPanel:
-    """One panel's data, computed once per parse stamp."""
+def panel(
+    mine: int,
+    theirs: int,
+    tab: str,
+    db: DbSession,
+    _: CurrentUser,
+    my_lineup: str = _lineup_query(),
+    their_lineup: str = _lineup_query(),
+) -> GameplanPanel:
+    """One panel's data, computed once per parse stamp and pair of Lineups."""
     if tab not in gameplan_view.TAB_KEYS:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such section: {tab}")
     my_team, opponent = _fixture(db, mine, theirs)
+    my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
     started = time.perf_counter()
-    with dbctx.using(db):
+    with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()
-        key = f"gp:v5:{my_team.id}:{opponent.id}:{tab}:{stamp}"
+        part = lineup.cache_part(my_five, their_five)
+        key = f"gp:v5:{my_team.id}:{opponent.id}{part}:{tab}:{stamp}"
         data = _cache_get(key)
         hit = data is not None
         if data is None:
@@ -133,15 +230,25 @@ def panel(mine: int, theirs: int, tab: str, db: DbSession, _: CurrentUser) -> Ga
 
 
 @router.get("/{mine}/vs/{theirs}/playbook/{map_name}")
-def playbook(mine: int, theirs: int, map_name: str, db: DbSession, _: CurrentUser) -> GameplanPanel:
+def playbook(
+    mine: int,
+    theirs: int,
+    map_name: str,
+    db: DbSession,
+    _: CurrentUser,
+    my_lineup: str = _lineup_query(),
+    their_lineup: str = _lineup_query(),
+) -> GameplanPanel:
     """One Map's Playbook for the «Юу хийх» tab, computed once per parse stamp."""
     if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
     my_team, opponent = _fixture(db, mine, theirs)
+    my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
     started = time.perf_counter()
-    with dbctx.using(db):
+    with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()
-        key = f"gp:v5:{my_team.id}:{opponent.id}:playbook:{map_name}:{stamp}"
+        part = lineup.cache_part(my_five, their_five)
+        key = f"gp:v5:{my_team.id}:{opponent.id}{part}:playbook:{map_name}:{stamp}"
         data = _cache_get(key)
         hit = data is not None
         if data is None:

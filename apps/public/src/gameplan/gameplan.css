@@ -333,3 +333,46 @@
 .combo-list li b { color: var(--ct); font-weight: 600; }
 .combo-list li .n { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
 .combo-list li.none { cursor: default; color: var(--ink-3); }
+
+/* --- Lineups: both sides' five, picked on the picker and in the header ---- */
+.lu-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+.lu-sides > .cap { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 760px) { .lu-sides { grid-template-columns: 1fr; } }
+.lu-pick { background: var(--ground); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+           min-width: 0; }
+.lu-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.lu-head .cap { margin: 0; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; }
+.lu-count { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+.lu-count.empty { color: var(--crit); }
+.lu-list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
+.lu-list li label { display: flex; align-items: center; gap: 9px; padding: 5px 6px; border-radius: 5px;
+                    cursor: pointer; font-size: 13.5px; }
+.lu-list li label:hover { background: var(--surface); }
+.lu-list li.on .lu-name { color: var(--ink); font-weight: 600; }
+.lu-list input { accent-color: var(--ct); width: 15px; height: 15px; flex: none; }
+.lu-list input:disabled + .lu-name { opacity: 0.45; }
+.lu-name { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lu-meta { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+           white-space: nowrap; }
+.lu-search { position: relative; margin-top: 8px; }
+.lu-search input { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+                   padding: 7px 10px; font-size: 13px; color: var(--ink); }
+.lu-search input:focus { outline: none; border-color: var(--ct); }
+.lu-found { list-style: none; margin: 4px 0 0; padding: 4px; background: var(--surface-2);
+            border: 1px solid var(--line); border-radius: 6px; max-height: 220px; overflow-y: auto; }
+.lu-found li.none { padding: 6px 8px; font-size: 12.5px; color: var(--ink-3); }
+.lu-found button { display: flex; width: 100%; gap: 9px; padding: 6px 8px; border-radius: 4px;
+                   font-size: 13px; text-align: left; }
+.lu-found button:hover { background: var(--raised); }
+.lu-reset { font-size: 12px; color: var(--ct); text-decoration: underline; text-underline-offset: 3px; }
+.lu-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; margin: 0 0 14px;
+          padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.lu-bar > .lu-sides { flex-basis: 100%; margin-top: 4px; }
+.lu-side { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lu-member { font-size: 13px; color: var(--ink); padding: 1px 8px; border-radius: 100px;
+             background: var(--surface-2); }
+.lu-member small, .lu-auto { color: var(--ink-3); font-size: 11px; }
+.lu-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; }
+.lu-apply { background: var(--ct); color: var(--ground); font-weight: 600; padding: 7px 16px;
+            border-radius: 6px; font-size: 13.5px; }
+.lu-apply:disabled { opacity: 0.5; cursor: not-allowed; }

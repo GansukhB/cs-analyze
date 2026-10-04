@@ -246,6 +246,8 @@ export interface PlayersPanel {
     team: string
     id: number
     name: string
+    /** A new signing: the team their numbers come from. */
+    elsewhere: string
     roles: { side: string; label: string; role: string; fit: string }[]
     own: Form | null
     vs: Form | null
@@ -280,6 +282,7 @@ export interface RolesPanel {
     missing: { side: string; label: string; roles: string[] }[]
     players: {
       name: string
+      elsewhere: string
       rating: number | null
       rounds: number
       adr: number

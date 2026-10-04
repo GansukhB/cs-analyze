@@ -40,6 +40,7 @@ from app.models import (
     Round,
     Team,
 )
+from app.services import lineup as lineups
 from app.services.dbctx import count_if, db, total
 
 logger = logging.getLogger(__name__)
@@ -1037,7 +1038,12 @@ def rate_team(team: Team, match_maps: Iterable[MatchMap], baseline=None, cohorts
 
 
 def _current_lineup(team: Team, match_maps: Iterable[MatchMap]) -> set:
-    """The five fielded in the most recent match in this sample."""
+    """The Team's Lineup: the Players picked for it, else the five fielded in the
+    most recent match in this sample."""
+    return lineups.names(team, lambda: _latest_in_sample(team, match_maps))
+
+
+def _latest_in_sample(team: Team, match_maps: Iterable[MatchMap]) -> set:
     dated = [m for m in match_maps if m.match and m.match.played_at]
     if not dated:
         return set()

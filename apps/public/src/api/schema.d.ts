@@ -267,6 +267,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/gameplan/teams/{team_id}/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Team Players
+         * @description Who has played for this team, most recent first: a Lineup's candidates.
+         */
+        get: operations["team_players_gameplan_teams__team_id__players_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gameplan/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Players
+         * @description Any player by a name they played under: a stand-in or a new signing.
+         */
+        get: operations["search_players_gameplan_players_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gameplan/{mine}/vs/{theirs}": {
         parameters: {
             query?: never;
@@ -276,7 +316,7 @@ export interface paths {
         };
         /**
          * Header
-         * @description The page header and the tab list, on every tab.
+         * @description The page header, the tab list and both Lineups, on every tab.
          */
         get: operations["header_gameplan__mine__vs__theirs__get"];
         put?: never;
@@ -296,7 +336,7 @@ export interface paths {
         };
         /**
          * Panel
-         * @description One panel's data, computed once per parse stamp.
+         * @description One panel's data, computed once per parse stamp and pair of Lineups.
          */
         get: operations["panel_gameplan__mine__vs__theirs__s__tab__get"];
         put?: never;
@@ -508,6 +548,7 @@ export interface components {
             default_tab: string;
             /** Stamp */
             stamp: string;
+            lineups: components["schemas"]["GameplanLineups"];
         };
         /** GameplanLede */
         GameplanLede: {
@@ -517,6 +558,24 @@ export interface components {
             opponent_maps: number;
             /** H2H Maps */
             h2h_maps: number;
+        };
+        /**
+         * GameplanLineup
+         * @description One side's Lineup, as the plan was built with it.
+         */
+        GameplanLineup: {
+            /**
+             * Picked
+             * @description False: the five from the most recent parsed Match.
+             */
+            picked: boolean;
+            /** Players */
+            players: components["schemas"]["LineupMember"][];
+        };
+        /** GameplanLineups */
+        GameplanLineups: {
+            mine: components["schemas"]["GameplanLineup"];
+            theirs: components["schemas"]["GameplanLineup"];
         };
         /**
          * GameplanPanel
@@ -761,6 +820,48 @@ export interface components {
             counts: {
                 [key: string]: string;
             };
+        };
+        /** LineupMember */
+        LineupMember: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /**
+             * Elsewhere
+             * @description A new signing: the Team their numbers come from.
+             * @default
+             */
+            elsewhere: string;
+        };
+        /**
+         * LineupPlayer
+         * @description One Player a Lineup can hold. ``steamid`` is a string: it outgrows a JS number.
+         */
+        LineupPlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /**
+             * Team
+             * @description The Team they played for here, or last played for.
+             */
+            team: string;
+            /** Maps */
+            maps: number;
+            /** Last Played */
+            last_played?: string | null;
+            /**
+             * Default
+             * @description In the Team's most recent parsed Match.
+             */
+            default: boolean;
+        };
+        /** LineupPlayers */
+        LineupPlayers: {
+            /** Players */
+            players: components["schemas"]["LineupPlayer"][];
         };
         /** MapRecordRow */
         MapRecordRow: {
@@ -1489,9 +1590,76 @@ export interface operations {
             };
         };
     };
-    header_gameplan__mine__vs__theirs__get: {
+    team_players_gameplan_teams__team_id__players_get: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LineupPlayers"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_players_gameplan_players_get: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LineupPlayers"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    header_gameplan__mine__vs__theirs__get: {
+        parameters: {
+            query?: {
+                /** @description Up to five Steam ids, comma-separated; empty for the most recent five. */
+                my_lineup?: string;
+                /** @description Up to five Steam ids, comma-separated; empty for the most recent five. */
+                their_lineup?: string;
+            };
             header?: never;
             path: {
                 mine: number;
@@ -1523,7 +1691,12 @@ export interface operations {
     };
     panel_gameplan__mine__vs__theirs__s__tab__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Up to five Steam ids, comma-separated; empty for the most recent five. */
+                my_lineup?: string;
+                /** @description Up to five Steam ids, comma-separated; empty for the most recent five. */
+                their_lineup?: string;
+            };
             header?: never;
             path: {
                 mine: number;
@@ -1556,7 +1729,12 @@ export interface operations {
     };
     playbook_gameplan__mine__vs__theirs__playbook__map_name__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Up to five Steam ids, comma-separated; empty for the most recent five. */
+                my_lineup?: string;
+                /** @description Up to five Steam ids, comma-separated; empty for the most recent five. */
+                their_lineup?: string;
+            };
             header?: never;
             path: {
                 mine: number;

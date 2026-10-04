@@ -24,9 +24,13 @@ export interface Fixture {
   mine: { id: number; name: string }
   theirs: { id: number; name: string }
   tabs: { key: string; label: string; grp: number; n?: number }[]
+  /** The picked Lineups as the page's query string ("" or "?mine=…"), kept on every link. */
+  search: string
+  /** The same Lineups as the API's query parameters. */
+  query: { my_lineup?: string; their_lineup?: string }
 }
 
-const tabHref = (f: Fixture, key: string) => `/gameplan/${f.mine.id}/vs/${f.theirs.id}/s/${key}`
+const tabHref = (f: Fixture, key: string) => `/gameplan/${f.mine.id}/vs/${f.theirs.id}/s/${key}${f.search}`
 
 // Server-drawn SVG (app/services/charts.py escapes every label it writes).
 function Chart({ svg }: { svg: string }) {
@@ -709,6 +713,7 @@ export function Players({ data }: { data: PlayersPanel }) {
           <div className="card2" style={{ ['--scope-soft' as string]: `var(--${card.scope}-soft)` }}>
             <h3>
               {card.name} <span className={`tag ${card.scope}`}>{card.team}</span>
+              {card.elsewhere && <span className="tag">шинэ · {card.elsewhere}-аас</span>}
               {card.roles.map((r) => (
                 <span key={r.side} className={`tag ${r.side}`}>
                   {r.label} {r.role}
@@ -718,7 +723,7 @@ export function Players({ data }: { data: PlayersPanel }) {
             </h3>
             {card.own && (
               <p className="why">
-                Өөрсдийн тоглолт: {card.own.rounds} раунд · ADR {card.own.adr} · K/D {card.own.kd} · KAST{' '}
+                {card.elsewhere ? `${card.elsewhere}-д тоглосон тоо` : 'Өөрсдийн тоглолт'}: {card.own.rounds} раунд · ADR {card.own.adr} · K/D {card.own.kd} · KAST{' '}
                 {card.own.kast_pct}% · нээлт {card.own.opening_win_pct}% ({card.own.opening_kills}–
                 {card.own.opening_deaths}) · толгой {card.own.hs_pct}%
               </p>
@@ -889,6 +894,7 @@ export function Roles({ data }: { data: RolesPanel }) {
             <div key={p.name} className="card2" style={{ marginTop: 10 }}>
               <h3>
                 {p.name}
+                {p.elsewhere && <span className="tag">шинэ · {p.elsewhere}-д тоглосноор</span>}
                 {p.rating !== null && (
                   <span
                     className="mono"

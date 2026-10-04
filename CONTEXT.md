@@ -115,6 +115,10 @@ _Avoid_: Matchup, pairing
 The match-preparation page for one Fixture, computed only from parsed Match Maps: a decision, the evidence behind it in sections, and what to do. Unlike a Scout it downloads nothing and keeps nothing; it is recomputed whenever a Match Map is parsed.
 _Avoid_: Report (that is a Scout's output), scouting page
 
+**Lineup**:
+Up to five Players a Fixture's Team is expected to field. The User picks it, from Players who have played for that Team or by searching any Player; left unpicked, it is the five from the Team's most recent parsed Match. A Lineup decides whose numbers a Game Plan shows and ranks; it does not narrow the Team's habits, which still come from all its Match Maps. A Player in a Lineup who never played for its Team, such as a new signing, is shown with their numbers from the Teams they did play for, marked as such.
+_Avoid_: Roster (who actually played a Match Map), active roster, current five
+
 **Pool**:
 Every Team with at least two maps' worth of parsed Rounds. A Game Plan calls something a strength or a weakness only against the Pool, never against the opponent alone.
 _Avoid_: League, baseline (in prose)

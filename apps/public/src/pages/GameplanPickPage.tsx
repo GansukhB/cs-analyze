@@ -3,17 +3,22 @@ import { useNavigate } from 'react-router'
 import { $api } from '../api/client'
 import type { components } from '../api/schema'
 import '../gameplan/gameplan.css'
+import { lineupSearch } from '../gameplan/lineup'
+import { LineupPicker } from '../gameplan/LineupPicker'
 
 type Team = components['schemas']['GameplanTeam']
 
 // Choose the two teams, then go straight to their plan (cstat's gameplan_pick).
 // Two comboboxes rather than a grid of every team crossed with every opponent,
-// which is n² links and unreadable by the twentieth team.
+// which is n² links and unreadable by the twentieth team. Once both are chosen,
+// each side's Lineup can be picked; untouched, it is the team's latest five.
 export default function GameplanPickPage() {
   const navigate = useNavigate()
   const pick = $api.useQuery('get', '/gameplan/teams')
   const [mine, setMine] = useState<Team | null>(null)
   const [theirs, setTheirs] = useState<Team | null>(null)
+  const [myFive, setMyFive] = useState<string[] | null>(null)
+  const [theirFive, setTheirFive] = useState<string[] | null>(null)
   const [error, setError] = useState('')
 
   function submit(e: React.FormEvent) {
@@ -21,7 +26,8 @@ export default function GameplanPickPage() {
     if (!mine || !theirs) return setError('Pick both teams from the list.')
     // The whole plan is the difference between the two sides.
     if (mine.id === theirs.id) return setError('Pick two different teams.')
-    navigate(`/gameplan/${mine.id}/vs/${theirs.id}`)
+    if (myFive?.length === 0 || theirFive?.length === 0) return setError('Pick at least one player on each side.')
+    navigate(`/gameplan/${mine.id}/vs/${theirs.id}${lineupSearch({ mine: myFive ?? [], theirs: theirFive ?? [] })}`)
   }
 
   const teams = pick.data?.teams ?? []
@@ -40,10 +46,51 @@ export default function GameplanPickPage() {
         (teams.length > 1 ? (
           <form onSubmit={submit} className="mt-6 rounded-xl border border-line bg-surface p-6">
             <div className="vs">
-              <TeamCombo label="My team" teams={teams} value={mine} onChange={setMine} autoFocus />
+              <TeamCombo
+                label="My team"
+                teams={teams}
+                value={mine}
+                onChange={(t) => {
+                  setMine(t)
+                  setMyFive(null)
+                }}
+                autoFocus
+              />
               <div className="sep">VS</div>
-              <TeamCombo label="Opponent" teams={teams} value={theirs} onChange={setTheirs} />
+              <TeamCombo
+                label="Opponent"
+                teams={teams}
+                value={theirs}
+                onChange={(t) => {
+                  setTheirs(t)
+                  setTheirFive(null)
+                }}
+              />
             </div>
+            {mine && theirs && mine.id !== theirs.id && (
+              <div className="lu-sides">
+                <p className="cap">
+                  Lineup — тоглох 5 хүртэл тоглогч. Хөндөхгүй бол багийн сүүлийн тоглолтын 5 байна. Багийн зуршил
+                  хэвээр бүх тоглолтоос уншигдана; Lineup зөвхөн хэний тоо харагдахыг шийднэ.
+                </p>
+                <LineupPicker
+                  key={`m${mine.id}`}
+                  team={mine}
+                  label="Манай Lineup"
+                  value={myFive}
+                  onChange={setMyFive}
+                  taken={theirFive ?? []}
+                />
+                <LineupPicker
+                  key={`t${theirs.id}`}
+                  team={theirs}
+                  label="Тэдний Lineup"
+                  value={theirFive}
+                  onChange={setTheirFive}
+                  taken={myFive ?? []}
+                />
+              </div>
+            )}
             {error && <p className="mt-3 text-sm text-crit">{error}</p>}
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <button

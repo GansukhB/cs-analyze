@@ -28,7 +28,6 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import aliased, joinedload
 
 from app.models import (
-    MapRoster,
     MatchMap,
     Player,
     PlayerMap,
@@ -42,6 +41,7 @@ from app.models import (
     Round,
     Team,
 )
+from app.services import lineup as lineups
 from app.services import mapstrategy
 from app.services import roles as role_service
 from app.services.dbctx import count_if, db, total
@@ -88,19 +88,8 @@ def split_maps(team: Team, opponent: Team) -> dict:
 
 
 def current_lineup(team: Team) -> set:
-    maps = mapstrategy.maps_in_window(team)
-    dated = [m for m in maps if m.match and m.match.played_at]
-    if not dated:
-        return set()
-    latest = max(m.match.played_at for m in dated)
-    ids = [m.id for m in dated if m.match.played_at == latest]
-    return set(
-        db().scalars(
-            select(Player.name)
-            .join(MapRoster, MapRoster.player_id == Player.id)
-            .where(MapRoster.match_map_id.in_(ids), MapRoster.team_id == team.id)
-        )
-    )
+    """Багийн Lineup-ийн нэрс: сонгосон бол тэд, үгүй бол сүүлийн тоглолтын тав."""
+    return lineups.names(team, lambda: {p.name for p in lineups.latest_five(team)})
 
 
 # ------------------------------------------------------------------- хэсэг ---
@@ -552,8 +541,63 @@ def team_players(team: Team, opponent: Team, *, baseline=None, cohorts=None) -> 
                 "duels": duels.get(pid, []),
             }
         )
+    out += [_newcomer(p, baseline, cohorts) for p in lineups.newcomers(team)]
     out.sort(key=lambda p: (not p["in_lineup"], -((p["form"]["own"] or {}).get("adr") or 0)))
     return out
+
+
+def _newcomer(player: Player, baseline, cohorts) -> dict:
+    """Энэ багт тоглоогүй ч Lineup-д сонгогдсон тоглогч: тоо нь сүүлд тоглосон багаас."""
+    found = lineups.elsewhere(player)
+    card = {
+        "player_id": player.id,
+        "name": player.name,
+        "in_lineup": True,
+        "elsewhere": found[0].name if found else "",
+        "role": {},
+        "rating": None,
+        "form": {"own": None, "vs": None},
+        "delta": {},
+        "weapons": {"own": {}, "vs": {}},
+        "utility": {"own": {}, "vs": {}},
+        "positions": {"own": {}, "vs": {}},
+        "routes": [],
+        "duels": [],
+    }
+    if not found or not found[1]:
+        return card
+    team, maps = found
+    rp = next(
+        (
+            p
+            for p in role_service.rate_team(team, maps, baseline=baseline, cohorts=cohorts)[
+                "players"
+            ]
+            if p["name"] == player.name
+        ),
+        {},
+    )
+    fits = rp.get("fit") or {}
+    card.update(
+        role={
+            s: {
+                "role": v["role"],
+                "label": v["label"],
+                "confidence": v["confidence"],
+                "fit": (fits.get(s) or {}).get("score"),
+                "fit_verdict": (fits.get(s) or {}).get("verdict"),
+            }
+            for s, v in (rp.get("roles") or {}).items()
+            if v.get("role")
+        },
+        rating=rp.get("rating"),
+        form={"own": _form(team, maps).get(player.id), "vs": None},
+        weapons={"own": _weapons(team, maps).get(player.id, {}), "vs": {}},
+        utility={"own": _utility(team, maps).get(player.id, {}), "vs": {}},
+        positions={"own": _positions(team, maps).get(player.id, {}), "vs": {}},
+        routes=_routes(team, maps).get(player.id, []),
+    )
+    return card
 
 
 _DELTA_KEYS = ("adr", "kd", "kast_pct", "opening_win_pct", "hs_pct", "traded_death_pct")

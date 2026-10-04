@@ -1,9 +1,11 @@
 import { keepPreviousData, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
-import { Link, Navigate, useParams } from 'react-router'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { $api } from '../api/client'
 import type { components } from '../api/schema'
 import '../gameplan/gameplan.css'
+import { lineupQuery, lineupSearch, readLineups } from '../gameplan/lineup'
+import { LineupPicker } from '../gameplan/LineupPicker'
 import MapGrid from '../gameplan/MapGrid'
 import { TodoTab } from '../gameplan/Playbook'
 import {
@@ -23,6 +25,7 @@ import { useElapsed } from '../gameplan/useElapsed'
 
 type Panel = components['schemas']['GameplanPanel']
 type Tab = components['schemas']['GameplanTab']
+type Header = components['schemas']['GameplanHeader']
 
 const STALE = 5 * 60_000
 
@@ -36,18 +39,28 @@ export default function GameplanPage() {
   const mine = Number(params.mine)
   const theirs = Number(params.theirs)
   const queryClient = useQueryClient()
+  // The picked Lineups ride on the URL, so every request and link carries them.
+  const [searchParams] = useSearchParams()
+  const lineups = readLineups(searchParams)
+  const search = lineupSearch(lineups)
+  const query = useMemo(() => lineupQuery(readLineups(new URLSearchParams(search))), [search])
 
-  const header = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}', { params: { path: { mine, theirs } } }, {
-    staleTime: STALE,
-  })
+  const header = $api.useQuery(
+    'get',
+    '/gameplan/{mine}/vs/{theirs}',
+    { params: { path: { mine, theirs }, query } },
+    { staleTime: STALE },
+  )
   const tab = params.tab ?? header.data?.default_tab ?? 'decision'
   const tabs = useMemo(() => header.data?.tabs ?? [], [header.data])
   const known = !header.data || tabs.some((t) => t.key === tab)
 
   const optionsFor = useMemo(
     () => (key: string) =>
-      $api.queryOptions('get', '/gameplan/{mine}/vs/{theirs}/s/{tab}', { params: { path: { mine, theirs, tab: key } } }),
-    [mine, theirs],
+      $api.queryOptions('get', '/gameplan/{mine}/vs/{theirs}/s/{tab}', {
+        params: { path: { mine, theirs, tab: key }, query },
+      }),
+    [mine, theirs, query],
   )
   const panel = useQuery({
     ...optionsFor(tab),
@@ -90,11 +103,20 @@ export default function GameplanPage() {
 
   const status = header.error as { detail?: string } | null
   if (header.error && status?.detail === 'Pick two different teams') return <Navigate to="/gameplan" replace />
+  if (header.error && search)
+    return (
+      <p className="text-crit">
+        Lineup-ийг уншиж чадсангүй: {status?.detail ?? 'алдаа'}.{' '}
+        <Link className="underline" to={`/gameplan/${mine}/vs/${theirs}`}>
+          Lineup-гүйгээр нээх
+        </Link>
+      </p>
+    )
   if (header.error) return <p className="text-crit">Баг олдсонгүй.</p>
   if (!known) return <p className="text-crit">Ийм хэсэг алга: {tab}</p>
 
   const fixture: Fixture | null = header.data
-    ? { mine: header.data.my_team, theirs: header.data.opponent, tabs }
+    ? { mine: header.data.my_team, theirs: header.data.opponent, tabs, search, query }
     : null
   const ready = statuses.filter((s) => s.data).length
   const label = tabs.find((t) => t.key === tab)?.label ?? tab
@@ -125,6 +147,8 @@ export default function GameplanPage() {
         </div>
       )}
 
+      {header.data && <LineupBar header={header.data} />}
+
       <div className="keys">
         <span className="k">
           <i className="sw" style={{ background: 'var(--mark-mine)' }} /> {fixture?.mine.name ?? '…'} — манай баг
@@ -153,7 +177,7 @@ export default function GameplanPage() {
                   <NavItem
                     key={t.key}
                     tab={t}
-                    fixture={{ mine, theirs }}
+                    fixture={{ mine, theirs, search }}
                     on={t.key === tab}
                     busy={s?.fetchStatus === 'fetching' || (t.key === tab && panel.isFetching)}
                     ready={!!s?.data}
@@ -194,7 +218,7 @@ function NavItem({
   onHover,
 }: {
   tab: Tab
-  fixture: { mine: number; theirs: number }
+  fixture: { mine: number; theirs: number; search: string }
   on: boolean
   busy: boolean
   ready: boolean
@@ -202,7 +226,7 @@ function NavItem({
 }) {
   return (
     <Link
-      to={`/gameplan/${fixture.mine}/vs/${fixture.theirs}/s/${tab.key}`}
+      to={`/gameplan/${fixture.mine}/vs/${fixture.theirs}/s/${tab.key}${fixture.search}`}
       className={on ? 'on' : undefined}
       onMouseEnter={onHover}
       onFocus={onHover}
@@ -212,6 +236,85 @@ function NavItem({
       {tab.label}
       {tab.n ? <span className="n">{tab.n}</span> : null}
     </Link>
+  )
+}
+
+// Both Lineups the plan was built with, and an editor for them: applying it is
+// a new URL, so the plan recomputes (or comes from cache) for that pair.
+function LineupBar({ header }: { header: Header }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [editing, setEditing] = useState(false)
+  const { mine, theirs } = header.lineups
+  const [myFive, setMyFive] = useState<string[] | null>(null)
+  const [theirFive, setTheirFive] = useState<string[] | null>(null)
+
+  function open() {
+    setMyFive(mine.picked ? mine.players.map((p) => p.steamid) : null)
+    setTheirFive(theirs.picked ? theirs.players.map((p) => p.steamid) : null)
+    setEditing(true)
+  }
+  function apply() {
+    setEditing(false)
+    navigate(`${location.pathname}${lineupSearch({ mine: myFive ?? [], theirs: theirFive ?? [] })}`)
+  }
+
+  const sides = [
+    ['mine', header.my_team.name, mine],
+    ['theirs', header.opponent.name, theirs],
+  ] as const
+  return (
+    <div className="lu-bar">
+      {sides.map(([scope, name, side]) => (
+        <div key={scope} className="lu-side">
+          <span className={`tag ${scope}`}>{name}</span>
+          {side.players.map((p) => (
+            <span key={p.steamid} className="lu-member" title={p.elsewhere ? `Тоо нь ${p.elsewhere}-аас` : undefined}>
+              {p.name}
+              {p.elsewhere && <small> · шинэ</small>}
+            </span>
+          ))}
+          {!side.picked && <small className="lu-auto">сүүлийн тоглолтын 5</small>}
+        </div>
+      ))}
+      {editing ? (
+        <div className="lu-sides">
+          <LineupPicker
+            team={header.my_team}
+            label="Манай Lineup"
+            value={myFive}
+            onChange={setMyFive}
+            known={mine.players}
+            taken={theirFive ?? []}
+          />
+          <LineupPicker
+            team={header.opponent}
+            label="Тэдний Lineup"
+            value={theirFive}
+            onChange={setTheirFive}
+            known={theirs.players}
+            taken={myFive ?? []}
+          />
+          <div className="lu-actions">
+            <button
+              type="button"
+              className="lu-apply"
+              disabled={myFive?.length === 0 || theirFive?.length === 0}
+              onClick={apply}
+            >
+              Lineup-аар дахин тооцоолох
+            </button>
+            <button type="button" className="lu-reset" onClick={() => setEditing(false)}>
+              болих
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="lu-reset" onClick={open}>
+          Lineup засах
+        </button>
+      )}
+    </div>
   )
 }
 

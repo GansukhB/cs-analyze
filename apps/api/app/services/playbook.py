@@ -39,7 +39,7 @@ from app.models import (
     SnapshotMoment,
     Team,
 )
-from app.services import mapstrategy
+from app.services import lineup, mapstrategy
 from app.services.analysis_store import PISTOL_ROUNDS
 from app.services.dbctx import db, memo
 
@@ -790,6 +790,10 @@ def matchups(opponent: Team, my_team: Team, rounds: list[_Round], detail: _Detai
                 "duels": duels.get(player, []),
             }
         )
+    # Only their Lineup, when one was picked: a man who will not play is no matchup.
+    picked = lineup.chosen(opponent)
+    if picked is not None:
+        out = [p for p in out if p["player_id"] in {x.id for x in picked}]
     out.sort(key=lambda p: -sum(s["rounds"] for s in p["sides"].values()))
     return out
 

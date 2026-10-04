@@ -508,6 +508,8 @@ def _players(report, my_team, opponent) -> dict:
                     "team": team.name,
                     "id": player["player_id"],
                     "name": player["name"],
+                    # A new signing's numbers are from the Team they last played for.
+                    "elsewhere": player.get("elsewhere", ""),
                     "roles": roles,
                     "own": _form(player["form"]["own"]),
                     "vs": _form(player["form"]["vs"]),
@@ -569,6 +571,7 @@ def _roles(report, my_team, opponent) -> dict:
             players.append(
                 {
                     "name": p["name"],
+                    "elsewhere": p.get("elsewhere", ""),
                     "rating": p["rating"],
                     "rounds": p["overall"]["rounds"],
                     "adr": p["overall"]["adr"],
