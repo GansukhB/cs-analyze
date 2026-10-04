@@ -78,6 +78,7 @@ class HltvBrowser:
         self.user_agent = settings.hltv_user_agent
         self.request_delay_ms = settings.hltv_request_delay_ms
         self._pw = self._browser = self._ctx = self._page = None
+        self._crashed = False
         self._last_request = 0.0
 
     # -- lifecycle ---------------------------------------------------------
@@ -123,7 +124,7 @@ class HltvBrowser:
         self._ctx.add_init_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
         )
-        self._page = self._ctx.new_page()
+        self._new_page()
         # Landing on the front page first is what earns the clearance cookie.
         self.open("/")
         return self
@@ -146,6 +147,39 @@ class HltvBrowser:
         if self._page is None:
             raise RuntimeError("HltvBrowser must be used as a context manager")
         return self._page
+
+    def _new_page(self) -> None:
+        self._page = self._ctx.new_page()
+        self._crashed = False
+        self._page.on("crash", lambda _page: setattr(self, "_crashed", True))
+
+    def _tab_alive(self) -> bool:
+        # The "crash" event can arrive after the call that failed has already
+        # raised, so ask the tab itself too: a dead one rejects at once.
+        if self._crashed or self.page.is_closed():
+            return False
+        try:
+            self.page.evaluate("1")
+        except self._PlaywrightError:
+            return False
+        return True
+
+    def recover_page(self) -> bool:
+        """Swap a crashed or closed tab for a new one; True if it had to.
+
+        A renderer crash (seen in production as ERR_INSUFFICIENT_RESOURCES, then
+        "Page crashed") kills the tab, not the browser: the context and its
+        clearance cookie live on, so a new tab carries on where the old one died.
+        """
+        if self._tab_alive():
+            return False
+        try:
+            self.page.close()
+        except Exception:  # pragma: no cover - the tab is already gone
+            logger.debug("could not close the crashed tab", exc_info=True)
+        self._new_page()
+        logger.warning("the tab crashed; continuing in a new one")
+        return True
 
     def is_connected(self) -> bool:
         """False once the underlying Chromium process is gone.
@@ -176,33 +210,37 @@ class HltvBrowser:
                 response = self.page.goto(
                     url, wait_until="domcontentloaded", timeout=self.timeout_ms
                 )
+                status = response.status if response else 0
+                title = self.page.title()
+                if not _is_challenge(status, title, self.page.url):
+                    # Let late client-side rendering finish before callers read DOM.
+                    self.page.wait_for_timeout(settle_ms)
+                    return self.page
+
+                last = f"status={status} title={title!r}"
+                logger.info(
+                    "cloudflare challenge on %s (%s), attempt %s/%s",
+                    url,
+                    last,
+                    attempt,
+                    self.retries,
+                )
+                # A managed challenge clears itself in a few seconds; give it time.
+                self.page.wait_for_timeout(5000 + 2000 * attempt)
             except self._PlaywrightError as exc:
                 # goto() itself can throw rather than return a response -- a
                 # transient net-level failure (ERR_INSUFFICIENT_RESOURCES,
                 # ERR_CONNECTION_RESET, a timeout) rather than a Cloudflare
-                # challenge, but it deserves the same retry-with-backoff rather
-                # than killing the whole run on one flaky navigation.
+                # challenge, or the tab can crash under any of these calls. Each
+                # deserves the same retry-with-backoff rather than killing the
+                # whole run on one flaky navigation.
                 last = f"navigation error: {exc}"
                 logger.warning(
                     "navigation failed for %s (%s), attempt %s/%s", url, last, attempt, self.retries
                 )
-                self.page.wait_for_timeout(3000 + 2000 * attempt)
-                continue
-
-            status = response.status if response else 0
-            title = self.page.title()
-
-            if not _is_challenge(status, title, self.page.url):
-                # Let late client-side rendering finish before callers read DOM.
-                self.page.wait_for_timeout(settle_ms)
-                return self.page
-
-            last = f"status={status} title={title!r}"
-            logger.info(
-                "cloudflare challenge on %s (%s), attempt %s/%s", url, last, attempt, self.retries
-            )
-            # A managed challenge clears itself in a few seconds; give it time.
-            self.page.wait_for_timeout(5000 + 2000 * attempt)
+                # Not page.wait_for_timeout(): the page may be the thing that died.
+                self.recover_page()
+                time.sleep((3000 + 2000 * attempt) / 1000)
 
         raise HltvBlocked(
             f"could not reach {url} after {self.retries} attempts ({last}). "
@@ -236,6 +274,7 @@ class HltvBrowser:
         full = url if url.startswith("http") else f"{BASE_URL}{url}"
 
         watch = _DownloadWatch(self.page, on_progress) if on_progress else None
+        download = None
         try:
             with self.page.expect_download(timeout=timeout_ms) as info:
                 # A plain goto() to a file URL aborts the navigation; assigning
@@ -248,9 +287,21 @@ class HltvBrowser:
                 raise HltvBlocked(f"Download failed for {full}: {failure}")
 
             download.save_as(dest)
+        except self._PlaywrightError as exc:
+            # The tab died under the download. The caller skips this one item.
+            self.recover_page()
+            raise HltvBlocked(f"Download of {full} broke off ({exc})") from exc
         finally:
             if watch:
                 watch.close()
+            if download is not None:
+                # save_as() copies; Chromium's own file stays in Playwright's temp
+                # dir until the context closes. Kept, a 15-match run piles up
+                # ~7 GB there, in RAM wherever /tmp is a tmpfs.
+                try:
+                    download.delete()
+                except Exception:  # pragma: no cover - best-effort cleanup
+                    logger.debug("could not delete the download's temp file", exc_info=True)
         return dest
 
 

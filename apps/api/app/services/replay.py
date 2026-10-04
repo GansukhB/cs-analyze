@@ -23,9 +23,14 @@ each was measured):
   for the rest of the round, so aliveness is read off ``hp``.
 * **On a two-floor map, everything carries the floor it is on**, from ``Z`` and
   nothing else, as an index into the payload's ``levels``.
+* **The Loadout travels as changes**, like the callout: what a player holds,
+  carries, wears and has left changes a few dozen times a round, against 8
+  frames a second. A bundle parsed before it was read has none, and the page
+  falls back to the last weapon fired for what is in hand.
 
-Ported from cstat's ``hltv/services/replay.py``; the payload shape is unchanged
-(``REPLAY_SCHEMA`` 4), so the page's player is a port of cstat's script. The
+Ported from cstat's ``hltv/services/replay.py``; the payload is cstat's
+(``REPLAY_SCHEMA`` 4) plus the Loadout (5), so the page's player is a port of
+cstat's script. The
 callout labels cstat computed while drawing its map plate come from the Tick
 Data's ``geometry``.
 """
@@ -50,7 +55,7 @@ logger = logging.getLogger(__name__)
 REPLAY_HZ = 8
 # Bumped when the payload's shape changes: every stored round is rebuilt from
 # the Tick Data (see tickdata.derived_version).
-REPLAY_SCHEMA = 4
+REPLAY_SCHEMA = 5
 
 # awpy names grenade entities by their engine class. The ones that end in
 # Projectile are the thrown object in flight; the rest is inventory (H3).
@@ -82,6 +87,21 @@ CT_COLOURS = ["#5b9bd8", "#7fc7e8", "#4f7fd8", "#9db8ea", "#3fb7c4"]
 T_COLOURS = ["#d39a55", "#e8b96a", "#cf6a56", "#e0854a", "#c9a227"]
 
 _LEVEL_INDEX = {radar.UPPER: 0, radar.LOWER: 1}
+
+# demoparser names Loadout items as the game's HUD does; these are the shorter
+# names the page shows (the rest are short already: AK-47, M4A1-S, USP-S, AWP).
+_ITEM_LABELS = {
+    "Desert Eagle": "Deagle", "Glock-18": "Glock", "Dual Berettas": "Duals",
+    "CZ75-Auto": "CZ", "R8 Revolver": "R8", "Galil AR": "Galil", "SSG 08": "Scout",
+    "SG 553": "SG", "PP-Bizon": "Bizon", "UMP-45": "UMP", "Zeus x27": "zeus",
+    "Flashbang": "flash", "Smoke Grenade": "smoke", "High Explosive Grenade": "HE",
+    "Molotov": "molotov", "Incendiary Grenade": "incendiary", "Decoy Grenade": "decoy",
+    "C4 Explosive": "C4",
+}  # fmt: skip
+_PISTOLS = {"Glock", "USP-S", "P2000", "P250", "Five-SeveN", "Tec-9", "CZ", "Deagle", "Duals", "R8"}
+_GRENADES = ["flash", "smoke", "HE", "molotov", "incendiary", "decoy"]
+# Knife skins each have their own name (Karambit, Butterfly Knife, knife_t...).
+_KNIFE_WORDS = ("knife", "bayonet", "karambit", "dagger")
 
 
 def _f(value) -> float | None:
@@ -124,6 +144,30 @@ def _weapon(name) -> str:
     if key.startswith("knife"):
         key = "knife"
     return weapon_family(key)
+
+
+def _item(name) -> str:
+    name = (name or "").strip()
+    if any(word in name.lower() for word in _KNIFE_WORDS):
+        return "knife"
+    return _ITEM_LABELS.get(name, name)
+
+
+def _item_order(label: str) -> tuple[int, int]:
+    """Gun, pistol, zeus, grenades in buy-menu order, then the bomb."""
+    if label in _GRENADES:
+        return (3, _GRENADES.index(label))
+    if label == "C4":
+        return (4, 0)
+    if label == "zeus":
+        return (2, 0)
+    return (1 if label in _PISTOLS else 0, 0)
+
+
+def _carried(inventory) -> list[str]:
+    """The Loadout's items, knife left out (everyone has one), one entry per grenade."""
+    labels = [_item(name) for name in inventory or [] if name]
+    return sorted((x for x in labels if x != "knife"), key=_item_order)
 
 
 def is_playable(match_map: MatchMap) -> bool:
@@ -240,6 +284,7 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict | None:
     for number, pops in _detonations(db, match_map, spans, tickrate, split).items():
         effects.setdefault(number, []).extend(pops)
     events = _events(frames, spans, tickrate, split)
+    loadouts = _loadouts(frames.get("loadout"), spans, step, frames_by_round)
     round_rows = {
         r.number: r
         for r in db.scalars(
@@ -256,6 +301,7 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict | None:
             match_map, round_rows.get(number), number, start, end, tickrate, step,
             frames_by_round[number], tracks.get(number, {}), teams, nades.get(number, []),
             effects.get(number, []), events.get(number, []), level_keys,
+            loadouts.get(number),
         )  # fmt: skip
         db.add(
             ReplayRound(
@@ -384,6 +430,39 @@ def _player_tracks(pl, ticks, spans, frames_by_round, step, split: float | None 
             "x": xs, "y": ys, "hp": hp, "place": places, "lvl": levels, "blind": blind,
             "dir": dirs, "side": (row["side"] or "").lower(), "name": row["name"] or "",
         }  # fmt: skip
+    return out
+
+
+def _loadouts(loadout, spans, step, frames_by_round) -> dict:
+    """``{round: {steamid: {"held", "inv", "gear"}}}`` -- each a list of changes.
+
+    ``held`` is ``[frame, item]`` (``""`` for nothing in hand), ``inv`` is
+    ``[frame, [item, ...]]`` and ``gear`` is ``[frame, armor, helmet, kit, money]``.
+    """
+    if loadout is None or loadout.is_empty():
+        return {}
+    out: dict = {}
+    last: dict = {}
+    for row in loadout.sort(["round_num", "steamid", "tick"]).iter_rows(named=True):
+        number, steamid, tick = _i(row["round_num"]), row["steamid"], _i(row["tick"])
+        if number not in spans or steamid is None or tick is None:
+            continue
+        frame = (tick - spans[number][0]) // step
+        if not 0 <= frame < frames_by_round[number]:
+            continue
+        sid = str(steamid)
+        now = {
+            "held": _item(row["held"]) if row["held"] else "",
+            "inv": _carried(row["inventory"]),
+            "gear": [_i(row["armor"]) or 0, int(bool(row["helmet"])), int(bool(row["defuser"])),
+                     _i(row["balance"]) or 0],
+        }  # fmt: skip
+        track = out.setdefault(number, {}).setdefault(sid, {"held": [], "inv": [], "gear": []})
+        seen = last.setdefault((number, sid), {})
+        for key, value in now.items():
+            if seen.get(key) != value:
+                track[key].append([frame, *value] if key == "gear" else [frame, value])
+                seen[key] = value
     return out
 
 
@@ -627,7 +706,7 @@ def _events(frames, spans, tickrate, split: float | None = None) -> dict:
 
 def _round_payload(
     match_map, round_row, number, start, end, tickrate, step, n_frames, tracks, teams, nades,
-    effects, events, level_keys=(),
+    effects, events, level_keys=(), loadouts=None,
 ) -> dict:  # fmt: skip
     """Assemble one round, and decide who is on screen.
 
@@ -667,10 +746,12 @@ def _round_payload(
             "lvl": track.get("lvl") or [],
             "blind": track.get("blind") or [],
             "weapons": [],
+            # Absent when the bundle has no Loadout (parsed before it was read).
+            **((loadouts or {}).get(steamid) or {}),
         })  # fmt: skip
 
-    # The weapon isn't in the tick stream; the last thing a player fired is the
-    # best answer for what is in his hands now.
+    # Without a Loadout, the last thing a player fired is the best answer for
+    # what is in their hands now.
     by_player: dict[str, list] = {}
     for event in events:
         if event["kind"] not in ("shot", "kill"):
@@ -702,6 +783,8 @@ def _round_payload(
         "plant_t": plant["t"] if plant else None,
         # Empty on a single-level map, which tells the page not to offer floors.
         "levels": list(level_keys),
+        # Whether players carry held/inv/gear: false on Tick Data read before them.
+        "loadout": bool(loadouts),
         "places": places,
         "players": players,
         "events": events,

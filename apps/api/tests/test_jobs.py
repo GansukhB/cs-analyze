@@ -88,6 +88,35 @@ def test_running_job_is_asked_to_stop(client, auth, dispatched, db):
         jobs.check_cancelled(db, job)
 
 
+def test_worker_start_fails_the_orphan_and_starts_the_next(client, auth, dispatched, db):
+    first = create(client, auth).json()
+    second = create(client, auth, my_team="FaZe").json()
+    orphan = stored(db, first)
+    jobs.set_stage(db, orphan, "fetching", 20)
+
+    jobs.recover(db)
+    assert orphan.status == JobStatus.FAILED and "тасарлаа" in orphan.error
+    assert dispatched == [orphan.id, stored(db, second).id]
+
+
+def test_worker_start_sends_a_dispatched_job_again(client, auth, dispatched, db):
+    job = stored(db, create(client, auth).json())
+    assert job.celery_task_id == "celery-1"
+
+    jobs.recover(db)
+    assert job.status == JobStatus.QUEUED and job.celery_task_id == "celery-2"
+
+
+def test_stale_message_is_skipped(client, auth, dispatched, db):
+    from app.tasks import _is_current
+
+    job = stored(db, create(client, auth).json())
+    jobs.recover(db)
+    assert not _is_current(job, "celery-1") and _is_current(job, "celery-2")
+    jobs.set_stage(db, job, "resolving", 5)
+    assert not _is_current(job, "celery-2")
+
+
 def test_detail_list_and_polling(client, auth, dispatched, db, published):
     created = create(client, auth).json()
     job = stored(db, created)

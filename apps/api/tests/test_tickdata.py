@@ -71,7 +71,22 @@ def _economy() -> pl.DataFrame:
     return pl.DataFrame(rows, schema_overrides={"steamid": pl.UInt64})
 
 
-def _bundle(with_detonations: bool = True, with_economy: bool = True) -> bytes:
+def _loadout() -> pl.DataFrame:
+    """a1 in round 1 on the replay's 8 Hz grid (every 8th tick at 64 tick): an M4A1-S
+    in hand with two flashes on him, then a flash out from 1.5 s."""
+    rows = []
+    for k in range(0, 600, 8):
+        rows.append({"round_num": 1, "tick": 1200 + k, "steamid": 11,
+                     "held": "Flashbang" if k >= 96 else "M4A1-S",
+                     "inventory": ["Karambit", "Flashbang", "USP-S", "M4A1-S", "Flashbang"],
+                     "armor": 100, "helmet": True, "defuser": k >= 96,
+                     "balance": 1200})  # fmt: skip
+    return pl.DataFrame(rows, schema_overrides={"steamid": pl.UInt64})
+
+
+def _bundle(
+    with_detonations: bool = True, with_economy: bool = True, with_loadout: bool = True
+) -> bytes:
     frames = {
         "ticks": _ticks(),
         "rounds": pl.DataFrame(
@@ -101,6 +116,8 @@ def _bundle(with_detonations: bool = True, with_economy: bool = True) -> bytes:
         frames["flashes"] = frames["he_grenades"] = pl.DataFrame()
     if with_economy:
         frames["economy"] = _economy()
+    if with_loadout:
+        frames["loadout"] = _loadout()
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as bundle:
         for name, frame in frames.items():
@@ -176,6 +193,13 @@ def test_replay_api_sends_the_stored_gzip(client, auth, db, nuke):
     assert res.status_code == 200 and res.headers["content-encoding"] == "gzip"
     assert res.json()["round"] == 2
     assert client.get(f"/matches/{match_id}/maps/1/rounds/9", headers=auth).status_code == 404
+    # Revalidated every time: the same bytes are a 304, never a stale max-age.
+    assert res.headers["cache-control"] == "private, no-cache"
+    etag = res.headers["etag"]
+    again = client.get(
+        f"/matches/{match_id}/maps/1/rounds/2", headers={**auth, "If-None-Match": etag}
+    )
+    assert again.status_code == 304 and again.headers["etag"] == etag
 
 
 def test_a_stale_build_is_rebuilt_from_the_stored_bundle(db, nuke):
@@ -306,6 +330,34 @@ def test_a_landing_takes_the_callout_players_stood_in():
     points = [(5, 5, 20), (2005, 30, 0), (5, 5, -480), (1000, 0, 0), (None, 0, 0)]
     assert tickdata.callouts_at(cells, points) == ["Ramp", "Silo", "Lower", "", ""]
     assert tickdata.callouts_at(tickdata.callout_cells(None), points[:1]) == [""]
+
+
+def test_the_replay_carries_the_loadout_as_changes(db, nuke):
+    dataset = tickdata.store(db, nuke["map"], _bundle())
+    db.commit()
+    assert tickdata.reparseable(dataset)
+    first = replay.round_data(db, nuke["map"], 1)
+    assert first["loadout"] is True
+    a1 = next(p for p in first["players"] if p["sid"] == "11")
+    assert a1["held"] == [[0, "M4A1-S"], [12, "flash"]]
+    assert a1["inv"] == [[0, ["M4A1-S", "USP-S", "flash", "flash"]]]  # knife left out
+    assert a1["gear"] == [[0, 100, 1, 0, 1200], [12, 100, 1, 1, 1200]]
+    b1 = next(p for p in first["players"] if p["sid"] == "21")
+    assert "held" not in b1
+
+
+def test_tick_data_without_the_loadout_replays_but_needs_its_demo(db, nuke):
+    from app.services.demo_parser import DemoParseError
+
+    blob = _bundle(with_loadout=False)
+    dataset = tickdata.store(db, nuke["map"], blob)
+    db.commit()
+    assert not tickdata.reparseable(dataset)
+    first = replay.round_data(db, nuke["map"], 1)
+    assert first["loadout"] is False and all("held" not in p for p in first["players"])
+    with pytest.raises(DemoParseError, match="loadout"):
+        tickdata.parsed_map(blob, "x.dem")
+    assert tickdata.parsed_map(_bundle(), "x.dem").loadout.height == _loadout().height
 
 
 def test_walks_payload_is_compressed(db, nuke):

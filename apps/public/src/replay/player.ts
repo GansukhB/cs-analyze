@@ -33,6 +33,10 @@ interface Player {
   lvl: [number, number][]
   blind: [number, number][]
   weapons: [number, string][]
+  // The Loadout, as changes; absent on Tick Data read before it (schema < 5).
+  held?: [number, string][]
+  inv?: [number, string[]][]
+  gear?: [number, number, number, number, number][] // frame, armor, helmet, kit, money
 }
 
 interface ReplayEvent {
@@ -90,6 +94,7 @@ export interface RoundData {
   site: string
   plant_t: number | null
   levels: string[]
+  loadout?: boolean
   places: string[]
   players: Player[]
   events: ReplayEvent[]
@@ -98,6 +103,47 @@ export interface RoundData {
 }
 
 type Floor = number | null
+
+// One player's row in the broadcast-style panel beside the map.
+interface Chip {
+  el: HTMLElement
+  label: HTMLElement
+  hp: HTMLElement
+  fill: HTMLElement
+  // The gun on the first line and the second line (armor, money, the rest of
+  // the Loadout); absent on a round with no Loadout.
+  gun?: HTMLElement
+  kit?: HTMLElement
+  shown?: string
+}
+
+// Small inline icons, drawn in currentColor.
+const ICONS = {
+  armor:
+    '<svg viewBox="0 0 16 16"><path d="M8 1 2.5 3v4.2C2.5 10.9 4.8 13.6 8 15c3.2-1.4 5.5-4.1 5.5-7.8V3z"/></svg>',
+  helmet:
+    '<svg viewBox="0 0 16 16"><path d="M2 10.5C2 6.4 4.7 3 8.3 3 11.8 3 14 5.7 14 9v1.5H9.5V13H3.2L2 11.6z"/></svg>',
+  kit:
+    '<svg viewBox="0 0 16 16"><path d="M3 4h10v8H3z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 2h5v2h-5zM7 6.5h2V9H7z"/></svg>',
+  c4: '<svg viewBox="0 0 16 16"><path d="M2 4h12v9H2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 6.5h4v1.6h-4zM4.5 9.3h4v1.6h-4z"/><circle cx="11.3" cy="8.5" r="1.4" fill="#cf6a56"/></svg>',
+}
+
+// A grenade's tag: the letter, on the colour the map draws its utility in.
+const NADE_TAG: Record<string, [string, string]> = {
+  flash: ['F', '#e8e0a0'], smoke: ['S', '#c8d2dc'], HE: ['H', '#cf6a56'],
+  molotov: ['M', '#e0854a'], incendiary: ['I', '#e0854a'], decoy: ['D', '#8fa0b0'],
+}
+const PISTOLS = new Set(['Glock', 'USP-S', 'P2000', 'P250', 'Five-SeveN', 'Tec-9', 'CZ', 'Deagle', 'Duals', 'R8'])
+
+// The last change at or before frame `f` of a change list.
+function changeAt<T extends [number, ...unknown[]]>(list: T[] | undefined, f: number): T | null {
+  let found: T | null = null
+  for (const c of list || []) {
+    if (c[0] <= f) found = c
+    else break
+  }
+  return found
+}
 
 const WEAPONS: Record<string, string> = {
   ak47: 'AK-47', m4a1: 'M4', awp: 'AWP', 'usp/p2000': 'USP', glock: 'Glock',
@@ -136,6 +182,8 @@ export function mountReplay(
   scene: SceneData,
   fetchRound: (n: number) => Promise<RoundData>,
   startRound?: number,
+  // Rounds each club had won when round `n` began, by club name.
+  scoreBefore: (n: number) => Record<string, number> = () => ({}),
 ): () => void {
   const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
     root.querySelector<T>(`#${id}`) as T
@@ -214,7 +262,7 @@ export function mountReplay(
     autoFloor: null as Floor,
     shownFloor: undefined as Floor | undefined,
     // sid -> chip, rebuilt per round so draw() never walks the document.
-    chips: {} as Record<string, { el: HTMLElement; label: HTMLElement }>,
+    chips: {} as Record<string, Chip>,
   }
 
   function playerFloorAt(p: Player, f: number): Floor {
@@ -324,17 +372,35 @@ export function mountReplay(
       const players = d.players.filter((p) => p.side === side).sort((a, b) => a.name.localeCompare(b.name))
       const club = players.find((p) => p.team)?.team
       nameEl.textContent = club || side.toUpperCase()
+      $(`rp-${side}`).textContent = String((club && scoreBefore(d.round)[club]) || 0)
+      $('rp-round-no').textContent = `round ${d.round}`
       players.forEach((p) => {
-        const chip = document.createElement('span')
-        chip.className = 'rp-chip'
-        const dot = document.createElement('i')
-        dot.style.background = p.colour
+        const row = document.createElement('div')
+        row.className = 'rp-pl'
+        row.style.setProperty('--pc', p.colour)
+        const fill = document.createElement('i')
+        fill.className = 'rp-fill'
+        const top = document.createElement('div')
+        top.className = 'rp-l1'
+        const hp = document.createElement('b')
+        hp.className = 'rp-hp'
         const label = document.createElement('b')
+        label.className = 'rp-nm'
         label.textContent = p.name
         label.style.color = p.colour
-        chip.append(dot, label)
-        box.append(chip)
-        state.chips[p.sid] = { el: chip, label }
+        top.append(hp, label)
+        row.append(fill, top)
+        box.append(row)
+        state.chips[p.sid] = { el: row, label, hp, fill }
+        if (d.loadout && p.gear) {
+          const gun = document.createElement('span')
+          gun.className = 'rp-gun'
+          top.append(gun)
+          const kit = document.createElement('div')
+          kit.className = 'rp-l2'
+          row.append(kit)
+          Object.assign(state.chips[p.sid], { gun, kit })
+        }
       })
     }
   }
@@ -446,8 +512,14 @@ export function mountReplay(
       if (!future) current = r.el
     })
     // Follow the clock only while it runs; scrubbing must not yank the panel.
+    // Only the log's own list scrolls: scrollIntoView would move the whole page
+    // down to the log, which sits under the map.
     if (state.playing && current && current !== lastScrolled) {
-      ;(current as HTMLElement).scrollIntoView({ block: 'nearest' })
+      const row = current as HTMLElement
+      const top = row.offsetTop - feedBox.offsetTop
+      if (top < feedBox.scrollTop) feedBox.scrollTop = top
+      else if (top + row.offsetHeight > feedBox.scrollTop + feedBox.clientHeight)
+        feedBox.scrollTop = top + row.offsetHeight - feedBox.clientHeight
       lastScrolled = current
     }
   }
@@ -481,6 +553,64 @@ export function mountReplay(
     const k = f - i
     const dirB = p.dir ? p.dir[j] : null
     return { x: a + (c - a) * k, y: b + (d - b) * k, hp: p.hp[i], dir: lerpAngle(dirA, dirB, k) }
+  }
+
+  // What a player holds at frame `f`: the Loadout's Held weapon, or without one
+  // the last weapon they fired.
+  function heldAt(p: Player, f: number, t: number) {
+    if (p.held) return changeAt(p.held, f)?.[1] || ''
+    const fired = weaponAt(p, t)
+    return fired ? gun(fired) : ''
+  }
+
+  // A player's row: the health bar, then the gun in their hands or on their
+  // back, then armor, money and the rest of the Loadout, the Held weapon lit.
+  // Rewritten only when something in it changed.
+  function renderRow(chip: Chip, p: Player, f: number, hp: number) {
+    const gear = changeAt(p.gear, f)
+    const inv = changeAt(p.inv, f)?.[1] || []
+    const held = changeAt(p.held, f)?.[1] || ''
+    const key = `${hp}|${gear?.slice(1).join(',')}|${inv.join(',')}|${held}`
+    if (key === chip.shown) return
+    chip.shown = key
+    chip.hp.textContent = String(hp)
+    chip.fill.style.width = `${hp}%`
+    chip.el.classList.toggle('low', hp <= 25)
+    if (!chip.gun || !chip.kit) return
+
+    const guns = inv.filter((item) => !(item in NADE_TAG) && item !== 'C4' && item !== 'zeus')
+    const main = guns.find((g) => !PISTOLS.has(g)) || guns[0] || ''
+    chip.gun.textContent = main
+    chip.gun.classList.toggle('on', !!main && main === held)
+
+    const [, armor, helmet, kit, money] = gear || [0, 0, 0, 0, 0]
+    const parts: HTMLElement[] = []
+    const add = (cls: string, html: string, on = false, title = '') => {
+      const el = document.createElement('span')
+      el.className = cls + (on ? ' on' : '')
+      el.innerHTML = html
+      if (title) el.title = title
+      parts.push(el)
+      return el
+    }
+    add(`rp-armor${armor ? '' : ' none'}`, (helmet ? ICONS.helmet : ICONS.armor) + `<em>${armor}</em>`, false,
+      helmet ? 'armor + helmet' : 'armor')
+    add('rp-money', `$${money.toLocaleString('en-US')}`)
+    const rest = document.createElement('span')
+    rest.className = 'rp-rest'
+    for (const g of guns) if (g !== main) add('rp-side', g, g === held)
+    if (held === 'knife') add('rp-side', 'knife', true)
+    for (const item of inv) {
+      const tag = NADE_TAG[item]
+      if (!tag) continue
+      const el = add('rp-nade', tag[0], item === held, item)
+      el.style.background = tag[1]
+    }
+    if (inv.includes('zeus')) add('rp-side', 'zeus', held === 'zeus')
+    if (inv.includes('C4')) add('rp-icon c4', ICONS.c4, held === 'C4', 'bomb')
+    if (kit) add('rp-icon kit', ICONS.kit, false, 'defuse kit')
+    rest.append(...parts.splice(2))
+    chip.kit.replaceChildren(...parts, rest)
   }
 
   function weaponAt(p: Player, t: number) {
@@ -548,25 +678,17 @@ export function mountReplay(
     drawPlayers(f, t, floor)
 
     $('rp-clock').textContent = clock(t)
-    // Both floors, always: this is how many are left in the round, not on the picture.
-    let ct = 0
-    let tt = 0
     d.players.forEach((p) => {
       const s = at(p, f)
       const alive = !!(s && s.hp > 0)
-      if (alive) {
-        if (p.side === 'ct') ct++
-        else tt++
-      }
       const chip = state.chips[p.sid]
       if (chip) {
         chip.el.classList.toggle('dead', !alive)
+        renderRow(chip, p, Math.floor(f), alive && s ? s.hp : 0)
         const blind = blindAt(p, f, d.hz)
         chip.label.style.color = blind > 0 ? paleTint(p.colour, 0.85 * blind) : p.colour
       }
     })
-    $('rp-ct').textContent = String(ct)
-    $('rp-t').textContent = String(tt)
     const note = $('rp-note')
     if (d.plant_t === null || t < d.plant_t) {
       note.textContent = ''
@@ -872,11 +994,11 @@ export function mountReplay(
       }
 
       if (state.names) {
-        const held = weaponAt(p, t)
+        const held = heldAt(p, Math.floor(f), t)
         ctx.font = '600 11.5px ui-monospace, Menlo, monospace'
         ctx.textAlign = 'center'
         ctx.fillStyle = 'rgba(13, 17, 22, .72)'
-        const text = p.name + (held ? ' · ' + gun(held) : '') + (blind > 0 ? ' ✦' : '')
+        const text = p.name + (held ? ' · ' + held : '') + (blind > 0 ? ' ✦' : '')
         const w = ctx.measureText(text).width
         ctx.fillRect(x - w / 2 - 3, y - 24, w + 6, 14)
         ctx.fillStyle = dotColour

@@ -27,12 +27,16 @@
     "user:activate": "uv run --directory apps/api python -m app.cli activate-user",
     "data:import": "uv run --directory apps/api python -m app.cli import-tickdata",
     "data:rebuild": "uv run --directory apps/api python -m app.cli rebuild-tickdata",
+    "data:cstat": "uv run --directory apps/api python -m app.cli import-cstat",
     "openapi": "uv run --directory apps/api python -m app.openapi && npm run gen:api -w public",
     "test:api": "uv run --directory apps/api pytest",
     "lint": "npm run lint:api && npm run lint:public",
     "lint:api": "uv run --directory apps/api ruff check . && uv run --directory apps/api ruff format --check .",
     "lint:public": "npm run lint -w public && npm run typecheck -w public",
-    "build:public": "npm run build -w public"
+    "build:public": "npm run build -w public",
+    "deploy": "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/deploy.yml",
+    "deploy:certs": "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/certbot.yml",
+    "deploy:db-copy": "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/db_copy.yml"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

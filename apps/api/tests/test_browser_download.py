@@ -93,3 +93,23 @@ def test_a_stall_repeats_the_last_count(browser, tmp_path, monkeypatch):
         if now[0] == before[0] and 0 < now[0] < SIZE and now[2] > before[2]
     ]
     assert repeated, calls
+
+
+def test_the_download_leaves_no_temp_copy(browser, tmp_path, monkeypatch):
+    from playwright.sync_api import Download
+
+    deleted = []
+    delete = Download.delete
+    monkeypatch.setattr(Download, "delete", lambda self: deleted.append(delete(self)))
+    browser.download("/demo.rar", tmp_path / "demo.rar")
+    assert len(deleted) == 1
+
+
+def test_a_crashed_tab_is_replaced(browser):
+    first = browser.page
+    with pytest.raises(Exception, match="crash"):
+        first.goto("chrome://crash")
+    assert browser.recover_page() is True
+    assert browser.page is not first and not browser.page.is_closed()
+    assert browser.open("/").title() == "ok"
+    assert browser.recover_page() is False

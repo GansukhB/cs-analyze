@@ -134,7 +134,7 @@ def enqueue(db: Session, job: AnalysisJob) -> None:
     _dispatch(db, job)
 
 
-def start_next(db: Session, after: AnalysisJob) -> None:
+def start_next(db: Session, after: AnalysisJob | None = None) -> None:
     """Start the longest-waiting queued job, if the slot is free.
 
     Called whenever a job stops being in flight. Re-checks the slot itself, so
@@ -144,13 +144,12 @@ def start_next(db: Session, after: AnalysisJob) -> None:
     busy = db.scalars(_in_flight().with_for_update()).first()
     candidate = None
     if busy is None:
+        waiting = [AnalysisJob.status == JobStatus.QUEUED, AnalysisJob.celery_task_id == ""]
+        if after is not None:
+            waiting.append(AnalysisJob.id != after.id)
         candidate = db.scalars(
             select(AnalysisJob)
-            .where(
-                AnalysisJob.status == JobStatus.QUEUED,
-                AnalysisJob.celery_task_id == "",
-                AnalysisJob.id != after.id,
-            )
+            .where(*waiting)
             .order_by(AnalysisJob.created_at, AnalysisJob.id)
             .with_for_update()
         ).first()
@@ -161,6 +160,29 @@ def start_next(db: Session, after: AnalysisJob) -> None:
         cancel(db, candidate)
         return
     _dispatch(db, candidate)
+
+
+def recover(db: Session) -> None:
+    """Pick the queue back up when the worker starts, from the rows alone.
+
+    There is one worker, so at its start nothing can be running: a RUNNING row
+    is a job the previous process died in (a deploy's SIGKILL, the OOM killer)
+    and would otherwise hold the slot forever. It is failed. A job that was
+    sent to Celery but never started loses its task id, because the caller
+    purged the broker first, and is sent again in its turn; ``run_analysis``
+    ignores any old message that resurfaces.
+    """
+    orphans = db.scalars(select(AnalysisJob).where(AnalysisJob.status == JobStatus.RUNNING)).all()
+    for job in db.scalars(
+        select(AnalysisJob).where(
+            AnalysisJob.status == JobStatus.QUEUED, AnalysisJob.celery_task_id != ""
+        )
+    ):
+        job.celery_task_id = ""
+    db.commit()
+    for job in orphans:
+        fail(db, job, "Worker дахин эхэлсэн тул энэ job дундаа тасарлаа. Дахин эхлүүлнэ үү.")
+    start_next(db)
 
 
 # -- the story ---------------------------------------------------------------

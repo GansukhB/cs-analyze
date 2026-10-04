@@ -6,10 +6,11 @@ map; the replay's rounds are fetched one at a time, because a map is twenty-four
 rounds of a couple of hundred kilobytes each.
 """
 
+import hashlib
 import logging
 from collections import defaultdict
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -136,9 +137,16 @@ def get_match_map(match_id: int, map_number: int, db: DbSession, _: CurrentUser)
         }
     },
 )
-def get_round(match_id: int, map_number: int, number: int, db: DbSession, _: CurrentUser):
+def get_round(
+    match_id: int, map_number: int, number: int, request: Request, db: DbSession, _: CurrentUser
+):
     """One round's replay payload, sent exactly as stored: gzip JSON, which the
-    browser decodes on its own (``Content-Encoding: gzip``)."""
+    browser decodes on its own (``Content-Encoding: gzip``).
+
+    The URL outlives its content (a rebuilt Replay, a map parsed again), so the
+    browser revalidates every time against an ETag of the stored bytes instead
+    of trusting a max-age: an unchanged round costs a 304, a changed one is new.
+    """
     match_map = _map(db, match_id, map_number)
     try:
         payload = replay.round_payload(db, match_map, number)
@@ -149,10 +157,14 @@ def get_round(match_id: int, map_number: int, number: int, db: DbSession, _: Cur
         ) from exc
     if payload is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No replay data for this round")
+    etag = f'"{hashlib.md5(payload, usedforsecurity=False).hexdigest()}"'
+    headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
+    if etag in (request.headers.get("if-none-match") or ""):
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     return Response(
         content=payload,
         media_type="application/json",
-        headers={"Content-Encoding": "gzip", "Cache-Control": "private, max-age=3600"},
+        headers={**headers, "Content-Encoding": "gzip"},
     )
 
 

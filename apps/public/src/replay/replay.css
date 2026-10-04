@@ -5,33 +5,94 @@
 .rp button { cursor: pointer; }
 .rp .help { margin: 0; color: var(--ink-3); font-size: 12.5px; }
 
-/* Map on the left, feed on the right; they stack under 1000px. */
-.rp .replay { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; }
-@media (max-width: 1000px) { .rp .replay { grid-template-columns: minmax(0, 1fr); } }
+/* A caster's screen: the score and clock on top, each side's five players in a
+   panel either side of the map, the round log underneath. It is wider than the
+   page's column, so it breaks out of it to (at most) 1400px. */
+.rp { width: min(1400px, calc(100vw - 48px)); position: relative; left: 50%;
+      transform: translateX(-50%); }
+.rp .replay { display: flex; flex-direction: column; gap: 10px; }
+.rp .rp-arena { display: grid; grid-template-columns: 250px minmax(0, 1fr) 250px; gap: 10px;
+                grid-template-areas: "ct main t"; align-items: start; }
+.rp .rp-roster.ct { grid-area: ct; }
+.rp .rp-roster.t { grid-area: t; }
+.rp .rp-main { grid-area: main; min-width: 0; }
+@media (max-width: 1100px) {
+  .rp .rp-arena { grid-template-columns: 1fr 1fr; grid-template-areas: "main main" "ct t"; }
+}
+@media (max-width: 640px) {
+  .rp .rp-arena { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "ct" "t"; }
+}
 
-/* Who is ahead and who is still standing, grouped by side, not by club. */
-.rp .rp-score { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
-                padding: 10px 14px; margin-bottom: 10px; }
-.rp .rp-score-top { display: flex; align-items: baseline; justify-content: center;
-                    gap: 14px; font-family: var(--mono); }
-.rp .rp-score-side { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1; }
-.rp .rp-score-side.t { flex-direction: row-reverse; text-align: right; }
-.rp .rp-score-side .nm { font-size: 13px; font-weight: 600; letter-spacing: .02em;
+/* The top bar: club and players alive per side, the round clock between. */
+.rp .rp-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+                background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+                font-family: var(--mono); overflow: hidden; }
+.rp .rp-score-side { display: flex; align-items: center; gap: 12px; padding: 8px 14px; min-width: 0; }
+.rp .rp-score-side.ct { border-left: 4px solid var(--ct);
+                        background: linear-gradient(90deg, rgba(91, 155, 216, .16), transparent 70%); }
+.rp .rp-score-side.t { flex-direction: row-reverse; border-right: 4px solid var(--t);
+                       background: linear-gradient(270deg, rgba(211, 154, 85, .16), transparent 70%); }
+.rp .rp-score-side .nm { font-size: 14px; font-weight: 600; letter-spacing: .03em; flex: 1;
                          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp .rp-score-side.t .nm { text-align: right; }
 .rp .rp-score-side.ct .nm, .rp .rp-score-side.ct .rp-score-n { color: var(--ct); }
 .rp .rp-score-side.t .nm, .rp .rp-score-side.t .rp-score-n { color: var(--t); }
 .rp .rp-score-n { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.rp .rp-score-mid { color: var(--ink-3); font-size: 10.5px; text-transform: uppercase;
-                    letter-spacing: .12em; flex: none; }
-.rp .rp-roster { display: flex; flex-wrap: wrap; gap: 5px 14px; margin-top: 9px; }
-.rp .rp-roster + .rp-roster { border-top: 1px solid var(--line-soft); padding-top: 8px; }
-.rp .rp-chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono);
-               font-size: 11.5px; }
-.rp .rp-chip i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-.rp .rp-chip b { font-weight: 500; transition: color .15s linear; }
-/* A dead man's chip dims the same way his dot on the map does. */
-.rp .rp-chip.dead { opacity: .38; }
-.rp .rp-chip.dead b { transition: none; }
+.rp .rp-score-mid { display: flex; flex-direction: column; align-items: center; padding: 4px 22px;
+                    background: var(--surface-2); align-self: stretch; justify-content: center; }
+.rp .rp-score-mid .clock { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums;
+                           color: var(--ink); line-height: 1.1; }
+.rp .rp-score-mid .cap { color: var(--ink-3); font-size: 9.5px; text-transform: uppercase;
+                         letter-spacing: .14em; }
+
+/* One row per player, as on a broadcast: health as a bar behind the name, the
+   gun on the right, armor, money and the rest of the Loadout underneath. T
+   mirrors CT, so both panels read outward from the map. */
+.rp .rp-roster { display: flex; flex-direction: column; gap: 4px; font-family: var(--mono); }
+.rp .rp-pl { position: relative; overflow: hidden; background: var(--surface);
+             border: 1px solid var(--line); border-radius: 4px; padding: 5px 9px 5px 11px; }
+.rp .rp-roster.ct .rp-pl { border-left: 3px solid var(--pc); }
+.rp .rp-roster.t .rp-pl { border-right: 3px solid var(--pc); padding: 5px 11px 5px 9px; }
+.rp .rp-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 100%;
+               background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 26%, transparent),
+                                           color-mix(in srgb, var(--pc) 12%, transparent));
+               transition: width .15s linear; pointer-events: none; }
+.rp .rp-roster.t .rp-fill { left: auto; right: 0;
+  background: linear-gradient(270deg, color-mix(in srgb, var(--pc) 26%, transparent),
+                                      color-mix(in srgb, var(--pc) 12%, transparent)); }
+.rp .rp-pl.low .rp-fill { background: rgba(207, 106, 86, .3); }
+.rp .rp-l1, .rp .rp-l2 { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rp .rp-roster.t .rp-l1, .rp .rp-roster.t .rp-l2 { flex-direction: row-reverse; }
+.rp .rp-hp { font-size: 15px; font-weight: 700; min-width: 30px; color: var(--ink);
+             font-variant-numeric: tabular-nums; }
+.rp .rp-roster.t .rp-hp { text-align: right; }
+.rp .rp-pl.low .rp-hp { color: var(--crit); }
+.rp .rp-nm { font-size: 12.5px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden;
+             text-overflow: ellipsis; white-space: nowrap; transition: color .15s linear; }
+.rp .rp-roster.t .rp-nm { text-align: right; }
+.rp .rp-gun { font-size: 12px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+.rp .rp-l2 { margin-top: 3px; font-size: 10.5px; color: var(--ink-2); gap: 9px; }
+.rp .rp-armor { display: inline-flex; align-items: center; gap: 3px; color: var(--ink-2); }
+.rp .rp-armor.none { opacity: .35; }
+.rp .rp-armor em { font-style: normal; font-variant-numeric: tabular-nums; }
+.rp .rp-l2 svg { width: 12px; height: 12px; fill: currentColor; display: block; }
+.rp .rp-money { color: var(--good); font-variant-numeric: tabular-nums; }
+.rp .rp-rest { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+.rp .rp-roster.t .rp-rest { margin-left: 0; margin-right: auto; flex-direction: row-reverse; }
+.rp .rp-side { color: var(--ink-3); }
+.rp .rp-nade { width: 13px; height: 13px; border-radius: 3px; color: #0d1116; font-size: 9px;
+               font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+               opacity: .7; }
+.rp .rp-icon { color: var(--ink-3); display: inline-flex; }
+.rp .rp-icon.kit { color: var(--ct); }
+/* The Held weapon, wherever it sits in the row. */
+.rp .rp-gun.on, .rp .rp-side.on, .rp .rp-icon.on { color: var(--ink); }
+.rp .rp-nade.on { opacity: 1; box-shadow: 0 0 0 1.5px var(--ink); }
+/* A dead player keeps only the name, dimmed like the dot on the map. */
+.rp .rp-pl.dead { opacity: .42; }
+.rp .rp-pl.dead .rp-l2, .rp .rp-pl.dead .rp-gun, .rp .rp-pl.dead .rp-fill { display: none; }
+.rp .rp-pl.dead .rp-hp { color: var(--ink-3); }
+.rp .rp-pl.dead .rp-nm { transition: none; }
 
 .rp .stage { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
              padding: 12px; position: relative; }
@@ -43,8 +104,6 @@
 .rp .stage .loading[hidden] { display: none; }
 
 .rp .hud { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-.rp .hud .clock { font-family: var(--mono); font-size: 18px; font-variant-numeric: tabular-nums;
-                  min-width: 74px; }
 .rp .hud .alive { font-family: var(--mono); font-size: 13px; color: var(--ink-3); }
 .rp .hud .alive.bombclock { color: var(--crit); font-variant-numeric: tabular-nums; }
 .rp .hud button.play { padding: 8px 18px; min-width: 84px; background: var(--ct); color: #0d1116;
@@ -81,7 +140,7 @@
 
 /* Only the list of events scrolls; the round's summary stays put. */
 .rp .feed { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
-            padding: 12px 14px; display: flex; flex-direction: column; max-height: 660px; }
+            padding: 12px 14px; display: flex; flex-direction: column; max-height: 380px; }
 .rp .feed #rp-feed { overflow-y: auto; min-height: 0; }
 .rp .feed h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
                color: var(--ink-3); font-weight: 600; display: flex; align-items: baseline;

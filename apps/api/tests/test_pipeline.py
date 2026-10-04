@@ -48,7 +48,13 @@ class FakeBrowser:
     def __exit__(self, *exc):
         return False
 
+    recovered = 0
+
     def is_connected(self):
+        return True
+
+    def recover_page(self):
+        FakeBrowser.recovered += 1
         return True
 
     def download(self, url, dest, on_progress=None):
@@ -135,6 +141,7 @@ def pipeline(monkeypatch, tmp_path, db, user):
     monkeypatch.setattr(analysis_store, "ingest_map", fake_ingest)
     monkeypatch.setattr(tickdata, "pack", lambda parsed, scratch: b"tick data")
     FakeBrowser.downloads = []
+    FakeBrowser.recovered = 0
     INGESTED.clear()
 
     def run(**fields):
@@ -211,6 +218,26 @@ def test_second_run_skips_everything(pipeline, db):
     assert len(FakeBrowser.downloads) == 3
 
 
+def test_a_crashed_tab_skips_that_match_only(pipeline, db, monkeypatch):
+    from playwright.sync_api import Error as PlaywrightError
+
+    def demo_link(self, match):
+        if match.id == 102:
+            raise PlaywrightError("Page.evaluate: Page crashed")
+        return f"/download/demo/{match.id}"
+
+    monkeypatch.setattr(FakeClient, "demo_link", demo_link)
+    job = pipeline()
+    assert job.status == "success"
+    assert job.result["totals"]["fetching"] == {
+        "downloaded": 2,
+        "skipped": 0,
+        "missing": 0,
+        "failed": 1,
+    }
+    assert FakeBrowser.recovered == 1 and len(FakeBrowser.downloads) == 2
+
+
 def test_offline_run_needs_a_known_team(pipeline, db):
     with pytest.raises(ValueError, match="татах хэсэг нь хаалттай"):
         pipeline(download=False)
@@ -261,7 +288,21 @@ def test_tick_data_without_the_economy_is_downloaded_again(pipeline, db, monkeyp
     assert again.result["totals"]["fetching"]["downloaded"] == 3
     assert again.result["totals"]["parsing"]["parsed"] == 3
     assert again.result["totals"]["reparsing"]["stuck"] == 0
-    assert any("эдийн засаг байхгүй" in e.message for e in again.events)
+    assert any("эдийн засаг эсвэл зэвсэглэл байхгүй" in e.message for e in again.events)
+
+
+def test_tick_data_without_the_loadout_is_downloaded_again(pipeline, db, monkeypatch):
+    pipeline()
+    db.query(MatchMap).update({"schema_version": analysis_store.CURRENT_SCHEMA_VERSION - 1})
+    for dataset in db.query(TickDataset):
+        dataset.tables = ["ticks", *tickdata.DETONATION_TABLES, tickdata.ECONOMY_TABLE]
+    db.commit()
+    monkeypatch.setattr(tickdata, "parsed_map", lambda *a, **k: pytest.fail("re-parsed"))
+
+    again = pipeline()
+    assert again.result["totals"]["fetching"]["downloaded"] == 3
+    assert again.result["totals"]["parsing"]["parsed"] == 3
+    assert again.result["totals"]["reparsing"]["stuck"] == 0
 
 
 def test_a_map_that_never_parsed_is_downloaded_again(pipeline, db, monkeypatch):

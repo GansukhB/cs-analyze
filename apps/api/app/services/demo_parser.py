@@ -52,6 +52,20 @@ ECONOMY_PROPS = [
     "inventory",
 ]
 
+# What every player carried, had in hand and had left, on the Replay's frame grid
+# (LOADOUT_HZ is replay.REPLAY_HZ), from freeze end to the round's official end.
+# Read the same way as the economy, at those ticks only: ~140 K rows and ~140 KB
+# a map, against hundreds of MB were inventory a PLAYER_PROPS column.
+LOADOUT_PROPS = [
+    "active_weapon_name",
+    "inventory",
+    "armor_value",
+    "has_helmet",
+    "has_defuser",
+    "balance",
+]
+LOADOUT_HZ = 8
+
 # Competitive CS2 freeze time, the ruler used to measure the real tickrate.
 FREEZE_SECONDS = 20
 # Anything longer than this is a half-time or a tactical pause, not a buy.
@@ -84,6 +98,7 @@ class ParsedMap:
     flashes: pl.DataFrame  # flashbang_detonate, one row per pop -- no start/end pair
     he_grenades: pl.DataFrame  # hegrenade_detonate, same shape as flashes
     economy: pl.DataFrame  # round_num, steamid and ECONOMY_PROPS at freeze_end
+    loadout: pl.DataFrame  # round_num, tick, steamid and LOADOUT_PROPS at LOADOUT_HZ
 
     ticks: pl.DataFrame  # every player position, for routes and map shape
     roster: pl.DataFrame  # steamid, name, clan_name
@@ -206,6 +221,47 @@ def _economy(dem) -> pl.DataFrame:
     )
 
 
+def _loadout(dem, tickrate: int) -> pl.DataFrame:
+    """Each player's Loadout, Held weapon, armor and money on the Replay's grid.
+
+    Empty, with a warning, when demoparser cannot read them: the Replay then
+    shows no Loadout, nothing else depends on it.
+    """
+    step = max(1, int(round(tickrate / LOADOUT_HZ)))
+    grid = []
+    for row in dem.rounds.iter_rows(named=True):
+        start = row.get("freeze_end") or row.get("start")
+        end = row.get("official_end") or row.get("end")
+        if start is None or end is None or end <= start:
+            continue
+        grid += [(int(row["round_num"]), tick) for tick in range(int(start), int(end) + 1, step)]
+    if not grid:
+        return pl.DataFrame()
+    at = pl.DataFrame(grid, schema={"round_num": pl.Int64, "tick": pl.Int64}, orient="row")
+    try:
+        frame = pl.from_pandas(dem.parser.parse_ticks(LOADOUT_PROPS, ticks=at["tick"].to_list()))
+    except Exception as exc:  # demoparser raises bare exceptions on odd demos
+        logger.warning("loadout unavailable (%s) -- writing empty", exc)
+        return pl.DataFrame()
+    if frame.is_empty():
+        return pl.DataFrame()
+    return (
+        frame.with_columns(pl.col("tick").cast(pl.Int64))
+        .join(at, on="tick")
+        .select(
+            "round_num",
+            "tick",
+            pl.col("steamid").cast(pl.UInt64),
+            pl.col("active_weapon_name").alias("held"),
+            "inventory",
+            pl.col("armor_value").alias("armor"),
+            pl.col("has_helmet").alias("helmet"),
+            pl.col("has_defuser").alias("defuser"),
+            "balance",
+        )
+    )
+
+
 def derive_tickrate(rounds: pl.DataFrame) -> int:
     """Measure the tickrate from freeze time instead of trusting awpy (H10).
 
@@ -287,11 +343,12 @@ def parse_map(path: Path) -> ParsedMap:
 
     ticks = dem.ticks
     roster, round_sides, player_sides = sides_from_ticks(ticks)
+    tickrate = derive_tickrate(dem.rounds)
 
     return ParsedMap(
         path=path,
         map_name=str(dem.header.get("map_name") or "").strip(),
-        tickrate=derive_tickrate(dem.rounds),
+        tickrate=tickrate,
         awpy_version=getattr(awpy, "__version__", "") or "",
         rounds=dem.rounds,
         ticks=ticks,
@@ -303,6 +360,7 @@ def parse_map(path: Path) -> ParsedMap:
         flashes=_grenade_detonation(dem, "flashbang_detonate"),
         he_grenades=_grenade_detonation(dem, "hegrenade_detonate"),
         economy=_economy(dem),
+        loadout=_loadout(dem, tickrate),
         roster=roster,
         round_sides=round_sides,
         player_sides=player_sides,

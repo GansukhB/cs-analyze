@@ -19,6 +19,9 @@ The bundle also holds the flashbang and HE detonations and the economy, which
 awpy's dump leaves out and the ingest needs, so a stale Match Map can be parsed
 again from the bundle alone (:func:`parsed_map`). A bundle written before the
 economy was can't be: its map needs its Demo again (docs/adr/0003, :func:`reparseable`).
+
+The Loadout (:data:`LOADOUT_TABLE`) is the same: Tick Data written before it
+can't give it back, so its map needs its Demo again too (docs/adr/0005).
 """
 
 from __future__ import annotations
@@ -44,10 +47,11 @@ logger = logging.getLogger(__name__)
 
 # The tables awpy's compress() does not write, added to the bundle. The
 # detonations can be refilled from grenade_throws (with_detonations); the
-# economy only comes from a Demo.
+# economy and the Loadout only come from a Demo.
 DETONATION_TABLES = ("flashes", "he_grenades")
 ECONOMY_TABLE = "economy"
-EXTRA_TABLES = (*DETONATION_TABLES, ECONOMY_TABLE)
+LOADOUT_TABLE = "loadout"
+EXTRA_TABLES = (*DETONATION_TABLES, ECONOMY_TABLE, LOADOUT_TABLE)
 
 # Callout labels: the busiest places, at their median, from a fixed sample.
 GEOMETRY_SAMPLE = 220_000
@@ -210,6 +214,10 @@ def parsed_map(blob: bytes, label: str, awpy_version: str = ""):
         raise demo_parser.DemoParseError(
             f"{label}: the stored tick data has no economy; the Demo must be downloaded again"
         )
+    if LOADOUT_TABLE not in bundle.tables:
+        raise demo_parser.DemoParseError(
+            f"{label}: the stored tick data has no loadout; the Demo must be downloaded again"
+        )
     roster, round_sides, player_sides = demo_parser.sides_from_ticks(ticks)
 
     def table(name: str) -> pl.DataFrame:
@@ -230,6 +238,7 @@ def parsed_map(blob: bytes, label: str, awpy_version: str = ""):
         flashes=table("flashes"),
         he_grenades=table("he_grenades"),
         economy=table(ECONOMY_TABLE),
+        loadout=table(LOADOUT_TABLE),
         ticks=ticks,
         roster=roster,
         round_sides=round_sides,

@@ -1,0 +1,38 @@
+# Shared by deploy.yml and certbot.yml: render the vhost for both domains,
+# with HTTPS once the certificate exists.
+- name: Check for the TLS certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ tls_cert_name }}/fullchain.pem"
+  register: tls_cert
+
+- name: Render the nginx vhost
+  ansible.builtin.template:
+    src: templates/nginx.conf.j2
+    dest: "/etc/nginx/sites-available/{{ public_domain }}.conf"
+    mode: "0644"
+  vars:
+    tls_ready: "{{ tls_cert.stat.exists }}"
+  register: nginx_conf
+
+- name: Enable the vhost
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ public_domain }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ public_domain }}.conf"
+    state: link
+  register: nginx_link
+
+- name: Test the nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Reload nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+  when: nginx_conf.changed or nginx_link.changed
+
+- name: Report TLS state
+  ansible.builtin.debug:
+    msg: >-
+      {{ public_domain }} and {{ api_domain }}:
+      {{ 'HTTPS' if tls_cert.stat.exists else 'HTTP only, no certificate yet: run `npm run deploy:certs`' }}

@@ -1,0 +1,38 @@
+# Rendered by ansible/deploy.yml; overwritten on every deploy.
+[Unit]
+Description=cs-analyze Celery worker (Scout jobs)
+After=network-online.target mysql.service redis-server.service
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory={{ api_path }}
+Environment=PYTHONUNBUFFERED=1
+# Threads, one slot: jobs are single-flight anyway (app/services/jobs.py), and
+# in one process an OOM kill takes the whole worker down, so systemd restarts it
+# and `tasks._recover` fails the job it was running. Under prefork only the
+# child would die, and the job would stay RUNNING with the queue blocked.
+# %%h is a literal %h for Celery (the hostname), not systemd's home directory.
+ExecStart={{ api_path }}/.venv/bin/celery -A app.celery_app worker \
+    --pool=threads --concurrency=1 --loglevel=info \
+    --hostname={{ worker_service }}@%%h
+Restart=always
+RestartSec=10
+# SIGTERM is Celery's warm shutdown: a deploy waits this long for the running
+# job to finish; after that it is killed, and failed on the next start.
+KillSignal=SIGTERM
+TimeoutStopSec=600
+# This host's /tmp is a tmpfs, in RAM. Chromium spills shared memory to the
+# temp dir (--disable-dev-shm-usage) and Playwright streams each 500 MB demo
+# archive into it, so point both at /var/tmp, which is on disk (and, with
+# PrivateTmp, private to this unit). On /tmp a run once ran the renderer out of
+# memory mid-download: ERR_INSUFFICIENT_RESOURCES, then "Page crashed".
+Environment=TMPDIR=/var/tmp
+PrivateTmp=true
+NoNewPrivileges=true
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

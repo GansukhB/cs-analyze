@@ -1,0 +1,53 @@
+# Let's Encrypt certificate for cs2.bizon.mn and cs2-api.bizon.mn (one
+# certificate, both names), then the vhost re-rendered with HTTPS.
+#
+#   npm run deploy:certs
+#
+# Webroot, not `certbot --nginx`: the HTTP-01 challenge is served from
+# certbot_webroot by nginx's stock default site before our vhost exists and by
+# the vhost's ACME location after, so this runs before or after deploy.yml.
+# Cloudflare's proxy forwards the challenge on port 80. Renewal is certbot.timer;
+# the deploy hook saved with the certificate reloads nginx. Once HTTPS works,
+# Cloudflare's SSL mode for the two names can be Full (strict).
+
+- name: Obtain the TLS certificate
+  hosts: cs2
+  gather_facts: false
+
+  tasks:
+    - name: Install certbot
+      ansible.builtin.apt:
+        name: certbot
+        state: present
+
+    - name: Obtain the certificate
+      ansible.builtin.command:
+        argv:
+          - certbot
+          - certonly
+          - --webroot
+          - -w
+          - "{{ certbot_webroot }}"
+          - --cert-name
+          - "{{ tls_cert_name }}"
+          - -d
+          - "{{ public_domain }}"
+          - -d
+          - "{{ api_domain }}"
+          - --deploy-hook
+          - systemctl reload nginx
+          - --non-interactive
+          - --agree-tos
+          - --no-eff-email
+          - -m
+          - "{{ certbot_email }}"
+        creates: "/etc/letsencrypt/live/{{ tls_cert_name }}/fullchain.pem"
+
+    - name: Ensure the renewal timer runs
+      ansible.builtin.systemd:
+        name: certbot.timer
+        enabled: true
+        state: started
+
+    - name: Render the nginx vhost with HTTPS
+      ansible.builtin.import_tasks: tasks/nginx.yml

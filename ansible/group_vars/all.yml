@@ -1,0 +1,48 @@
+app_path: /home/cs2.bizon.mn
+api_path: "{{ app_path }}/apps/api"
+# This checkout, on the machine running ansible.
+local_root: "{{ playbook_dir | dirname }}"
+
+public_domain: cs2.bizon.mn
+api_domain: cs2-api.bizon.mn
+
+api_service: cs2-api
+worker_service: cs2-worker
+# cstat's gunicorn holds 8000.
+api_port: 8001
+api_workers: 2
+
+# cstat's Celery worker. Two Scout pipelines (Chromium plus demo parsing) do not
+# fit in this host's 7.3 GB together, so deploy.yml stops and disables it.
+cstat_worker_service: celery-worker
+
+# --- Credentials --------------------------------------------------------------
+# MySQL and Redis are cstat's servers and accounts, read at deploy time from the
+# local cstat checkout, so no secret lives in this repo. JWT_SECRET is generated
+# once on the server (jwt_secret_file) and never rotated by a deploy.
+cstat_env_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/gs/cstat/.env.production"
+mysql_host: "{{ lookup('ansible.builtin.ini', 'MYSQL_HOST', type='properties', file=cstat_env_file) }}"
+mysql_port: "{{ lookup('ansible.builtin.ini', 'MYSQL_PORT', type='properties', file=cstat_env_file) }}"
+mysql_user: "{{ lookup('ansible.builtin.ini', 'MYSQL_USERNAME', type='properties', file=cstat_env_file) }}"
+mysql_password: "{{ lookup('ansible.builtin.ini', 'MYSQL_PASSWORD', type='properties', file=cstat_env_file) }}"
+redis_host: "{{ lookup('ansible.builtin.ini', 'REDIS_HOST', type='properties', file=cstat_env_file) }}"
+redis_port: "{{ lookup('ansible.builtin.ini', 'REDIS_PORT', type='properties', file=cstat_env_file) }}"
+redis_user: "{{ lookup('ansible.builtin.ini', 'REDIS_USERNAME', type='properties', file=cstat_env_file) }}"
+redis_password: "{{ lookup('ansible.builtin.ini', 'REDIS_PASSWORD', type='properties', file=cstat_env_file) }}"
+jwt_secret_file: /etc/cs2/jwt_secret
+
+mysql_database: cs_analyze
+# MySQL runs on this host, so the app connects through the socket: no TCP, and
+# caching_sha2_password needs no RSA exchange on it.
+mysql_socket: /var/run/mysqld/mysqld.sock
+# Broker, results and app cache, in that order. cstat uses DB 9.
+redis_dbs: { broker: 10, result: 11, cache: 12 }
+redis_url: "redis://{{ redis_user | urlencode }}:{{ redis_password | urlencode }}@{{ redis_host }}:{{ redis_port }}"
+
+# --- TLS ----------------------------------------------------------------------
+# Both domains sit behind Cloudflare's proxy; the origin certificate is Let's
+# Encrypt via webroot (certbot.yml), served by nginx's stock default site until
+# our vhost exists, and by our vhost's ACME location after.
+certbot_webroot: /var/www/html
+certbot_email: bganaa2009@gmail.com
+tls_cert_name: "{{ public_domain }}"

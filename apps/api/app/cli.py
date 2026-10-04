@@ -7,6 +7,7 @@ python -m app.cli deactivate-user [username]
 python -m app.cli activate-user [username]
 python -m app.cli import-tickdata [folder]   # parquet bundles on disk -> MySQL
 python -m app.cli rebuild-tickdata           # Replays, walks, geometry from the stored bundles
+python -m app.cli import-cstat [root]        # cstat's teams, matches and .dem files -> MySQL
 """
 
 import argparse
@@ -18,7 +19,7 @@ from pathlib import Path
 from sqlalchemy import delete, select
 from sqlalchemy.orm import joinedload
 
-from app.config import get_settings
+from app.config import REPO_ROOT, get_settings
 from app.db import SessionLocal
 from app.models import Demo, MatchMap, TickDataset, User
 from app.security import hash_password
@@ -108,6 +109,17 @@ def rebuild_tickdata() -> None:
     print(f"Rebuilt {len(datasets)} maps (version {tickdata.derived_version()}).")
 
 
+def import_cstat(root: Path, parse: bool) -> None:
+    """cstat's teams, tournaments and matches, then every map demo it still has on disk."""
+    from app.services import cstat_import
+
+    with SessionLocal() as db:
+        try:
+            cstat_import.run(db, root, parse=parse, log=lambda line: print(line, flush=True))
+        except FileNotFoundError as exc:
+            sys.exit(str(exc))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -117,7 +129,15 @@ def main() -> None:
         "folder", nargs="?", help="Defaults to <HLTV_DATA_DIR>/parquet."
     )
     sub.add_parser("rebuild-tickdata")
+    cstat = sub.add_parser("import-cstat")
+    cstat.add_argument("root", nargs="?", help="The cstat checkout; defaults to ../cstat.")
+    cstat.add_argument("--no-parse", action="store_true", help="Import the rows only.")
     args = parser.parse_args()
+    if args.command == "import-cstat":
+        import_cstat(
+            Path(args.root) if args.root else REPO_ROOT.parent / "cstat", not args.no_parse
+        )
+        return
     if args.command == "import-tickdata":
         default = get_settings().hltv_data_dir / "parquet"
         import_tickdata(Path(args.folder) if args.folder else default)

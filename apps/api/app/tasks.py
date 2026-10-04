@@ -37,6 +37,7 @@ import traceback
 from collections import deque
 from pathlib import Path
 
+from celery.signals import worker_ready
 from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -48,6 +49,7 @@ from app.models import (
     Demo,
     EventLevel,
     JobStage,
+    JobStatus,
     MapRoster,
     Match,
     MatchMap,
@@ -103,6 +105,11 @@ def run_analysis(self, job_id: int) -> dict:
     """Entry point. Owns error handling so a failure is recorded, not just raised."""
     with SessionLocal() as job_db, SessionLocal() as db:
         job = job_db.get(AnalysisJob, job_id)
+        if job is None or not _is_current(job, self.request.id):
+            # A message older than the row: the job ran, ended, or was sent again
+            # after the worker restarted (see `_recover`).
+            logger.warning("skipping a stale message for job %s", job_id)
+            return {"job": str(job.public_id) if job else None, "status": "skipped"}
         job.celery_task_id = self.request.id or ""
         job_db.commit()
         try:
@@ -117,6 +124,21 @@ def run_analysis(self, job_id: int) -> dict:
             jobs.fail(job_db, job, f"{type(exc).__name__}: {exc}")
             jobs.log(job_db, job, traceback.format_exc()[-2000:], level=LEVEL.DEBUG)
             raise
+
+
+def _is_current(job: AnalysisJob, task_id: str | None) -> bool:
+    """Whether this message is the one the row was last dispatched with. The id
+    may still be blank: `jobs._dispatch` stores it just after sending."""
+    return job.status == JobStatus.QUEUED and job.celery_task_id in ("", task_id)
+
+
+@worker_ready.connect
+def _recover(**_) -> None:
+    """The worker is the only consumer, so at its start the rows are the truth:
+    drop whatever the broker still holds and let `jobs.recover` re-dispatch."""
+    celery_app.control.purge()
+    with SessionLocal() as db:
+        jobs.recover(db)
 
 
 def run_pipeline(job_db: Session, db: Session, job: AnalysisJob) -> dict:
@@ -575,7 +597,8 @@ def _redownload_reason(db: Session, row: Match) -> str:
 
     A map that never parsed, with no Tick Data to parse it from, can only be
     retried from a fresh download: its Demo was deleted with the match's files.
-    So can a stale map whose Tick Data predates the economy (docs/adr/0003).
+    So can a stale map whose Tick Data predates the economy or the Loadout
+    (docs/adr/0003, 0005).
     """
     pending = analysis_store.pending_map_demos(db, match_ids=[row.hltv_id])
     stuck = [d for d in pending if d.analysis is None or d.analysis.tick_dataset is None]
@@ -588,7 +611,9 @@ def _redownload_reason(db: Session, row: Match) -> str:
         )
     if old:
         names = ", ".join(mn.game_map(d.map) for d in old)
-        reasons.append(f"{len(old)} мапын ({names}) tick датанд эдийн засаг байхгүй")
+        reasons.append(
+            f"{len(old)} мапын ({names}) tick датанд эдийн засаг эсвэл зэвсэглэл байхгүй"
+        )
     return "; ".join(reasons)
 
 
@@ -604,6 +629,8 @@ def _fetch_one(job_db, db, job, client, browser, match, scratch: Path, totals: d
     was decided about it, so the decision can be coloured while the identity
     stays plain.
     """
+    from playwright.sync_api import Error as PlaywrightError
+
     from app.services.browser import HltvBlocked
 
     row = store.get_or_create_match(db, match)
@@ -654,11 +681,13 @@ def _fetch_one(job_db, db, job, client, browser, match, scratch: Path, totals: d
     )
     try:
         link = client.demo_link(match)
-    except HltvBlocked as exc:
+    except (HltvBlocked, PlaywrightError) as exc:
         if not browser.is_connected():
             # The Chromium process itself is gone; every match still queued would
             # fail the same way. _fetch() turns this into "continue with the database".
-            raise
+            raise HltvBlocked(str(exc)) from exc
+        # A crashed tab costs this match only; the next one gets a new tab.
+        browser.recover_page()
         jobs.log(
             job_db,
             job,
@@ -1001,7 +1030,7 @@ def _reparse(job_db: Session, db: Session, job: AnalysisJob, match_ids: list[int
     Always runs, even when nothing was downloaded: it is what keeps the analysis
     on the current ingest. Scoped to this job's own two teams, so a run never
     sits behind some other fixture's backlog. A map with no Tick Data to read
-    from, or whose Tick Data predates the economy, is left for a download to
+    from, or whose Tick Data predates the economy or the Loadout, is left for a download to
     fix, and counted.
     """
     pending = analysis_store.pending_map_demos(db, match_ids=match_ids)
@@ -1023,7 +1052,8 @@ def _reparse(job_db: Session, db: Session, job: AnalysisJob, match_ids: list[int
         jobs.log(
             job_db,
             job,
-            f"{stuck} мап боловсруулагдаагүй, эсвэл tick датанд нь эдийн засаг байхгүй — "
+            f"{stuck} мап боловсруулагдаагүй, эсвэл tick датанд нь эдийн засаг, зэвсэглэл "
+            "байхгүй — "
             "тэдгээрийн матчийг дахин татахад боловсруулагдана.",
             level=LEVEL.WARNING,
             stage=STAGE.PARSING,

@@ -498,7 +498,7 @@
           "matches"
         ],
         "summary": "Get Round",
-        "description": "One round's replay payload, sent exactly as stored: gzip JSON, which the\nbrowser decodes on its own (``Content-Encoding: gzip``).",
+        "description": "One round's replay payload, sent exactly as stored: gzip JSON, which the\nbrowser decodes on its own (``Content-Encoding: gzip``).\n\nThe URL outlives its content (a rebuilt Replay, a map parsed again), so the\nbrowser revalidates every time against an ETag of the stored bytes instead\nof trusting a max-age: an unchanged round costs a 304, a changed one is new.",
         "operationId": "get_round_matches__match_id__maps__map_number__rounds__number__get",
         "security": [
           {

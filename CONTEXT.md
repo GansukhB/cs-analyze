@@ -72,6 +72,14 @@ _Avoid_: Parquet, bundle (in prose), positions
 One Round played back from the parsed tick data: where every Player stood and what they did, second by second.
 _Avoid_: Demo (that is the file), playback
 
+**Loadout**:
+Everything a Player is carrying at a given moment: guns, grenades, armor and helmet, a defuse kit, the bomb. Money is not part of the Loadout.
+_Avoid_: Inventory, equipment (equipment value is the economy's measure of a buy)
+
+**Held weapon**:
+The one item in a Player's Loadout that they have in hand at that moment.
+_Avoid_: Active weapon, current weapon
+
 **Event**:
 Something that happens inside a Round: a kill, damage, a bomb action, or a grenade.
 _Avoid_: Using it for a Tournament

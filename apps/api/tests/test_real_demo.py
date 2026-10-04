@@ -85,7 +85,8 @@ def test_parse_ingest_and_reparse_from_tick_data(db, tmp_path, parsed):
     assert count(db, PlayerMap) == count(db, MapRoster) == count(db, PlayerMatch)
     dataset = db.scalar(select(TickDataset).where(TickDataset.match_map_id == match_map.id))
     assert dataset.size_bytes == len(bundle)
-    assert {"ticks", "flashes", "he_grenades", "economy"} <= set(dataset.tables)
+    assert {"ticks", "flashes", "he_grenades", "economy", "loadout"} <= set(dataset.tables)
+    assert parsed.loadout.height > 8 * 10 * parsed.n_rounds  # 8 Hz, ten players
     buys = db.execute(select(Round.number, Round.ct_buy, Round.t_buy).where(
         Round.match_map_id == match_map.id)).all()  # fmt: skip
     assert all(ct and t for _n, ct, t in buys)

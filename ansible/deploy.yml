@@ -1,0 +1,209 @@
+# Deploy this working tree to {{ app_path }} on cs.bizon.mn: the public app on
+# cs2.bizon.mn, the API on cs2-api.bizon.mn, and the cs2-api / cs2-worker units.
+#
+#   npm run deploy                      # everything, idempotent
+#   npm run deploy -- --tags public     # rebuild and ship the public app only
+#   npm run deploy -- --tags nginx      # re-render the vhost
+#
+# First time: `npm run deploy`, then `npm run deploy:certs` (HTTPS), then
+# optionally `npm run deploy:db-copy`. Needs ~/gs/cstat/.env.production (MySQL and
+# Redis credentials) and Node 24 under nvm for the public build.
+
+- name: Deploy cs-analyze
+  hosts: cs2
+  gather_facts: false
+
+  tasks:
+    - name: Check the credentials read from cstat
+      ansible.builtin.assert:
+        that:
+          - mysql_user | length > 0
+          - mysql_password | length > 0
+          - redis_user | length > 0
+          - redis_password | length > 0
+        fail_msg: "MYSQL_* / REDIS_* missing from {{ cstat_env_file }}"
+        quiet: true
+      tags: [always]
+
+    # --- public app, built here ----------------------------------------------
+    - name: Build the public app against the production API
+      ansible.builtin.shell: |
+        set -e
+        node_dir=$(ls -d "$HOME"/.nvm/versions/node/v24.* 2>/dev/null | tail -1)
+        [ -n "$node_dir" ] && PATH="$node_dir/bin:$PATH"
+        node -e 'process.exit(+process.versions.node.split(".")[0] >= 24 ? 0 : 1)' \
+          || { echo "Node 24+ is needed (.nvmrc), found $(node --version)" >&2; exit 1; }
+        npm run build:public
+      args:
+        chdir: "{{ local_root }}"
+        executable: /bin/bash
+      environment:
+        # Wins over apps/public/.env (http://localhost:8000).
+        VITE_API_URL: "https://{{ api_domain }}"
+      delegate_to: localhost
+      run_once: true
+      changed_when: true
+      tags: [public, sync]
+
+    # --- host ------------------------------------------------------------------
+    - name: Install bsdtar (HLTV's RAR5 archives) and rsync
+      ansible.builtin.apt:
+        name: [libarchive-tools, rsync]
+        state: present
+      tags: [setup]
+
+    - name: Install uv
+      ansible.builtin.shell: >-
+        curl -LsSf https://astral.sh/uv/install.sh
+        | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
+      args:
+        creates: /usr/local/bin/uv
+      tags: [setup]
+
+    - name: Create the app and config directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ app_path }}", mode: "0755" }
+        - { path: /etc/cs2, mode: "0700" }
+      tags: [setup]
+
+    - name: Generate JWT_SECRET once
+      ansible.builtin.shell: umask 077 && openssl rand -hex 32 > {{ jwt_secret_file }}
+      args:
+        creates: "{{ jwt_secret_file }}"
+      tags: [setup]
+
+    - name: Create the MySQL database
+      community.mysql.mysql_db:
+        name: "{{ mysql_database }}"
+        encoding: utf8mb4
+        login_unix_socket: "{{ mysql_socket }}"
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+        state: present
+      tags: [setup]
+
+    - name: Stop and disable cstat's Celery worker (docs/adr/0004)
+      ansible.builtin.systemd:
+        name: "{{ cstat_worker_service }}"
+        state: stopped
+        enabled: false
+      tags: [setup]
+
+    # --- code --------------------------------------------------------------------
+    - name: Sync the working tree
+      ansible.posix.synchronize:
+        src: "{{ local_root }}/"
+        dest: "{{ app_path }}/"
+        delete: true
+        owner: false
+        group: false
+        # Excluded paths are also kept on the server: the venv, the rendered
+        # .env and the job scratch under data/.
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=.claude"
+          - "--exclude=.idea"
+          - "--exclude=.DS_Store"
+          - "--exclude=node_modules"
+          - "--exclude=.venv"
+          - "--exclude=__pycache__"
+          - "--exclude=.pytest_cache"
+          - "--exclude=.ruff_cache"
+          - "--exclude=/data"
+          - "--exclude=/ansible"
+          - "--exclude=/apps/api/.env"
+      tags: [sync, public]
+
+    - name: Read JWT_SECRET
+      ansible.builtin.slurp:
+        src: "{{ jwt_secret_file }}"
+      register: jwt_secret_raw
+      no_log: true
+      tags: [env]
+
+    - name: Render the API environment
+      ansible.builtin.template:
+        src: templates/api.env.j2
+        dest: "{{ api_path }}/.env"
+        mode: "0600"
+      vars:
+        jwt_secret: "{{ jwt_secret_raw.content | b64decode | trim }}"
+      no_log: true
+      tags: [env]
+
+    - name: Install the Python dependencies
+      ansible.builtin.command: /usr/local/bin/uv sync --frozen --no-dev
+      args:
+        chdir: "{{ api_path }}"
+      environment:
+        # The host's python3.13 matches .python-version; never download one.
+        UV_PYTHON_PREFERENCE: only-system
+      register: uv_sync
+      changed_when: "'Installed' in uv_sync.stderr or 'Uninstalled' in uv_sync.stderr"
+      tags: [deps]
+
+    - name: Read the installed Playwright version
+      ansible.builtin.command: .venv/bin/python -c "import importlib.metadata as m; print(m.version('playwright'))"
+      args:
+        chdir: "{{ api_path }}"
+      register: playwright_version
+      changed_when: false
+      tags: [deps]
+
+    # The full Chromium build (browser.py's channel="chromium") plus the OS
+    # libraries it needs, once per Playwright version.
+    - name: Install Playwright's Chromium and its system dependencies
+      ansible.builtin.shell: >-
+        .venv/bin/playwright install --with-deps chromium
+        && touch /etc/cs2/playwright-{{ playwright_version.stdout }}
+      args:
+        chdir: "{{ api_path }}"
+        creates: "/etc/cs2/playwright-{{ playwright_version.stdout }}"
+      tags: [deps]
+
+    - name: Run the migrations
+      ansible.builtin.command: .venv/bin/alembic upgrade head
+      args:
+        chdir: "{{ api_path }}"
+      register: migrate
+      changed_when: "'Running upgrade' in migrate.stderr"
+      tags: [migrate]
+
+    # --- services ------------------------------------------------------------
+    - name: Install the systemd units
+      ansible.builtin.template:
+        src: "templates/{{ item.src }}"
+        dest: "/etc/systemd/system/{{ item.name }}.service"
+        mode: "0644"
+      loop:
+        - { src: api.service.j2, name: "{{ api_service }}" }
+        - { src: worker.service.j2, name: "{{ worker_service }}" }
+      loop_control:
+        label: "{{ item.name }}"
+      tags: [services]
+
+    - name: Restart the API and the worker
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: restarted
+        enabled: true
+        daemon_reload: true
+      loop: ["{{ api_service }}", "{{ worker_service }}"]
+      tags: [services, sync, deps, env]
+
+    - name: Wait for the API to answer /health
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ api_port }}/health"
+      register: health
+      until: health.status == 200
+      retries: 15
+      delay: 2
+      tags: [services, sync, deps, env]
+
+    - name: Render the nginx vhost
+      ansible.builtin.import_tasks: tasks/nginx.yml
+      tags: [nginx]

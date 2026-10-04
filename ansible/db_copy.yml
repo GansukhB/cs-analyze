@@ -1,0 +1,121 @@
+# One-off: copy the local cs_analyze database (docker compose's MySQL, users
+# included) into the server's, so production starts with what is already parsed
+# instead of downloading it from HLTV again. Not part of a normal deploy.
+#
+#   npm run db:up && npm run deploy:db-copy
+#   npm run deploy:db-copy -- -e force=true    # replace a database that has tables
+#
+# ~1.3 GB of Tick Data: the dump is hex, gzipped, and moved with rsync. The API
+# and the worker are stopped while it loads, and the app cache is flushed after.
+
+- name: Copy the local database to the server
+  hosts: cs2
+  gather_facts: false
+
+  vars:
+    force: false
+    local_mysql: { host: 127.0.0.1, port: 13306, user: root, password: root }
+    dump_name: cs_analyze-copy.sql.gz
+    local_dump: "{{ local_root }}/data/tmp/{{ dump_name }}"
+    remote_dump: "/root/{{ dump_name }}"
+
+  tasks:
+    - name: Count the tables already on the server
+      community.mysql.mysql_query:
+        login_unix_socket: "{{ mysql_socket }}"
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+        query: SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema = %s
+        positional_args: ["{{ mysql_database }}"]
+      register: existing
+
+    - name: Refuse to overwrite a database that has tables
+      ansible.builtin.assert:
+        that: existing.query_result[0][0].n == 0 or force | bool
+        fail_msg: >-
+          {{ mysql_database }} on the server already has {{ existing.query_result[0][0].n }}
+          tables. Re-run with -e force=true to drop and replace it.
+        quiet: true
+
+    - name: Dump the local database
+      ansible.builtin.shell: |
+        set -o pipefail
+        mkdir -p "$(dirname {{ local_dump }})"
+        mysqldump -h {{ local_mysql.host }} -P {{ local_mysql.port }} -u {{ local_mysql.user }} \
+          --single-transaction --hex-blob --no-tablespaces --max-allowed-packet=1G \
+          {{ mysql_database }} | gzip -1 > {{ local_dump }}
+      args:
+        executable: /bin/bash
+      environment:
+        MYSQL_PWD: "{{ local_mysql.password }}"
+      delegate_to: localhost
+      changed_when: true
+
+    - name: Upload the dump
+      ansible.posix.synchronize:
+        src: "{{ local_dump }}"
+        dest: "{{ remote_dump }}"
+
+    - name: Stop the API and the worker
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+      loop: ["{{ api_service }}", "{{ worker_service }}"]
+
+    - name: Drop the old database
+      community.mysql.mysql_db:
+        name: "{{ mysql_database }}"
+        login_unix_socket: "{{ mysql_socket }}"
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+        state: absent
+      when: existing.query_result[0][0].n > 0
+
+    - name: Create the database
+      community.mysql.mysql_db:
+        name: "{{ mysql_database }}"
+        encoding: utf8mb4
+        login_unix_socket: "{{ mysql_socket }}"
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+        state: present
+
+    # A Tick Data row is up to ~25 MB, ~50 MB as hex: under the server's 64 MB
+    # max_allowed_packet, over the client's 16 MB default.
+    - name: Load the dump
+      ansible.builtin.shell: |
+        set -o pipefail
+        gunzip -c {{ remote_dump }} \
+          | mysql --max-allowed-packet=1G -S {{ mysql_socket }} -u {{ mysql_user }} {{ mysql_database }}
+      args:
+        executable: /bin/bash
+      environment:
+        MYSQL_PWD: "{{ mysql_password }}"
+      changed_when: true
+
+    - name: Remove the dumps
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      delegate_to: "{{ item.host }}"
+      loop:
+        - { host: "{{ inventory_hostname }}", path: "{{ remote_dump }}" }
+        - { host: localhost, path: "{{ local_dump }}" }
+
+    - name: Bring the schema up to this checkout
+      ansible.builtin.command: .venv/bin/alembic upgrade head
+      args:
+        chdir: "{{ api_path }}"
+      changed_when: false
+
+    - name: Flush the app cache (game plan panels)
+      ansible.builtin.command: redis-cli -h {{ redis_host }} -p {{ redis_port }} --user {{ redis_user }} -n {{ redis_dbs.cache }} FLUSHDB
+      environment:
+        REDISCLI_AUTH: "{{ redis_password }}"
+      changed_when: true
+
+    - name: Start the API and the worker
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+      loop: ["{{ api_service }}", "{{ worker_service }}"]

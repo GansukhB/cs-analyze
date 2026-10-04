@@ -1,0 +1,30 @@
+# Rendered by ansible/deploy.yml; overwritten on every deploy.
+[Unit]
+Description=cs-analyze API ({{ api_domain }})
+After=network-online.target mysql.service redis-server.service
+Wants=network-online.target
+# A unit that crash-loops forever hides the failure: 5 restarts in 5 minutes
+# and it stays `failed`.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory={{ api_path }}
+Environment=PYTHONUNBUFFERED=1
+# Loopback only; nginx proxies {{ api_domain }} here. Several workers are fine:
+# live job updates fan out through Redis pub/sub, not process memory.
+ExecStart={{ api_path }}/.venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 --port {{ api_port }} --workers {{ api_workers }} \
+    --proxy-headers --forwarded-allow-ips 127.0.0.1 \
+    --timeout-graceful-shutdown 20
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+PrivateTmp=true
+NoNewPrivileges=true
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

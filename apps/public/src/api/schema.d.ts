@@ -233,6 +233,10 @@ export interface paths {
          * Get Round
          * @description One round's replay payload, sent exactly as stored: gzip JSON, which the
          *     browser decodes on its own (``Content-Encoding: gzip``).
+         *
+         *     The URL outlives its content (a rebuilt Replay, a map parsed again), so the
+         *     browser revalidates every time against an ETag of the stored bytes instead
+         *     of trusting a max-age: an unchanged round costs a 304, a changed one is new.
          */
         get: operations["get_round_matches__match_id__maps__map_number__rounds__number__get"];
         put?: never;

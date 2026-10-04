@@ -1,0 +1,7 @@
+# One host, shared with cstat (cs.bizon.mn). See docs/adr/0004-deploy-next-to-cstat.md.
+all:
+  hosts:
+    cs2:
+      ansible_host: cs.bizon.mn
+      ansible_user: root
+      ansible_ssh_private_key_file: ~/.ssh/id_rsa_1
