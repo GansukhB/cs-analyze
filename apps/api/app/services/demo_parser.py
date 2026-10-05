@@ -331,7 +331,12 @@ def parse_map(path: Path) -> ParsedMap:
     try:
         dem = Demo(path)
         dem.parse(player_props=PLAYER_PROPS)
-    except Exception as exc:  # awpy raises a wide range of parser errors
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except BaseException as exc:
+        # awpy raises a wide range of parser errors, and a panic in demoparser2's
+        # Rust code arrives as pyo3's PanicException, a BaseException. Uncaught, it
+        # skipped every handler and left its job RUNNING with nothing behind it.
         raise DemoParseError(f"awpy could not parse {path.name}: {exc}") from exc
 
     if dem.rounds is None or dem.rounds.is_empty():

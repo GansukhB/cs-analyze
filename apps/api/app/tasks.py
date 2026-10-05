@@ -118,7 +118,7 @@ def run_analysis(self, job_id: int) -> dict:
             db.rollback()
             jobs.cancel(job_db, job)
             return {"job": str(job.public_id), "status": job.status}
-        except Exception as exc:
+        except BaseException as exc:  # anything else would leave the row RUNNING
             logger.exception("analysis job %s failed", job.public_id)
             db.rollback()
             jobs.fail(job_db, job, f"{type(exc).__name__}: {exc}")

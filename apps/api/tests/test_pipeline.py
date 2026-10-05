@@ -325,6 +325,26 @@ def test_a_map_that_never_parsed_is_downloaded_again(pipeline, db, monkeypatch):
     assert again.result["totals"]["parsing"]["parsed"] == 1
 
 
+def test_a_rust_panic_in_the_parser_is_a_parse_error(tmp_path, monkeypatch):
+    import awpy
+
+    class PanicException(BaseException):  # pyo3's, raised from demoparser2's Rust code
+        pass
+
+    class Panics:
+        def __init__(self, path):
+            pass
+
+        def parse(self, **_):
+            raise PanicException("index out of bounds: the len is 1 but the index is 1")
+
+    monkeypatch.setattr(awpy, "Demo", Panics)
+    dem = tmp_path / "inferno.dem"
+    dem.write_bytes(b"")
+    with pytest.raises(demo_parser.DemoParseError, match="index out of bounds"):
+        demo_parser.parse_map(dem)
+
+
 def test_stop_before_start(pipeline, db, monkeypatch):
     def cancelled_already(job_db, job):
         raise jobs.JobCancelled()
