@@ -2,6 +2,7 @@ import { Link, Navigate, NavLink, useParams, useSearchParams } from 'react-route
 import { $api } from '../api/client'
 import type { components } from '../api/schema'
 import Replay from '../replay/Replay'
+import RoundTimeline from '../replay/RoundTimeline'
 
 type MatchInfo = components['schemas']['MatchInfo']
 
@@ -95,6 +96,9 @@ function MapSection({ matchId, mapNumber }: { matchId: number; mapNumber: number
   if (detail.error) return <p className="text-crit">Энэ тоглолтод {mapNumber}-р мап байхгүй.</p>
   if (!detail.data) return <p className="text-ink-3">Replay бэлтгэж байна…</p>
   const { label, scene, rounds, scoreboard, parsed } = detail.data
+  // The scoreboard lists the Match Map's team1 first, the order the rounds' `mine` follows.
+  const team1 = { name: scoreboard[0]?.team.name ?? 'Team 1', score: scoreboard[0]?.score ?? null }
+  const team2 = { name: scoreboard[1]?.team.name ?? 'Team 2', score: scoreboard[1]?.score ?? null }
 
   return (
     <div className="space-y-8">
@@ -108,6 +112,8 @@ function MapSection({ matchId, mapNumber }: { matchId: number; mapNumber: number
             scene={scene}
             rounds={rounds}
             startRound={startRound}
+            team1={team1}
+            team2={team2}
           />
         </section>
       ) : (
@@ -163,35 +169,11 @@ function MapSection({ matchId, mapNumber }: { matchId: number; mapNumber: number
         </section>
       )}
 
-      {rounds.length > 0 && (
+      {/* With a Replay, the rounds are its round picker under the radar. */}
+      {!scene && rounds.length > 0 && (
         <section className="space-y-2">
-          <h2 className="font-medium text-ink">Rounds</h2>
-          <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-            <table className="w-full text-sm">
-              <thead className="border-b border-line text-left text-xs uppercase text-ink-3">
-                <tr>
-                  <th className="px-4 py-2 text-right">#</th>
-                  <th className="px-4 py-2">Won by</th>
-                  <th className="px-4 py-2">Side</th>
-                  <th className="px-4 py-2">How</th>
-                  <th className="px-4 py-2">Bomb</th>
-                  <th className="px-4 py-2 text-right">Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rounds.map((r) => (
-                  <tr key={r.number} className={`border-b border-line-soft last:border-0 ${r.half_break ? 'border-t-2 border-t-line' : ''}`}>
-                    <td className="px-4 py-1.5 text-right tabular-nums">{r.number}</td>
-                    <td className="px-4 py-1.5">{r.winner || '—'}</td>
-                    <td className="px-4 py-1.5">{r.winner_side.toUpperCase() || '—'}</td>
-                    <td className="px-4 py-1.5">{r.reason || '—'}</td>
-                    <td className="px-4 py-1.5">{r.planted ? `planted ${r.site || '?'}` : '—'}</td>
-                    <td className="px-4 py-1.5 text-right tabular-nums">{r.score}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <h2 className="font-medium text-ink">Rounds — {label}</h2>
+          <RoundTimeline rounds={rounds} team1={team1} team2={team2} />
         </section>
       )}
     </div>

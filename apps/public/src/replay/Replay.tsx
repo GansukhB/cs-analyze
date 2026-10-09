@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { fetchClient } from '../api/client'
 import type { components } from '../api/schema'
 import { mountReplay, type RoundData } from './player'
+import RoundTimeline, { type TimelineTeam } from './RoundTimeline'
 import './replay.css'
 
 type Scene = components['schemas']['Scene']
@@ -19,8 +20,11 @@ export default function Replay(props: {
   rounds: RoundStripRow[]
   /** The round to open on (a Playbook's evidence link); the first one otherwise. */
   startRound?: number
+  /** The Match Map's two teams, in the rounds' `mine` order, for the round strip. */
+  team1: TimelineTeam
+  team2: TimelineTeam
 }) {
-  const { matchId, mapNumber, scene, rounds, startRound } = props
+  const { matchId, mapNumber, scene, rounds, startRound, team1, team2 } = props
   const root = useRef<HTMLDivElement>(null)
   // The map's score as each round began: every round before it, by its winner.
   const before = useMemo(() => {
@@ -70,6 +74,7 @@ export default function Replay(props: {
             <div className="stage">
               <canvas id="rp-canvas" width={scene.plate.width} height={scene.plate.height} />
               <div className="loading" id="rp-loading">loading round…</div>
+              <div className="feed" id="rp-feed" aria-label="Round log" />
             </div>
 
             <div className="hud">
@@ -100,6 +105,7 @@ export default function Replay(props: {
               <label><input type="checkbox" id="rp-trails" defaultChecked /> trails</label>
               <label><input type="checkbox" id="rp-util" defaultChecked /> utility</label>
               <label><input type="checkbox" id="rp-shots" defaultChecked /> shots</label>
+              <label><input type="checkbox" id="rp-dmg" /> damage</label>
               <label><input type="checkbox" id="rp-labels" /> callouts</label>
               {scene.levels.length > 0 && (
                 <span className="floors" id="rp-floors" role="group" aria-label="Floor">
@@ -113,32 +119,11 @@ export default function Replay(props: {
               <span>space = play · ← → = 5s · [ ] = round{scene.levels.length > 0 && ' · v = floor'}</span>
             </div>
 
-            <div className="rounds" id="rp-rounds">
-              {rounds.map((r) => (
-                <span key={r.number} style={{ display: 'contents' }}>
-                  {r.half_break && <div className="brk" />}
-                  <button
-                    type="button"
-                    className={`r ${r.winner_side}`}
-                    data-round={r.number}
-                    title={`${r.score} — ${r.winner || '?'} by ${r.reason}${r.planted ? ` (plant ${r.site})` : ''}`}
-                  >
-                    {r.number}
-                  </button>
-                </span>
-              ))}
+            <div className="mt-3.5">
+              <RoundTimeline rounds={rounds} team1={team1} team2={team2} replay />
             </div>
           </div>
           <div className="rp-roster t" id="rp-roster-t" />
-        </div>
-
-        <div className="feed">
-          <h4>
-            Round log
-            <label className="fopt"><input type="checkbox" id="rp-dmg" defaultChecked /> damage</label>
-          </h4>
-          <div className="rhead" id="rp-round-head" />
-          <div id="rp-feed"><p className="help">Pick a round.</p></div>
         </div>
       </div>
     </div>

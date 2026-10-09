@@ -150,41 +150,31 @@
                                          width: 3px; height: 3px; margin-left: -1.5px;
                                          border-radius: 50%; background: var(--ct); }
 
-/* Only the list of events scrolls; the round's summary stays put. */
-.rp .feed { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
-            padding: 12px 14px; display: flex; flex-direction: column; max-height: 380px; }
-.rp .feed #rp-feed { overflow-y: auto; min-height: 0; }
-.rp .feed h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
-               color: var(--ink-3); font-weight: 600; display: flex; align-items: baseline;
-               justify-content: space-between; gap: 10px; }
-.rp .feed h4 .fopt { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px;
-                     letter-spacing: 0; text-transform: none; font-weight: 400; cursor: pointer; }
-.rp .feed h4 .fopt input { accent-color: var(--ct); width: 12px; height: 12px; }
-.rp .feed .row { font-family: var(--mono); font-size: 11.5px; padding: 5px 0;
-                 border-bottom: 1px solid var(--line-soft); cursor: pointer; color: var(--ink-2); }
-.rp .feed .row:hover { color: var(--ink); }
+/* The round log is the game's kill feed over the radar, top right: no panel, each
+   row on its own translucent strip, the newest at the bottom. player.ts caps it
+   at its last few rows (45% of the map at most); older rows scroll up. */
+.rp .stage .feed { position: absolute; right: 22px; top: 22px; z-index: 2;
+                   width: min(480px, calc(100% - 44px)); max-height: 45%; overflow-y: auto;
+                   display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+                   scrollbar-width: thin; scrollbar-color: rgba(162, 172, 182, .3) transparent; }
+.rp .feed .row { font-family: var(--mono); font-size: 11.5px; line-height: 1.35; padding: 3px 8px;
+                 border-radius: 3px; background: rgba(13, 17, 22, .62); color: var(--ink-2);
+                 text-shadow: 0 1px 1px rgba(0, 0, 0, .8); backdrop-filter: blur(2px);
+                 cursor: pointer; max-width: 100%; flex-shrink: 0; }
+.rp .stage .feed.browsing { mask-image: linear-gradient(to bottom, transparent, #000 14px,
+                                                         #000 calc(100% - 14px), transparent); }
+.rp .feed .row[hidden] { display: none; }
+.rp .feed .row:hover { color: var(--ink); background: rgba(13, 17, 22, .82); }
 .rp .feed .row .tm { color: var(--ink-3); margin-right: 7px; }
 .rp .feed .row .ct { color: var(--ct); }
 .rp .feed .row .t { color: var(--t); }
 .rp .feed .row .w { color: var(--ink-3); }
-.rp .feed .row.bomb { color: var(--crit); }
-.rp .feed .row.dim { opacity: .32; }
-.rp .feed .row.hurt { color: var(--ink-3); font-size: 11px; }
-.rp .feed .rhead { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
-                   padding-bottom: 9px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
-.rp .feed .rhead b.ct { color: var(--ct); }
-.rp .feed .rhead b.t { color: var(--t); }
-.rp .feed .rhead span { color: var(--ink-3); }
-
-/* Round strip: one chip per round, coloured by the side that won it. */
-.rp .rounds { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 14px; }
-.rp .rounds .r { font-family: var(--mono); font-size: 11px; padding: 5px 8px; border-radius: 4px;
-                 border: 1px solid var(--line); background: var(--surface); color: var(--ink-3);
-                 min-width: 34px; text-align: center; }
-.rp .rounds .r.ct { border-color: rgba(91, 155, 216, .45); color: var(--ct); }
-.rp .rounds .r.t { border-color: rgba(211, 154, 85, .45); color: var(--t); }
-.rp .rounds .r.on { background: var(--raised); color: var(--ink); border-width: 2px; }
-.rp .rounds .brk { width: 1px; background: var(--line); margin: 0 6px; }
+.rp .feed .row.bomb { color: var(--crit); box-shadow: inset 2px 0 0 var(--crit); }
+.rp .feed .row.hurt { color: var(--ink-3); font-size: 10.5px; background: rgba(13, 17, 22, .45); }
+@media (max-width: 640px) {
+  .rp .stage .feed { right: 16px; top: 16px; width: calc(100% - 32px); max-height: 40%; }
+  .rp .feed .row { font-size: 10.5px; padding: 2px 6px; }
+}
 
 /* The kill feed's gun and how the kill happened, as the game draws them. */
 .rp .feed .row .how { display: inline-flex; align-items: center; gap: 4px; margin: 0 7px;

@@ -251,7 +251,7 @@ export function mountReplay(
     util: true,
     shots: true,
     labels: false,
-    damage: true,
+    damage: false,
     // "auto" or a floor index; `autoFloor` is what auto has settled on this round.
     floor: 'auto' as 'auto' | number,
     autoFloor: null as Floor,
@@ -344,7 +344,6 @@ export function mountReplay(
     }
     state.t = 0
     state.autoFloor = null
-    renderRoundHead()
     renderScoreboard()
     seek.max = String(Math.max(1, Math.round(state.data.seconds * 100)))
     seek.value = '0'
@@ -405,23 +404,6 @@ export function mountReplay(
     }
   }
 
-  function renderRoundHead() {
-    const head = $('rp-round-head')
-    head.replaceChildren()
-    const d = state.data
-    if (!d) return
-    head.append(document.createTextNode(`Round ${d.round} — `))
-    const who = document.createElement('b')
-    who.className = d.winner_side === 'ct' ? 'ct' : 't'
-    who.textContent = d.winner || d.winner_side.toUpperCase() || '?'
-    head.append(who)
-    const how = document.createElement('span')
-    how.textContent =
-      ' · ' + (d.reason || '').replace(/_/g, ' ') +
-      (d.plant_t !== null ? ` · plant ${d.site || ''} at ${clock(d.plant_t)}` : '')
-    head.append(how)
-  }
-
   function buildMarks() {
     marks.replaceChildren()
     const d = state.data
@@ -450,12 +432,30 @@ export function mountReplay(
   }
 
   // ---- the log --------------------------------------------------------------
+  // A HUD over the radar: a row shows up once the clock reaches it, the newest
+  // at the bottom. Like the game's kill feed it is sized to the last few rows
+  // (3, or 6 with damage rows); older ones scroll up out of it. It follows the
+  // newest unless the viewer has scrolled up to read; scrolling back down picks
+  // it up again.
+  const FEED_ROWS = 3
+  const FEED_ROWS_DAMAGE = 6
   let feedRows: { el: HTMLElement; t: number }[] = []
-  let lastScrolled: HTMLElement | null = null
+  let feedShown = -1
+  let feedPinned = true
+  on(feedBox, 'scroll', () => {
+    feedPinned = feedBox.scrollTop + feedBox.clientHeight >= feedBox.scrollHeight - 4
+    // Reading back: fade the edges rather than cut a row in half.
+    feedBox.classList.toggle('browsing', !feedPinned)
+  })
+  // Rows can wrap, and so change height, when the stage is resized.
+  const feedResize = new ResizeObserver(() => fitFeed())
+  feedResize.observe(canvas)
   function renderFeed() {
-    lastScrolled = null
     feedBox.replaceChildren()
     feedRows = []
+    feedShown = -1
+    feedPinned = true
+    feedBox.classList.remove('browsing')
     const d = state.data
     if (!d) return
     const shown = d.events.filter(
@@ -464,6 +464,7 @@ export function mountReplay(
     shown.forEach((e) => {
       const row = document.createElement('div')
       row.className = 'row' + (e.kind === 'bomb' ? ' bomb' : e.kind === 'hurt' ? ' hurt' : '')
+      row.hidden = true
       const time = document.createElement('span')
       time.className = 'tm'
       time.textContent = clock(e.t)
@@ -506,32 +507,28 @@ export function mountReplay(
       feedBox.append(row)
       feedRows.push({ el: row, t: e.t })
     })
-    if (!feedRows.length) {
-      const none = document.createElement('p')
-      none.className = 'help'
-      none.textContent = 'Nothing happened in this round.'
-      feedBox.append(none)
-    }
   }
 
   function markFeed() {
-    let current: HTMLElement | null = null
-    feedRows.forEach((r) => {
-      const future = r.t > state.t
-      r.el.classList.toggle('dim', future)
-      if (!future) current = r.el
-    })
-    // Follow the clock only while it runs; scrubbing must not yank the panel.
-    // Only the log's own list scrolls: scrollIntoView would move the whole page
-    // down to the log, which sits under the map.
-    if (state.playing && current && current !== lastScrolled) {
-      const row = current as HTMLElement
-      const top = row.offsetTop - feedBox.offsetTop
-      if (top < feedBox.scrollTop) feedBox.scrollTop = top
-      else if (top + row.offsetHeight > feedBox.scrollTop + feedBox.clientHeight)
-        feedBox.scrollTop = top + row.offsetHeight - feedBox.clientHeight
-      lastScrolled = current
+    let shown = 0
+    for (const r of feedRows) if (r.t <= state.t) shown++
+    if (shown === feedShown) return
+    feedShown = shown
+    feedRows.forEach((r) => { r.el.hidden = r.t > state.t })
+    fitFeed()
+  }
+
+  /** Cap the log at its last few shown rows, and keep the newest in view. */
+  function fitFeed() {
+    const shown = feedRows.filter((r) => !r.el.hidden)
+    const last = shown.slice(-(state.damage ? FEED_ROWS_DAMAGE : FEED_ROWS))
+    if (last.length) {
+      const top = last[0].el.offsetTop
+      const end = last[last.length - 1].el
+      feedBox.style.maxHeight = `min(45%, ${end.offsetTop + end.offsetHeight - top}px)`
     }
+    // Only the log's own list scrolls: scrollIntoView would move the whole page.
+    if (feedPinned) feedBox.scrollTop = feedBox.scrollHeight
   }
 
   function clock(t: number) {
@@ -1170,5 +1167,6 @@ export function mountReplay(
     destroyed = true
     cancelAnimationFrame(frame)
     abort.abort()
+    feedResize.disconnect()
   }
 }
