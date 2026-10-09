@@ -1745,6 +1745,7 @@ ASSISTANT_TOOL = {
     "role_report": "Тоглогчдын үүргийг уншиж байна",
     "scouting_report": "Скаутын тайлан гаргаж байна",
     "gameplan_section": "Game Plan-ыг уншиж байна",
+    "match_review": "Тоглолтын дүн шинжилгээг уншиж байна",
 }
 ASSISTANT_NOT_CONFIGURED = (
     "Туслах энэ сервер дээр тохируулагдаагүй байна (CLAUDE_API_KEY алга). Админд хандана уу."
@@ -1763,3 +1764,603 @@ def assistant_status(tool: str, names: list[str], extra: str = "") -> str:
     label = ASSISTANT_TOOL.get(tool, tool)
     bits = ", ".join([*names, *([extra] if extra else [])])
     return f"{label} — {bits}…" if bits else f"{label}…"
+
+
+# ------------------------------------------------------------------ Review --
+# Тоглолтын дүн шинжилгээ (CONTEXT.md: Review). Finding бүрийн баримтаас
+# (app/services/review.py) гарчиг ба тайлбарыг угсарна. ``who(sid)`` тоглогчийн
+# нэрийг өгнө.
+
+REVIEW_KIND = {
+    "key_play": "Шийдвэрлэсэн үйлдэл",
+    "mistake": "Алдаа",
+    "missed_chance": "Алдсан боломж",
+    "utility": "Utility-ийн нөлөө",
+}
+
+REVIEW_CODE = {
+    "entry": "Entry",
+    "big_frag": "Үнэ цэнтэй frag",
+    "multikill": "Multi-kill",
+    "clutch": "Clutch",
+    "plant": "Plant",
+    "defuse": "Defuse",
+    "retake": "Retake",
+    "untraded": "Trade-гүй ганцаардал",
+    "died_in_advantage": "Давуу байдалд үхсэн",
+    "team_flashed_death": "Багийн flash-д үхсэн",
+    "no_gun_in_hand": "Буугаа бариагүй",
+    "unused_utility": "Utility үлдээсэн",
+    "lost_weapon_save": "Зэвсэг хадгалаагүй",
+    "bomb_lost": "Бөмбөг алдсан",
+    "awp_miss": "AWP алдсан",
+    "moving_shots": "Гүйж буудсан",
+    "crosshair": "Crosshair placement",
+    "unscoped_awp": "Scope-гүй AWP",
+    "time_out": "Хугацаа алдсан",
+    "kitless": "Kit-гүй retake",
+    "no_trade": "Trade хийгээгүй",
+    "unfinished": "Дуусгаагүй дайсан",
+    "blind_unpunished": "Сохор дайсныг ашиглаагүй",
+    "advantage_lost": "Давуу байдлаа алдсан",
+    "defuse_chance": "Defuse хийх боломж",
+    "saw_no_shot": "Харсан ч буудаагүй",
+    "saw_first_lost": "Түрүүлж харсан ч дуэлиа алдсан",
+    "flash_kill": "Flash → kill",
+    "nade_damage_kill": "Граната → kill",
+    "fire_delay": "Molotov саатуулсан",
+    "team_flash": "Багаа сохорлосон",
+    "empty_utility": "Хоосон flash",
+}
+
+REVIEW_REASON = {
+    "ct_killed": "CT-г бүгдийг нь хөнөөв",
+    "t_killed": "T-г бүгдийг нь хөнөөв",
+    "bomb_exploded": "бөмбөг дэлбэрэв",
+    "bomb_defused": "бөмбөгийг defuse хийв",
+    "time_ran_out": "хугацаа дуусав",
+}
+
+_REVIEW_WEAPONS = {
+    "m4a1": "M4A4",
+    "m4a1_silencer": "M4A1-S",
+    "usp_silencer": "USP-S",
+    "hkp2000": "P2000",
+    "knife": "хутга",
+    "inferno": "молотов",
+    "molotov": "молотов",
+    "incgrenade": "incendiary",
+    "planted_c4": "бөмбөг",
+}
+
+_NADES = {
+    "Flashbang": "flash",
+    "Smoke Grenade": "smoke",
+    "High Explosive Grenade": "HE",
+    "Molotov": "molotov",
+    "Incendiary Grenade": "incendiary",
+    "Decoy Grenade": "decoy",
+}
+
+
+def review_weapon(key: str) -> str:
+    key = (key or "").strip().lower()
+    if key.startswith("knife") or "bayonet" in key or "karambit" in key:
+        return "хутга"
+    return _REVIEW_WEAPONS.get(key) or WEAPONS.get(key) or key.upper() or "?"
+
+
+def review_swing(value: float | None) -> str:
+    """Swing-ийг хувиар: 0.274 → '+27%'."""
+    if value is None:
+        return "—"
+    points = round(value * 100)
+    return f"+{points}%" if points > 0 else (f"−{abs(points)}%" if points < 0 else "0%")
+
+
+def review_pct(value: float | None) -> str:
+    return "—" if value is None else f"{round(value * 100)}%"
+
+
+def _metres(units) -> str:
+    """Тоглоомын нэгжийг метрээр (1 нэгж ≈ 1 инч): 520 → '~13 м'."""
+    return f"~{max(1, round((units or 0) * 0.0254))} м"
+
+
+def _secs(value) -> str:
+    return f"{value:.1f}".rstrip("0").rstrip(".") + "с"
+
+
+def _kill_how(f: dict) -> str:
+    """'AK-47 буугаар, headshot, утаан дундуур' гэх мэт."""
+    bits = [f"{review_weapon(f.get('weapon'))} буугаар"]
+    if f.get("headshot"):
+        bits.append("headshot")
+    if f.get("thrusmoke"):
+        bits.append("утаан дундуур")
+    if f.get("wallbang"):
+        bits.append("хана нэвт")
+    if f.get("noscope"):
+        bits.append("no-scope")
+    return ", ".join(bits)
+
+
+def _at(spot: str) -> str:
+    return f" ({spot})" if spot else ""
+
+
+def review_finding(finding: dict, who) -> dict:
+    """Нэг Finding-ийн ``{title, text}``."""
+    code, f, sids = finding["code"], finding.get("facts") or {}, finding.get("sids") or []
+    main = who(sids[0]) if sids else ""
+    swing = review_swing(finding.get("swing"))
+    w0, w1 = review_pct(f.get("wp_before")), review_pct(f.get("wp_after"))
+    alive = f.get("alive") or [0, 0]
+    title, text = main, ""
+
+    if code == "entry":
+        title = f"{main} — entry{_at(f.get('spot'))}"
+        text = (
+            f"Раундын эхний frag: {main} {who(f.get('victim'))}-г{_at(f.get('victim_spot'))} "
+            f"{_kill_how(f)} унагааж, багийнхаа хожих магадлалыг {w0} → {w1} болгов."
+        )
+        if f.get("flasher"):
+            text += f" Flash-ийг {who(f['flasher'])} өгсөн."
+    elif code == "big_frag":
+        title = f"{main} — үнэ цэнтэй frag{_at(f.get('spot'))}"
+        text = (
+            f"{alive[0]}v{alive[1]} үед {main} {who(f.get('victim'))}-г{_at(f.get('victim_spot'))} "
+            f"{_kill_how(f)} авав: багийн хожих магадлал {w0} → {w1}."
+        )
+        if f.get("flasher"):
+            text += f" Flash-ийг {who(f['flasher'])} өгсөн."
+    elif code == "multikill":
+        victims = plural_players([who(s) for s in f.get("victims") or []])
+        title = f"{main} — {f.get('kills')}K"
+        text = (
+            f"{main} энэ раундад {_secs(f.get('seconds', 0))} дотор {f.get('kills')} frag авав "
+            f"({f.get('headshots', 0)} нь headshot): {victims}. Нийт Swing {swing}."
+        )
+    elif code == "clutch":
+        title = f"{main} — 1v{f.get('vs')} clutch"
+        did = f"{f.get('kills')} frag авч" if f.get("kills") else "хэнийг ч алалгүй"
+        defused = ", бөмбөгийг defuse хийж" if f.get("defused") else ""
+        text = (
+            f"Багаасаа ганцаараа үлдээд 1v{f.get('vs')} нөхцөлд {did}{defused} раундыг авав. "
+            f"Swing {swing}."
+        )
+    elif code == "plant":
+        title = f"{main} — {f.get('site') or ''} цэгт plant".replace("  ", " ")
+        text = (
+            f"{f.get('ts')} T, {f.get('cts')} CT амьд байхад, раундын цагт "
+            f"{_secs(f.get('clock', 0))} үлдсэн үед бөмбөг тавив. Swing {swing}."
+        )
+    elif code == "defuse":
+        title = f"{main} — defuse"
+        kit = "kit-тэй" if f.get("kit") else "kit-гүй"
+        ts = f"{f.get('ts')} T амьд байхад " if f.get("ts") else ""
+        text = (
+            f"{ts}{kit} defuse хийж раундыг авав; бөмбөг дэлбэрэхэд {_secs(f.get('spare', 0))} "
+            f"үлдсэн байв. Swing {swing}."
+        )
+    elif code == "retake":
+        title = f"{main} — retake"
+        text = (
+            f"{f.get('site') or ''} цэгт {f.get('cts')}v{f.get('ts')} retake-д "
+            f"{f.get('kills')} frag авч гол хувь нэмрийг оруулав. Swing {swing}."
+        )
+
+    elif code == "untraded":
+        title = f"{main} — trade-гүй ганцаардал{_at(f.get('spot'))}"
+        near = f"хамгийн ойр нөхөр нь {_metres(f['nearest'])} зайтай" if f.get("nearest") else \
+            "ойр нөхөр байгаагүй"  # fmt: skip
+        text = (
+            f"{main} {alive[0]}v{alive[1]} үед ганцаараа {who(f.get('killer'))}-д унав; {near} "
+            f"байсан тул trade боломжгүй. Багийн хожих магадлал {swing}."
+        )
+    elif code == "died_in_advantage":
+        title = f"{main} — давуу байдалд үхсэн"
+        text = (
+            f"Баг нь {alive[0]}v{alive[1]} давуу байхад {main}{_at(f.get('spot'))} "
+            f"{who(f.get('killer'))}-д унаж, trade хийлгэсэнгүй; раунд алдагдав. Swing {swing}."
+        )
+    elif code == "team_flashed_death":
+        victim = who(f.get("victim"))
+        title = f"{main}-ийн flash {victim}-г үхүүлэв"
+        text = (
+            f"{main}-ийн шидсэн flash багийн хүн {victim}-г {_secs(f.get('seconds', 0))} сохорч, "
+            f"тэр сохор байхдаа {who(f.get('killer'))}-д унав. Swing {swing}."
+        )
+    elif code == "no_gun_in_hand":
+        thing = "хутга" if f.get("held_kind") == "knife" else _NADES.get(f.get("held"), "граната")
+        put = (
+            f"{f['gun']}-аа {_secs(f.get('seconds', 0))}-ийн өмнө хураагаад"
+            if f.get("gun")
+            else "раунд эхэлснээс хойш буугаа гаргалгүй"
+        )
+        title = f"{main} — буугаа бариагүй баригдав"
+        text = (
+            f"{main} {put} гартаа {thing} барьсаар{_at(f.get('spot'))} "
+            f"{who(f.get('killer'))}-тай дуэльд орж унав ({alive[0]}v{alive[1]}) — дайсантай "
+            f"таарч болох газар буугаа гаргаж яв. Swing {swing}."
+        )
+    elif code == "unused_utility":
+        nades = ", ".join(_NADES.get(n, n) for n in f.get("nades") or [])
+        title = f"{main} — utility-гаа ашиглаагүй"
+        text = (
+            f"{main} гартаа {nades} байсаар{_at(f.get('spot'))} {who(f.get('killer'))}-д унав; "
+            f"раунд алдагдсан. Swing {swing}."
+        )
+    elif code == "lost_weapon_save":
+        gun = f.get("gun") or "буу"
+        title = f"{main} — {gun}-аа хадгалаагүй"
+        if f.get("post"):
+            text = (
+                f"Раунд дууссаны дараа {main} {gun}-тай{_at(f.get('spot'))} "
+                f"{who(f.get('killer'))}-д олдож, буугаа дараагийн раундад алдав."
+            )
+        else:
+            text = (
+                f"Багийн хожих магадлал {review_pct(f.get('team_wp'))} ({alive[0]}v{alive[1]}) "
+                f"болсон үед хадгалахын оронд тулалдаж {gun}-аа алдав."
+            )
+    elif code == "bomb_lost":
+        title = f"{main} — бөмбөгийг ганцаараа алдав"
+        text = (
+            f"Бөмбөгтэй{_at(f.get('spot'))} ганцаараа {who(f.get('killer'))}-д унаж, "
+            f"бөмбөг тавигдсангүй. Swing {swing}."
+        )
+    elif code == "awp_miss":
+        title = f"{main} — AWP-ийн сум алдав"
+        text = (
+            f"AWP-аар буудаж оносонгүй, {_secs(f.get('after', 0))}-ийн дараа "
+            f"{who(f.get('killer'))}-д унав{_at(f.get('spot'))}. Swing {swing}."
+        )
+    elif code == "moving_shots":
+        title = f"{main} — гүйж буудсан"
+        text = (
+            f"{who(f.get('killer'))}-тай дуэлд буудсан {f.get('shots')} сумны {f.get('moving')} нь "
+            f"хөдөлж байхад гарсан (дунджаар зэвсгийн дээд хурдны {f.get('speed')}%; 40%-иас дээш "
+            f"бол сум тархана) — counter-strafe хийгээгүй. Swing {swing}."
+        )
+    elif code == "crosshair":
+        title = f"{main} — crosshair placement"
+        text = (
+            f"{who(f.get('killer'))} анх харагдах үед {main}-ийн цэнз түүнээс "
+            f"{f.get('degrees')}° зөрүүтэй байв; {_secs(f.get('reaction', 0))} дотор унав. "
+            f"Swing {swing}."
+        )
+    elif code == "unscoped_awp":
+        title = f"{main} — scope-гүй AWP"
+        text = (
+            f"AWP-тай боловч scope хийгээгүй байхдаа {who(f.get('killer'))}-тай дуэлд орж "
+            f"унав{_at(f.get('spot'))}. Swing {swing}."
+        )
+    elif code == "time_out":
+        title = "T хугацаа алдав"
+        text = (
+            f"{f.get('ts')} T амьд байсан хэдий ч ({f.get('cts')} CT-тэй) бөмбөг тавилгүй "
+            "хугацаа дуусав."
+        )
+    elif code == "kitless":
+        title = "Kit-гүй retake"
+        text = (
+            f"Сүүлийн T унахад бөмбөг дэлбэрэхэд {_secs(f.get('left', 0))} үлдсэн байв: kit-тэй "
+            f"бол defuse амжих байсан (замд {_secs(f.get('travel', 0))}), kit-гүй 10с хүрэлцсэнгүй."
+        )
+
+    elif code == "no_trade":
+        saw = " алагчийг харсан ч" if f.get("saw") else ""
+        title = f"{main} — trade хийгээгүй"
+        text = (
+            f"{who(f.get('victim'))} {who(f.get('killer'))}-д{_at(f.get('killer_spot'))} унахад "
+            f"{main} алагчаас {_metres(f.get('distance'))} зайд байсан,{saw} 5 секундэд trade "
+            f"хийсэнгүй. Багийн хожих магадлал {swing}."
+        )
+    elif code == "unfinished":
+        enemy = who(f.get("enemy"))
+        title = f"{main} — {enemy}-г дуусгаагүй"
+        after = f"{f.get('kills_after')} хүнийг алав" if f.get("kills_after") else "амьд үлдэв"
+        won = ", баг нь раундыг авав" if f.get("enemy_won") else ""
+        text = (
+            f"{main} {enemy}-д {f.get('dealt')} damage өгч {f.get('hp')} HP үлдээсэн; "
+            f"{enemy} амьд үлдээд {after}{won}. Swing {swing}."
+        )
+    elif code == "blind_unpunished":
+        enemies = ", ".join(
+            f"{who(e['sid'])} ({_secs(e['seconds'])})" for e in f.get("enemies") or []
+        )
+        title = f"{main} — сохор дайсныг ашиглаагүй"
+        saw = ", түүнийг харсан" if f.get("saw") else ""
+        text = (
+            f"{who(f.get('thrower'))}-ийн flash {enemies}-г{_at(f.get('spot'))} сохорсон; "
+            f"{main} {_metres(f.get('distance'))} зайд байсан{saw} ч хэн нь ч алсангүй."
+        )
+    elif code == "advantage_lost":
+        men = f.get("men") or [0, 0]
+        deaths = ", ".join(
+            f"{who(d['sid'])} ({review_swing(d['swing'])})" for d in f.get("deaths") or []
+        )
+        title = f"{side(f.get('side', ''), short=True)} — давуу байдлаа алдав"
+        text = (
+            f"Раундыг {review_pct(f.get('peak'))} магадлалтай ({men[0]}v{men[1]}) тэргүүлж байсан "
+            f"ч алдав."
+        )
+        if deaths:
+            text += f" Үүнээс хойш унасан: {deaths}."
+    elif code == "defuse_chance":
+        kit = " (kit-тэй)" if f.get("kit") else ""
+        title = f"{main} — defuse хийх боломж"
+        text = (
+            f"Сүүлийн T унахад бөмбөг дэлбэрэхэд {_secs(f.get('left', 0))} үлдсэн байсан, {main}-д "
+            f"очиж defuse хийхэд {_secs(f.get('need', 0))}{kit} хангалттай байв — гэвч defuse "
+            "хийгдсэнгүй."
+        )
+    elif code == "saw_no_shot":
+        enemy = who(f.get("enemy"))
+        then = "түүнийг алав" if f.get("self_killed") else f"нөхөр {who(f.get('victim'))}-г алав"
+        title = f"{main} — {enemy}-г харсан ч буудаагүй"
+        text = (
+            f"{main}{_at(f.get('spot'))} {enemy}-г{_at(f.get('enemy_spot'))} "
+            f"{_secs(f.get('seconds', 0))} харсан ч нэг ч сум буудсангүй; удалгүй {enemy} {then}. "
+            f"Swing {swing}."
+        )
+    elif code == "saw_first_lost":
+        enemy = who(f.get("enemy"))
+        title = f"{main} — түрүүлж харсан ч дуэлиа алдав"
+        text = (
+            f"{main} {enemy}-г {_secs(f.get('lead', 0))} түрүүлж харсан ({f.get('shots')} сум "
+            f"буудсан) боловч {enemy}-ийн {review_weapon(f.get('weapon'))}-д унав. Swing {swing}."
+        )
+
+    elif code == "flash_kill":
+        killer, victim = who(f.get("killer")), who(f.get("victim"))
+        if f.get("own"):
+            title = f"{main} — өөрийн flash-аар kill"
+            text = (
+                f"{main} flash шидээд {_secs(f.get('seconds', 0))} сохорсон {victim}-г өөрөө алав"
+            )
+        else:
+            title = f"{main}-ийн flash → {killer}-ийн kill"
+            text = f"{main}-ийн flash {victim}-г {_secs(f.get('seconds', 0))} сохорч, {killer} алав"
+        text += f"{_at(f.get('spot'))}; kill-ийн Swing {review_swing(f.get('kill_swing'))}."
+    elif code == "nade_damage_kill":
+        nade = "HE" if f.get("nade") == "he" else "молотов"
+        title = f"{main}-ийн {nade} → kill"
+        text = (
+            f"{main}-ийн {nade} {who(f.get('victim'))}-д {f.get('dealt')} damage өгснөөр "
+            f"{who(f.get('killer'))}-ийн kill боломжтой болов."
+        )
+    elif code == "fire_delay":
+        if f.get("what") == "defuse":
+            title = f"{main}-ийн молотов defuse-ийг саатуулав"
+            end = " Бөмбөг дэлбэрэв." if f.get("exploded") else ""
+            text = (
+                f"Тавьсан бөмбөг дээр{_at(f.get('spot'))} {_secs(f.get('seconds', 0))} шатаж, CT "
+                f"defuse хийж чадсангүй.{end}"
+            )
+        else:
+            title = f"{main}-ийн молотов plant-ийг саатуулав"
+            text = (
+                f"{f.get('ts')} T ойрхон байхад{_at(f.get('spot'))} {_secs(f.get('seconds', 0))} "
+                "шатаж, plant хойшлов."
+            )
+    elif code == "team_flash":
+        blinded = ", ".join(
+            f"{who(b['sid'])} ({_secs(b['seconds'])})" for b in f.get("blinded") or []
+        )
+        title = f"{main} — багийнхаа хүмүүсийг сохорлов"
+        text = f"{main}-ийн flash{_at(f.get('spot'))} {blinded}-г сохорлов."
+        if f.get("died"):
+            text += f" {plural_players([who(s) for s in f['died']])} сохор байхдаа унав."
+    elif code == "empty_utility":
+        title = f"{main} — хоосон flash"
+        text = (
+            f"Энэ мапад шидсэн {f.get('flashes')} flash-ийн {f.get('empty_flashes')} нь нэг ч "
+            "дайсныг 1 секундээс дээш сохорсонгүй."
+        )
+    return {"title": title, "text": text}
+
+
+def review_round(r: dict, who, team) -> str:
+    """Раундын нэг өгүүлбэр: хэн, яаж хожсон, хэн шийдсэн."""
+    winner = team(r.get("winner_team_id")) or side(r.get("winner_side", ""), short=True)
+    how = REVIEW_REASON.get(r.get("reason") or "", (r.get("reason") or "").replace("_", " "))
+    text = f"{winner} ({side(r.get('winner_side', ''), short=True)}) хожив — {how}."
+    decider = r.get("decider")
+    if decider and (r.get("swing") or {}).get(decider, 0.0) >= 0.05:
+        text += (
+            f" Хамгийн их нөлөө: {who(decider)} (Swing "
+            f"{review_swing((r.get('swing') or {}).get(decider))})."
+        )
+    return text
+
+
+# -- Тойм (Summary, CONTEXT.md): нэг багийн раунд, map, match-ийн дүгнэлт ------
+SUMMARY_LABEL = {
+    "pistol": "Pistol раунд",
+    "opening": "Opening duel",
+    "trade": "Trade",
+    "full_v_full": "Full buy vs full buy",
+    "force": "Force buy",
+    "eco": "Eco раунд",
+    "full_v_light": "Хөнгөн зэвсэгтэй өрсөлдөгч",
+    "post_plant": "Plant-ын дараа",
+    "retake": "Retake",
+    "win_streak": "Дараалсан хожил",
+    "loss_streak": "Дараалсан алдагдал",
+    "comeback": "Эргүүлсэн раунд",
+}
+
+# Focus point бүрийн «юун дээр ажиллах» нэг өгүүлбэр (хэмжүүр болон Finding-ийн code).
+SUMMARY_ADVICE = {
+    "pistol": "Pistol раундын buy, эхний 20 секундын төлөвлөгөөгөө дахин бэлд.",
+    "opening": "Эхний холбоонд ганцаараа бүү ор: flash-тай, хосоороо, мэдээлэлтэй ор.",
+    "trade": "Хосоороо хөдөл: нөхрөө trade хийж чадах зайд байрлаж, тэр унахад шууд сольж ор.",
+    "full_v_full": "Full buy раундын default, execute-ээ шинэчил: utility-гаа нэгтгэж нэг цэг рүү "
+    "хамт ор.",
+    "force": "Force buy-гаа сонгомол болго: эдийн засгаа тооцоолж, хамтдаа stack хийж тогло.",
+    "full_v_light": "Хөнгөн зэвсэгтэй өрсөлдөгчөөс зай барьж, ойрын тулаанаас зайлсхий.",
+    "post_plant": "Plant-ын дараах байрлал, crossfire-оо бэлд; молотов, утаагаа defuse "
+    "саатуулахад хадгал.",
+    "loss_streak": "Дараалан алдаж эхлэхэд timeout авч, эдийн засаг, тактикаа шинэчил.",
+    "died_in_advantage": "Давуу байдалтай үед яарч бүү тулалд: хосоороо, utility-тай хаалт хий.",
+    "team_flashed_death": "Flash шидэхээсээ өмнө нөхдөдөө дуудаж хэл; pop flash-ын замаа сур.",
+    "lost_weapon_save": "Раунд алдагдсан үед save хийх шийдвэрээ эрт гаргаж, буугаа хадгал.",
+    "moving_shots": "Counter-strafe хий: буудахын өмнө бүрэн зогс.",
+    "awp_miss": "AWP-аар буудсаны дараа байрлалаа соль, шууд дахин peek бүү хий.",
+    "bomb_lost": "Бөмбөгтэй тоглогчийг ганцааранг нь бүү үлдээ; бөмбөгөө багийн дунд авч яв.",
+    "time_out": "Раундын цагийг хяна: 40 секунд үлдэхэд шийдвэрээ гарга.",
+    "kitless": "Kit-ээ авч, retake-д kit-тэй тоглогч эхэлж defuse хийх ёстой.",
+    "unused_utility": "Худалдаж авсан utility-гаа үхэхээсээ өмнө ашигла.",
+    "no_gun_in_hand": "Дайсантай таарч болох газар буугаа гартаа барьж яв.",
+    "crosshair": "Crosshair-ээ дайсан гарч ирэх өнцөг, толгойн өндөрт урьдчилан байрлуул.",
+    "unscoped_awp": "AWP-аар peek хийхдээ scope-оо урьдчилан нээ.",
+    "unfinished": "Шархдуулсан дайсныг дуусга: шууд repeek хий эсвэл нөхдөдөө HP-г нь хэл.",
+    "advantage_lost": "Давуу байдлаа хадгал: хосоороо, цагтай тоглож өрсөлдөгчийг өөр дээрээ "
+    "ирүүл.",
+    "blind_unpunished": "Дайсан сохорсон агшинд шууд peek хийж ашигла.",
+    "defuse_chance": "Defuse хийх цонхыг ашигла: smoke-той, нөхдийн хамгаалалттай суу.",
+    "saw_no_shot": "Дайсныг харангуут бууд, эсвэл байрлалыг нь нөхдөдөө хэл.",
+    "saw_first_lost": "Түрүүлж харсан бол түрүүлж бууд: урьдчилсан байрлал, reaction-оо "
+    "дасгалжуул.",
+    "team_flash": "Flash-аа нөхдийнхөө харах чиглэлээс гадуур шид, шидэхээсээ өмнө дууд.",
+    "empty_utility": "Flash, HE-гээ мэдээлэлтэй цэг рүү шид; хоосон шидэлт мөнгө, цаг үрнэ.",
+}
+
+_OUTCOME = {
+    ("ct", True, "t_killed"): "T-г бүгдийг нь хөнөөж хожсон",
+    ("ct", True, "bomb_defused"): "бөмбөгийг defuse хийж хожсон",
+    ("ct", True, "time_ran_out"): "цагийг хамгаалж хожсон",
+    ("t", True, "ct_killed"): "CT-г бүгдийг нь хөнөөж хожсон",
+    ("t", True, "bomb_exploded"): "plant хийж, бөмбөг дэлбэрч хожсон",
+    ("ct", False, "ct_killed"): "бүгдээрээ унаж алдсан",
+    ("ct", False, "bomb_exploded"): "plant-ыг зогсоож чадалгүй алдсан",
+    ("t", False, "t_killed"): "бүгдээрээ унаж алдсан",
+    ("t", False, "bomb_defused"): "plant хийсэн ч defuse-д алдсан",
+    ("t", False, "time_ran_out"): "цаг дуусч алдсан",
+}
+
+
+def summary_round_line(f: dict) -> str:
+    """Нэг багийн нэг раунд нэг мөрөөр: «T · force buy — B-д plant хийсэн ч defuse-д алдсан»."""
+    sd = f["side"]
+    out = _OUTCOME.get((sd, f["won"], f.get("reason") or ""))
+    if out is None:
+        out = "хожсон" if f["won"] else "алдсан"
+    if f.get("site") and ("plant" in out or "defuse" in out):
+        out = f"{f['site']}-д {out}"
+    text = f"{side(sd, short=True)} · {BUY.get(f.get('buy') or '', f.get('buy') or '—')} — {out}"
+    if f["won"] and f.get("low") is not None:
+        text += f", хожих магадлал {review_pct(f['low'])} байхаас эргүүлсэн"
+    elif not f["won"] and f.get("high") is not None:
+        text += f", {review_pct(f['high'])} хүрсэн давуу байдлаа алдсан"
+    return text + "."
+
+
+def summary_opening(f: dict, who) -> str:
+    """Раундын opening duel-ийг тухайн багийн талаас."""
+    if f["got"]:
+        return f"Opening: {who(f['killer'])} → {who(f['victim'])}"
+    return f"Opening алдсан: {who(f['victim'])} ← {who(f['killer'])}"
+
+
+def _ranked(pairs, limit: int = 3) -> str:
+    """[('PokemoN-', 3), ('Zesta', 2)] → 'PokemoN- 3, Zesta 2'."""
+    return ", ".join(f"{name} {n}" for name, n in pairs[:limit])
+
+
+def summary_metric(code: str, good: bool, f: dict, who) -> str:
+    """Тоон хэмжүүрийн нэг мөр, тоотойгоо."""
+    w, n = f.get("won", 0), f.get("n", 0)
+    rate = review_pct(w / n) if n else "—"
+    rounds = ", ".join(f"R{x}" for x in (f.get("rounds") or [])[:6])
+    players = _ranked([(who(s), c) for s, c in f.get("players") or []])
+    if code == "pistol":
+        if good:
+            return f"Pistol раундын {w}/{n}-ийг авсан."
+        return f"Pistol раундын {n}/{n}-ийг алдсан."
+    if code == "opening":
+        if good:
+            text = f"Opening duel-ийн {w}/{n}-ийг авсан ({rate})"
+            return text + (f"; голлон {players}." if players else ".")
+        text = f"Opening duel-ийн {n - w}/{n}-д түрүүлж унасан ({rate} хожил)"
+        return text + (f"; ихэвчлэн {players}." if players else ".")
+    if code == "trade":
+        traded, deaths = f.get("traded", 0), f.get("deaths", 0)
+        share = review_pct(traded / deaths) if deaths else "—"
+        if good:
+            return f"Үхлийн {share} нь trade хийгдсэн ({traded}/{deaths})."
+        text = f"Үхлийн ердөө {share} нь trade хийгдсэн ({traded}/{deaths})"
+        if players:
+            text += f"; trade-гүй унасан: {players}"
+        missers = _ranked([(who(s), c) for s, c in f.get("missers") or []])
+        if missers:
+            text += f"; trade хийх боломжоо алдсан: {missers}"
+        return text + "."
+    if code == "full_v_full":
+        if good:
+            return f"Хоёулаа full buy-тай раундын {w}/{n}-ийг хожсон ({rate})."
+        return f"Хоёулаа full buy-тай раундын ердөө {w}/{n}-ийг хожсон ({rate})."
+    if code == "force":
+        if good:
+            return f"Force buy-ын {w}/{n}-ийг хожсон ({rounds})."
+        return f"Force buy-ын {w}/{n}-ийг л хожсон ({rounds})."
+    if code == "eco":
+        return f"Eco раундад {w} удаа хожсон ({rounds})."
+    if code == "full_v_light":
+        return (
+            f"Full buy-тай байхдаа eco/force-той өрсөлдөгчид {n - w}/{n} раунд алдсан ({rounds})."
+        )
+    if code == "post_plant":
+        if good:
+            return f"Plant хийсэн {n} раундын {w}-ийг хожсон."
+        return f"Plant хийсэн {n} раундын ердөө {w}-ийг хожсон ({rounds})."
+    if code == "retake":
+        return f"Өрсөлдөгч plant хийсэн {n} раундын {w}-д retake хийж хожсон ({rounds})."
+    if code in ("win_streak", "loss_streak"):
+        first, last = f["rounds"][0], f["rounds"][-1]
+        did = "хожсон" if code == "win_streak" else "алдсан"
+        return f"R{first}–R{last}: {len(f['rounds'])} раунд дараалан {did}."
+    if code == "comeback":
+        return f"Хожих магадлал 20%-иас доош байхаас {n} раунд эргүүлж хожсон ({rounds})."
+    return str(f)
+
+
+def summary_pattern(code: str, f: dict, who) -> str:
+    """Нэг төрлийн Finding давтагдсан нь: тоо, хэн, хаана."""
+    label = REVIEW_CODE.get(code, code)
+    text = f"{label} — {f['count']} удаа"
+    players = _ranked([(who(s), c) for s, c in f.get("players") or []])
+    if players:
+        text += f" ({players})"
+    spots = [s for s, _c in (f.get("spots") or []) if s][:2]
+    if spots:
+        text += f", ихэвчлэн {' ба '.join(spots)}-д"
+    if f.get("maps"):
+        text += f"; {f['maps']} map-д давтагдсан"
+    return text + "."
+
+
+def summary_map_line(f: dict, team) -> str:
+    """Match-ийн тоймд нэг map нэг мөрөөр."""
+    winner = team(f.get("winner_team_id")) or "?"
+    text = f"{f['label']} {f['scoreline']} — {winner} авсан"
+    if f.get("key"):
+        text += f"; {f['key']}"
+    return text + "."
+
+
+def summary_across(item: dict, labels: dict) -> str:
+    """Хэд хэдэн map-д давтагдсан Pattern, хэмжүүр."""
+    maps = [labels.get(n, f"Map {n}") for n in item["maps"]]
+    did = "давуу тал" if item["good"] else "алдаа"
+    return (
+        f"{item['label']} — {plural_players(maps)}-д давтагдсан {did} "
+        f"(нийт {item['count']}, {summary_weight(item['weight'], item['good'])})."
+    )
+
+
+def summary_weight(rounds: float, good: bool) -> str:
+    """Тоймын жин раундаар: 1.37 → '≈ −1.4 раунд'."""
+    return f"≈ {'+' if good else '−'}{rounds:.1f} раунд"

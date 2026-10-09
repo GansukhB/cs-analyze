@@ -20,6 +20,7 @@ from app.models.analysis import (
     KillEvent,
     MapRoster,
     MatchMap,
+    MatchMapReview,
     Player,
     PlayerAlias,
     PlayerMap,
@@ -90,6 +91,7 @@ __all__ = [
     "PlayerMapUtility",
     "PlayerMapRoute",
     "PlayerMapDuel",
+    "MatchMapReview",
     "ReplayRound",
     # jobs
     "AnalysisJob",

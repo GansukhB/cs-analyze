@@ -413,10 +413,20 @@ class SceneLevel(BaseModel):
     labels: list[CalloutLabel]
 
 
+class SpotLabel(BaseModel):
+    """A Spot's name and where to print it."""
+
+    name: str
+    x: float
+    y: float
+    level: int | None = Field(description="Index into the scene's levels; None for every floor.")
+
+
 class Scene(BaseModel):
     plate: Plate
     labels: list[CalloutLabel]
     levels: list[SceneLevel]
+    spots: list[SpotLabel] = []
 
 
 class MatchMapDetail(BaseModel):
@@ -532,6 +542,7 @@ class AssistantContext(BaseModel):
     their_lineup: list[str] = Field(default_factory=list, description="Steam ids, at most five.")
     team: int | None = None
     match: int | None = None
+    map: int | None = Field(default=None, description="The Match Map open on a match page.")
 
 
 class AssistantChat(BaseModel):
@@ -545,3 +556,225 @@ class AssistantChat(BaseModel):
 
 class AssistantTranscript(BaseModel):
     text: str
+
+
+class ReviewTeam(BaseModel):
+    id: int | None
+    name: str
+
+
+class ReviewMark(BaseModel):
+    """One of a Round's worst or best moments for a Player."""
+
+    n: int
+    swing: float
+
+
+class ReviewPlayer(BaseModel):
+    sid: str = Field(description="Steam id, as the Replay names players.")
+    name: str
+    team_id: int | None
+    team: str
+    rounds: int
+    swing: float = Field(description="Sum of the Player's Swing over the Match Map.")
+    swing_per_round: float
+    best_round: ReviewMark
+    worst_round: ReviewMark
+    counts: dict[str, int] = Field(description="Findings led by this Player, per kind.")
+    utility: dict[str, float] = Field(description="Flashes, enemies blinded, HE damage...")
+
+
+class ReviewEvent(BaseModel):
+    t: float = Field(description="Seconds from freeze end, the Replay's clock.")
+    kind: str = Field(description="kill, plant or defuse.")
+    sid: str | None
+    victim: str | None = None
+    d_ct: float = Field(description="The CT side's Win probability change.")
+    hs: bool | None = None
+    weapon: str | None = None
+
+
+class ReviewFinding(BaseModel):
+    id: str
+    kind: str = Field(description="key_play, mistake, missed_chance or utility.")
+    code: str
+    kind_label: str
+    code_label: str
+    round: int | None = Field(description="None for a Finding about the whole Match Map.")
+    t: float | None
+    side: str
+    team_id: int | None
+    sids: list[str] = Field(description="The Players involved, the one it is about first.")
+    swing: float
+    sight: bool = Field(description="Needed Sightings (schema 13).")
+    title: str
+    text: str
+
+
+class SummaryRef(BaseModel):
+    """Where a Summary line can be seen in the Replay."""
+
+    map_number: int | None
+    round: int
+    t: float = Field(description="Seconds from freeze end.")
+    sid: str | None
+
+
+class SummaryCount(BaseModel):
+    sid: str | None = None
+    name: str | None = None
+    n: int
+
+
+class SummaryNumber(BaseModel):
+    key: str
+    label: str
+    value: str
+    tone: str = Field(description="good, bad, or empty when the number says nothing.")
+
+
+class SummaryMapText(BaseModel):
+    map_number: int
+    text: str
+
+
+class SummaryItem(BaseModel):
+    """One thing a Summary says went well or wrong: a number past its threshold,
+    or a Pattern of Findings."""
+
+    key: str = Field(description="The number (opening, trade, force...) or the Finding code.")
+    kind: str = Field(description="metric or pattern.")
+    good: bool
+    label: str
+    text: str
+    weight: float = Field(description="What it won or cost, in Rounds.")
+    refs: list[SummaryRef]
+    count: int
+    advice: str = Field(description="What to work on; set on problems.")
+    players: list[SummaryCount] = []
+    spots: list[SummaryCount] = []
+    maps: list[int] = Field(default=[], description="Across a Match: the Maps it showed on.")
+    texts: list[SummaryMapText] = Field(default=[], description="Across a Match: per Map.")
+
+
+class TeamSummary(BaseModel):
+    team_id: int | None
+    rounds: int
+    won: int
+    numbers: list[SummaryNumber]
+    strengths: list[SummaryItem]
+    problems: list[SummaryItem]
+    focus: list[SummaryItem] = Field(description="The Focus points, costliest first.")
+
+
+class MapSummary(BaseModel):
+    """Both Teams' Summaries over both Sides, and over each one."""
+
+    all: list[TeamSummary]
+    ct: list[TeamSummary]
+    t: list[TeamSummary]
+
+
+class RoundBullet(BaseModel):
+    text: str
+    label: str
+    swing: float
+    finding: str | None = Field(description="The Finding's id, or None for a Round fact.")
+    map_number: int | None
+    round: int
+    t: float
+    sid: str | None
+
+
+class RoundFocus(RoundBullet):
+    advice: str
+
+
+class RoundTeamSummary(BaseModel):
+    side: str
+    team_id: int | None
+    won: bool
+    line: str
+    good: list[RoundBullet]
+    bad: list[RoundBullet]
+    focus: RoundFocus | None
+
+
+class ReviewRound(BaseModel):
+    n: int
+    winner_side: str
+    winner_team_id: int | None
+    ct_team_id: int | None
+    t_team_id: int | None
+    reason: str
+    site: str
+    ct_buy: str
+    t_buy: str
+    seconds: float
+    wp: list[list[float]] = Field(description="[t, CT Win probability] through the Round.")
+    events: list[ReviewEvent]
+    swing: dict[str, float]
+    sides: dict[str, str]
+    decider: str | None
+    summary: str
+    findings: list[str] = Field(description="Ids of this Round's Findings, in reading order.")
+    teams: list[RoundTeamSummary] = Field(description="Each Team's Summary of the Round.")
+
+
+class Review(BaseModel):
+    version: str
+    sightings: bool
+    missing: str = Field(description="What this Match Map's Review lacks without Sightings.")
+    teams: list[ReviewTeam]
+    players: list[ReviewPlayer]
+    rounds: list[ReviewRound]
+    findings: list[ReviewFinding]
+    kinds: dict[str, str]
+    summary: MapSummary
+
+
+class MatchReviewSummaryMapTeam(BaseModel):
+    team_id: int | None
+    won: int
+    rounds: int
+    strength: SummaryItem | None
+    problem: SummaryItem | None
+
+
+class MatchReviewSummaryMap(BaseModel):
+    map_number: int
+    label: str
+    scoreline: str
+    winner_team_id: int | None
+    reviewed: bool = Field(description="False for a Map with no Tick Data: its score only.")
+    teams: list[MatchReviewSummaryMapTeam]
+
+
+class MatchReviewSummaryPlayer(BaseModel):
+    sid: str
+    name: str
+    maps: int
+    rounds: int
+    swing: float
+    swing_per_round: float
+    counts: dict[str, int]
+
+
+class MatchTeamSummary(BaseModel):
+    team_id: int | None
+    maps_played: int
+    rounds: int
+    won: int
+    strengths: list[SummaryItem] = Field(description="Said on two Maps or more.")
+    problems: list[SummaryItem] = Field(description="Said on two Maps or more.")
+    focus: list[SummaryItem]
+    players: list[MatchReviewSummaryPlayer]
+
+
+class MatchReviewSummary(BaseModel):
+    """Each Team's Summary of a Match, from its Maps' Reviews."""
+
+    teams: list[ReviewTeam]
+    maps: list[MatchReviewSummaryMap]
+    summaries: list[MatchTeamSummary]
+    names: dict[str, str] = Field(description="Steam id to name, for the Players a line names.")

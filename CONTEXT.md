@@ -60,6 +60,10 @@ One person, identified by their Steam id for good. Names change, so a Player kee
 The name the game gives the part of a Map a player stands in, such as "BombsiteB" or "Ramp". A Callout only means something inside its own Map.
 _Avoid_: Place, location, zone
 
+**Spot**:
+A smaller named part of a Map than its Callout, as players call it: Coffin, Dark and New Box are Spots inside Inferno's BombsiteB. Spots are drawn by hand for each Map; where none is drawn, the Callout stands in.
+_Avoid_: Sub-callout, pro callout, area
+
 **Floor**:
 One level of a two-level Map such as Nuke. A position's Floor comes from its altitude, never from its Callout.
 _Avoid_: Level (in prose), storey
@@ -80,9 +84,63 @@ _Avoid_: Inventory, equipment (equipment value is the economy's measure of a buy
 The one item in a Player's Loadout that they have in hand at that moment.
 _Avoid_: Active weapon, current weapon
 
+**Sighting**:
+A stretch of time in which a Player had an enemy in view, as the game itself judged it for the radar. Only Match Maps parsed since Sightings were read have them; the game's judgement is approximate, so a kill can happen without one.
+_Avoid_: Spotted, visibility, line of sight
+
 **Event**:
 Something that happens inside a Round: a kill, damage, a bomb action, or a grenade.
 _Avoid_: Using it for a Tournament
+
+## Review (what decided a Match Map)
+
+**Review**:
+The account of one Match Map after it was played: Round by Round, which Findings decided it, for both Teams alike and filterable by Player. It states only what the parsed Match Map shows; a Match Map without Sightings gets every Finding that does not need them.
+_Avoid_: Analysis (that is what parsing produced), report, debrief
+
+**Win probability**:
+A Side's chance of winning a Round from one moment's state: who is alive, what they carry, whether the bomb is down and how much time is left. It is read from how parsed Rounds in the same state ended.
+_Avoid_: Win chance, odds, expected win
+
+**Swing**:
+How much one action (a kill, a plant, a defuse, a flash that set up a kill) moved its Team's Win probability, credited to the Players behind it. A Player's Swing over a Round or a Match Map is the sum of theirs.
+_Avoid_: Impact (HLTV's Impact rating is another thing), value, rating
+
+**Trade**:
+Killing the enemy who just killed a teammate, within 5 seconds of that death.
+_Avoid_: Refrag, revenge
+
+**Finding**:
+One thing the Review points out, tied to a Round, a moment in it and the Players involved, with its Swing and the reason it was flagged. It is a Key play, a Mistake, a Missed chance or a Utility effect.
+_Avoid_: Insight, highlight, moment
+
+**Key play**:
+A Finding about an action that won its Team a large Swing: an entry, a multi-kill, a clutch, a retake, a plant or defuse under pressure.
+_Avoid_: Highlight, MVP play
+
+**Mistake**:
+A Finding about something a Player did that cost their Team a large Swing, with a named cause such as dying untraded, dying to a teammate's flash, losing a rifle when the Round was already lost, or losing a duel with a knife or grenade as the Held weapon. A costly death with no identifiable cause is not a Mistake. Some Mistakes belong to the Team, such as Terrorists running out of time.
+_Avoid_: Error, blunder
+
+**Missed chance**:
+A Finding about something a Player could have done and did not, such as a Trade they were close enough to take, an enemy they had damaged and left alive, or a blinded enemy nobody punished.
+_Avoid_: Missed opportunity (in prose), what-if
+
+**Utility effect**:
+A Finding about a grenade that changed a Round: a flash that set up a kill, HE or fire damage that let a kill land, a molotov that held up a plant or defuse. A flash that blinded the thrower's own teammates, or utility that touched nobody, counts against them.
+_Avoid_: Nade impact, util value
+
+**Summary**:
+A Team's account at one level, a Round, a Match Map or a Match: what went well, what went wrong and what to work on, told only from that level's Findings and Round facts. Both Teams get one, side by side.
+_Avoid_: Debrief, overview, report, takeaway
+
+**Pattern**:
+The same kind of Finding repeating within one Match Map more often than it does for most Teams, counted and tied to the Players and places behind it; across a Match, anything a Summary says on two Maps or more. It describes what happened there; a habit (Playbook) is what a Team tends to do across all its Match Maps.
+_Avoid_: Trend, habit
+
+**Focus point**:
+One of the few things that went wrong that a Summary puts first as what to work on, ranked by the Swing it cost.
+_Avoid_: Lesson, todo, tip
 
 ## Jobs
 

@@ -18,7 +18,7 @@ The derivations here are not conveniences -- each fixes something measured in
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import polars as pl
@@ -66,6 +66,22 @@ LOADOUT_PROPS = [
 ]
 LOADOUT_HZ = 8
 
+# Sightings (CONTEXT.md): who had which enemy in view, the game's own radar
+# spotting, read on a 32 Hz grid from freeze end to the round's end. Almost every
+# sample is empty (no enemy in view), so only the non-empty ones are kept, one row
+# per (seen, spotter): a few thousand rows a map. Measured on an Inferno demo: the
+# killer had spotted the victim in the 3 s before 58% of kills, so a kill without
+# a Sighting is normal (docs/adr/0006).
+SIGHT_PROPS = ["approximate_spotted_by"]
+SIGHT_HZ = 32
+
+# How each player held their aim and body, on a 16 Hz grid plus every tick a shot
+# was fired: pitch (yaw is already a tick prop), scoped, crouched, walking. Speed
+# is not here: demoparser drops velocity on a sparse grid, and the every-tick
+# positions in ``ticks`` already give it.
+AIM_PROPS = ["pitch", "is_scoped", "ducking", "is_walking"]
+AIM_HZ = 16
+
 # Competitive CS2 freeze time, the ruler used to measure the real tickrate.
 FREEZE_SECONDS = 20
 # Anything longer than this is a half-time or a tactical pause, not a buy.
@@ -105,6 +121,13 @@ class ParsedMap:
     round_sides: pl.DataFrame  # round_num, ct_clan, t_clan
     player_sides: pl.DataFrame  # round_num, steamid, side
     round_totals: pl.DataFrame  # steamid, side, n_rounds
+
+    # Schema 13. Empty when this map was read back from Tick Data that predates
+    # them: nothing else depends on them (docs/adr/0006).
+    sightings: pl.DataFrame = field(
+        default_factory=pl.DataFrame
+    )  # round_num, tick, steamid, spotter
+    aim: pl.DataFrame = field(default_factory=pl.DataFrame)  # round_num, tick, steamid, AIM_PROPS
 
     _demo: object = None  # the awpy Demo, kept only for compress()
 
@@ -262,6 +285,94 @@ def _loadout(dem, tickrate: int) -> pl.DataFrame:
     )
 
 
+def _live_grid(dem, tickrate: int, hz: int) -> pl.DataFrame:
+    """``(round_num, tick)`` every ``1/hz`` s from each round's freeze end to its end."""
+    step = max(1, int(round(tickrate / hz)))
+    grid = []
+    for row in dem.rounds.iter_rows(named=True):
+        start, end = row.get("freeze_end") or row.get("start"), row.get("end")
+        if start is None or end is None or end <= start:
+            continue
+        grid += [(int(row["round_num"]), tick) for tick in range(int(start), int(end) + 1, step)]
+    return pl.DataFrame(grid, schema={"round_num": pl.Int64, "tick": pl.Int64}, orient="row")
+
+
+def _sightings(dem, tickrate: int) -> pl.DataFrame:
+    """One row per (tick, seen player, spotter) on the :data:`SIGHT_HZ` grid.
+
+    Empty, with a warning, when demoparser cannot read them.
+    """
+    at = _live_grid(dem, tickrate, SIGHT_HZ)
+    if at.is_empty():
+        return pl.DataFrame()
+    try:
+        frame = dem.parser.parse_ticks(SIGHT_PROPS, ticks=at["tick"].to_list())
+    except Exception as exc:  # demoparser raises bare exceptions on odd demos
+        logger.warning("sightings unavailable (%s) -- writing empty", exc)
+        return pl.DataFrame()
+    seen = frame[frame["approximate_spotted_by"].map(len) > 0]
+    rows = [
+        (int(tick), int(steamid), int(spotter))
+        for tick, steamid, spotters in zip(
+            seen["tick"], seen["steamid"], seen["approximate_spotted_by"], strict=True
+        )
+        for spotter in spotters
+        if spotter
+    ]
+    schema = {"tick": pl.Int64, "steamid": pl.UInt64, "spotter": pl.UInt64}
+    out = pl.DataFrame(rows, schema=schema, orient="row")
+    return out.join(at, on="tick").select("round_num", "tick", "steamid", "spotter")
+
+
+def _aim(dem, tickrate: int) -> pl.DataFrame:
+    """:data:`AIM_PROPS` per player on the :data:`AIM_HZ` grid and at every shot.
+
+    Empty, with a warning, when demoparser cannot read them.
+    """
+    at = _live_grid(dem, tickrate, AIM_HZ)
+    fired = dem.events.get("weapon_fire") if dem.events else None
+    if fired is not None and not fired.is_empty():
+        live = (
+            dem.rounds.select(
+                pl.col("round_num").cast(pl.Int64),
+                pl.col("freeze_end").cast(pl.Int64).alias("tick"),
+                pl.col("end").cast(pl.Int64).alias("_end"),
+            )
+            .drop_nulls()
+            .sort("tick")
+        )
+        shots = (
+            fired.select(pl.col("tick").cast(pl.Int64))
+            .unique()
+            .sort("tick")
+            .join_asof(live, on="tick", strategy="backward")
+            .filter(pl.col("tick") <= pl.col("_end"))
+        )
+        at = pl.concat([at, shots.select("round_num", "tick")]).unique().sort("tick")
+    if at.is_empty():
+        return pl.DataFrame()
+    try:
+        frame = pl.from_pandas(dem.parser.parse_ticks(AIM_PROPS, ticks=at["tick"].to_list()))
+    except Exception as exc:  # demoparser raises bare exceptions on odd demos
+        logger.warning("aim unavailable (%s) -- writing empty", exc)
+        return pl.DataFrame()
+    if frame.is_empty():
+        return pl.DataFrame()
+    return (
+        frame.with_columns(pl.col("tick").cast(pl.Int64))
+        .join(at, on="tick")
+        .select(
+            "round_num",
+            "tick",
+            pl.col("steamid").cast(pl.UInt64),
+            pl.col("pitch").cast(pl.Float32),
+            pl.col("is_scoped").alias("scoped"),
+            "ducking",
+            pl.col("is_walking").alias("walking"),
+        )
+    )
+
+
 def derive_tickrate(rounds: pl.DataFrame) -> int:
     """Measure the tickrate from freeze time instead of trusting awpy (H10).
 
@@ -370,5 +481,7 @@ def parse_map(path: Path) -> ParsedMap:
         round_sides=round_sides,
         player_sides=player_sides,
         round_totals=dem.player_round_totals,
+        sightings=_sightings(dem, tickrate),
+        aim=_aim(dem, tickrate),
         _demo=dem,
     )

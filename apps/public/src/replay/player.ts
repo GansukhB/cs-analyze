@@ -15,11 +15,32 @@ export interface Label {
   y: number
 }
 
+export interface SpotLabel extends Label {
+  // The floor it is on, as an index into `levels`; null on a flat map or both.
+  level: number | null
+}
+
 export interface SceneData {
   plate: { url: string | null; width: number; height: number; extent: number[] }
   labels: Label[]
   levels: { key: string; url: string | null; labels: Label[] }[]
+  // The Map's Spots (CONTEXT.md), shown instead of the Callouts where drawn.
+  spots?: SpotLabel[]
 }
+
+/**
+ * How the page talks to a mounted replay: the Review's "watch this" links call
+ * `goto`, and `onRound` tells the page which round is on the canvas.
+ */
+export interface ReplayBridge {
+  goto?: (round: number, t: number, sid?: string | null, play?: boolean) => void
+  onRound?: (round: number) => void
+}
+
+// A Review link opens a little before its moment, and rings its player until
+// this long after it.
+const GOTO_LEAD = 3
+const FOCUS_SECONDS = 8
 
 interface Player {
   sid: string
@@ -175,6 +196,7 @@ export function mountReplay(
   startRound?: number,
   // Rounds each club had won when round `n` began, by club name.
   scoreBefore: (n: number) => Record<string, number> = () => ({}),
+  bridge?: ReplayBridge,
 ): () => void {
   const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
     root.querySelector<T>(`#${id}`) as T
@@ -258,7 +280,11 @@ export function mountReplay(
     shownFloor: undefined as Floor | undefined,
     // sid -> chip, rebuilt per round so draw() never walks the document.
     chips: {} as Record<string, Chip>,
+    // The player a Review link pointed at, ringed around that moment.
+    focus: null as { sid: string; t: number } | null,
   }
+  // A Review link to a round not yet loaded: where to go once it is.
+  let pending: { t: number; sid: string | null; play: boolean } | null = null
 
   function playerFloorAt(p: Player, f: number): Floor {
     if (!p.lvl || !p.lvl.length) return null
@@ -344,6 +370,7 @@ export function mountReplay(
     }
     state.t = 0
     state.autoFloor = null
+    state.focus = null
     renderScoreboard()
     seek.max = String(Math.max(1, Math.round(state.data.seconds * 100)))
     seek.value = '0'
@@ -351,9 +378,40 @@ export function mountReplay(
     renderFeed()
     loading.hidden = true
     state.playing = resume
+    if (pending) {
+      const go = pending
+      pending = null
+      focusOn(go.t, go.sid)
+      state.playing = go.play
+    }
     state.last = performance.now()
     setPlay()
     draw()
+    bridge?.onRound?.(n)
+  }
+
+  function focusOn(t: number, sid: string | null) {
+    const d = state.data
+    if (!d) return
+    state.focus = sid ? { sid, t } : null
+    state.t = Math.max(0, Math.min(d.seconds, sid ? t - GOTO_LEAD : t))
+    seek.value = String(Math.round(state.t * 100))
+    markFeed()
+  }
+
+  if (bridge) {
+    bridge.goto = (n, t, sid = null, play = true) => {
+      if (state.round === n && state.data) {
+        focusOn(t, sid)
+        state.playing = play
+        state.last = performance.now()
+        setPlay()
+        draw()
+        return
+      }
+      pending = { t, sid, play }
+      void load(n)
+    }
   }
 
   // Who is on each side is fixed for the round, so it is built once here.
@@ -705,6 +763,17 @@ export function mountReplay(
   }
 
   function drawCallouts(floor: Floor) {
+    // The Map's Spots where they are drawn; they name what the Review names.
+    const spots = (scene.spots || []).filter((s) => floor === null || s.level === null || s.level === floor)
+    if (spots.length) {
+      ctx.save()
+      ctx.font = '600 10px ui-monospace, Menlo, monospace'
+      ctx.fillStyle = 'rgba(226, 232, 237, .5)'
+      ctx.textAlign = 'center'
+      spots.forEach((l) => ctx.fillText(l.name, px(l.x), py(l.y)))
+      ctx.restore()
+      return
+    }
     // The floor's own callouts: Nuke's Ramp is two rooms 308 units apart.
     const labels = floor !== null && LEVELS[floor] ? LEVELS[floor].labels : scene.labels
     ctx.save()
@@ -951,6 +1020,17 @@ export function mountReplay(
 
       const blind = blindAt(p, f, d.hz)
       const dotColour = blind > 0 ? paleTint(p.colour, 0.85 * blind) : p.colour
+      const focus = state.focus
+      if (focus && focus.sid === p.sid && t >= focus.t - GOTO_LEAD - 1 && t <= focus.t + FOCUS_SECONDS) {
+        // The Review's player: a ring that cannot be mistaken for health or a flash.
+        ctx.beginPath()
+        ctx.arc(x, y, 17, 0, Math.PI * 2)
+        ctx.lineWidth = 2
+        ctx.strokeStyle = 'rgba(245, 245, 232, .9)'
+        ctx.setLineDash([4, 3])
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
       if (blind > 0) {
         ctx.beginPath()
         ctx.arc(x, y, 12.5 + 5 * blind, 0, Math.PI * 2)
@@ -1164,6 +1244,7 @@ export function mountReplay(
   if (ROUNDS.length) void load(startRound && ROUNDS.includes(startRound) ? startRound : ROUNDS[0])
 
   return () => {
+    if (bridge) bridge.goto = undefined
     destroyed = true
     cancelAnimationFrame(frame)
     abort.abort()

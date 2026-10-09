@@ -221,7 +221,30 @@ def scene(db: Session, match_map: MatchMap) -> dict | None:
     ]
     if not all(floor["url"] for floor in floors):
         floors = []
-    return {"plate": background, "labels": geometry.get("labels") or [], "levels": floors}
+    return {
+        "plate": background,
+        "labels": geometry.get("labels") or [],
+        "levels": floors,
+        "spots": _spot_labels(map_name, bool(floors)),
+    }
+
+
+def _spot_labels(map_name: str, floors: bool) -> list[dict]:
+    """The Map's Spots for the callouts toggle, each on its floor when it has one."""
+    from app.services import spots
+
+    split = radar.split_altitude(map_name) if floors else None
+    out = []
+    for spot in spots.scene(map_name):
+        level = None
+        if split is not None and spot["z"]:
+            lo, hi = spot["z"]
+            if hi <= split:
+                level = _LEVEL_INDEX[radar.LOWER]
+            elif lo >= split:
+                level = _LEVEL_INDEX[radar.UPPER]
+        out.append({"name": spot["name"], "x": spot["x"], "y": spot["y"], "level": level})
+    return out
 
 
 def rounds_index(db: Session, match_map: MatchMap) -> list[dict]:

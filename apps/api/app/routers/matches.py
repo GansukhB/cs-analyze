@@ -21,13 +21,15 @@ from app.schemas import (
     MatchInfo,
     MatchMapDetail,
     MatchMapTab,
+    MatchReviewSummary,
+    Review,
     RoundStripRow,
     Scene,
     ScoreboardPlayer,
     ScoreboardSide,
     TeamRef,
 )
-from app.services import replay
+from app.services import replay, review_view
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +168,39 @@ def get_round(
         media_type="application/json",
         headers={**headers, "Content-Encoding": "gzip"},
     )
+
+
+@router.get("/{match_id}/summary")
+def get_summary(match_id: int, db: DbSession, _: CurrentUser) -> MatchReviewSummary:
+    """Each Team's Summary of the Match, from its Maps' Reviews (built first
+    where missing or stale). A Map with no Tick Data shows its score only."""
+    match = _match(db, match_id)
+    try:
+        built = review_view.match_panel(db, match)
+    except Exception as exc:  # like the Review: never take the page down with it
+        logger.exception("summary failed for match %s", match_id)
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not build this match's summary"
+        ) from exc
+    return MatchReviewSummary(**built)
+
+
+@router.get("/{match_id}/maps/{map_number}/review")
+def get_review(match_id: int, map_number: int, db: DbSession, _: CurrentUser) -> Review:
+    """The map's Review (CONTEXT.md): every Round's Win probability, Swing and
+    Findings, worded. Built from the Tick Data on first read after a parse or a
+    model change, then read back."""
+    match_map = _map(db, match_id, map_number)
+    try:
+        built = review_view.panel(db, match_map)
+    except Exception as exc:  # a Review must never take the page down with it
+        logger.exception("review failed for map %s", match_map.id)
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not build this map's review"
+        ) from exc
+    if built is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "This map has no tick data to review")
+    return Review(**built)
 
 
 def _round_strip(db: Session, match_map: MatchMap) -> list[RoundStripRow]:

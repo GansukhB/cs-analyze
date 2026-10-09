@@ -642,7 +642,7 @@ function Composer(props: {
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
   return (
-    <div className="border-t border-line bg-surface-2 px-3 pt-2.5 pb-3">
+    <div className="border-t-1 border-line bg-surface-2 px-3 pt-2.5 pb-3">
       {props.notice && (
         <div className="as-in mb-2 flex items-start gap-2 rounded-lg bg-raised px-3 py-2 text-xs text-ink-2">
           <span className="flex-1">{props.notice}</span>

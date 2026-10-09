@@ -558,6 +558,111 @@
         }
       }
     },
+    "/matches/{match_id}/summary": {
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Get Summary",
+        "description": "Each Team's Summary of the Match, from its Maps' Reviews (built first\nwhere missing or stale). A Map with no Tick Data shows its score only.",
+        "operationId": "get_summary_matches__match_id__summary_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchReviewSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/{match_id}/maps/{map_number}/review": {
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Get Review",
+        "description": "The map's Review (CONTEXT.md): every Round's Win probability, Swing and\nFindings, worded. Built from the Tick Data on first read after a parse or a\nmodel change, then read back.",
+        "operationId": "get_review_matches__match_id__maps__map_number__review_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Match Id"
+            }
+          },
+          {
+            "name": "map_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Map Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/gameplan/teams": {
       "get": {
         "tags": [
@@ -1681,6 +1786,18 @@
               }
             ],
             "title": "Match"
+          },
+          "map": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map",
+            "description": "The Match Map open on a match page."
           }
         },
         "type": "object",
@@ -2717,6 +2834,39 @@
         ],
         "title": "MapRecordRow"
       },
+      "MapSummary": {
+        "properties": {
+          "all": {
+            "items": {
+              "$ref": "#/components/schemas/TeamSummary"
+            },
+            "type": "array",
+            "title": "All"
+          },
+          "ct": {
+            "items": {
+              "$ref": "#/components/schemas/TeamSummary"
+            },
+            "type": "array",
+            "title": "Ct"
+          },
+          "t": {
+            "items": {
+              "$ref": "#/components/schemas/TeamSummary"
+            },
+            "type": "array",
+            "title": "T"
+          }
+        },
+        "type": "object",
+        "required": [
+          "all",
+          "ct",
+          "t"
+        ],
+        "title": "MapSummary",
+        "description": "Both Teams' Summaries over both Sides, and over each one."
+      },
       "MatchInfo": {
         "properties": {
           "id": {
@@ -2949,6 +3099,195 @@
         ],
         "title": "MatchRecord"
       },
+      "MatchReviewSummary": {
+        "properties": {
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewTeam"
+            },
+            "type": "array",
+            "title": "Teams"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/MatchReviewSummaryMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "summaries": {
+            "items": {
+              "$ref": "#/components/schemas/MatchTeamSummary"
+            },
+            "type": "array",
+            "title": "Summaries"
+          },
+          "names": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Names",
+            "description": "Steam id to name, for the Players a line names."
+          }
+        },
+        "type": "object",
+        "required": [
+          "teams",
+          "maps",
+          "summaries",
+          "names"
+        ],
+        "title": "MatchReviewSummary",
+        "description": "Each Team's Summary of a Match, from its Maps' Reviews."
+      },
+      "MatchReviewSummaryMap": {
+        "properties": {
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "scoreline": {
+            "type": "string",
+            "title": "Scoreline"
+          },
+          "winner_team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winner Team Id"
+          },
+          "reviewed": {
+            "type": "boolean",
+            "title": "Reviewed",
+            "description": "False for a Map with no Tick Data: its score only."
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/MatchReviewSummaryMapTeam"
+            },
+            "type": "array",
+            "title": "Teams"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_number",
+          "label",
+          "scoreline",
+          "winner_team_id",
+          "reviewed",
+          "teams"
+        ],
+        "title": "MatchReviewSummaryMap"
+      },
+      "MatchReviewSummaryMapTeam": {
+        "properties": {
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SummaryItem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SummaryItem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "won",
+          "rounds",
+          "strength",
+          "problem"
+        ],
+        "title": "MatchReviewSummaryMapTeam"
+      },
+      "MatchReviewSummaryPlayer": {
+        "properties": {
+          "sid": {
+            "type": "string",
+            "title": "Sid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "swing": {
+            "type": "number",
+            "title": "Swing"
+          },
+          "swing_per_round": {
+            "type": "number",
+            "title": "Swing Per Round"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sid",
+          "name",
+          "maps",
+          "rounds",
+          "swing",
+          "swing_per_round",
+          "counts"
+        ],
+        "title": "MatchReviewSummaryPlayer"
+      },
       "MatchSummary": {
         "properties": {
           "match_id": {
@@ -3023,6 +3362,75 @@
         ],
         "title": "MatchSummary"
       },
+      "MatchTeamSummary": {
+        "properties": {
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "maps_played": {
+            "type": "integer",
+            "title": "Maps Played"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "strengths": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryItem"
+            },
+            "type": "array",
+            "title": "Strengths",
+            "description": "Said on two Maps or more."
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryItem"
+            },
+            "type": "array",
+            "title": "Problems",
+            "description": "Said on two Maps or more."
+          },
+          "focus": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryItem"
+            },
+            "type": "array",
+            "title": "Focus"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/MatchReviewSummaryPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "maps_played",
+          "rounds",
+          "won",
+          "strengths",
+          "problems",
+          "focus",
+          "players"
+        ],
+        "title": "MatchTeamSummary"
+      },
       "Plate": {
         "properties": {
           "url": {
@@ -3060,6 +3468,668 @@
           "extent"
         ],
         "title": "Plate"
+      },
+      "Review": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "sightings": {
+            "type": "boolean",
+            "title": "Sightings"
+          },
+          "missing": {
+            "type": "string",
+            "title": "Missing",
+            "description": "What this Match Map's Review lacks without Sightings."
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewTeam"
+            },
+            "type": "array",
+            "title": "Teams"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewRound"
+            },
+            "type": "array",
+            "title": "Rounds"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewFinding"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "kinds": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Kinds"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MapSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "sightings",
+          "missing",
+          "teams",
+          "players",
+          "rounds",
+          "findings",
+          "kinds",
+          "summary"
+        ],
+        "title": "Review"
+      },
+      "ReviewEvent": {
+        "properties": {
+          "t": {
+            "type": "number",
+            "title": "T",
+            "description": "Seconds from freeze end, the Replay's clock."
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "kill, plant or defuse."
+          },
+          "sid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sid"
+          },
+          "victim": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Victim"
+          },
+          "d_ct": {
+            "type": "number",
+            "title": "D Ct",
+            "description": "The CT side's Win probability change."
+          },
+          "hs": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hs"
+          },
+          "weapon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weapon"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t",
+          "kind",
+          "sid",
+          "d_ct"
+        ],
+        "title": "ReviewEvent"
+      },
+      "ReviewFinding": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "key_play, mistake, missed_chance or utility."
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "kind_label": {
+            "type": "string",
+            "title": "Kind Label"
+          },
+          "code_label": {
+            "type": "string",
+            "title": "Code Label"
+          },
+          "round": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round",
+            "description": "None for a Finding about the whole Match Map."
+          },
+          "t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "sids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sids",
+            "description": "The Players involved, the one it is about first."
+          },
+          "swing": {
+            "type": "number",
+            "title": "Swing"
+          },
+          "sight": {
+            "type": "boolean",
+            "title": "Sight",
+            "description": "Needed Sightings (schema 13)."
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "code",
+          "kind_label",
+          "code_label",
+          "round",
+          "t",
+          "side",
+          "team_id",
+          "sids",
+          "swing",
+          "sight",
+          "title",
+          "text"
+        ],
+        "title": "ReviewFinding"
+      },
+      "ReviewMark": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "swing": {
+            "type": "number",
+            "title": "Swing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "swing"
+        ],
+        "title": "ReviewMark",
+        "description": "One of a Round's worst or best moments for a Player."
+      },
+      "ReviewPlayer": {
+        "properties": {
+          "sid": {
+            "type": "string",
+            "title": "Sid",
+            "description": "Steam id, as the Replay names players."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "swing": {
+            "type": "number",
+            "title": "Swing",
+            "description": "Sum of the Player's Swing over the Match Map."
+          },
+          "swing_per_round": {
+            "type": "number",
+            "title": "Swing Per Round"
+          },
+          "best_round": {
+            "$ref": "#/components/schemas/ReviewMark"
+          },
+          "worst_round": {
+            "$ref": "#/components/schemas/ReviewMark"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts",
+            "description": "Findings led by this Player, per kind."
+          },
+          "utility": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Utility",
+            "description": "Flashes, enemies blinded, HE damage..."
+          }
+        },
+        "type": "object",
+        "required": [
+          "sid",
+          "name",
+          "team_id",
+          "team",
+          "rounds",
+          "swing",
+          "swing_per_round",
+          "best_round",
+          "worst_round",
+          "counts",
+          "utility"
+        ],
+        "title": "ReviewPlayer"
+      },
+      "ReviewRound": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "winner_side": {
+            "type": "string",
+            "title": "Winner Side"
+          },
+          "winner_team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winner Team Id"
+          },
+          "ct_team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ct Team Id"
+          },
+          "t_team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T Team Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "site": {
+            "type": "string",
+            "title": "Site"
+          },
+          "ct_buy": {
+            "type": "string",
+            "title": "Ct Buy"
+          },
+          "t_buy": {
+            "type": "string",
+            "title": "T Buy"
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds"
+          },
+          "wp": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Wp",
+            "description": "[t, CT Win probability] through the Round."
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "swing": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Swing"
+          },
+          "sides": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Sides"
+          },
+          "decider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decider"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "findings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Findings",
+            "description": "Ids of this Round's Findings, in reading order."
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/RoundTeamSummary"
+            },
+            "type": "array",
+            "title": "Teams",
+            "description": "Each Team's Summary of the Round."
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "winner_side",
+          "winner_team_id",
+          "ct_team_id",
+          "t_team_id",
+          "reason",
+          "site",
+          "ct_buy",
+          "t_buy",
+          "seconds",
+          "wp",
+          "events",
+          "swing",
+          "sides",
+          "decider",
+          "summary",
+          "findings",
+          "teams"
+        ],
+        "title": "ReviewRound"
+      },
+      "ReviewTeam": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ReviewTeam"
+      },
+      "RoundBullet": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "swing": {
+            "type": "number",
+            "title": "Swing"
+          },
+          "finding": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding",
+            "description": "The Finding's id, or None for a Round fact."
+          },
+          "map_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map Number"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "t": {
+            "type": "number",
+            "title": "T"
+          },
+          "sid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "label",
+          "swing",
+          "finding",
+          "map_number",
+          "round",
+          "t",
+          "sid"
+        ],
+        "title": "RoundBullet"
+      },
+      "RoundFocus": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "swing": {
+            "type": "number",
+            "title": "Swing"
+          },
+          "finding": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding",
+            "description": "The Finding's id, or None for a Round fact."
+          },
+          "map_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map Number"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "t": {
+            "type": "number",
+            "title": "T"
+          },
+          "sid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sid"
+          },
+          "advice": {
+            "type": "string",
+            "title": "Advice"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "label",
+          "swing",
+          "finding",
+          "map_number",
+          "round",
+          "t",
+          "sid",
+          "advice"
+        ],
+        "title": "RoundFocus"
       },
       "RoundStripRow": {
         "properties": {
@@ -3114,6 +4184,68 @@
         ],
         "title": "RoundStripRow"
       },
+      "RoundTeamSummary": {
+        "properties": {
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "won": {
+            "type": "boolean",
+            "title": "Won"
+          },
+          "line": {
+            "type": "string",
+            "title": "Line"
+          },
+          "good": {
+            "items": {
+              "$ref": "#/components/schemas/RoundBullet"
+            },
+            "type": "array",
+            "title": "Good"
+          },
+          "bad": {
+            "items": {
+              "$ref": "#/components/schemas/RoundBullet"
+            },
+            "type": "array",
+            "title": "Bad"
+          },
+          "focus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoundFocus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "side",
+          "team_id",
+          "won",
+          "line",
+          "good",
+          "bad",
+          "focus"
+        ],
+        "title": "RoundTeamSummary"
+      },
       "Scene": {
         "properties": {
           "plate": {
@@ -3132,6 +4264,14 @@
             },
             "type": "array",
             "title": "Levels"
+          },
+          "spots": {
+            "items": {
+              "$ref": "#/components/schemas/SpotLabel"
+            },
+            "type": "array",
+            "title": "Spots",
+            "default": []
           }
         },
         "type": "object",
@@ -3294,6 +4434,43 @@
         ],
         "title": "ScoutDefaults"
       },
+      "SpotLabel": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level",
+            "description": "Index into the scene's levels; None for every floor."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "x",
+          "y",
+          "level"
+        ],
+        "title": "SpotLabel",
+        "description": "A Spot's name and where to print it."
+      },
       "StageRow": {
         "properties": {
           "stage": {
@@ -3341,6 +4518,227 @@
           "counts"
         ],
         "title": "StageRow"
+      },
+      "SummaryCount": {
+        "properties": {
+          "sid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sid"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n"
+        ],
+        "title": "SummaryCount"
+      },
+      "SummaryItem": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "The number (opening, trade, force...) or the Finding code."
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "metric or pattern."
+          },
+          "good": {
+            "type": "boolean",
+            "title": "Good"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight",
+            "description": "What it won or cost, in Rounds."
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryRef"
+            },
+            "type": "array",
+            "title": "Refs"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "advice": {
+            "type": "string",
+            "title": "Advice",
+            "description": "What to work on; set on problems."
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryCount"
+            },
+            "type": "array",
+            "title": "Players",
+            "default": []
+          },
+          "spots": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryCount"
+            },
+            "type": "array",
+            "title": "Spots",
+            "default": []
+          },
+          "maps": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Maps",
+            "description": "Across a Match: the Maps it showed on.",
+            "default": []
+          },
+          "texts": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryMapText"
+            },
+            "type": "array",
+            "title": "Texts",
+            "description": "Across a Match: per Map.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "kind",
+          "good",
+          "label",
+          "text",
+          "weight",
+          "refs",
+          "count",
+          "advice"
+        ],
+        "title": "SummaryItem",
+        "description": "One thing a Summary says went well or wrong: a number past its threshold,\nor a Pattern of Findings."
+      },
+      "SummaryMapText": {
+        "properties": {
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_number",
+          "text"
+        ],
+        "title": "SummaryMapText"
+      },
+      "SummaryNumber": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "tone": {
+            "type": "string",
+            "title": "Tone",
+            "description": "good, bad, or empty when the number says nothing."
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "value",
+          "tone"
+        ],
+        "title": "SummaryNumber"
+      },
+      "SummaryRef": {
+        "properties": {
+          "map_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map Number"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "t": {
+            "type": "number",
+            "title": "T",
+            "description": "Seconds from freeze end."
+          },
+          "sid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_number",
+          "round",
+          "t",
+          "sid"
+        ],
+        "title": "SummaryRef",
+        "description": "Where a Summary line can be seen in the Replay."
       },
       "TeamDetail": {
         "properties": {
@@ -3675,6 +5073,69 @@
           "last"
         ],
         "title": "TeamRow"
+      },
+      "TeamSummary": {
+        "properties": {
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "numbers": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryNumber"
+            },
+            "type": "array",
+            "title": "Numbers"
+          },
+          "strengths": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryItem"
+            },
+            "type": "array",
+            "title": "Strengths"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryItem"
+            },
+            "type": "array",
+            "title": "Problems"
+          },
+          "focus": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryItem"
+            },
+            "type": "array",
+            "title": "Focus",
+            "description": "The Focus points, costliest first."
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "rounds",
+          "won",
+          "numbers",
+          "strengths",
+          "problems",
+          "focus"
+        ],
+        "title": "TeamSummary"
       },
       "Token": {
         "properties": {

@@ -132,17 +132,32 @@ def _dem_path(root: Path, row: sqlite3.Row) -> Path | None:
 
 
 def _current(demo: models.Demo) -> bool:
-    """Already parsed under this schema, from Tick Data a re-parse could use."""
+    """Already parsed under this schema, from Tick Data a re-parse could use and
+    that has Sightings: cstat still has the Demo, so a map lacking them gets them
+    here even though a Scout never downloads again for them (docs/adr/0006)."""
     analysis = demo.analysis
     return (
         analysis is not None
         and (analysis.schema_version or 0) >= analysis_store.CURRENT_SCHEMA_VERSION
         and tickdata.reparseable(analysis.tick_dataset)
+        and tickdata.has_sightings(analysis.tick_dataset)
     )
 
 
-def run(db: Session, root: Path, *, parse: bool = True, log: Callable[[str], None] = print) -> dict:
-    """Import cstat's rows, then parse every map demo that is missing or stale here."""
+def run(
+    db: Session,
+    root: Path,
+    *,
+    parse: bool = True,
+    log: Callable[[str], None] = print,
+    match_hltv_id: int | None = None,
+    map_name: str | None = None,
+) -> dict:
+    """Import cstat's rows, then parse every map demo that is missing or stale here.
+
+    ``match_hltv_id`` and ``map_name`` (``inferno`` or ``de_inferno``) narrow the
+    parse to one Match, or one map of it; the rows are imported in full either way.
+    """
     from app.services.demo_parser import parse_map
 
     rows = _read(root)
@@ -166,6 +181,10 @@ def run(db: Session, root: Path, *, parse: bool = True, log: Callable[[str], Non
     for r in rows["demo"]:
         match = matches.get(r["match_id"])
         if match is None:
+            continue
+        if match_hltv_id is not None and match.hltv_id != match_hltv_id:
+            continue
+        if map_name and r["map"] and r["map"].removeprefix("de_") != map_name.removeprefix("de_"):
             continue
         demo = store._demo(db, match, r["map"] or "")
         _fill(demo, url=r["url"], filename=r["filename"], size_bytes=r["size_bytes"],

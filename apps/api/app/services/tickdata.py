@@ -12,6 +12,9 @@ things from it at ingest, so no page view ever opens parquet:
   actually walked (:func:`app.services.movement.tracks`).
 * the Replay -- one ``ReplayRound`` row per round (:func:`app.services.replay.build`).
 
+The Review (:mod:`app.services.review`) is cut in the same pass but versions
+itself, so changing a detector rebuilds Reviews and nothing else.
+
 All three carry :data:`DERIVED_VERSION`; when it moves, :func:`ensure` rebuilds
 them from the stored bundle instead of from a Demo nobody kept.
 
@@ -22,6 +25,10 @@ economy was can't be: its map needs its Demo again (docs/adr/0003, :func:`repars
 
 The Loadout (:data:`LOADOUT_TABLE`) is the same: Tick Data written before it
 can't give it back, so its map needs its Demo again too (docs/adr/0005).
+
+Sightings and aim (:data:`SIGHT_TABLES`, schema 13) are not: Tick Data without
+them still re-parses, and its Review leaves out what needs them (docs/adr/0006,
+:func:`has_sightings`).
 """
 
 from __future__ import annotations
@@ -51,7 +58,10 @@ logger = logging.getLogger(__name__)
 DETONATION_TABLES = ("flashes", "he_grenades")
 ECONOMY_TABLE = "economy"
 LOADOUT_TABLE = "loadout"
-EXTRA_TABLES = (*DETONATION_TABLES, ECONOMY_TABLE, LOADOUT_TABLE)
+# A re-parse needs these; Sightings and aim it can do without (docs/adr/0006).
+REQUIRED_TABLES = (*DETONATION_TABLES, ECONOMY_TABLE, LOADOUT_TABLE)
+SIGHT_TABLES = ("sightings", "aim")
+EXTRA_TABLES = (*REQUIRED_TABLES, *SIGHT_TABLES)
 
 # Callout labels: the busiest places, at their median, from a fixed sample.
 GEOMETRY_SAMPLE = 220_000
@@ -101,7 +111,10 @@ class Bundle:
 # ------------------------------------------------------------- the bundle ---
 def pack(parsed, scratch: Path) -> bytes | None:
     """The bytes to store for a freshly parsed map: awpy's dump plus
-    :data:`EXTRA_TABLES`. The zip is written in ``scratch`` and removed again."""
+    :data:`EXTRA_TABLES`. The zip is written in ``scratch`` and removed again.
+
+    A Sightings or aim table demoparser could not read is left out rather than
+    written empty, so :func:`has_sightings` never claims what isn't there."""
     path = parsed.write_parquet(scratch)
     if path is None:
         return None
@@ -109,6 +122,8 @@ def pack(parsed, scratch: Path) -> bytes | None:
         with zipfile.ZipFile(path, "a", zipfile.ZIP_DEFLATED) as bundle:
             for name in EXTRA_TABLES:
                 frame = getattr(parsed, name, None)
+                if name in SIGHT_TABLES and (frame is None or frame.is_empty()):
+                    continue
                 _write_table(bundle, name, frame if frame is not None else pl.DataFrame())
         return path.read_bytes()
     finally:
@@ -155,7 +170,7 @@ def store(db: Session, match_map: MatchMap, blob: bytes, *, awpy_version: str = 
 
 
 def derive(db: Session, match_map: MatchMap, dataset: TickDataset, bundle: Bundle) -> None:
-    from app.services import replay
+    from app.services import replay, review
 
     map_name = match_map.game_map.name if match_map.game_map else ""
     ticks = bundle.get("ticks")
@@ -166,6 +181,8 @@ def derive(db: Session, match_map: MatchMap, dataset: TickDataset, bundle: Bundl
     dataset.replay = replay.build(db, match_map, bundle) or {}
     dataset.derived_version = derived_version()
     db.flush()
+    # The Review reads the same bundle; it keeps its own version (review.ensure).
+    review.rebuild(db, match_map, bundle)
 
 
 def ensure(db: Session, match_map: MatchMap) -> TickDataset | None:
@@ -188,7 +205,12 @@ def rebuild(db: Session, match_map: MatchMap, dataset: TickDataset) -> None:
 def reparseable(dataset: TickDataset | None) -> bool:
     """Whether a stale map can be parsed again from this Tick Data, rather than
     only from its Demo downloaded again."""
-    return dataset is not None and all(name in (dataset.tables or []) for name in EXTRA_TABLES)
+    return dataset is not None and all(name in (dataset.tables or []) for name in REQUIRED_TABLES)
+
+
+def has_sightings(dataset: TickDataset | None) -> bool:
+    """Whether this Tick Data carries Sightings and aim (schema 13, read from a Demo)."""
+    return dataset is not None and all(name in (dataset.tables or []) for name in SIGHT_TABLES)
 
 
 def parsed_map(blob: bytes, label: str, awpy_version: str = ""):
@@ -245,6 +267,8 @@ def parsed_map(blob: bytes, label: str, awpy_version: str = ""):
         player_sides=player_sides,
         # awpy's own derivation, run on the same two frames it used the first time.
         round_totals=AwpyDemo.player_round_totals.func(SimpleNamespace(ticks=ticks, rounds=rounds)),
+        sightings=table("sightings"),
+        aim=table("aim"),
     )
 
 

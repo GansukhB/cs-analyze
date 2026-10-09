@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useMatch } from 'react-router'
 import { $api } from './api/client'
 import Assistant from './assistant/Assistant'
 import { tokenStore } from './auth/token'
@@ -10,6 +10,8 @@ const link = ({ isActive }: { isActive: boolean }) =>
 export default function Layout() {
   const queryClient = useQueryClient()
   const me = $api.useQuery('get', '/auth/me')
+  // A match page holds a Replay beside its Round panel: it gets the screen's width.
+  const width = useMatch('/matches/*') ? 'max-w-[1680px]' : 'max-w-5xl'
 
   function logout() {
     tokenStore.set(null)
@@ -19,7 +21,7 @@ export default function Layout() {
   return (
     <>
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-6 px-4 py-3 text-sm">
+        <div className={`mx-auto flex ${width} flex-wrap items-center gap-6 px-4 py-3 text-sm`}>
           <span className="font-semibold text-ink">cs-analyze</span>
           <nav className="flex gap-4">
             <NavLink to="/" end className={link}>
@@ -43,7 +45,7 @@ export default function Layout() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className={`mx-auto ${width} px-4 py-8`}>
         <Outlet />
       </main>
       <Assistant />

@@ -28,6 +28,8 @@
     "data:import": "uv run --directory apps/api python -m app.cli import-tickdata",
     "data:rebuild": "uv run --directory apps/api python -m app.cli rebuild-tickdata",
     "data:cstat": "uv run --directory apps/api python -m app.cli import-cstat",
+    "review:fit": "uv run --directory apps/api python -m app.cli fit-winprob",
+    "review:rebuild": "uv run --directory apps/api python -m app.cli rebuild-reviews",
     "openapi": "uv run --directory apps/api python -m app.openapi && npm run gen:api -w public",
     "test:api": "uv run --directory apps/api pytest",
     "lint": "npm run lint:api && npm run lint:public",

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { fetchClient } from '../api/client'
 import type { components } from '../api/schema'
-import { mountReplay, type RoundData } from './player'
+import { mountReplay, type ReplayBridge, type RoundData } from './player'
 import RoundTimeline, { type TimelineTeam } from './RoundTimeline'
 import './replay.css'
 
@@ -23,8 +23,12 @@ export default function Replay(props: {
   /** The Match Map's two teams, in the rounds' `mine` order, for the round strip. */
   team1: TimelineTeam
   team2: TimelineTeam
+  /** Filled with the replay's `goto`, and told which round is on the canvas. */
+  bridge?: ReplayBridge
+  /** Rounds the Review's filters leave out, faint on the round strip. */
+  dim?: Set<number>
 }) {
-  const { matchId, mapNumber, scene, rounds, startRound, team1, team2 } = props
+  const { matchId, mapNumber, scene, rounds, startRound, team1, team2, bridge, dim } = props
   const root = useRef<HTMLDivElement>(null)
   // The map's score as each round began: every round before it, by its winner.
   const before = useMemo(() => {
@@ -47,8 +51,8 @@ export default function Replay(props: {
       )
       if (error || !data) throw new Error(`round ${number} is not available`)
       return data as unknown as RoundData
-    }, startRound, (n) => before.get(n) || {})
-  }, [matchId, mapNumber, scene, startRound, before])
+    }, startRound, (n) => before.get(n) || {}, bridge)
+  }, [matchId, mapNumber, scene, startRound, before, bridge])
 
   return (
     <div ref={root} className="rp">
@@ -120,7 +124,7 @@ export default function Replay(props: {
             </div>
 
             <div className="mt-3.5">
-              <RoundTimeline rounds={rounds} team1={team1} team2={team2} replay />
+              <RoundTimeline rounds={rounds} team1={team1} team2={team2} replay dim={dim} />
             </div>
           </div>
           <div className="rp-roster t" id="rp-roster-t" />

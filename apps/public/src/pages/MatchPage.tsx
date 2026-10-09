@@ -1,12 +1,15 @@
-import { Link, Navigate, NavLink, useParams, useSearchParams } from 'react-router'
+import { Link, NavLink, useParams } from 'react-router'
 import { $api } from '../api/client'
 import type { components } from '../api/schema'
-import Replay from '../replay/Replay'
-import RoundTimeline from '../replay/RoundTimeline'
+import MapReview from '../review/MapReview'
+import MatchOverview from '../review/MatchOverview'
 
 type MatchInfo = components['schemas']['MatchInfo']
 
-/** `/matches/:id` lands on the first replayable map; `/matches/:id/m/:n` is that map. */
+/**
+ * `/matches/:id` is the Match's «Тойм» (each Team's Summary over its Maps);
+ * `/matches/:id/m/:n` is one Map: its Summary, Replay and Round by Round Review.
+ */
 export default function MatchPage() {
   const { matchId = '', mapNumber } = useParams()
   const id = Number(matchId)
@@ -15,21 +18,22 @@ export default function MatchPage() {
   if (match.error) return <p className="text-crit">Тоглолт олдсонгүй.</p>
   if (!match.data) return <p className="text-ink-3">Уншиж байна…</p>
   const info = match.data
-  if (mapNumber === undefined && info.default_map !== null) {
-    return <Navigate to={`/matches/${id}/m/${info.default_map}`} replace />
-  }
+  const parsed = info.maps.some((m) => m.parsed)
 
   return (
     <div className="space-y-6">
       <Header info={info} />
       <MapTabs info={info} />
-      {mapNumber === undefined ? (
+      {mapNumber !== undefined ? (
+        // Keyed: each map starts with its own round and its own Replay bridge.
+        <MapReview key={`${id}-${mapNumber}`} matchId={id} mapNumber={Number(mapNumber)} />
+      ) : parsed ? (
+        <MatchOverview matchId={id} />
+      ) : (
         <p className="rounded-xl border border-line bg-surface p-6 text-ink-2">
-          None of this match's maps has been parsed, so there is nothing to replay. Run an analysis that
+          None of this match's maps has been parsed, so there is nothing to review. Run an analysis that
           includes match {info.hltv_id} first.
         </p>
-      ) : (
-        <MapSection matchId={id} mapNumber={Number(mapNumber)} />
       )}
     </div>
   )
@@ -58,9 +62,15 @@ function Header({ info }: { info: MatchInfo }) {
   )
 }
 
+const TAB = ({ isActive }: { isActive: boolean }) =>
+  `rounded-t-md border border-b-0 px-4 py-2 text-sm ${isActive ? 'border-line bg-surface text-ink' : 'border-transparent text-ink-2 hover:bg-surface'}`
+
 function MapTabs({ info }: { info: MatchInfo }) {
   return (
     <div className="flex flex-wrap gap-1 border-b border-line">
+      <NavLink to={`/matches/${info.id}`} end className={TAB}>
+        Тойм
+      </NavLink>
       {info.maps.map((m) => {
         const inner = (
           <>
@@ -69,13 +79,7 @@ function MapTabs({ info }: { info: MatchInfo }) {
           </>
         )
         return m.playable ? (
-          <NavLink
-            key={m.map_number}
-            to={`/matches/${info.id}/m/${m.map_number}`}
-            className={({ isActive }) =>
-              `rounded-t-md border border-b-0 px-4 py-2 text-sm ${isActive ? 'border-line bg-surface text-ink' : 'border-transparent text-ink-2 hover:bg-surface'}`
-            }
-          >
+          <NavLink key={m.map_number} to={`/matches/${info.id}/m/${m.map_number}`} className={TAB}>
             {inner}
           </NavLink>
         ) : (
@@ -84,98 +88,6 @@ function MapTabs({ info }: { info: MatchInfo }) {
           </span>
         )
       })}
-    </div>
-  )
-}
-
-function MapSection({ matchId, mapNumber }: { matchId: number; mapNumber: number }) {
-  const detail = $api.useQuery('get', '/matches/{match_id}/maps/{map_number}', {
-    params: { path: { match_id: matchId, map_number: mapNumber } },
-  })
-  const startRound = Number(useSearchParams()[0].get('round')) || undefined
-  if (detail.error) return <p className="text-crit">Энэ тоглолтод {mapNumber}-р мап байхгүй.</p>
-  if (!detail.data) return <p className="text-ink-3">Replay бэлтгэж байна…</p>
-  const { label, scene, rounds, scoreboard, parsed } = detail.data
-  // The scoreboard lists the Match Map's team1 first, the order the rounds' `mine` follows.
-  const team1 = { name: scoreboard[0]?.team.name ?? 'Team 1', score: scoreboard[0]?.score ?? null }
-  const team2 = { name: scoreboard[1]?.team.name ?? 'Team 2', score: scoreboard[1]?.score ?? null }
-
-  return (
-    <div className="space-y-8">
-      {scene ? (
-        <section className="space-y-2">
-          <h2 className="font-medium text-ink">Round replay — {label}</h2>
-          <Replay
-            key={`${matchId}-${mapNumber}`}
-            matchId={matchId}
-            mapNumber={mapNumber}
-            scene={scene}
-            rounds={rounds}
-            startRound={startRound}
-            team1={team1}
-            team2={team2}
-          />
-        </section>
-      ) : (
-        <p className="rounded-xl border border-line bg-surface p-6 text-ink-2">
-          {parsed
-            ? <>{label} is parsed, but has no stored tick data to replay — run a scout that includes this match to parse it again.</>
-            : <>{label} has not been parsed, so there is nothing to replay.</>}
-        </p>
-      )}
-
-      {scoreboard.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="font-medium text-ink">Scoreboard — {label}</h2>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {scoreboard.map((side) => (
-              <div key={side.team.id} className="rounded-xl border border-line bg-surface p-4">
-                <h3 className="mb-2 flex items-baseline gap-3">
-                  <Link to={`/teams/${side.team.id}`} className="font-medium text-ct hover:underline">{side.team.name}</Link>
-                  <span className={`font-mono text-xl ${side.won ? 'text-good' : 'text-ink-2'}`}>{side.score ?? '–'}</span>
-                </h3>
-                <table className="w-full text-sm">
-                  <thead className="text-left text-xs uppercase text-ink-3">
-                    <tr>
-                      <th className="py-1">Player</th>
-                      <th className="py-1 text-right">K</th>
-                      <th className="py-1 text-right">D</th>
-                      <th className="py-1 text-right">+/–</th>
-                      <th className="py-1 text-right">ADR</th>
-                      <th className="py-1 text-right">KAST</th>
-                      <th className="py-1 text-right">HS%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {side.players.length === 0 && (
-                      <tr><td colSpan={7} className="py-1 text-ink-3">No stat rows for this side.</td></tr>
-                    )}
-                    {side.players.map((p) => (
-                      <tr key={p.name} className="border-t border-line-soft tabular-nums">
-                        <td className="py-1">{p.name}</td>
-                        <td className="py-1 text-right">{p.kills}</td>
-                        <td className="py-1 text-right">{p.deaths}</td>
-                        <td className="py-1 text-right">{p.kd_diff > 0 ? `+${p.kd_diff}` : p.kd_diff}</td>
-                        <td className="py-1 text-right">{p.adr !== null ? p.adr.toFixed(1) : '—'}</td>
-                        <td className="py-1 text-right">{p.kast_pct ? `${Math.round(p.kast_pct)}%` : '—'}</td>
-                        <td className="py-1 text-right">{p.hs_pct ? `${Math.round(p.hs_pct)}%` : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* With a Replay, the rounds are its round picker under the radar. */}
-      {!scene && rounds.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="font-medium text-ink">Rounds — {label}</h2>
-          <RoundTimeline rounds={rounds} team1={team1} team2={team2} />
-        </section>
-      )}
     </div>
   )
 }

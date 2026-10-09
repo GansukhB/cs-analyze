@@ -25,6 +25,7 @@ export function usePageContext(): PageContext {
   const fixture = matchPath('/gameplan/:mine/vs/:theirs/*', pathname)
   const team = matchPath('/teams/:teamId', pathname)
   const match = matchPath('/matches/:matchId/*', pathname)
+  const matchMap = matchPath('/matches/:matchId/m/:mapNumber', pathname)
 
   const mine = Number(fixture?.params.mine)
   const theirs = Number(fixture?.params.theirs)
@@ -69,7 +70,8 @@ export function usePageContext(): PageContext {
   if (isMatch) {
     const m = matchInfo.data
     const label = m ? [m.team1?.name, m.team2?.name].filter(Boolean).join(' vs ') : ''
-    return { scope: 'match', context: { match: matchId }, label, key: `m:${matchId}` }
+    const map = Number(matchMap?.params.mapNumber) || null
+    return { scope: 'match', context: { match: matchId, map }, label, key: `m:${matchId}:${map ?? ''}` }
   }
   return { scope: 'general', context: null, label: '', key: 'g' }
 }
@@ -86,7 +88,11 @@ export function suggestions(scope: Scope): string[] {
     case 'team':
       return ['Энэ багийн map pool ямар вэ?', 'Хэн ямар үүрэгтэй тоглодог вэ?', 'Хамгийн сул тоглогч нь хэн бэ?']
     case 'match':
-      return ['Хоёр багийн H2H дүн ямар вэ?', 'Энэ хоёрын аль нь аль map дээр хүчтэй вэ?']
+      return [
+        'Энэ map-ийг юунаас болж алдсан бэ?',
+        'Хэн хамгийн их алдаа гаргасан бэ?',
+        'Аль раунд тоглолтын эргэлт болсон бэ?',
+      ]
     default:
       return ['Ямар багуудын өгөгдөл байна?', 'The MongolZ-ийн map pool ямар вэ?', 'Хамгийн их parse хийгдсэн баг аль нь вэ?']
   }

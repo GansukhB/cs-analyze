@@ -40,11 +40,11 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.config import get_settings
 from app.models import MapRoster, Match, MatchMap, Player, Round, Team
-from app.services import dbctx, lineup, mapstrategy, mn, roles, scouting, voice
+from app.services import dbctx, lineup, mapstrategy, mn, review_view, roles, scouting, voice
 from app.services import gameplan as gameplan_service
 
 logger = logging.getLogger(__name__)
@@ -241,6 +241,56 @@ TOOLS = [
                 "section": {"type": "string"},
             },
             "required": ["mine_id", "theirs_id", "section"],
+        },
+    },
+    {
+        "name": "match_summary",
+        "description": (
+            "Each team's Summary of a whole match, the way a coach or analyst would "
+            "debrief it: one line per map (score, the main strength and problem of each "
+            "team), the strengths and problems that repeated on two maps or more, each "
+            "team's top Focus points (what to work on, costliest first, with advice) and "
+            "its players' Swing over the match. Use it for 'how did this match go', 'what "
+            "should this team work on', or any question about the match as a whole; use "
+            "match_review for one map's rounds and findings."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"match_id": {"type": "integer"}},
+            "required": ["match_id"],
+        },
+    },
+    {
+        "name": "match_review",
+        "description": (
+            "The Review of one parsed map of a match: each team's Summary of the map "
+            "(its numbers, what went well, what went wrong, Focus points), round by "
+            "round who won it and how, each player's Swing (how much their actions moved "
+            "their team's round win probability), and the Findings -- key plays, "
+            "mistakes, missed chances and utility effects -- each with its round, time "
+            "and Swing. Use it for questions about how a specific map was played: why a "
+            "round was lost, who made mistakes, which frags or utility mattered."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "match_id": {"type": "integer"},
+                "map_number": {
+                    "type": "integer",
+                    "description": "Which map of the match (1, 2, 3). Defaults to the first "
+                    "parsed one.",
+                },
+                "round": {"type": "integer", "description": "Only this round's Findings."},
+                "player": {
+                    "type": "string",
+                    "description": "Only Findings about this player (case-insensitive name).",
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": ["key_play", "mistake", "missed_chance", "utility"],
+                },
+            },
+            "required": ["match_id"],
         },
     },
 ]
@@ -484,6 +534,188 @@ def _tool_gameplan_section(mine_id: int, theirs_id: int, section: str) -> dict:
     return report[section]
 
 
+REVIEW_FINDINGS_LIMIT = 40
+
+
+def _summary_lines(items: list[dict], limit: int = 5) -> list[str]:
+    return [i["text"] for i in items[:limit]]
+
+
+def _compact_summary(summary: dict, team_name: str) -> dict:
+    """A Team's Summary as the model reads it: sentences, not ids."""
+    return {
+        "team": team_name,
+        "rounds_won": f"{summary['won']} of {summary['rounds']}",
+        "numbers": {
+            n["label"]: n["value"] + (f" ({n['tone']})" if n["tone"] else "")
+            for n in summary.get("numbers", [])
+        },
+        "went_well": _summary_lines(summary["strengths"]),
+        "went_wrong": _summary_lines(summary["problems"]),
+        "focus_points": [
+            {"what": f["text"], "work_on": f["advice"], "cost_rounds": f["weight"]}
+            for f in summary["focus"]
+        ],
+    }
+
+
+def _tool_match_summary(match_id: int) -> dict:
+    session = dbctx.db()
+    match = session.scalar(
+        select(Match)
+        .where(Match.id == match_id)
+        .options(
+            joinedload(Match.team1),
+            joinedload(Match.team2),
+            selectinload(Match.map_results).joinedload(MatchMap.game_map),
+        )
+    )
+    if match is None:
+        return {"error": f"no match with id {match_id}"}
+    panel = review_view.match_panel(session, match)
+    names = {t["id"]: t["name"] for t in panel["teams"]}
+    if not any(m["reviewed"] for m in panel["maps"]):
+        return {"error": "none of this match's maps has tick data to review",
+                "maps": [f"{m['label']} {m['scoreline']}" for m in panel["maps"]]}  # fmt: skip
+    return {
+        "maps": [
+            {
+                "map_number": m["map_number"],
+                "map": m["label"],
+                "score": m["scoreline"],
+                "winner": names.get(m["winner_team_id"], ""),
+                "reviewed": m["reviewed"],
+                "teams": {
+                    names.get(t["team_id"], "?"): {
+                        "main_strength": t["strength"]["text"] if t["strength"] else "",
+                        "main_problem": t["problem"]["text"] if t["problem"] else "",
+                    }
+                    for t in m["teams"]
+                },
+            }
+            for m in panel["maps"]
+        ],
+        "teams": [
+            {
+                "team": names.get(s["team_id"], "?"),
+                "rounds_won": f"{s['won']} of {s['rounds']} over {s['maps_played']} maps",
+                "repeated_strengths": _summary_lines(s["strengths"]),
+                "repeated_problems": _summary_lines(s["problems"]),
+                "focus_points": [
+                    {
+                        "what": f["label"],
+                        "maps": f["maps"],
+                        "work_on": f["advice"],
+                        "cost_rounds": f["weight"],
+                    }
+                    for f in s["focus"]
+                ],  # fmt: skip
+                "players": [
+                    {
+                        "name": p["name"],
+                        "swing": p["swing"],
+                        "swing_per_round": p["swing_per_round"],
+                    }
+                    for p in s["players"]
+                ],
+            }
+            for s in panel["summaries"]
+        ],
+        "weight_unit": "rounds: what a line won or cost its team",
+    }
+
+
+def _tool_match_review(
+    match_id: int,
+    map_number: int | None = None,
+    round: int | None = None,  # noqa: A002 - the tool's own parameter name
+    player: str = "",
+    kind: str = "",
+) -> dict:
+    session = dbctx.db()
+    maps = list(
+        session.scalars(
+            select(MatchMap)
+            .where(MatchMap.match_id == match_id, MatchMap.parsed_at.is_not(None))
+            .order_by(MatchMap.map_number)
+        )
+    )
+    if not maps:
+        return {"error": "this match has no parsed map"}
+    match_map = (
+        next((m for m in maps if m.map_number == map_number), None) if map_number else maps[0]
+    )
+    if match_map is None:
+        return {"error": f"map {map_number} of this match is not parsed",
+                "parsed_maps": [m.map_number for m in maps]}  # fmt: skip
+    panel = review_view.panel(session, match_map)
+    if panel is None:
+        return {"error": "this map has no tick data to review"}
+    sid = None
+    if player:
+        wanted = player.strip().lower()
+        sid = next(
+            (p["sid"] for p in panel["players"] if p["name"].lower() == wanted), None
+        ) or next((p["sid"] for p in panel["players"] if wanted in p["name"].lower()), None)
+        if sid is None:
+            return {"error": f"no player named {player!r} on this map",
+                    "players": [p["name"] for p in panel["players"]]}  # fmt: skip
+    findings = [
+        f for f in panel["findings"]
+        if (round is None or f["round"] == round)
+        and (sid is None or f["sids"][:1] == [sid])
+        and (not kind or f["kind"] == kind)
+    ]  # fmt: skip
+    total = len(findings)
+    if total > REVIEW_FINDINGS_LIMIT:
+        findings = sorted(findings, key=lambda f: -abs(f["swing"]))[:REVIEW_FINDINGS_LIMIT]
+        findings.sort(key=lambda f: (f["round"] or 0, f["t"] or 0))
+    return {
+        "map": mn.game_map(match_map.game_map.name if match_map.game_map else ""),
+        "map_number": match_map.map_number,
+        "parsed_maps": [m.map_number for m in maps],
+        "note": panel["missing"],
+        "swing_unit": "share of one round; +0.25 = raised the team's round win chance by 25 points",
+        "summary": [
+            _compact_summary(
+                t, next((x["name"] for x in panel["teams"] if x["id"] == t["team_id"]), "?")
+            )
+            for t in panel["summary"]["all"]
+        ],
+        "players": [
+            {
+                "name": p["name"],
+                "team": p["team"],
+                "swing": p["swing"],
+                "swing_per_round": p["swing_per_round"],
+                "best_round": p["best_round"],
+                "worst_round": p["worst_round"],
+                "findings": p["counts"],
+            }
+            for p in panel["players"]
+        ],  # fmt: skip
+        "rounds": [
+            {"round": r["n"], "summary": r["summary"]}
+            for r in panel["rounds"]
+            if round is None or r["n"] == round
+        ],
+        "findings": [
+            {
+                "round": f["round"],
+                "time": f["t"],
+                "kind": f["kind_label"],
+                "what": f["code_label"],
+                "title": f["title"],
+                "text": f["text"],
+                "swing": f["swing"],
+            }
+            for f in findings
+        ],  # fmt: skip
+        "findings_total": total,
+        "findings_shown": len(findings),
+    }
+
+
 DISPATCH = {
     "list_teams": _tool_list_teams,
     "team_overview": _tool_team_overview,
@@ -491,6 +723,8 @@ DISPATCH = {
     "role_report": _tool_role_report,
     "scouting_report": _tool_scouting_report,
     "gameplan_section": _tool_gameplan_section,
+    "match_summary": _tool_match_summary,
+    "match_review": _tool_match_review,
 }
 
 
@@ -509,6 +743,7 @@ class Context:
     lineup_names: dict[int, list[str]] = field(default_factory=dict)
     team: Team | None = None
     match: Match | None = None
+    map_number: int | None = None
 
     def note(self) -> str:
         """A preface for the system prompt: standing knowledge, not something the user said."""
@@ -544,7 +779,15 @@ class Context:
             return (
                 f"\n\nThe user is currently on the match page for {sides}"
                 + (f" at {m.tournament.name!r}" if m.tournament else "")
-                + ". Neither side is the user's own team unless they say so."
+                + ". Neither side is the user's own team unless they say so. Use "
+                f"match_summary with match_id {m.id} for the match as a whole, and "
+                f"match_review with match_id {m.id}"
+                + (
+                    f" and map_number {self.map_number} (the map open on the page)"
+                    if self.map_number
+                    else ""
+                )
+                + " for how this match was played."
             )
         return ""
 
@@ -603,7 +846,8 @@ def clean_context(session: Session, raw) -> Context:
             return Context(team=team) if team else Context()
         if raw.get("match") not in (None, ""):
             match = session.get(Match, int(raw["match"]))
-            return Context(match=match) if match else Context()
+            number = int(raw["map"]) if raw.get("map") not in (None, "") else None
+            return Context(match=match, map_number=number) if match else Context()
     except (TypeError, ValueError):
         return Context()
     return Context()

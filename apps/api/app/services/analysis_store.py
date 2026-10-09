@@ -64,8 +64,10 @@ logger = logging.getLogger(__name__)
 # matches that were parsed before it existed. 10 was cstat's last; 11 added the
 # economy, which old Tick Data lacks, so those maps are downloaded again
 # (docs/adr/0003); 12 added the Replay's Loadout to the Tick Data, the same way
-# (docs/adr/0005).
-CURRENT_SCHEMA_VERSION = 12
+# (docs/adr/0005). 13 added Sightings and aim to the Tick Data, which only a Demo
+# gives; unlike 11 and 12 a map without them is not downloaded again, so a map at
+# 13 re-parsed from older Tick Data still has none (docs/adr/0006).
+CURRENT_SCHEMA_VERSION = 13
 
 # A Setup (CONTEXT.md) is where everyone stands this long after freeze end.
 SETUP_SECONDS = 20

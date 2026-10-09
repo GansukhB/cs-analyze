@@ -87,8 +87,10 @@ export default function RoundTimeline(props: {
   team1: TimelineTeam
   team2: TimelineTeam
   replay?: boolean
+  /** Rounds the page's filters leave out, drawn faint. */
+  dim?: Set<number>
 }) {
-  const { rounds, team1, team2, replay = false } = props
+  const { rounds, team1, team2, replay = false, dim } = props
   const sides = team1Sides(rounds)
 
   const cell = (r: RoundStripRow, side: Side | null, won: boolean, top: boolean) => (
@@ -131,8 +133,10 @@ export default function RoundTimeline(props: {
                 type="button"
                 tabIndex={replay ? undefined : -1}
                 data-round={r.number}
+                // An attribute, not a class: player.ts owns the class list (it marks `on`).
+                data-dim={dim?.has(r.number) ? '' : undefined}
                 title={`Round ${r.number} · ${r.score}\n${r.winner || '?'} (${r.winner_side.toUpperCase()}) — ${HOW[kind]}${r.planted ? `\nPlanted ${r.site || '?'}` : ''}`}
-                className={`r group flex min-w-7 flex-1 flex-col gap-1 rounded-[4px] outline-none outline-offset-2 focus-visible:outline-1 focus-visible:outline-dashed focus-visible:outline-line [&.on]:outline-1 [&.on]:outline-solid [&.on]:outline-ink-3 ${
+                className={`r group flex min-w-7 flex-1 flex-col gap-1 rounded-[4px] outline-none outline-offset-2 focus-visible:outline-1 focus-visible:outline-dashed focus-visible:outline-line [&.on]:outline-1 [&.on]:outline-solid [&.on]:outline-ink-3 data-[dim]:opacity-30 ${
                   replay ? '' : 'cursor-default'
                 }`}
               >

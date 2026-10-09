@@ -247,6 +247,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/matches/{match_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Summary
+         * @description Each Team's Summary of the Match, from its Maps' Reviews (built first
+         *     where missing or stale). A Map with no Tick Data shows its score only.
+         */
+        get: operations["get_summary_matches__match_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/matches/{match_id}/maps/{map_number}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Review
+         * @description The map's Review (CONTEXT.md): every Round's Win probability, Swing and
+         *     Findings, worded. Built from the Tick Data on first read after a parse or a
+         *     model change, then read back.
+         */
+        get: operations["get_review_matches__match_id__maps__map_number__review_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gameplan/teams": {
         parameters: {
             query?: never;
@@ -593,6 +636,11 @@ export interface components {
             team?: number | null;
             /** Match */
             match?: number | null;
+            /**
+             * Map
+             * @description The Match Map open on a match page.
+             */
+            map?: number | null;
         };
         /** AssistantTranscript */
         AssistantTranscript: {
@@ -1007,6 +1055,18 @@ export interface components {
             /** Pct */
             pct: number | null;
         };
+        /**
+         * MapSummary
+         * @description Both Teams' Summaries over both Sides, and over each one.
+         */
+        MapSummary: {
+            /** All */
+            all: components["schemas"]["TeamSummary"][];
+            /** Ct */
+            ct: components["schemas"]["TeamSummary"][];
+            /** T */
+            t: components["schemas"]["TeamSummary"][];
+        };
         /** MatchInfo */
         MatchInfo: {
             /** Id */
@@ -1079,6 +1139,73 @@ export interface components {
             /** Drawn */
             drawn: number;
         };
+        /**
+         * MatchReviewSummary
+         * @description Each Team's Summary of a Match, from its Maps' Reviews.
+         */
+        MatchReviewSummary: {
+            /** Teams */
+            teams: components["schemas"]["ReviewTeam"][];
+            /** Maps */
+            maps: components["schemas"]["MatchReviewSummaryMap"][];
+            /** Summaries */
+            summaries: components["schemas"]["MatchTeamSummary"][];
+            /**
+             * Names
+             * @description Steam id to name, for the Players a line names.
+             */
+            names: {
+                [key: string]: string;
+            };
+        };
+        /** MatchReviewSummaryMap */
+        MatchReviewSummaryMap: {
+            /** Map Number */
+            map_number: number;
+            /** Label */
+            label: string;
+            /** Scoreline */
+            scoreline: string;
+            /** Winner Team Id */
+            winner_team_id: number | null;
+            /**
+             * Reviewed
+             * @description False for a Map with no Tick Data: its score only.
+             */
+            reviewed: boolean;
+            /** Teams */
+            teams: components["schemas"]["MatchReviewSummaryMapTeam"][];
+        };
+        /** MatchReviewSummaryMapTeam */
+        MatchReviewSummaryMapTeam: {
+            /** Team Id */
+            team_id: number | null;
+            /** Won */
+            won: number;
+            /** Rounds */
+            rounds: number;
+            strength: components["schemas"]["SummaryItem"] | null;
+            problem: components["schemas"]["SummaryItem"] | null;
+        };
+        /** MatchReviewSummaryPlayer */
+        MatchReviewSummaryPlayer: {
+            /** Sid */
+            sid: string;
+            /** Name */
+            name: string;
+            /** Maps */
+            maps: number;
+            /** Rounds */
+            rounds: number;
+            /** Swing */
+            swing: number;
+            /** Swing Per Round */
+            swing_per_round: number;
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+        };
         /** MatchSummary */
         MatchSummary: {
             /** Match Id */
@@ -1102,6 +1229,31 @@ export interface components {
             /** Maps */
             maps: components["schemas"]["MatchMapSummary"][];
         };
+        /** MatchTeamSummary */
+        MatchTeamSummary: {
+            /** Team Id */
+            team_id: number | null;
+            /** Maps Played */
+            maps_played: number;
+            /** Rounds */
+            rounds: number;
+            /** Won */
+            won: number;
+            /**
+             * Strengths
+             * @description Said on two Maps or more.
+             */
+            strengths: components["schemas"]["SummaryItem"][];
+            /**
+             * Problems
+             * @description Said on two Maps or more.
+             */
+            problems: components["schemas"]["SummaryItem"][];
+            /** Focus */
+            focus: components["schemas"]["SummaryItem"][];
+            /** Players */
+            players: components["schemas"]["MatchReviewSummaryPlayer"][];
+        };
         /** Plate */
         Plate: {
             /** Url */
@@ -1112,6 +1264,254 @@ export interface components {
             height: number;
             /** Extent */
             extent: number[];
+        };
+        /** Review */
+        Review: {
+            /** Version */
+            version: string;
+            /** Sightings */
+            sightings: boolean;
+            /**
+             * Missing
+             * @description What this Match Map's Review lacks without Sightings.
+             */
+            missing: string;
+            /** Teams */
+            teams: components["schemas"]["ReviewTeam"][];
+            /** Players */
+            players: components["schemas"]["ReviewPlayer"][];
+            /** Rounds */
+            rounds: components["schemas"]["ReviewRound"][];
+            /** Findings */
+            findings: components["schemas"]["ReviewFinding"][];
+            /** Kinds */
+            kinds: {
+                [key: string]: string;
+            };
+            summary: components["schemas"]["MapSummary"];
+        };
+        /** ReviewEvent */
+        ReviewEvent: {
+            /**
+             * T
+             * @description Seconds from freeze end, the Replay's clock.
+             */
+            t: number;
+            /**
+             * Kind
+             * @description kill, plant or defuse.
+             */
+            kind: string;
+            /** Sid */
+            sid: string | null;
+            /** Victim */
+            victim?: string | null;
+            /**
+             * D Ct
+             * @description The CT side's Win probability change.
+             */
+            d_ct: number;
+            /** Hs */
+            hs?: boolean | null;
+            /** Weapon */
+            weapon?: string | null;
+        };
+        /** ReviewFinding */
+        ReviewFinding: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @description key_play, mistake, missed_chance or utility.
+             */
+            kind: string;
+            /** Code */
+            code: string;
+            /** Kind Label */
+            kind_label: string;
+            /** Code Label */
+            code_label: string;
+            /**
+             * Round
+             * @description None for a Finding about the whole Match Map.
+             */
+            round: number | null;
+            /** T */
+            t: number | null;
+            /** Side */
+            side: string;
+            /** Team Id */
+            team_id: number | null;
+            /**
+             * Sids
+             * @description The Players involved, the one it is about first.
+             */
+            sids: string[];
+            /** Swing */
+            swing: number;
+            /**
+             * Sight
+             * @description Needed Sightings (schema 13).
+             */
+            sight: boolean;
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+        };
+        /**
+         * ReviewMark
+         * @description One of a Round's worst or best moments for a Player.
+         */
+        ReviewMark: {
+            /** N */
+            n: number;
+            /** Swing */
+            swing: number;
+        };
+        /** ReviewPlayer */
+        ReviewPlayer: {
+            /**
+             * Sid
+             * @description Steam id, as the Replay names players.
+             */
+            sid: string;
+            /** Name */
+            name: string;
+            /** Team Id */
+            team_id: number | null;
+            /** Team */
+            team: string;
+            /** Rounds */
+            rounds: number;
+            /**
+             * Swing
+             * @description Sum of the Player's Swing over the Match Map.
+             */
+            swing: number;
+            /** Swing Per Round */
+            swing_per_round: number;
+            best_round: components["schemas"]["ReviewMark"];
+            worst_round: components["schemas"]["ReviewMark"];
+            /**
+             * Counts
+             * @description Findings led by this Player, per kind.
+             */
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Utility
+             * @description Flashes, enemies blinded, HE damage...
+             */
+            utility: {
+                [key: string]: number;
+            };
+        };
+        /** ReviewRound */
+        ReviewRound: {
+            /** N */
+            n: number;
+            /** Winner Side */
+            winner_side: string;
+            /** Winner Team Id */
+            winner_team_id: number | null;
+            /** Ct Team Id */
+            ct_team_id: number | null;
+            /** T Team Id */
+            t_team_id: number | null;
+            /** Reason */
+            reason: string;
+            /** Site */
+            site: string;
+            /** Ct Buy */
+            ct_buy: string;
+            /** T Buy */
+            t_buy: string;
+            /** Seconds */
+            seconds: number;
+            /**
+             * Wp
+             * @description [t, CT Win probability] through the Round.
+             */
+            wp: number[][];
+            /** Events */
+            events: components["schemas"]["ReviewEvent"][];
+            /** Swing */
+            swing: {
+                [key: string]: number;
+            };
+            /** Sides */
+            sides: {
+                [key: string]: string;
+            };
+            /** Decider */
+            decider: string | null;
+            /** Summary */
+            summary: string;
+            /**
+             * Findings
+             * @description Ids of this Round's Findings, in reading order.
+             */
+            findings: string[];
+            /**
+             * Teams
+             * @description Each Team's Summary of the Round.
+             */
+            teams: components["schemas"]["RoundTeamSummary"][];
+        };
+        /** ReviewTeam */
+        ReviewTeam: {
+            /** Id */
+            id: number | null;
+            /** Name */
+            name: string;
+        };
+        /** RoundBullet */
+        RoundBullet: {
+            /** Text */
+            text: string;
+            /** Label */
+            label: string;
+            /** Swing */
+            swing: number;
+            /**
+             * Finding
+             * @description The Finding's id, or None for a Round fact.
+             */
+            finding: string | null;
+            /** Map Number */
+            map_number: number | null;
+            /** Round */
+            round: number;
+            /** T */
+            t: number;
+            /** Sid */
+            sid: string | null;
+        };
+        /** RoundFocus */
+        RoundFocus: {
+            /** Text */
+            text: string;
+            /** Label */
+            label: string;
+            /** Swing */
+            swing: number;
+            /**
+             * Finding
+             * @description The Finding's id, or None for a Round fact.
+             */
+            finding: string | null;
+            /** Map Number */
+            map_number: number | null;
+            /** Round */
+            round: number;
+            /** T */
+            t: number;
+            /** Sid */
+            sid: string | null;
+            /** Advice */
+            advice: string;
         };
         /** RoundStripRow */
         RoundStripRow: {
@@ -1134,6 +1534,22 @@ export interface components {
             /** Half Break */
             half_break: boolean;
         };
+        /** RoundTeamSummary */
+        RoundTeamSummary: {
+            /** Side */
+            side: string;
+            /** Team Id */
+            team_id: number | null;
+            /** Won */
+            won: boolean;
+            /** Line */
+            line: string;
+            /** Good */
+            good: components["schemas"]["RoundBullet"][];
+            /** Bad */
+            bad: components["schemas"]["RoundBullet"][];
+            focus: components["schemas"]["RoundFocus"] | null;
+        };
         /** Scene */
         Scene: {
             plate: components["schemas"]["Plate"];
@@ -1141,6 +1557,11 @@ export interface components {
             labels: components["schemas"]["CalloutLabel"][];
             /** Levels */
             levels: components["schemas"]["SceneLevel"][];
+            /**
+             * Spots
+             * @default []
+             */
+            spots: components["schemas"]["SpotLabel"][];
         };
         /** SceneLevel */
         SceneLevel: {
@@ -1185,6 +1606,23 @@ export interface components {
             /** Max Matches */
             max_matches: number;
         };
+        /**
+         * SpotLabel
+         * @description A Spot's name and where to print it.
+         */
+        SpotLabel: {
+            /** Name */
+            name: string;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /**
+             * Level
+             * @description Index into the scene's levels; None for every floor.
+             */
+            level: number | null;
+        };
         /** StageRow */
         StageRow: {
             /** Stage */
@@ -1201,6 +1639,112 @@ export interface components {
             counts: {
                 [key: string]: number;
             };
+        };
+        /** SummaryCount */
+        SummaryCount: {
+            /** Sid */
+            sid?: string | null;
+            /** Name */
+            name?: string | null;
+            /** N */
+            n: number;
+        };
+        /**
+         * SummaryItem
+         * @description One thing a Summary says went well or wrong: a number past its threshold,
+         *     or a Pattern of Findings.
+         */
+        SummaryItem: {
+            /**
+             * Key
+             * @description The number (opening, trade, force...) or the Finding code.
+             */
+            key: string;
+            /**
+             * Kind
+             * @description metric or pattern.
+             */
+            kind: string;
+            /** Good */
+            good: boolean;
+            /** Label */
+            label: string;
+            /** Text */
+            text: string;
+            /**
+             * Weight
+             * @description What it won or cost, in Rounds.
+             */
+            weight: number;
+            /** Refs */
+            refs: components["schemas"]["SummaryRef"][];
+            /** Count */
+            count: number;
+            /**
+             * Advice
+             * @description What to work on; set on problems.
+             */
+            advice: string;
+            /**
+             * Players
+             * @default []
+             */
+            players: components["schemas"]["SummaryCount"][];
+            /**
+             * Spots
+             * @default []
+             */
+            spots: components["schemas"]["SummaryCount"][];
+            /**
+             * Maps
+             * @description Across a Match: the Maps it showed on.
+             * @default []
+             */
+            maps: number[];
+            /**
+             * Texts
+             * @description Across a Match: per Map.
+             * @default []
+             */
+            texts: components["schemas"]["SummaryMapText"][];
+        };
+        /** SummaryMapText */
+        SummaryMapText: {
+            /** Map Number */
+            map_number: number;
+            /** Text */
+            text: string;
+        };
+        /** SummaryNumber */
+        SummaryNumber: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+            /**
+             * Tone
+             * @description good, bad, or empty when the number says nothing.
+             */
+            tone: string;
+        };
+        /**
+         * SummaryRef
+         * @description Where a Summary line can be seen in the Replay.
+         */
+        SummaryRef: {
+            /** Map Number */
+            map_number: number | null;
+            /** Round */
+            round: number;
+            /**
+             * T
+             * @description Seconds from freeze end.
+             */
+            t: number;
+            /** Sid */
+            sid: string | null;
         };
         /** TeamDetail */
         TeamDetail: {
@@ -1303,6 +1847,26 @@ export interface components {
             maps: number;
             /** Last */
             last: string | null;
+        };
+        /** TeamSummary */
+        TeamSummary: {
+            /** Team Id */
+            team_id: number | null;
+            /** Rounds */
+            rounds: number;
+            /** Won */
+            won: number;
+            /** Numbers */
+            numbers: components["schemas"]["SummaryNumber"][];
+            /** Strengths */
+            strengths: components["schemas"]["SummaryItem"][];
+            /** Problems */
+            problems: components["schemas"]["SummaryItem"][];
+            /**
+             * Focus
+             * @description The Focus points, costliest first.
+             */
+            focus: components["schemas"]["SummaryItem"][];
         };
         /** Token */
         Token: {
@@ -1688,6 +2252,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_summary_matches__match_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchReviewSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_review_matches__match_id__maps__map_number__review_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: number;
+                map_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Review"];
                 };
             };
             /** @description Validation Error */

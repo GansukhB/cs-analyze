@@ -7,7 +7,10 @@ python -m app.cli deactivate-user [username]
 python -m app.cli activate-user [username]
 python -m app.cli import-tickdata [folder]   # parquet bundles on disk -> MySQL
 python -m app.cli rebuild-tickdata           # Replays, walks, geometry from the stored bundles
-python -m app.cli import-cstat [root]        # cstat's teams, matches and .dem files -> MySQL
+python -m app.cli fit-winprob                # refit the Review's Win probability model
+python -m app.cli rebuild-reviews [--map ID] # cut every Match Map's Review again
+python -m app.cli import-cstat [root] [--match HLTV_ID] [--map NAME]
+                                             # cstat's teams, matches and .dem files -> MySQL
 """
 
 import argparse
@@ -109,13 +112,75 @@ def rebuild_tickdata() -> None:
     print(f"Rebuilt {len(datasets)} maps (version {tickdata.derived_version()}).")
 
 
-def import_cstat(root: Path, parse: bool) -> None:
+def fit_winprob() -> None:
+    """Fit the Win probability model on every parsed Round and commit-ready write it.
+
+    docs/adr/0007: the model only changes here, never on a parse. Its version
+    moves with the data it was fitted on, which marks every stored Review stale.
+    """
+    import hashlib
+    import json
+    from datetime import UTC, datetime
+
+    from app.services import winprob
+
+    with SessionLocal() as db:
+        samples = winprob.samples_from_db(db)
+    rounds = len({(s.group, s.state) for s in samples if s.state.seconds_left >= 114.9})
+    print(f"{len(samples)} states from {len({s.group for s in samples})} maps ({rounds} rounds).")
+    spec = winprob.fit(samples)
+    stamp = datetime.now(UTC)
+    digest = hashlib.sha1(
+        json.dumps([spec["pre"], spec["post"]], sort_keys=True).encode(), usedforsecurity=False
+    ).hexdigest()[:8]
+    spec = {
+        "version": f"{stamp:%Y%m%d}.{digest}",
+        "fitted_at": stamp.isoformat(timespec="seconds"),
+        "match_maps": len({s.group for s in samples}),
+        **spec,
+    }
+    winprob.MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    winprob.MODEL_PATH.write_text(json.dumps(spec, indent=1, sort_keys=True) + "\n")
+    for phase, metrics in spec["metrics"].items():
+        print(f"  {phase}: {metrics}")
+    print(f"Wrote {winprob.MODEL_PATH} (version {spec['version']}).")
+
+
+def rebuild_reviews(match_map_id: int | None = None) -> None:
+    """Cut the Review of every Match Map with Tick Data again (or of one)."""
+    from app.services import review
+
+    with SessionLocal() as db:
+        query = select(TickDataset.match_map_id).order_by(TickDataset.match_map_id)
+        if match_map_id is not None:
+            query = query.where(TickDataset.match_map_id == match_map_id)
+        ids = list(db.scalars(query))
+        for mid in ids:
+            match_map = db.get(MatchMap, mid)
+            started = time.monotonic()
+            built = review.rebuild(db, match_map)
+            db.commit()
+            found = len(built.get("findings", [])) if built else 0
+            print(f"  ✓ map {mid}: {found} findings, {time.monotonic() - started:.1f}s")
+    print(f"Rebuilt {len(ids)} Reviews (version {review.version()}).")
+
+
+def import_cstat(
+    root: Path, parse: bool, match: int | None = None, map_name: str | None = None
+) -> None:
     """cstat's teams, tournaments and matches, then every map demo it still has on disk."""
     from app.services import cstat_import
 
     with SessionLocal() as db:
         try:
-            cstat_import.run(db, root, parse=parse, log=lambda line: print(line, flush=True))
+            cstat_import.run(
+                db,
+                root,
+                parse=parse,
+                log=lambda line: print(line, flush=True),
+                match_hltv_id=match,
+                map_name=map_name,
+            )
         except FileNotFoundError as exc:
             sys.exit(str(exc))
 
@@ -129,13 +194,20 @@ def main() -> None:
         "folder", nargs="?", help="Defaults to <HLTV_DATA_DIR>/parquet."
     )
     sub.add_parser("rebuild-tickdata")
+    sub.add_parser("fit-winprob")
+    sub.add_parser("rebuild-reviews").add_argument("--map", type=int, help="One Match Map id.")
     cstat = sub.add_parser("import-cstat")
     cstat.add_argument("root", nargs="?", help="The cstat checkout; defaults to ../cstat.")
     cstat.add_argument("--no-parse", action="store_true", help="Import the rows only.")
+    cstat.add_argument("--match", type=int, help="Parse only this HLTV match id.")
+    cstat.add_argument("--map", help="Parse only this map of it (inferno or de_inferno).")
     args = parser.parse_args()
     if args.command == "import-cstat":
         import_cstat(
-            Path(args.root) if args.root else REPO_ROOT.parent / "cstat", not args.no_parse
+            Path(args.root) if args.root else REPO_ROOT.parent / "cstat",
+            not args.no_parse,
+            args.match,
+            args.map,
         )
         return
     if args.command == "import-tickdata":
@@ -144,6 +216,12 @@ def main() -> None:
         return
     if args.command == "rebuild-tickdata":
         rebuild_tickdata()
+        return
+    if args.command == "fit-winprob":
+        fit_winprob()
+        return
+    if args.command == "rebuild-reviews":
+        rebuild_reviews(args.map)
         return
     # `npm run user:create` without `-- <name>` passes no username; ask instead of failing.
     username = args.username if args.username is not None else input("Username: ")

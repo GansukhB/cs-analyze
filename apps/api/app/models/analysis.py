@@ -793,6 +793,25 @@ class ReplayRound(Base):
     payload: Mapped[bytes] = mapped_column(MediumBlob)
 
 
+class MatchMapReview(TimestampMixin, Base):
+    """A Match Map's Review (CONTEXT.md), cut from its Tick Data: gzip JSON.
+
+    Stored structured (who, when, where, how much Swing), worded on read by
+    ``app/services/review_view.py``. ``version`` is ``review.version()`` at build
+    time; a mismatch rebuilds it from the Tick Data on the next read.
+    """
+
+    __tablename__ = "match_map_reviews"
+
+    id: Mapped[int] = mapped_column(BigId, primary_key=True)
+    match_map_id: Mapped[int] = mapped_column(
+        BigId, ForeignKey("match_maps.id", ondelete="CASCADE"), unique=True
+    )
+    version: Mapped[str] = mapped_column(String(48), default="")
+    sightings: Mapped[bool] = mapped_column(default=False, doc="Built with Sightings (schema 13).")
+    payload: Mapped[bytes] = mapped_column(MediumBlob)
+
+
 # --------------------------------------------------- per-player, per-map ------
 class PositionKind(StrEnum):
     KILL_FROM = "kill_from"
