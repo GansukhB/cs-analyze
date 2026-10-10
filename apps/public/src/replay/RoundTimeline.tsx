@@ -122,7 +122,7 @@ export default function RoundTimeline(props: {
           <span className="h-4" />
           {name(team2)}
         </div>
-        <div id={replay ? 'rp-rounds' : undefined} className="flex flex-1 gap-[3px]">
+        <div id={replay ? 'rp-rounds' : undefined} className="flex min-w-0 flex-1 gap-[3px]">
           {rounds.map((r, i) => {
             const side = sides[i]
             const kind = how(r.reason)
@@ -136,7 +136,7 @@ export default function RoundTimeline(props: {
                 // An attribute, not a class: player.ts owns the class list (it marks `on`).
                 data-dim={dim?.has(r.number) ? '' : undefined}
                 title={`Round ${r.number} · ${r.score}\n${r.winner || '?'} (${r.winner_side.toUpperCase()}) — ${HOW[kind]}${r.planted ? `\nPlanted ${r.site || '?'}` : ''}`}
-                className={`r group flex min-w-7 flex-1 flex-col gap-1 rounded-[4px] outline-none outline-offset-2 focus-visible:outline-1 focus-visible:outline-dashed focus-visible:outline-line [&.on]:outline-1 [&.on]:outline-solid [&.on]:outline-ink-3 data-[dim]:opacity-30 ${
+                className={`r group flex min-w-3.5 flex-1 flex-col gap-1 rounded-[4px] outline-none outline-offset-2 focus-visible:outline-1 focus-visible:outline-dashed focus-visible:outline-line [&.on]:outline-1 [&.on]:outline-solid [&.on]:outline-ink-3 data-[dim]:opacity-30 ${
                   replay ? '' : 'cursor-default'
                 }`}
               >

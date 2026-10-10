@@ -6,21 +6,24 @@
 .rp .help { margin: 0; color: var(--ink-3); font-size: 12.5px; }
 
 /* A caster's screen: the score and clock on top, each side's five players in a
-   panel either side of the map, the round log underneath. It fills its column
-   (beside the Review's Round panel on a wide page) and lays itself out by its own
-   width: the rosters move under the map when the column is too narrow for both. */
+   panel either side of the map, the round strip underneath across both panels.
+   It fills its column (beside the Review's Round panel on a wide page) and lays
+   itself out by its own width: the rosters move under the map, and under the
+   round strip, when the column is too narrow for both. */
 .rp { container-type: inline-size; }
 .rp .replay { display: flex; flex-direction: column; gap: 10px; }
 .rp .rp-arena { display: grid; grid-template-columns: 250px minmax(0, 1fr) 250px; gap: 10px;
-                grid-template-areas: "ct main t"; align-items: start; }
+                grid-template-areas: "ct main t" "strip strip strip"; align-items: start; }
 .rp .rp-roster.ct { grid-area: ct; }
 .rp .rp-roster.t { grid-area: t; }
 .rp .rp-main { grid-area: main; min-width: 0; }
+.rp .rp-strip { grid-area: strip; min-width: 0; }
 @container (max-width: 1150px) {
-  .rp .rp-arena { grid-template-columns: 1fr 1fr; grid-template-areas: "main main" "ct t"; }
+  .rp .rp-arena { grid-template-columns: 1fr 1fr; grid-template-areas: "main main" "strip strip" "ct t"; }
 }
 @container (max-width: 640px) {
-  .rp .rp-arena { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "ct" "t"; }
+  .rp .rp-arena { grid-template-columns: minmax(0, 1fr);
+                  grid-template-areas: "main" "strip" "ct" "t"; }
 }
 
 /* The top bar: club and players alive per side, the round clock between. */

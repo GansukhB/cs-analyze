@@ -122,10 +122,9 @@ export default function Replay(props: {
               )}
               <span>space = play · ← → = 5s · [ ] = round{scene.levels.length > 0 && ' · v = floor'}</span>
             </div>
-
-            <div className="mt-3.5">
-              <RoundTimeline rounds={rounds} team1={team1} team2={team2} replay dim={dim} />
-            </div>
+          </div>
+          <div className="rp-strip">
+            <RoundTimeline rounds={rounds} team1={team1} team2={team2} replay dim={dim} />
           </div>
           <div className="rp-roster t" id="rp-roster-t" />
         </div>
