@@ -64,6 +64,8 @@ export interface Evidence {
   h2h: number
   strength: Strength
   refs: RoundRef[]
+  // What n and of count when they are not Rounds (a trade line counts deaths).
+  unit?: string
 }
 
 export interface Habit {
@@ -71,7 +73,30 @@ export interface Habit {
   title: string
   detail: string
   counter: string
+  // What the Reviews add about this Player or place, when they tie to it exactly.
+  review?: string
   evidence: Evidence
+}
+
+// A Lever (what to use) or a Caution (what to watch out for), CONTEXT.md. A pair
+// is my Strength meeting their Weakness (or theirs meeting mine) on facing Sides.
+export interface Advice {
+  role: 'lever' | 'caution'
+  pair: boolean
+  title: string
+  facts: string[]
+  counter: string
+  proofs: { whose: 'mine' | 'theirs'; label: string; evidence: Evidence }[]
+  strength: Strength
+  weight: number
+  weight_label: string
+}
+
+export interface AdviceSide {
+  side: 'ct' | 't'
+  label: string
+  levers: Advice[]
+  cautions: Advice[]
 }
 
 export interface TeamSample {
@@ -89,6 +114,7 @@ export interface PlaybookPanel {
   sample: { theirs: TeamSample; mine: TeamSample }
   sites_known: boolean
   plan: { side: 'ct' | 't'; title: string; counter: string; strength: Strength }[]
+  advice: { limits: string[]; sides: AdviceSide[] }
   sections: { key: string; title: string; habits: Habit[] }[]
   pistols: { ref: RoundRef; h2h: boolean; text: string; next: string }[]
   economy: {

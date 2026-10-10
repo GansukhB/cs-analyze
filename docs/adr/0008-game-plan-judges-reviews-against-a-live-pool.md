@@ -1,0 +1,8 @@
+# The Game Plan judges Reviews against a live Pool; the Summary keeps fixed thresholds
+
+The Playbook's Levers and Cautions call a Team's Review numbers (trades, openings, post-plant, retakes, Finding rates per Round) a Strength or a Weakness by their z against the Pool, computed from every stored Review when the Game Plan is read, with the same ±0.8 bounds as the metrics tab. Because a Team has only a few Match Maps on any one Map, the z is taken on an estimate, not the raw number: the Pool's spread net of what chance alone makes, and the Team's tendency across all its Maps moved by that Map's own events as far as there are enough of them (`review_pool.Estimate`). The Summary judges the same kinds of numbers for one Match Map against fixed thresholds written into the code once (the 25th/75th percentiles over the Reviews of the day) and keeps them. The two answer different questions: the Summary tells one Match Map's story and must read the same next month (like the Win probability, 0007), while a Game Plan is recomputed whenever a Match Map is parsed and should move with the Pool as it grows.
+
+## Consequences
+
+- The Game Plan reads only Reviews at the current `review.version()`; it never rebuilds one inside a request (a Team's 30+ Match Maps at ~0.7 s each). A stale or missing Review is left out and counted on the page, and a background Celery task (single-flight by a Redis lock, also started when the worker starts) rebuilds them. It is not an Analysis Job and does not wait behind a Scout.
+- The Game Plan's cache stamp has to move when a Review is rebuilt, not only when a Match Map is parsed.

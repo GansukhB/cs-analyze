@@ -35,6 +35,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import re
 from collections.abc import Iterable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -44,7 +45,17 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.config import get_settings
 from app.models import MapRoster, Match, MatchMap, Player, Round, Team
-from app.services import dbctx, lineup, mapstrategy, mn, review_view, roles, scouting, voice
+from app.services import (
+    dbctx,
+    lineup,
+    mapstrategy,
+    mn,
+    playbook_view,
+    review_view,
+    roles,
+    scouting,
+    voice,
+)
 from app.services import gameplan as gameplan_service
 
 logger = logging.getLogger(__name__)
@@ -101,7 +112,10 @@ is "weak on a two-map sample" -- say the second part.
 what is missing rather than inventing a plausible-sounding answer around it.
 - Prefer the most specific tool: gameplan_section for a two-team fixture \
 question, team_overview/map_strategy/role_report for a single team, \
-scouting_report for head-to-head threats and tendencies.
+scouting_report for head-to-head threats and tendencies. For "what should we \
+exploit / watch out for / how do we beat them on <map>", read \
+gameplan_section 'levers' first: it is the Playbook's own list of Levers and \
+Cautions, ranked, with the numbers behind each.
 - Write the reply as short paragraphs (2-4 sentences each) separated by a \
 blank line. Each paragraph is read aloud as its own unit by a text-to-speech \
 voice, so keep one idea per paragraph and avoid bullet lists, headings, or \
@@ -231,7 +245,13 @@ TOOLS = [
             "cannot afford to lose early), 'man_advantage' (how each side closes a "
             "numbers lead), 'continuity' (how much of the current roster set the "
             "head-to-head record), 'my_delta'/'opponent_delta' (own form vs form "
-            "against this opponent), 'sample'/'lede' (how much data this is built on)."
+            "against this opponent), 'sample'/'lede' (how much data this is built on), "
+            "'levers' (per map, from both teams' match reviews against the pool: the "
+            "Levers -- what to exploit, my strengths meeting their weaknesses first -- "
+            "and the Cautions -- what to watch out for, their strengths meeting my "
+            "weaknesses first -- per side, each with its numbers, counter and evidence "
+            "strength, plus the limits of the data; give 'map' such as 'de_inferno' for "
+            "one map, or leave it out for the top lines of every map the veto makes likely)."
         ),
         "input_schema": {
             "type": "object",
@@ -239,6 +259,7 @@ TOOLS = [
                 "mine_id": {"type": "integer"},
                 "theirs_id": {"type": "integer"},
                 "section": {"type": "string"},
+                "map": {"type": "string", "description": "Only for 'levers', e.g. de_inferno."},
             },
             "required": ["mine_id", "theirs_id", "section"],
         },
@@ -496,10 +517,40 @@ def _tool_scouting_report(team_id: int, opponent_id: int) -> dict:
 GAMEPLAN_SECTIONS = {
     "verdict", "board", "map_plans", "roles", "players", "duels", "linchpins",
     "man_advantage", "continuity", "my_delta", "opponent_delta", "sample", "lede",
+    "levers",
 }  # fmt: skip
 
 
-def _tool_gameplan_section(mine_id: int, theirs_id: int, section: str) -> dict:
+# Lines per column: all of one Map's would be the whole page; across Maps, the top.
+LEVERS_PER_COLUMN = {True: 6, False: 3}
+
+
+def _levers(my_team, opponent, map_name: str, *, one: bool = True) -> dict:
+    """One Map's Levers and Cautions as the Playbook words them, compacted."""
+    worded = playbook_view.advice(my_team, opponent, map_name)
+
+    def compact(entries):
+        return [
+            {"title": e["title"], "facts": e["facts"], "counter": e["counter"],
+             "evidence_strength": e["strength"], "worth": e["weight_label"]}
+            for e in entries[: LEVERS_PER_COLUMN[one]]
+        ]  # fmt: skip
+
+    return {
+        "map": map_name,
+        "limits": worded["limits"],
+        "sides": [
+            {
+                "my_side": col["label"],
+                "levers": compact(col["levers"]),
+                "cautions": compact(col["cautions"]),
+            }
+            for col in worded["sides"]
+        ],  # fmt: skip
+    }
+
+
+def _tool_gameplan_section(mine_id: int, theirs_id: int, section: str, map: str = "") -> dict:
     if section not in GAMEPLAN_SECTIONS:
         return {
             "error": f"unknown section {section!r}. Choose one of: "
@@ -510,6 +561,14 @@ def _tool_gameplan_section(mine_id: int, theirs_id: int, section: str) -> dict:
         return {"error": "mine_id and theirs_id must be different teams"}
 
     report = gameplan_service.build(my_team, opponent)
+    if section == "levers":
+        if map:
+            if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map):
+                return {"error": f"unknown map {map!r}; maps look like 'de_inferno'"}
+            return _levers(my_team, opponent, map)
+        # Across Maps: the ones the veto makes likely to be played.
+        likely = [m for m in playbook_view.maps(report) if m["call"] in ("pick", "contest")]
+        return {"maps": [_levers(my_team, opponent, m["map"], one=False) for m in likely]}
     if section == "verdict":
         return gameplan_service.verdict(report, my_team, opponent)
     if section == "duels":

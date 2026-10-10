@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from sqlalchemy import func, select
 
 from app.models import MatchMap, Round, Team
-from app.services import charts, decision, gameplan, mn, playbook_view
+from app.services import charts, decision, gameplan, levers, mn, playbook_view, review_pool
 from app.services.dbctx import db
 
 DEFAULT_TAB = "decision"
@@ -79,7 +79,8 @@ def pick() -> dict:
 
 
 def stamp() -> str:
-    """Changes whenever any map is parsed or reparsed -- what the cache keys on.
+    """Changes whenever any map is parsed or reparsed, or a Review is rebuilt --
+    what the cache keys on.
 
     Global rather than per fixture, because the metric pool and the role
     baseline are measured against every parsed team.
@@ -93,7 +94,10 @@ def stamp() -> str:
         )
         .one()
     )
-    return f"{count}-{int(latest.timestamp()) if latest else 0}"
+    # The Playbook's Levers and Cautions read the Reviews, which the worker
+    # rebuilds after a parse (docs/adr/0008).
+    reviews = review_pool.stamp()
+    return f"{count}-{int(latest.timestamp()) if latest else 0}-{reviews}"
 
 
 # --------------------------------------------------------------- helpers ---
@@ -266,7 +270,8 @@ def panel(tab: str, report: Mapping, my_team: Team, opponent: Team, *,
         raw = gameplan.verdict(report, my_team, opponent)
         if tab == "todo":
             # The Maps' Playbooks are fetched one at a time (playbook_view.panel).
-            return {"actions": mn.actions(raw["actions"]), "maps": playbook_view.maps(report)}
+            maps = playbook_view.maps(report)
+            return {"actions": _todo_actions(raw["actions"], maps, my_team, opponent), "maps": maps}
         facts = raw["facts"]
         return {
             "headline": mn.headline(raw, my_team.name, opponent.name),
@@ -334,6 +339,32 @@ def panel(tab: str, report: Mapping, my_team: Team, opponent: Team, *,
         return {"index": movement or {}, "words": mn.MOVEMENT_WORDS}
 
     raise KeyError(tab)
+
+
+# The veto calls whose Maps will likely be played: their first Lever and Caution
+# join the action list, after the veto's own lines.
+PLAYED_CALLS = ("pick", "contest")
+VETO_ACTIONS = ("ban", "pick", "no_pick")
+
+
+def _todo_actions(raw: list[dict], maps: list[dict], my_team, opponent) -> list[dict]:
+    """The verdict's actions, with each likely Map's first Lever and Caution
+    after the veto lines."""
+    lifted, said = [], set()
+    for m in maps:
+        if m["call"] not in PLAYED_CALLS:
+            continue
+        # A line read across all Maps would repeat on every Map: say it once.
+        lever, caution = levers.top(levers.build(my_team, opponent, m["map"]), said)
+        for entry in (lever, caution):
+            if entry is not None:
+                said.add(levers.identity(entry))
+                lifted.append(mn.advice_action(entry, m["label"], opponent.name))
+    worded = mn.actions(raw)
+    at = max((i + 1 for i, a in enumerate(raw) if a["kind"] in VETO_ACTIONS), default=0)
+    if raw and raw[0]["kind"] == "stale_record":
+        at = max(at, 1)
+    return worded[:at] + lifted + worded[at:]
 
 
 def _h2h(report, my_team, opponent) -> dict:

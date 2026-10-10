@@ -88,7 +88,9 @@ def test_every_tool_reads_the_stored_analysis(db, league):  # noqa: F811
             ("gameplan_section", {"mine_id": a, "theirs_id": b, "section": s})
             for s in sorted(assistant.GAMEPLAN_SECTIONS)
         ),
-    ]
+        ("gameplan_section", {"mine_id": a, "theirs_id": b, "section": "levers",
+                              "map": "de_mirage"}),
+    ]  # fmt: skip
     for name, tool_input in calls:
         result = json.loads(assistant._execute_tool(db, ctx, name, tool_input))
         assert "error" not in result, (name, tool_input, result)
@@ -124,6 +126,8 @@ def test_tool_errors_are_reported_not_raised(db, league):  # noqa: F811
             "error"
         ]
     )
+    levers = {"mine_id": a, "theirs_id": league["b"].id, "section": "levers", "map": "mirage"}
+    assert "unknown map" in run("gameplan_section", levers)["error"]
     assert "bad arguments" in run("team_overview", {"teamid": a})["error"]
     assert run("drop_tables", {}) == {"error": "no such tool: drop_tables"}
 

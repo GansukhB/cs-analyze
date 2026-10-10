@@ -44,6 +44,7 @@ from app.services import (
     movement,
     playbook_view,
     radar,
+    review_pool,
 )
 
 logger = logging.getLogger(__name__)
@@ -162,9 +163,12 @@ def header(
     my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
     picked = {my_team.id: my_five, opponent.id: their_five}
     with dbctx.using(db), lineup.using(picked):
+        # Opening a Game Plan is when stale Reviews matter: have the worker
+        # rebuild them (docs/adr/0008). A no-op while one rebuild is running.
+        review_pool.request_refresh()
         stamp = gameplan_view.stamp()
         part = lineup.cache_part(my_five, their_five)
-        key = f"gp:v6:{my_team.id}:{opponent.id}{part}:header:{stamp}"
+        key = f"gp:v7:{my_team.id}:{opponent.id}{part}:header:{stamp}"
         cached = _cache_get(key)
         if cached is None:
             report = gameplan.build(my_team, opponent)
@@ -207,7 +211,7 @@ def panel(
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()
         part = lineup.cache_part(my_five, their_five)
-        key = f"gp:v6:{my_team.id}:{opponent.id}{part}:{tab}:{stamp}"
+        key = f"gp:v7:{my_team.id}:{opponent.id}{part}:{tab}:{stamp}"
         data = _cache_get(key)
         hit = data is not None
         if data is None:
@@ -248,7 +252,7 @@ def playbook(
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()
         part = lineup.cache_part(my_five, their_five)
-        key = f"gp:v6:{my_team.id}:{opponent.id}{part}:playbook:{map_name}:{stamp}"
+        key = f"gp:v7:{my_team.id}:{opponent.id}{part}:playbook:{map_name}:{stamp}"
         data = _cache_get(key)
         hit = data is not None
         if data is None:

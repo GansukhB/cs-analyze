@@ -199,6 +199,20 @@
 .pb-rows { margin: 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--ink-2); }
 .pb-rows li { padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
 .pb-rows small { color: var(--ink-3); }
+.pb-review { font-size: 12.5px; color: var(--ink-3); margin: 6px 0 0; }
+/* Levers and Cautions: one block per my Side, «Ашиглах» beside «Анхаарах»
+   (not .caution: the maps tab's class). */
+.pb-adv { margin-top: 14px; }
+.pb-adv h4 { font-size: 12.5px; margin: 0 0 2px; }
+.pb-role { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 8px; }
+.pb-role-lever { color: var(--good); }
+.pb-role-caution { color: var(--warn); }
+.pb-card.pb-lever .pb-counter { border-left-color: var(--good); }
+.pb-card.pb-lever .pb-counter::before { color: var(--good); }
+.pb-card.pb-caution .pb-counter { border-left-color: var(--warn); }
+.pb-card.pb-caution .pb-counter::before { color: var(--warn); }
+.pb-head small { color: var(--ink-3); font-size: 11px; margin-left: auto; }
+.tag.pair { color: var(--mine); }
 .chip.on .tag, .chip.on small { color: #08111a; }
 .tag.strong { color: var(--good); }
 .tag.medium { color: var(--warn); }

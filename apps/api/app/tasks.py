@@ -56,7 +56,7 @@ from app.models import (
     Team,
     TickDataset,
 )
-from app.services import analysis_store, jobs, mn, store, tickdata
+from app.services import analysis_store, dbctx, jobs, mn, review, review_pool, store, tickdata
 
 logger = logging.getLogger(__name__)
 
@@ -135,10 +135,38 @@ def _is_current(job: AnalysisJob, task_id: str | None) -> bool:
 @worker_ready.connect
 def _recover(**_) -> None:
     """The worker is the only consumer, so at its start the rows are the truth:
-    drop whatever the broker still holds and let `jobs.recover` re-dispatch."""
+    drop whatever the broker still holds and let `jobs.recover` re-dispatch.
+    The purge also drops a queued Review refresh, so one is sent again."""
     celery_app.control.purge()
     with SessionLocal() as db:
         jobs.recover(db)
+    review_pool.request_refresh(force=True)
+
+
+@celery_app.task(name="cs_analyze.refresh_reviews")
+def refresh_reviews() -> dict:
+    """Rebuild every stale or missing Review from its Tick Data, one Match Map at
+    a time (docs/adr/0008). Not an Analysis Job: nothing waits behind it, and the
+    Game Plan counts what is still waiting."""
+    done = failed = 0
+    try:
+        with SessionLocal() as db:
+            with dbctx.using(db):
+                ids = review_pool.stale_ids()
+            for match_map_id in ids:
+                match_map = db.get(MatchMap, match_map_id)
+                if match_map is None:
+                    continue
+                if review.rebuild(db, match_map) is None:
+                    failed += 1
+                    db.rollback()
+                    continue
+                db.commit()
+                done += 1
+    finally:
+        review_pool.release_refresh(review_pool.REFRESH_RETRY_SECONDS if failed else 0)
+    logger.info("Review refresh: %s rebuilt, %s failed", done, failed)
+    return {"rebuilt": done, "failed": failed}
 
 
 def run_pipeline(job_db: Session, db: Session, job: AnalysisJob) -> dict:

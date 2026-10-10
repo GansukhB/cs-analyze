@@ -1488,8 +1488,27 @@ def _pb(title: str, detail: str, counter: str, h: dict) -> dict:
         "title": title,
         "detail": detail,
         "counter": counter,
+        "review": playbook_review(h.get("review")),
         "evidence": h.get("evidence"),
     }
+
+
+def playbook_review(note: dict | None) -> str:
+    """Review-ээс habit мөрөнд нэмэх нэг өгүүлбэр (тухайн тоглогч эсвэл байрлал)."""
+    if not note:
+        return ""
+    good = _ranked([(REVIEW_CODE.get(c, c), n) for c, n in note.get("good") or []])
+    bad = _ranked([(REVIEW_CODE.get(c, c), n) for c, n in note.get("bad") or []])
+    bits = []
+    if note["kind"] == "player":
+        bits.append(f"Swing {review_swing(note['swing'])}/раунд ({note['rounds']} раунд)")
+    if good:
+        bits.append(f"сайн нь: {good}")
+    if bad:
+        bits.append(f"алдаа нь: {bad}")
+    where = "" if note["kind"] == "player" else f" {place(note['place'])}"
+    scope = ", бүх Map-аас" if note.get("scope") == "all_maps" else ""
+    return f"Review{where}{scope}: " + "; ".join(bits) + "."
 
 
 def playbook_habit(h: dict, *, whose: str) -> dict:
@@ -1952,8 +1971,11 @@ def review_finding(finding: dict, who) -> dict:
 
     elif code == "untraded":
         title = f"{main} — trade-гүй ганцаардал{_at(f.get('spot'))}"
-        near = f"хамгийн ойр нөхөр нь {_metres(f['nearest'])} зайтай" if f.get("nearest") else \
-            "ойр нөхөр байгаагүй"  # fmt: skip
+        near = (
+            f"хамгийн ойр нөхөр нь {_metres(f['nearest'])} зайтай"
+            if f.get("nearest")
+            else "ойр нөхөр байгаагүй"
+        )
         text = (
             f"{main} {alive[0]}v{alive[1]} үед ганцаараа {who(f.get('killer'))}-д унав; {near} "
             f"байсан тул trade боломжгүй. Багийн хожих магадлал {swing}."
@@ -2098,7 +2120,11 @@ def review_finding(finding: dict, who) -> dict:
         )
     elif code == "saw_no_shot":
         enemy = who(f.get("enemy"))
-        then = "түүнийг алав" if f.get("self_killed") else f"нөхөр {who(f.get('victim'))}-г алав"
+        then = (
+            "түүнийг алав"
+            if f.get("self_killed")
+            else f"нөхөр {who(f.get('victim'))}-г алав"
+        )
         title = f"{main} — {enemy}-г харсан ч буудаагүй"
         text = (
             f"{main}{_at(f.get('spot'))} {enemy}-г{_at(f.get('enemy_spot'))} "
@@ -2117,12 +2143,12 @@ def review_finding(finding: dict, who) -> dict:
         killer, victim = who(f.get("killer")), who(f.get("victim"))
         if f.get("own"):
             title = f"{main} — өөрийн flash-аар kill"
-            text = (
-                f"{main} flash шидээд {_secs(f.get('seconds', 0))} сохорсон {victim}-г өөрөө алав"
-            )
+            text = f"{main} flash шидээд {_secs(f.get('seconds', 0))} сохорсон {victim}-г өөрөө алав"
         else:
             title = f"{main}-ийн flash → {killer}-ийн kill"
-            text = f"{main}-ийн flash {victim}-г {_secs(f.get('seconds', 0))} сохорч, {killer} алав"
+            text = (
+                f"{main}-ийн flash {victim}-г {_secs(f.get('seconds', 0))} сохорч, {killer} алав"
+            )
         text += f"{_at(f.get('spot'))}; kill-ийн Swing {review_swing(f.get('kill_swing'))}."
     elif code == "nade_damage_kill":
         nade = "HE" if f.get("nade") == "he" else "молотов"
@@ -2196,7 +2222,8 @@ SUMMARY_LABEL = {
 SUMMARY_ADVICE = {
     "pistol": "Pistol раундын buy, эхний 20 секундын төлөвлөгөөгөө дахин бэлд.",
     "opening": "Эхний холбоонд ганцаараа бүү ор: flash-тай, хосоороо, мэдээлэлтэй ор.",
-    "trade": "Хосоороо хөдөл: нөхрөө trade хийж чадах зайд байрлаж, тэр унахад шууд сольж ор.",
+    "trade": "Хосоороо хөдөл: нөхрөө trade хийж чадах зайд байрлаж, тэр унахад шууд "
+    "сольж ор.",
     "full_v_full": "Full buy раундын default, execute-ээ шинэчил: utility-гаа нэгтгэж нэг цэг рүү "
     "хамт ор.",
     "force": "Force buy-гаа сонгомол болго: эдийн засгаа тооцоолж, хамтдаа stack хийж тогло.",
@@ -2205,7 +2232,8 @@ SUMMARY_ADVICE = {
     "саатуулахад хадгал.",
     "loss_streak": "Дараалан алдаж эхлэхэд timeout авч, эдийн засаг, тактикаа шинэчил.",
     "died_in_advantage": "Давуу байдалтай үед яарч бүү тулалд: хосоороо, utility-тай хаалт хий.",
-    "team_flashed_death": "Flash шидэхээсээ өмнө нөхдөдөө дуудаж хэл; pop flash-ын замаа сур.",
+    "team_flashed_death": "Flash шидэхээсээ өмнө нөхдөдөө дуудаж хэл; pop flash-ын замаа "
+    "сур.",
     "lost_weapon_save": "Раунд алдагдсан үед save хийх шийдвэрээ эрт гаргаж, буугаа хадгал.",
     "moving_shots": "Counter-strafe хий: буудахын өмнө бүрэн зогс.",
     "awp_miss": "AWP-аар буудсаны дараа байрлалаа соль, шууд дахин peek бүү хий.",
@@ -2364,3 +2392,630 @@ def summary_across(item: dict, labels: dict) -> str:
 def summary_weight(rounds: float, good: bool) -> str:
     """Тоймын жин раундаар: 1.37 → '≈ −1.4 раунд'."""
     return f"≈ {'+' if good else '−'}{rounds:.1f} раунд"
+
+
+# ---------------------------------------------------------- Lever, Caution --
+# :mod:`app.services.levers`-ийн мөр бүр: ``title`` (юу хийх), ``facts`` (тоо,
+# Pool-тай харьцуулсан), ``counter`` (яаж). Тоо facts-д л байна; counter тоогүй.
+ADVICE_LABEL = {
+    "opening": "Opening duel хожил",
+    "trade": "Trade хийгдсэн үхэл",
+    "pistol": "Pistol хожил",
+    "full_v_full": "Full vs full хожил",
+    "force": "Force buy хожил",
+    "eco": "Eco хожил",
+    "full_v_light": "Full buy-тайдаа eco/force-д хожих",
+    "post_plant": "Plant-ын дараах хожил",
+    "retake": "Retake хожил",
+    "comeback": "Эргүүлсэн раунд",
+}
+
+# (title, counter) per (measure, role). role: their_weak, my_strong → Lever;
+# their_strong, my_weak → Caution. my_weak-д байхгүй бол SUMMARY_ADVICE.
+ADVICE_TEXT = {
+    ("opening", "their_weak"): (
+        "Эхний дуэлийг санаачил",
+        "Тэд нээлтийн тулаанд сул: эхний 30 секундэд flash-тай хос peek хийж хүний давуу "
+        "байдлыг түрүүлж ав.",
+    ),
+    ("opening", "my_strong"): (
+        "Нээлтийн давуу талаа ашигла",
+        "Манай opening хүчтэй: эхний тулааныг санаачилж, авсан давуу байдлаа цэг авах руу "
+        "шууд хөрвүүл.",
+    ),
+    ("opening", "their_strong"): (
+        "Эхний дуэлийг ганцаараа бүү ав",
+        "Тэд нээлтийн тулаанд хүчтэй: эхний 30 секундэд хосоороо, utility-тай тогло; мэдээллийг "
+        "peek-ээр биш дуу, utility-гаар ав.",
+    ),
+    ("opening", "my_weak"): ("Эхний тулаанд бид унадаг", ""),
+    ("trade", "their_weak"): (
+        "Тэднийг тусгаарлаж ал",
+        "Тэд нөхрөө trade хийдэггүй: ганцаардсан тоглогч руу нь шууд ор, нэгийг алсны "
+        "дараа дахин нэг-нэгээр нь тулал.",
+    ),
+    ("trade", "my_strong"): (
+        "Trade-ийн зайгаа хадгал",
+        "Манай trade хүчтэй: хосоороо орж, эхний хүн унахад шууд сольж ор — тоо тэнцүүлэх нь "
+        "бидэнд ашигтай.",
+    ),
+    ("trade", "their_strong"): (
+        "Алсныхаа дараа байрлалаа соль",
+        "Тэд trade-аа хурдан хийдэг: нэгийг алсны дараа тэр өнцөгт бүү үлд, trade-ийн зайнаас гар.",
+    ),
+    ("trade", "my_weak"): ("Бид trade-гүй унадаг", ""),
+    ("pistol", "their_weak"): (
+        "Pistol-д санаачлага ав",
+        "Тэдний pistol сул: бэлтгэсэн pistol тактикаа (rush, stack) хэрэглээд 2-р раундын "
+        "anti-eco-гоо урьдчилж төлөвлө.",
+    ),
+    ("pistol", "my_strong"): (
+        "Pistol-оо давуу тал болго",
+        "Манай pistol хүчтэй: бэлтгэсэн тактикаа ашиглаад 2–3-р раундын эдийн засгаа "
+        "урьдчилж төлөвлө.",
+    ),
+    ("pistol", "their_strong"): (
+        "Pistol-д болгоомжтой",
+        "Тэдний pistol хүчтэй: kevlar, utility-гийн хуваарилалтаа нягтал; алдвал 2-р раундад "
+        "force эсвэл бүтэн eco гэдгээ урьдчилж шийд.",
+    ),
+    ("pistol", "my_weak"): ("Бидний pistol сул", ""),
+    ("full_v_full", "their_weak"): (
+        "Full buy-ын тулааныг хүлээ",
+        "Тэнцүү зэвсэгтэй раундад тэд сул: эрсдэлтэй force-оос зайлсхийж, эдийн засгаа хоёр "
+        "талын full buy-д төвлөрүүл.",
+    ),
+    ("full_v_full", "my_strong"): (
+        "Full buy-д бид давуу",
+        "Хоёулаа full buy-тай раунд бидний давуу тал: эдийн засгаа хадгалж, full-ээр тулгар.",
+    ),
+    ("full_v_full", "their_strong"): (
+        "Тэдний эдийн засгийг эвд",
+        "Тэнцүү зэвсэгтэй раундад тэд хүчтэй: pistol, anti-eco, save hunt-аар тэдний full "
+        "buy-ийн тоог цөөлөх нь чухал.",
+    ),
+    ("full_v_full", "my_weak"): ("Full buy раундад бид сул", ""),
+    ("force", "their_weak"): (
+        "Тэдний force-ийг тайван тос",
+        "Тэдний force ихэвчлэн бүтэлгүйтдэг: force раундад ойрын тулаанаас зайлсхийж стандарт "
+        "тогло — хожвол тэд дараагийн full buy-гүй үлдэнэ.",
+    ),
+    ("force", "my_strong"): (
+        "Force-оо зориуд ашигла",
+        "Манай force амжилттай: pistol алдсаны дараа эсвэл тэдний эдийн засаг сул үед "
+        "force-оор эргүүлэх боломжтой.",
+    ),
+    ("force", "their_strong"): (
+        "Тэдний force-ийг дутуу бүү үнэл",
+        "Тэдний force аюултай: SMG, shotgun-аас зай барьж AWP-аа хамгаал; давуу байдалтай ч "
+        "цэгт бүү бөөгнөр.",
+    ),
+    ("force", "my_weak"): ("Бидний force бүтэлгүйтдэг", ""),
+    ("eco", "my_strong"): (
+        "Eco раундад ч заналхийл",
+        "Бид eco-д раунд хулгайлдаг: хамтдаа stack, rush хийж тэдний anti-eco-г шалга.",
+    ),
+    ("eco", "their_strong"): (
+        "Тэдний eco-д болгоомжтой",
+        "Тэд eco раундыг хулгайлдаг: anti-eco-д ойртож бүү тулалд, хосоороо, мэдээлэлтэй тогло.",
+    ),
+    ("full_v_light", "their_weak"): (
+        "Force хийж эрсдэл гарга",
+        "Тэд full buy-тай байхдаа eco, force-д олон раунд алддаг: pistol алдсаны дараа ч "
+        "force-оор тулгарах нь ашигтай.",
+    ),
+    ("full_v_light", "my_weak"): ("Хөнгөн зэвсэгтэй өрсөлдөгчид бид алддаг", ""),
+    ("post_plant", "their_weak"): (
+        "Plant хийлгээд retake хий",
+        "Тэд plant-ын дараа барьж чаддаггүй: цэгийг үхтлээ бүү хамгаал — хүнээ хадгалж, "
+        "utility-тай хамтдаа retake хий.",
+    ),
+    ("post_plant", "my_strong"): (
+        "Plant хийхийг зорь",
+        "Манай post-plant хүчтэй: раундыг bomb тавих руу чиглүүлж, тавьсны дараа crossfire-оо "
+        "барь.",
+    ),
+    ("post_plant", "their_strong"): (
+        "Plant-ыг бүү өг",
+        "Тэд plant-ын дараа маш сайн барьдаг: цэгийг эрт, хүчтэй хамгаалж plant-ыг зогсоо; "
+        "retake хийх бол бүх utility-гаа хадгал.",
+    ),
+    ("post_plant", "my_weak"): ("Plant-ын дараа бид алддаг", ""),
+    ("retake", "their_weak"): (
+        "Bomb-оо тавь",
+        "Тэдний retake сул: bomb тавих нь раундыг бараг шийднэ — хурдан plant хийгээд "
+        "post-plant тогло.",
+    ),
+    ("retake", "my_strong"): (
+        "Retake-д найд",
+        "Манай retake хүчтэй: цэгт хэт олон хүн бүү алд, ухарч хүнээ хадгалаад хамтдаа retake хий.",
+    ),
+    ("retake", "their_strong"): (
+        "Plant бол хожил биш",
+        "Тэд retake хийж чаддаг: тавьсны дараа crossfire барьж, molotov, smoke-оо defuse "
+        "саатуулахад хадгал.",
+    ),
+    ("retake", "my_weak"): (
+        "Retake-д бид сул",
+        "Retake-ээс илүү plant-ыг зогсоо: цэгийн хамгаалалтаа эрт нягтруулж, rotate-ээ хурдасга.",
+    ),
+    ("comeback", "my_strong"): (
+        "Хоцорсон раундаа бүү орхи",
+        "Бид хожих магадлал бага байхаас ч эргүүлдэг: хоцорсон үед save-ээс өмнө тоглох "
+        "боломжийг тооцоол.",
+    ),
+    ("comeback", "their_strong"): (
+        "Давуу байдалд ч сул бүү тавь",
+        "Тэд алдсан мэт раундыг эргүүлдэг: хүний давуу байдалтай үед хамтдаа, trade-тай "
+        "цэвэрлэ, цагаа ашигла.",
+    ),
+    ("entry", "my_strong"): (
+        "Entry-ээ дэмж",
+        "Манай entry раунд хожуулдаг: entry тоглогчдоо flash, smoke-оор тусалж, эхний алалтын "
+        "дараа шууд дагаж ор.",
+    ),
+    ("entry", "their_strong"): (
+        "Тэдний entry-г тос",
+        "Тэдний entry раундыг шийддэг: орох замд нь molotov, HE эрт хаяж, эхний хүнийг "
+        "crossfire-т ал.",
+    ),
+    ("big_frag", "my_strong"): (
+        "Шийдвэрлэх frag-ууд бидэнд бий",
+        "Манай тоглогчид раунд эргүүлэх frag авдаг: тэдэнд мэдээлэл, utility-гаар орон зай гарга.",
+    ),
+    ("big_frag", "their_strong"): (
+        "Тэдний гол өнцгийг ганцаараа бүү шалга",
+        "Тэдний тоглогчид раунд шийдэх frag авдаг: тэдний дуртай өнцгийг utility-гаар нээ, "
+        "хосоороо peek хий.",
+    ),
+    ("multikill", "my_strong"): (
+        "Олон алалтын боломж гарга",
+        "Бид multi-kill авдаг: дайсныг нэг цэгт шахаж, давуу байрлалаас crossfire хий.",
+    ),
+    ("multikill", "their_strong"): (
+        "Нэг дор олноор бүү ор",
+        "Тэд multi-kill авдаг: нэг өнцгөөс дараалан бүү peek, зайгаа тараан нэг хаалгаар "
+        "бөөнөөрөө бүү ор.",
+    ),
+    ("clutch", "my_strong"): (
+        "Clutch-д итгэ",
+        "Манай clutch хүчтэй: сүүлчийн хүн цагтай бол яаралгүй, нөхдүүд мэдээллээр дэмжинэ.",
+    ),
+    ("clutch", "their_strong"): (
+        "Сүүлчийн хүнийг хамтдаа ал",
+        "Тэд clutch хожно: сүүлчийн тоглогчийг ганцаараа бүү хай — хосоороо, smoke, flash-тай "
+        "цэвэрлэ.",
+    ),
+    ("plant", "my_strong"): (
+        "Шахалт дор plant хийж чаддаг",
+        "Бид хэцүү үед ч plant хийдэг: цэг авмагц тавиад post-plant байрлалаа сонго.",
+    ),
+    ("plant", "their_strong"): (
+        "Тэдний plant-ыг тасал",
+        "Тэд шахалт дор ч plant хийдэг: тавих цэг рүү molotov хадгалж, сүүлийн секундэд peek "
+        "хийх хүнээ бэлд.",
+    ),
+    ("defuse", "my_strong"): (
+        "Defuse-ийн шийдвэр сайн",
+        "Бид шахалт дор defuse хийдэг: retake-д kit-тэй тоглогчийг хамгаалж, smoke-оо "
+        "defuse-д хадгал.",
+    ),
+    ("defuse", "their_strong"): (
+        "Defuse-ийг саатуул",
+        "Тэд шахалт дор defuse хийдэг: bomb-ын орчимд molotov хадгалж, сүүлийн 10 секундэд хаа.",
+    ),
+    ("flash_kill", "my_strong"): (
+        "Flash-тай ор",
+        "Манай flash алалт бий болгодог: pop flash-ын дараа шууд peek хийх хосоо бэлд.",
+    ),
+    ("flash_kill", "their_strong"): (
+        "Тэдний flash-аас эргэ",
+        "Тэдний flash алалт бий болгодог: flash сонсогдмогц эргэж, өөр өнцгөөс барь.",
+    ),
+    ("nade_damage_kill", "my_strong"): (
+        "HE, molotov-оор шахаж ал",
+        "Манай гранатын хохирол алалтад хүргэдэг: HE, molotov-оо түгээмэл байрлал руу зориуд хая.",
+    ),
+    ("nade_damage_kill", "their_strong"): (
+        "Түгээмэл байрлалд удаан бүү зогс",
+        "Тэдний HE, molotov хохирол учруулаад алалтад хүргэдэг: стандарт байрлалаа сольж, HP-ээ "
+        "хамгаал.",
+    ),
+    ("fire_delay", "my_strong"): (
+        "Molotov-оор саатуул",
+        "Манай molotov plant-ыг саатуулдаг: rotate ирэх хүртэл plant-ын цэг рүү molotov-оо хадгал.",
+    ),
+    ("fire_delay", "their_strong"): (
+        "Plant-ын цэгээ урьдчилж сонго",
+        "Тэд molotov-оор plant-ыг саатуулдаг: smoke-оор хамгаалсан, өөр plant-ын цэгтэй тогло; "
+        "molotov-ыг smoke-оор унтраа.",
+    ),
+    ("died_in_advantage", "their_weak"): (
+        "Дутсан ч тайван тогло",
+        "Тэд хүний давуу байдалд яарч үхдэг: дутсан үед ч ухарч өнцөг барь — тэд өөрсдөө ирнэ.",
+    ),
+    ("advantage_lost", "their_weak"): (
+        "Алдсан мэт раундад ч тэмц",
+        "Тэд хожих магадлал өндөр байхдаа раундаа алддаг: хоцорсон үед save-ээс өмнө retake, "
+        "clutch-ийн боломжийг тооцоол.",
+    ),
+    ("team_flashed_death", "their_weak"): (
+        "Тэдний flash-ын дараа тулал",
+        "Тэд өөрсдийн flash-д сохорч үхдэг: тэдний flash-ын дараах агшинд peek хий — эхэлж "
+        "орсон нь харахгүй байж магадгүй.",
+    ),
+    ("team_flash", "their_weak"): (
+        "Тэдний execute-ийг хүлээ",
+        "Тэдний flash өөрсдийгөө сохолдог: execute-ийн эхэнд хүлээж, flash нь буусны дараа "
+        "тулал.",
+    ),
+    ("lost_weapon_save", "their_weak"): (
+        "Хожсон раундаа дуусга",
+        "Тэд алдсан раунддаа буугаа хадгалдаггүй: раунд хожигдмогц үлдсэн тоглогчдыг хай — "
+        "дараагийн раундад тэдний эдийн засаг сул болно.",
+    ),
+    ("awp_miss", "their_weak"): (
+        "Тэдний AWP-ыг шахаж тогло",
+        "Тэдний AWP алдсаныхаа дараа унадаг: AWP руу хоёроороо, double peek хий; анхны "
+        "буудлагын дараа шууд дагаж ор.",
+    ),
+    ("moving_shots", "their_weak"): (
+        "Тэднийг өөр дээрээ ирүүл",
+        "Тэд гүйж буудаж алддаг: урт өнцөг барьж, тэднийг өөрсдөө ирэх хүртэл хүлээ.",
+    ),
+    ("unfinished", "their_weak"): (
+        "Шархадсан ч дахин тулал",
+        "Тэд шархдуулсан дайснаа дуусгадаггүй: HP цөөн ч байрлалаа сольж дахин тулал, "
+        "мэдээллээ нөхөддөө өг.",
+    ),
+    ("blind_unpunished", "their_weak"): (
+        "Тэдний flash-ыг бүү хэт хүндэл",
+        "Тэдний flash-ын араас peek ирдэггүй: сохорсон бол ухарч, сэргээд байрлалаа эргүүлэн барь.",
+    ),
+    ("no_gun_in_hand", "their_weak"): (
+        "Эргэлтийн замд нь тос",
+        "Тэд хутга, гранат барьсан үедээ тулалдаанд ордог: rotate-ийн замд нь гэнэтийн "
+        "өнцгөөс тос.",
+    ),
+    ("unused_utility", "their_weak"): (
+        "Эрт алалт хоёр дахин үнэтэй",
+        "Тэд utility-гаа ашиглалгүй үхдэг: execute-ээс өмнө эрт алалт авбал тэдний гранат ч "
+        "хамт алга болно.",
+    ),
+    ("bomb_lost", "their_weak"): (
+        "Bomb зөөгчийг ан",
+        "Тэдний bomb зөөгч ганцаардаж унадаг: bomb-той тоглогчийн замыг таньж, тэр зүг рүү "
+        "агрессив мэдээлэл ав.",
+    ),
+    ("time_out", "their_weak"): (
+        "Цагаар хож",
+        "Тэд цагтаа багтаж чаддаггүй: utility-гаар саатуулж, ухарч хамгаал — цаг тэдний эсрэг "
+        "ажилладаг.",
+    ),
+    ("kitless", "their_weak"): (
+        "Хожуу plant хий",
+        "Тэд kit-гүй retake хийдэг: хожуу plant хийвэл kit-гүй defuse-д цаг хүрэхгүй.",
+    ),
+    ("defuse_chance", "their_weak"): (
+        "Plant-ын дараа шахалт үүсгэ",
+        "Тэд defuse хийх боломжоо алддаг: bomb-ын орчимд дуу, utility-гаар шахалт үүсгэ.",
+    ),
+    ("crosshair", "their_weak"): (
+        "Гэнэтийн өнцгөөс тулал",
+        "Тэдний crosshair placement сул: стандарт бус өнцгөөс, хурдан peek-ээр тулал.",
+    ),
+    ("unscoped_awp", "their_weak"): (
+        "AWP-ыг ойроос шах",
+        "Тэдний AWP scope-гүй унадаг: ойрын зайнаас хурдан ор.",
+    ),
+    ("saw_no_shot", "their_weak"): (
+        "Хурдан peek хий",
+        "Тэд харсан ч буудаж амждаггүй: wide, хурдан peek-ээр түрүүлж бууд.",
+    ),
+    ("saw_first_lost", "their_weak"): (
+        "Aim duel-ээс бүү зайлсхий",
+        "Тэд түрүүлж харсан ч дуэлиа алддаг: тэдэнтэй нүүр тулсан дуэлийг хүлээн ав.",
+    ),
+}
+
+# Хос мөр: (миний хэмжүүр, тэдний хэмжүүр, role) → (title, counter).
+ADVICE_PAIR = {
+    ("opening", "opening", "lever"): (
+        "Нээлтийн тулааныг давуу тал болго",
+        "Бид эхний тулаанд хүчтэй, тэд сул: эхний 30 секундэд агрессив мэдээлэл аваад хүний "
+        "давуу байдлаа цэг рүү шууд хөрвүүл.",
+    ),
+    ("opening", "opening", "caution"): (
+        "Эхний тулаанд тэд давуу",
+        "Тэдний opening хүчтэй, бидний сул: эхний секундүүдэд peek-ээс зайлсхийж, "
+        "utility-гаар мэдээлэл ав; хүнээ алдахгүйгээр раундыг удаашруул.",
+    ),
+    ("trade", "trade", "lever"): (
+        "Хосоороо тоглоод тэднийг ганцаарчил",
+        "Бид trade хийдэг, тэд хийдэггүй: хосоороо хөдөлж, тэдний тусгаарлагдсан тоглогчийг "
+        "нэг-нэгээр нь ал.",
+    ),
+    ("trade", "trade", "caution"): (
+        "Тэд trade хийдэг, бид хийдэггүй",
+        "Тусдаа тоглох бүрт хүн алдана: нөхрөө trade хийх зайд байрлаж, тэр унахад шууд "
+        "сольж ор.",
+    ),
+    ("entry", "trade", "lever"): (
+        "Entry-гээр ганцаардсан хамгаалагчийг ал",
+        "Манай entry хүчтэй, тэд trade хийдэггүй: entry-ийн араас хоёр дахь хүн шууд дагаж, "
+        "цэгийг хурдан ав.",
+    ),
+    ("entry", "trade", "caution"): (
+        "Тэдний entry-д бид trade хийдэггүй",
+        "Цэгийн хамгаалалтаа хосоор тавь: эхний хүн унахад хоёр дахь нь trade-ийн өнцөгт "
+        "бэлэн байх ёстой.",
+    ),
+    ("pistol", "pistol", "lever"): (
+        "Pistol-оос эдийн засгийн давуу тал ав",
+        "Бид pistol-д хүчтэй, тэд сул: pistol хожоод 2–3-р раундын anti-eco-гоо сахилгатай тогло.",
+    ),
+    ("pistol", "pistol", "caution"): (
+        "Pistol-д тэд давуу",
+        "Pistol тактикаа шинэчил: тэдний хүчтэй, бидний сул; алдвал 2-р раундын "
+        "шийдвэрээ урьдчилж гарга.",
+    ),
+    ("full_v_full", "full_v_full", "lever"): (
+        "Full buy-ын тулаанд давуу",
+        "Тэнцүү зэвсэгтэй раундад бид хүчтэй, тэд сул: эдийн засгаа full buy-д төвлөрүүлж, "
+        "эрсдэлтэй force-оос зайлсхий.",
+    ),
+    ("full_v_full", "full_v_full", "caution"): (
+        "Full buy-д тэд давуу",
+        "Тэнцүү зэвсэгтэй тулаан тэдэнд ашигтай: pistol, force, save hunt-аар тэдний "
+        "эдийн засгийг эвд.",
+    ),
+    ("force", "full_v_light", "lever"): (
+        "Force-оор эдийн засгийг нь эвд",
+        "Манай force амжилттай, тэд full buy-тай байхдаа хөнгөн зэвсэгтэйд алддаг: мөнгө "
+        "дутсан үед force-оор тулгар.",
+    ),
+    ("force", "full_v_light", "caution"): (
+        "Тэдний force-д бид хэврэг",
+        "Full buy-тай байхдаа тэдний force-д раунд алддаг: ойрын тулаанаас зайлсхийж, "
+        "SMG/shotgun-аас зай барь.",
+    ),
+    ("eco", "full_v_light", "lever"): (
+        "Eco-гоор ч заналхийл",
+        "Бид eco-д раунд хулгайлдаг, тэд хөнгөн зэвсэгтэйд алддаг: eco-д хамтдаа stack хийж "
+        "тэдний anti-eco-г шалга.",
+    ),
+    ("eco", "full_v_light", "caution"): (
+        "Тэдний eco-д бид хэврэг",
+        "Тэд eco хулгайлдаг, бид anti-eco-д алддаг: eco-той тэдэнд ойртож бүү тулалд, хосоороо "
+        "тогло.",
+    ),
+    ("post_plant", "retake", "lever"): (
+        "Plant хийгээд post-plant тогло",
+        "Манай post-plant хүчтэй, тэдний retake сул: раундыг plant руу чиглүүл, тавьсны дараа "
+        "crossfire-оо барь.",
+    ),
+    ("post_plant", "retake", "caution"): (
+        "Plant-ыг бүү өг",
+        "Тэдний post-plant хүчтэй, бидний retake сул: plant-ыг цэг дээр нь зогсоо, retake-д "
+        "найдах хэрэггүй.",
+    ),
+    ("retake", "post_plant", "lever"): (
+        "Plant хийлгээд retake хий",
+        "Манай retake хүчтэй, тэдний post-plant сул: цэгт хүн бүү алд — ухарч хүнээ хадгалаад "
+        "хамтдаа retake хий.",
+    ),
+    ("retake", "post_plant", "caution"): (
+        "Plant хийсэн ч раунд дуусаагүй",
+        "Тэдний retake хүчтэй, бидний post-plant сул: тавьсны дараах байрлал, crossfire-оо "
+        "бэлдэж, utility-гаа defuse саатуулахад хадгал.",
+    ),
+    ("post_plant", "kitless", "lever"): (
+        "Хожуу plant хийгээд барь",
+        "Манай post-plant хүчтэй, тэд kit-гүй retake хийдэг: хожуу plant хийвэл defuse-д цаг "
+        "хүрэхгүй.",
+    ),
+    ("post_plant", "kitless", "caution"): (
+        "Kit-ээ заавал ав",
+        "Тэдний post-plant хүчтэй, бид kit-гүй үлддэг: CT бүр kit авч, kit-тэй хүн эхэлж "
+        "defuse хийнэ.",
+    ),
+    ("post_plant", "defuse_chance", "lever"): (
+        "Plant-ын дараа шахалтаа үргэлжлүүл",
+        "Манай post-plant хүчтэй, тэд defuse хийх боломжоо алддаг: bomb-ын орчмыг дуу, "
+        "utility-гаар хяна.",
+    ),
+    ("post_plant", "defuse_chance", "caution"): (
+        "Defuse-ийн цонхыг ашигла",
+        "Тэдний post-plant хүчтэй, бид defuse хийх боломжоо алддаг: smoke-той, нөхдийн "
+        "хамгаалалттай defuse-д суу.",
+    ),
+    ("fire_delay", "time_out", "lever"): (
+        "Цагаар хож",
+        "Манай molotov саатуулдаг, тэд цагтаа багтдаггүй: utility-гаа хэмнэж хэрэглээд plant-ыг "
+        "сүүлийн секунд руу түлх.",
+    ),
+    ("fire_delay", "time_out", "caution"): (
+        "Цагаа хяна",
+        "Тэдний molotov саатуулдаг, бид цаг алддаг: 40 секунд үлдэхэд шийдвэрээ гаргаж, "
+        "plant-ын цэгээ урьдчилж сонго.",
+    ),
+    ("clutch", "died_in_advantage", "lever"): (
+        "Дутсан ч раундаа бүү орхи",
+        "Бид clutch хожно, тэд давуу байдалд яарч үхдэг: дутсан үед ухарч өнцөг барь, тэд "
+        "өөрсдөө ирнэ.",
+    ),
+    ("clutch", "died_in_advantage", "caution"): (
+        "Давуу байдлаа хамтдаа хөрвүүл",
+        "Тэд clutch хожно, бид давуу байдалд яарч үхдэг: хүнээр давуу үед хосоороо, "
+        "utility-тай цэвэрлэ.",
+    ),
+    ("clutch", "advantage_lost", "lever"): (
+        "Хожигдох мэт раундад ч тэмц",
+        "Бид clutch хожно, тэд давуу байдлаа алддаг: хоцорсон үед ч save-ээс өмнө clutch-ийн "
+        "боломжийг тооцоол.",
+    ),
+    ("clutch", "advantage_lost", "caution"): (
+        "Давуу байдлаа бүү алд",
+        "Тэд clutch хожно, бид давуу байдлаа алддаг: сүүлчийн хүнийг хамтдаа, smoke, flash-тай "
+        "цэвэрлэ.",
+    ),
+    ("comeback", "died_in_advantage", "lever"): (
+        "Хоцорсон раундаа бүү орхи",
+        "Бид эргүүлж хождог, тэд давуу байдалд яарч үхдэг: дутсан үед тайван өнцөг барь.",
+    ),
+    ("comeback", "died_in_advantage", "caution"): (
+        "Давуу байдалд бүү яар",
+        "Тэд эргүүлж хождог, бид давуу байдалд яарч үхдэг: хүнээр давуу үед цагаа ашиглаж "
+        "хамтдаа тогло.",
+    ),
+    ("comeback", "advantage_lost", "lever"): (
+        "Алдсан мэт раундад ч тэмц",
+        "Бид эргүүлж хождог, тэд давуу байдлаа алддаг: хоцорсон раундад save-ээс өмнө "
+        "боломжоо тооцоол.",
+    ),
+    ("comeback", "advantage_lost", "caution"): (
+        "Давуу байдлаа бүү алд",
+        "Тэд эргүүлж хождог, бид давуу байдлаа алддаг: хүнээр давуу үед trade-тай, хамтдаа "
+        "цэвэрлэ.",
+    ),
+}
+
+ADVICE_LIMIT = {
+    "reviews_waiting": "{team}-ийн {n}/{of} Match Map-ийн Review шинэчлэгдэж байгаа тул доорх "
+    "Ашиглах, Анхаарах-д ороогүй.",
+    "untagged": "{team}-ийн {n} Match Map-ийн раундад баг тодорхойгүй тул Review-ийн тоонд "
+    "ороогүй.",
+    "few_sightings": "Sightings ердөө {n}/{of} Match Map-д бий: харсан ч буудаагүй, crosshair "
+    "зэрэг дүгнэлт бараг гараагүй.",
+}
+
+
+def _advice_value(x: dict) -> tuple[str, str]:
+    """Нэг хэмжүүрийн утга ба Pool-ын дундаж үгээр."""
+    if x["kind"] == "rate" and x["key"] != "comeback":
+        return review_pct(x["value"]), review_pct(x["mean"])
+    if x["kind"] == "player":
+        return f"{review_swing(x['value'])}/раунд", review_swing(x["mean"])
+    if x["key"] == "comeback":
+        return f"{x['value'] * 24:.1f}/24 раунд", f"{x['mean'] * 24:.1f}"
+    return f"{x['value']:.1f}/24 раунд", f"{x['mean']:.1f}"
+
+
+def advice_fact(x: dict, whose: str, team: str, name) -> str:
+    """«Манай T · Plant-ын дараах хожил 66% (Pool 82%), голлон X 4, ихэвчлэн B Site-д»."""
+    who = "Манай" if whose == "mine" else team
+    value, mean = _advice_value(x)
+    if x["kind"] == "player":
+        label = f"{x['player']} Swing"
+    else:
+        label = ADVICE_LABEL.get(x["key"]) or REVIEW_CODE.get(x["key"], x["key"])
+    text = f"{who} {side(x['side'], short=True)} · {label} {value} (Pool {mean})"
+    bits = []
+    if x["kind"] == "player":
+        codes = _ranked([(REVIEW_CODE.get(c, c), n) for c, n in x.get("codes") or []])
+        if codes:
+            bits.append(codes)
+        if x.get("elsewhere"):
+            bits.append("өмнөх багийнх нь тоо")
+    else:
+        players = _ranked([(name(s), n) for s, n in x.get("players") or [] if name(s)])
+        if players:
+            bits.append(f"голлон {players}")
+    spots = [s for s, _n in x.get("spots") or []][:2]
+    if spots:
+        bits.append(f"ихэвчлэн {' ба '.join(spots)}-д")
+    if x.get("everywhere"):
+        value, mean = _advice_value({**x, **x["everywhere"]})
+        bits.append(f"бүх Map-аар {value} (Pool {mean})")
+    elif x.get("scope") == "all_maps":
+        bits.append("бүх Map-аас")
+    return text + (f" — {'; '.join(bits)}" if bits else "") + "."
+
+
+def _player_text(x: dict, role: str) -> tuple[str, str]:
+    who, sd = x["player"], side(x["side"], short=True)
+    if role == "their_strong":
+        return (
+            f"{who}-г ганцаараа бүү тулгар",
+            f"{who} тэдний {sd} талын раунд шийддэг тоглогч: түүний байрлал руу utility хаяж, "
+            "хосоороо peek хий; эхний тулаанд түүнтэй бүү тулгар.",
+        )
+    if role == "their_weak":
+        return (
+            f"{who}-г онил",
+            f"{who} {sd} талдаа багтаа раунд алдуулдаг: түүний барьдаг тал руу дуэл санал "
+            "болгож, түүнээс эхлэн ал.",
+        )
+    if role == "my_strong":
+        return (
+            f"{who}-д тулгуурла",
+            f"{who} манай {sd} талын хамгийн үнэ цэнтэй тоглогч: раундын гол үүргийг түүнд өгч "
+            "utility-гаар дэмж.",
+        )
+    return (
+        f"{who}-г дэмж",
+        f"{who} {sd} талдаа багтаа раунд алдуулж байна: ганцааранг нь бүү үлдээ, trade хийх "
+        "зайд хос тавьж үүргийг нь хөнгөл.",
+    )
+
+
+def _advice_text(x: dict, role: str) -> tuple[str, str]:
+    if x["kind"] == "player":
+        return _player_text(x, role)
+    title, counter = ADVICE_TEXT.get((x["key"], role), ("", ""))
+    if role == "my_weak":
+        title = title or f"{REVIEW_CODE.get(x['key'], x['key'])} — бидний сул тал"
+        counter = counter or SUMMARY_ADVICE.get(x["key"], "")
+    return title or REVIEW_CODE.get(x["key"], x["key"]), counter
+
+
+def advice(entry: dict, team: str, name) -> dict:
+    """Нэг Lever эсвэл Caution: юу хийх, яагаад (тоо), яаж, нотолгоо."""
+    role, mine, theirs = entry["role"], entry["mine"], entry["theirs"]
+    if entry["pair"]:
+        title, counter = ADVICE_PAIR.get(
+            (mine["key"], theirs["key"], role),
+            _advice_text(theirs, "their_weak" if role == "lever" else "their_strong"),
+        )
+    elif mine is not None:
+        title, counter = _advice_text(mine, "my_strong" if role == "lever" else "my_weak")
+    else:
+        title, counter = _advice_text(theirs, "their_weak" if role == "lever" else "their_strong")
+    facts, proofs = [], []
+    for x, whose in ((mine, "mine"), (theirs, "theirs")):
+        if x is None:
+            continue
+        facts.append(advice_fact(x, whose, team, name))
+        proofs.append({"whose": whose, "label": "Манай" if whose == "mine" else team,
+                       "evidence": x["evidence"]})  # fmt: skip
+    best = min((p["evidence"]["strength"] for p in proofs), key=lambda s: _PB_STRENGTH[s])
+    return {
+        "role": role,
+        "pair": entry["pair"],
+        "title": title,
+        "facts": facts,
+        "counter": counter,
+        "proofs": proofs,
+        "strength": best,
+        "weight": entry["weight"],
+        "weight_label": (
+            f"≈ {entry['weight']:.1f} раунд/хагас"
+            if entry["weight"] >= 0.1
+            else "< 0.1 раунд/хагас"
+        ),
+    }
+
+
+def advice_limit(item: dict) -> str:
+    text = ADVICE_LIMIT.get(item["kind"])
+    if text is None:
+        return caution_line(item)
+    return text.format(**item)
+
+
+def advice_action(entry: dict, map_label: str, team: str) -> dict:
+    """«Юу хийх» жагсаалтад өргөсөн Lever эсвэл Caution: ``{what, why}``."""
+    worded = advice(entry, team, lambda _sid: "")
+    kind = "Ашиглах" if entry["role"] == "lever" else "Анхаарах"
+    why = " ".join(worded["facts"]) + (f" {worded['counter']}" if worded["counter"] else "")
+    return _act(f"{map_label} · {kind}: {worded['title']}", why)

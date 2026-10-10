@@ -160,3 +160,13 @@ def scene(map_name: str) -> list[dict]:
             }
         )
     return out
+
+
+def in_callout(map_name: str, name: str, place: str) -> bool:
+    """Whether a Spot (or a Callout's words, as :func:`spot_at` names an
+    unspotted point) lies inside the game Callout ``place``."""
+    if not name or not place:
+        return False
+    if name == callout_label(place):
+        return True
+    return any(s["name"] == name and place in s["callouts"] for s in spots(map_name))

@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { $api } from '../api/client'
 import { type Fixture, Todo } from './panels'
-import type { Evidence, Habit, PlaybookPanel, RoundRef, Strength, TodoPanel } from './types'
+import type { Advice, AdviceSide, Evidence, Habit, PlaybookPanel, RoundRef, Strength, TodoPanel } from './types'
 
 const STALE = 5 * 60_000
 
@@ -9,6 +10,8 @@ const STRENGTH: Record<Strength, string> = { weak: 'сул', medium: 'дунд',
 const OUR_SIDE = { ct: 'Манай CT', t: 'Манай T' } as const
 
 const replayHref = (r: RoundRef) => `/matches/${r.match}/m/${r.map}?round=${r.round}`
+// A column shows this many lines before «бусад» opens the rest.
+const ADVICE_SHOWN = 4
 
 // «Юу хийх»: the short list of actions on top, then one Map's Playbook at a time,
 // picked from the Maps in veto order (CONTEXT.md: Playbook).
@@ -80,6 +83,11 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
       {!d.sites_known && (
         <p className="caveat">Энэ map-ын цэгүүдийн байрлал тодорхойгүй тул A / төв / B хуваарь гарахгүй.</p>
       )}
+      {d.advice.limits.map((l) => (
+        <p key={l} className="caveat">
+          {l}
+        </p>
+      ))}
 
       {d.plan.length > 0 && (
         <>
@@ -98,6 +106,16 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
           </div>
         </>
       )}
+
+      <h3 className="pb-section">Ашиглах ба анхаарах</h3>
+      <p className="lede">
+        Хоёр багийн Review-г бүх багийн Pool-той харьцуулав: манай давуу тал тэдний сул талтай тулгарсан нь эхэнд,
+        тэдний давуу тал манай сул талтай тулгарсан нь анхааруулгын эхэнд. Жин нь тухайн тоо хагас тутамд Pool-ын
+        ердийн багаас хэдэн раундын зөрүү гаргадгийг заана.
+      </p>
+      {d.advice.sides.map((s) => (
+        <AdviceColumns key={s.side} side={s} />
+      ))}
 
       {d.sections.map((s) => (
         <div key={s.key}>
@@ -189,6 +207,7 @@ function Habits({ habits }: { habits: Habit[] }) {
           <b>{h.title}</b>
           <p className="pb-detail">{h.detail}</p>
           {h.counter && <p className="pb-counter">{h.counter}</p>}
+          {h.review && <p className="pb-review">{h.review}</p>}
           {h.evidence && <Proof e={h.evidence} />}
         </div>
       ))}
@@ -196,12 +215,67 @@ function Habits({ habits }: { habits: Habit[] }) {
   )
 }
 
-function Proof({ e }: { e: Evidence }) {
+function AdviceColumns({ side }: { side: AdviceSide }) {
+  return (
+    <div className="pb-adv">
+      <h4>
+        <span className={`tag ${side.side}`}>{side.label}</span>
+      </h4>
+      <div className="sides2">
+        <div>
+          <h5 className="pb-role pb-role-lever">Ашиглах</h5>
+          <AdviceList entries={side.levers} none="Энэ талд ашиглах тод давуу тал гарсангүй." />
+        </div>
+        <div>
+          <h5 className="pb-role pb-role-caution">Анхаарах</h5>
+          <AdviceList entries={side.cautions} none="Энэ талд онцгой анхааруулга гарсангүй." />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AdviceList({ entries, none }: { entries: Advice[]; none: string }) {
+  const [all, setAll] = useState(false)
+  if (!entries.length) return <p className="none">{none}</p>
+  const shown = all ? entries : entries.slice(0, ADVICE_SHOWN)
+  return (
+    <div className="pb-list">
+      {shown.map((a, i) => (
+        <div key={`${a.title}-${i}`} className={`pb-card pb-${a.role} ${a.strength}`}>
+          <div className="pb-head">
+            {a.pair && <span className="tag pair">хос</span>}
+            <span className={`tag ${a.strength}`}>{STRENGTH[a.strength]}</span>
+            <small className="mono">{a.weight_label}</small>
+          </div>
+          <b>{a.title}</b>
+          {a.facts.map((f) => (
+            <p key={f} className="pb-detail">
+              {f}
+            </p>
+          ))}
+          {a.counter && <p className="pb-counter">{a.counter}</p>}
+          {a.proofs.map((p) => (
+            <Proof key={p.whose} e={p.evidence} label={a.proofs.length > 1 ? p.label : undefined} />
+          ))}
+        </div>
+      ))}
+      {entries.length > ADVICE_SHOWN && (
+        <button type="button" className="chip" onClick={() => setAll(!all)}>
+          {all ? 'Хураах' : `Бусад ${entries.length - ADVICE_SHOWN}`}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Proof({ e, label }: { e: Evidence; label?: string }) {
   return (
     <div className="pb-ev">
+      {label && <span>{label}:</span>}
       <span className={`tag ${e.strength}`}>{STRENGTH[e.strength]}</span>
       <span>
-        {e.n}/{e.of} раунд · {e.maps} map{e.h2h ? ` · ${e.h2h} нь h2h` : ''}
+        {e.n}/{e.of} {e.unit ?? 'раунд'} · {e.maps} map{e.h2h ? ` · ${e.h2h} нь h2h` : ''}
       </span>
       <span className="pb-refs">
         {e.refs.map((r) => (

@@ -12,7 +12,7 @@ from app.db import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import User  # noqa: E402
 from app.security import create_access_token, hash_password  # noqa: E402
-from app.services import live  # noqa: E402
+from app.services import live, review_pool  # noqa: E402
 
 
 @pytest.fixture
@@ -51,6 +51,17 @@ def published(monkeypatch) -> list:
         lambda public_id, kind, payload: sent.append((str(public_id), kind, payload)),
     )
     return sent
+
+
+@pytest.fixture(autouse=True)
+def review_refreshes(monkeypatch) -> list:
+    """Review refreshes the code under test asked for, instead of a real broker;
+    and no tallies cut in one test leak into the next."""
+    asked = []
+    monkeypatch.setattr(review_pool, "request_refresh", lambda **kw: asked.append(kw) or True)
+    review_pool._cached.clear()
+    yield asked
+    review_pool._cached.clear()
 
 
 @pytest.fixture

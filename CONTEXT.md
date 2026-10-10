@@ -178,15 +178,31 @@ Up to five Players a Fixture's Team is expected to field. The User picks it, fro
 _Avoid_: Roster (who actually played a Match Map), active roster, current five
 
 **Pool**:
-Every Team with at least two maps' worth of parsed Rounds. A Game Plan calls something a strength or a weakness only against the Pool, never against the opponent alone.
+Every Team with at least two maps' worth of parsed Rounds. A Game Plan calls something a Strength or a Weakness only against the Pool, never against the opponent alone.
 _Avoid_: League, baseline (in prose)
 
 **Own form**:
 A Team's numbers over its parsed Match Maps against anyone but the Fixture's other Team. What changes against that Team is the Head-to-head delta.
 _Avoid_: Overall stats
 
+**Strength**:
+A Team's or a Lineup Player's number on one Side of a Map, such as how often their deaths are traded or how often they win after planting, that stands out above the Pool. Where that Map has too few Rounds, the number on that Side across all their Maps stands in, marked as such.
+_Avoid_: Advantage, plus
+
+**Weakness**:
+The same as a Strength, standing out below the Pool.
+_Avoid_: Flaw, hole, minus
+
+**Lever**:
+A Playbook line on how to use my team's Strength or the opponent's Weakness on a Map. The Levers ranked first are where my Strength meets their Weakness on the Sides that face each other.
+_Avoid_: Opportunity, edge, tip
+
+**Caution**:
+A Playbook line on what to watch out for on a Map: the opponent's Strength, my team's Weakness they could use, or a limit of the data the Game Plan rests on. The Cautions ranked first are where their Strength meets my Weakness on the Sides that face each other.
+_Avoid_: Risk, threat, warning
+
 **Playbook**:
-The part of a Game Plan that says how to play each Map of the Fixture, for preparation before the match: the veto, my CT plan against their T habits, my T plan against their CT habits, pistol and economy rounds, their Set plays and how to meet them, and Player matchups. It reads the opponent's habits from all their parsed Match Maps, Head-to-head included, and marks which Head-to-head Rounds a habit came from. Every line carries its Evidence strength.
+The part of a Game Plan that says how to play each Map of the Fixture, for preparation before the match: the veto, my CT plan against their T habits, my T plan against their CT habits, pistol and economy rounds, their Set plays and how to meet them, Player matchups, and the Levers and Cautions read from both Teams' Reviews. It reads the opponent's habits from all their parsed Match Maps, Head-to-head included, and marks which Head-to-head Rounds a habit came from. Every line carries its Evidence strength.
 _Avoid_: Strategy (in prose), todo, tips
 
 **Evidence strength**:
