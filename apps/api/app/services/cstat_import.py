@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.config import get_settings
 from app.services import analysis_store, store, tickdata
+from app.services.archive import parse_demo_name
 
 
 def _when(value: str | None) -> datetime | None:
@@ -138,6 +139,7 @@ def _current(demo: models.Demo) -> bool:
     analysis = demo.analysis
     return (
         analysis is not None
+        and (not demo.part or demo.is_processed)  # Demo parts merged (docs/adr/0009)
         and (analysis.schema_version or 0) >= analysis_store.CURRENT_SCHEMA_VERSION
         and tickdata.reparseable(analysis.tick_dataset)
         and tickdata.has_sightings(analysis.tick_dataset)
@@ -158,8 +160,6 @@ def run(
     ``match_hltv_id`` and ``map_name`` (``inferno`` or ``de_inferno``) narrow the
     parse to one Match, or one map of it; the rows are imported in full either way.
     """
-    from app.services.demo_parser import parse_map
-
     rows = _read(root)
     teams = {r["id"]: _team(db, r).id for r in rows["team"]}
     for r in rows["teamalias"]:
@@ -177,18 +177,24 @@ def run(
     )
 
     totals = {"maps": 0, "parsed": 0, "current": 0, "missing": 0, "failed": 0}
-    queue: list[tuple[models.Demo, Path]] = []
+    # Each Match Map to parse: part 1 (or its only Demo) and every file, in order.
+    groups: dict[tuple[int, str], list[tuple[models.Demo, Path | None]]] = {}
     for r in rows["demo"]:
         match = matches.get(r["match_id"])
         if match is None:
             continue
         if match_hltv_id is not None and match.hltv_id != match_hltv_id:
             continue
-        if map_name and r["map"] and r["map"].removeprefix("de_") != map_name.removeprefix("de_"):
+        map_, number, part = r["map"] or "", r["map_number"], 0
+        if map_ and r["filename"] and (number is None or "-" in map_):
+            # cstat kept a file's whole stem as the map of a Bo1 or a Demo part.
+            entry = parse_demo_name(r["filename"])
+            map_, number, part = entry.map, number or entry.map_number, entry.part
+        if map_name and map_ and map_.removeprefix("de_") != map_name.removeprefix("de_"):
             continue
-        demo = store._demo(db, match, r["map"] or "")
+        demo = store._demo(db, match, map_, part)
         _fill(demo, url=r["url"], filename=r["filename"], size_bytes=r["size_bytes"],
-              map_number=r["map_number"], downloaded_at=_when(r["downloaded_at"]))  # fmt: skip
+              map_number=number, downloaded_at=_when(r["downloaded_at"]))  # fmt: skip
         if r["is_downloaded"]:
             demo.is_downloaded = True
         if not r["map"]:
@@ -196,16 +202,21 @@ def run(
             if r["is_processed"] and demo.is_downloaded and not demo.is_processed:
                 store._mark_processed(demo)
             continue
+        groups.setdefault((match.id, map_), []).append((demo, _dem_path(root, r)))
+    queue: list[list[tuple[models.Demo, Path]]] = []
+    for group in groups.values():
+        group.sort(key=lambda item: item[0].part)
         totals["maps"] += 1
-        if _current(demo):
+        if _current(group[0][0]):
             totals["current"] += 1
             continue
-        path = _dem_path(root, r)
-        if path is None:
-            totals["missing"] += 1
-            log(f"  ? {r['filename']}: .dem файл cstat-д алга")
-            continue
-        queue.append((demo, path))
+        for demo, path in group:
+            if path is None:
+                totals["missing"] += 1
+                log(f"  ? {demo.filename}: .dem файл cstat-д алга")
+        files = [(demo, path) for demo, path in group if path is not None]
+        if files:
+            queue.append(files)
     db.commit()
     log(
         f"Map demo {totals['maps']}: {totals['current']} нь аль хэдийн schema "
@@ -217,16 +228,30 @@ def run(
     scratch = get_settings().hltv_data_dir / "tmp" / "cstat-import"
     started_all = time.monotonic()
     try:
-        for n, (demo, path) in enumerate(queue, start=1):
+        for n, files in enumerate(queue, start=1):
             started = time.monotonic()
+            demo, path = files[0]
             try:
-                parsed = parse_map(path)
-                bundle = tickdata.pack(parsed, scratch)
-                match_map = analysis_store.ingest_map(db, demo, parsed, bundle=bundle)
-                store.mark_processed(db, demo)
+                result = tickdata.parse_parts(
+                    [p for _d, p in files], scratch, parts=bool(demo.part)
+                )
+                parsed = result.parsed
+                match_map = analysis_store.ingest_map(db, demo, parsed, bundle=result.bundle)
+                unread = dict(result.failed)
+                for part, part_path in files:
+                    if part_path.name in unread:
+                        part.error = unread[part_path.name][:2000]
+                    elif part.is_downloaded or part is demo:
+                        store._mark_processed(part)
+                db.commit()
                 totals["parsed"] += 1
-                log(f"  ✓ {n}/{len(queue)} {path.name} · {match_map.scoreline} · "
+                merged = f" ({len(files)} хэсэг нэгтгэв)" if demo.part else ""
+                log(f"  ✓ {n}/{len(queue)} {path.name}{merged} · {match_map.scoreline} · "
                     f"{parsed.n_rounds} раунд · {time.monotonic() - started:.0f}с")  # fmt: skip
+                for name, error in result.failed:
+                    log(f"    ! {name}: уншиж чадсангүй — {error}")
+                if result.missing:
+                    log(f"    ! аль ч хэсэгт алга раунд: {', '.join(map(str, result.missing))}")
             except Exception as exc:  # one bad demo must not stop the rest
                 db.rollback()
                 store.record_processing_failure(db, demo, str(exc))

@@ -613,6 +613,20 @@ def _process_match(
             jobs.check_cancelled(job_db, job)
             _parse_one(job_db, db, job, demo, scratch, totals["parsing"], step)
         jobs.finish_stage(job_db, job, STAGE.PARSING, "", totals["parsing"])
+    except jobs.JobCancelled:
+        raise
+    except Exception as exc:  # one Match must not fail the Scout (docs/adr/0009)
+        db.rollback()
+        logger.exception("match %s failed", match.id)
+        jobs.log(
+            job_db,
+            job,
+            f"   ✗ энэ матчийг алгаслаа — {exc}",
+            level=LEVEL.ERROR,
+            stage=STAGE.PARSING,
+            step=step,
+        )
+        totals["parsing"]["failed"] += 1
     finally:
         archive.unlink(missing_ok=True)
         shutil.rmtree(maps_dir, ignore_errors=True)
@@ -626,17 +640,22 @@ def _redownload_reason(db: Session, row: Match) -> str:
     A map that never parsed, with no Tick Data to parse it from, can only be
     retried from a fresh download: its Demo was deleted with the match's files.
     So can a stale map whose Tick Data predates the economy or the Loadout
-    (docs/adr/0003, 0005).
+    (docs/adr/0003, 0005), and a Match Map whose Demo parts were never merged:
+    its Tick Data holds one part at most (docs/adr/0009).
     """
     pending = analysis_store.pending_map_demos(db, match_ids=[row.hltv_id])
     stuck = [d for d in pending if d.analysis is None or d.analysis.tick_dataset is None]
-    old = [d for d in pending if d not in stuck and not _reparseable(d)]
+    unmerged = [d for d in pending if d not in stuck and _unmerged(d)]
+    old = [d for d in pending if d not in stuck and not _reparseable(d) and d not in unmerged]
     reasons = []
     if stuck:
         names = ", ".join(mn.game_map(d.map) for d in stuck)
         reasons.append(
             f"{len(stuck)} мап ({names}) боловсруулагдаагүй бөгөөд tick дата хадгалагдаагүй"
         )
+    if unmerged:
+        names = ", ".join(mn.game_map(d.map) for d in unmerged)
+        reasons.append(f"{len(unmerged)} мапын ({names}) demo хэсгүүд нэгтгэгдээгүй")
     if old:
         names = ", ".join(mn.game_map(d.map) for d in old)
         reasons.append(
@@ -646,7 +665,16 @@ def _redownload_reason(db: Session, row: Match) -> str:
 
 
 def _reparseable(demo: Demo) -> bool:
-    return demo.analysis is not None and tickdata.reparseable(demo.analysis.tick_dataset)
+    return (
+        demo.analysis is not None
+        and not _unmerged(demo)
+        and tickdata.reparseable(demo.analysis.tick_dataset)
+    )
+
+
+def _unmerged(demo: Demo) -> bool:
+    """Part 1 of Demo parts not yet parsed together: only their Demos can."""
+    return bool(demo.part) and not demo.is_processed
 
 
 def _fetch_one(job_db, db, job, client, browser, match, scratch: Path, totals: dict, step):
@@ -886,7 +914,7 @@ def _unpack_one(job_db, db, job, demo: Demo, path: Path, dest: Path, totals: dic
             job_db,
             job,
             f"   → {path.name} ({mn.mb(demo.size_bytes)}) · {len(entries)} мап: "
-            + ", ".join(mn.game_map(e.map) for e in entries),
+            + mn.demo_maps([(e.map, e.part) for e in entries]),
             stage=STAGE.UNPACKING,
             step=step,
         )
@@ -896,7 +924,8 @@ def _unpack_one(job_db, db, job, demo: Demo, path: Path, dest: Path, totals: dic
         )
         store.record_extraction(db, demo, zip(entries, written, strict=True))
         sizes = ", ".join(
-            f"{mn.game_map(e.map)} {mn.mb(p.stat().st_size if p.exists() else 0)}"
+            f"{mn.game_map(e.map)}{f' ({e.part})' if e.part else ''} "
+            f"{mn.mb(p.stat().st_size if p.exists() else 0)}"
             for e, p in zip(entries, written, strict=True)
         )
         jobs.log(
@@ -909,7 +938,9 @@ def _unpack_one(job_db, db, job, demo: Demo, path: Path, dest: Path, totals: dic
         )
         totals["archives"] += 1
         totals["maps"] += len(written)
-    except archive_service.ArchiveError as exc:
+    except jobs.JobCancelled:
+        raise
+    except Exception as exc:  # ArchiveError, or a row that won't store: this Match only
         db.rollback()
         store.record_processing_failure(db, demo, str(exc))
         jobs.log(
@@ -947,11 +978,12 @@ def _parse_one(job_db, db, job, demo: Demo, scratch: Path | None, totals: dict, 
 
     The Demo is the source when it is on disk (just unpacked); otherwise the
     map's stored Tick Data is, which is how a map on an old schema is parsed
-    again without downloading anything.
+    again without downloading anything. A Match Map recorded as Demo parts is
+    parsed from all of them, merged (docs/adr/0009); ``demo`` is part 1.
     """
-    from app.services.demo_parser import parse_map
-
-    path = Path(demo.path) if demo.path else None
+    parts = analysis_store.demo_parts(db, demo)
+    paths = [Path(d.path) for d in parts if d.path]
+    on_disk = [p for p in paths if p.exists()]
     map_label = mn.game_map(demo.map) or "?"
     jobs.log(
         job_db,
@@ -963,7 +995,7 @@ def _parse_one(job_db, db, job, demo: Demo, scratch: Path | None, totals: dict, 
     )
     jobs.log(job_db, job, f"   → {_why_parse(demo)}", stage=STAGE.PARSING, step=step)
     stored = None
-    if path is None or not path.exists():
+    if not on_disk:
         stored = db.scalar(
             select(TickDataset)
             .join(MatchMap, MatchMap.id == TickDataset.match_map_id)
@@ -983,20 +1015,54 @@ def _parse_one(job_db, db, job, demo: Demo, scratch: Path | None, totals: dict, 
             return
     try:
         started = time.monotonic()
+        failed: list[tuple[str, str]] = []
         if stored is None:
+            size = sum(p.stat().st_size for p in on_disk)
+            if demo.part:
+                jobs.log(
+                    job_db,
+                    job,
+                    f"   → {len(parts)} хэсэгт бичигдсэн (сервер дундаа дахин эхэлсэн) — "
+                    f"{len(on_disk)} хэсгийг нэгтгэж нэг мап болгоно.",
+                    stage=STAGE.PARSING,
+                    step=step,
+                )
             jobs.activity(
                 job_db,
                 job,
                 key="parse:awpy",
                 stage=STAGE.PARSING,
-                text=f"{map_label} · {mn.ingest_step('awpy')} ({mn.mb(path.stat().st_size)})",
+                text=f"{map_label} · {mn.ingest_step('awpy')} ({mn.mb(size)})",
             )
-            parsed = parse_map(path)
-            jobs.activity(
-                job_db, job, key="parse:pack", stage=STAGE.PARSING,
-                text=f"{map_label} · {mn.ingest_step('pack')}",
+            result = tickdata.parse_parts(
+                on_disk,
+                (scratch or _scratch(job)) / "tickdata",
+                parts=bool(demo.part),
+                on_step=lambda key: jobs.activity(
+                    job_db, job, key=f"parse:{key}", stage=STAGE.PARSING,
+                    text=f"{map_label} · {mn.ingest_step(key)}",
+                ),
             )  # fmt: skip
-            bundle = tickdata.pack(parsed, (scratch or _scratch(job)) / "tickdata")
+            parsed, bundle, failed = result.parsed, result.bundle, result.failed
+            for name, error in failed:
+                jobs.log(
+                    job_db,
+                    job,
+                    f"   ! {name}: уншиж чадсангүй, түүний раундууд орохгүй — {error}",
+                    level=LEVEL.WARNING,
+                    stage=STAGE.PARSING,
+                    step=step,
+                )
+            if result.missing:
+                jobs.log(
+                    job_db,
+                    job,
+                    f"   ! {len(result.missing)} раунд аль ч хэсэгт алга: "
+                    + ", ".join(str(n) for n in result.missing),
+                    level=LEVEL.WARNING,
+                    stage=STAGE.PARSING,
+                    step=step,
+                )
         else:
             jobs.log(
                 job_db,
@@ -1015,7 +1081,13 @@ def _parse_one(job_db, db, job, demo: Demo, scratch: Path | None, totals: dict, 
         match_map = analysis_store.ingest_map(
             db, demo, parsed, bundle=bundle, on_step=_ingest_reporter(job_db, job, map_label)
         )
-        store.mark_processed(db, demo)
+        unread = {name: error for name, error in failed}
+        for part in parts:
+            if Path(part.path).name in unread:
+                part.error = unread[Path(part.path).name][:2000]
+            if part is demo or (part.is_downloaded and Path(part.path).name not in unread):
+                store._mark_processed(part)
+        db.commit()
         players = db.scalar(
             select(func.count())
             .select_from(MapRoster)
@@ -1047,7 +1119,7 @@ def _parse_one(job_db, db, job, demo: Demo, scratch: Path | None, totals: dict, 
         )
         totals["failed"] += 1
     finally:
-        if path is not None:
+        for path in paths:
             path.unlink(missing_ok=True)
 
 
@@ -1105,6 +1177,8 @@ def _why_parse(demo: Demo) -> str:
     analysis = demo.analysis
     if analysis is None:
         return f"хэзээ ч боловсруулагдаагүй (schema v{current})"
+    if _unmerged(demo):
+        return "хэсгүүдийг нь өмнө нь тус тусад нь уншсан — одоо нэгтгэж дахин боловсруулна"
     if (analysis.schema_version or 0) < current:
         return (
             f"schema v{analysis.schema_version} → v{current} болсон тул дахин "

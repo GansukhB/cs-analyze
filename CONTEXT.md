@@ -34,8 +34,12 @@ A series between two Teams at a Tournament, made up of one or more Match Maps.
 _Avoid_: Game, series
 
 **Demo**:
-A recording of play downloaded from HLTV. One archive per Match holds one map demo per Match Map. A Demo is only kept while it is being parsed: what it showed lives on as the Match Map's analysis and Tick Data.
+A recording of play downloaded from HLTV. One archive per Match holds one map demo per Match Map, or several Demo parts for a Match Map whose server was restarted mid-play. A Demo is only kept while it is being parsed: what it showed lives on as the Match Map's analysis and Tick Data.
 _Avoid_: Replay, recording
+
+**Demo part**:
+One of several Demos that together record one Match Map, because its server was restarted mid-play: each later part resumes from the Round the game was restored to. The parts are parsed together as one Match Map, every Round numbered as it was played.
+_Avoid_: Split demo (in prose), half
 
 ## Analysis (what happened in the game)
 

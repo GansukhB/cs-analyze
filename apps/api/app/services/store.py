@@ -154,17 +154,20 @@ def record_demo_lookup(db: Session, match: models.Match, url: str | None) -> mod
     return match
 
 
-def _demo(db: Session, match: models.Match, map: str = "") -> models.Demo:
-    """The row for one demo file, keyed on ``(match, map)``.
+def _demo(db: Session, match: models.Match, map: str = "", part: int = 0) -> models.Demo:
+    """The row for one demo file, keyed on ``(match, map, part)``.
 
-    Blank ``map`` is the match archive. This is the only place demo rows are
-    created, which is what keeps a re-run from making a second row.
+    Blank ``map`` is the match archive; ``part`` is a Demo part's number, 0 for
+    a map recorded whole. This is the only place demo rows are created, which
+    is what keeps a re-run from making a second row.
     """
     demo = db.scalar(
-        select(models.Demo).where(models.Demo.match_id == match.id, models.Demo.map == map)
+        select(models.Demo).where(
+            models.Demo.match_id == match.id, models.Demo.map == map, models.Demo.part == part
+        )
     )
     if demo is None:
-        demo = models.Demo(match=match, map=map)
+        demo = models.Demo(match=match, map=map, part=part)
         db.add(demo)
         db.flush()
     return demo
@@ -229,12 +232,12 @@ def record_extraction(
 ) -> list[models.Demo]:
     """Record the ``.dem`` files unpacked from ``archive`` and mark it processed.
 
-    One row per map, keyed on ``(match, map)``, so unpacking the same archive
-    twice updates those rows rather than adding more.
+    One row per map, or per Demo part, keyed on ``(match, map, part)``, so
+    unpacking the same archive twice updates those rows rather than adding more.
     """
     rows = []
     for entry, path in extracted:
-        demo = _demo(db, archive.match, map=entry.map)
+        demo = _demo(db, archive.match, map=entry.map, part=entry.part)
         demo.map_number = entry.map_number
         demo.filename = path.name
         demo.path = str(path)

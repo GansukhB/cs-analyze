@@ -1395,6 +1395,9 @@ def pending_map_demos(db: Session, match_ids=None) -> list[Demo]:
     "Need parsing" is not only "never parsed": a map stored under an older
     ``schema_version`` is stale, because the ingest has learnt to record
     something since. Those are picked up automatically.
+
+    A Match Map recorded as Demo parts is listed once, by part 1; the rest come
+    with it (:func:`demo_parts`).
     """
     query = (
         select(Demo)
@@ -1405,7 +1408,7 @@ def pending_map_demos(db: Session, match_ids=None) -> list[Demo]:
             joinedload(Demo.match).joinedload(Match.team2),
             joinedload(Demo.analysis),
         )
-        .where(Demo.is_downloaded, Demo.map != "")
+        .where(Demo.is_downloaded, Demo.map != "", Demo.part <= 1)
         .where(
             or_(
                 ~Demo.is_processed,
@@ -1420,13 +1423,27 @@ def pending_map_demos(db: Session, match_ids=None) -> list[Demo]:
     return list(db.scalars(query).unique())
 
 
+def demo_parts(db: Session, demo: Demo) -> list[Demo]:
+    """``demo`` with the rest of its Match Map's Demo parts, in order; just
+    ``demo`` for a map recorded whole (docs/adr/0009)."""
+    if not demo.part:
+        return [demo]
+    return list(
+        db.scalars(
+            select(Demo)
+            .where(Demo.match_id == demo.match_id, Demo.map == demo.map, Demo.part >= 1)
+            .order_by(Demo.part)
+        )
+    )
+
+
 def count_map_demos(db: Session, match_ids=None) -> int:
-    """Every downloaded map demo in scope, parsed or not."""
+    """Every downloaded map demo in scope, parsed or not; Demo parts once."""
     query = (
         select(func.count())
         .select_from(Demo)
         .join(Demo.match)
-        .where(Demo.is_downloaded, Demo.map != "")
+        .where(Demo.is_downloaded, Demo.map != "", Demo.part <= 1)
     )
     if match_ids is not None:
         query = query.where(Match.hltv_id.in_(list(match_ids)))

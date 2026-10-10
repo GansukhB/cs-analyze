@@ -39,6 +39,7 @@ import json
 import logging
 import math
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
@@ -134,6 +135,135 @@ def _write_table(bundle: zipfile.ZipFile, name: str, frame: pl.DataFrame) -> Non
     buffer = io.BytesIO()
     frame.write_parquet(buffer)
     bundle.writestr(f"{name}.parquet", buffer.getvalue())
+
+
+# ------------------------------------------------------------ Demo parts ---
+# Every column of the bundle's tables that holds a tick.
+TICK_COLUMNS = ("tick", "start", "freeze_end", "end", "official_end", "bomb_plant",
+                "start_tick", "end_tick")  # fmt: skip
+# Dead time between one Demo part's last tick and the next one's first.
+PART_GAP_TICKS = 64 * 60
+
+
+@dataclass
+class Parse:
+    """One Match Map read from its Demo, or from its Demo parts merged."""
+
+    parsed: object
+    bundle: bytes | None
+    # Round numbers before the last one that no part holds.
+    missing: list[int] = field(default_factory=list)
+    # (file name, error) for each part that could not be read.
+    failed: list[tuple[str, str]] = field(default_factory=list)
+
+
+def parse_parts(
+    paths: list[Path],
+    scratch: Path,
+    *,
+    parts: bool | None = None,
+    on_step: Callable[[str], None] | None = None,
+) -> Parse:
+    """Parse one Match Map: its Demo, or every Demo part in order, merged
+    (CONTEXT.md, docs/adr/0009). ``parts`` (more than one path, unless said)
+    numbers even a lone part's Rounds as played. A part that won't parse is left
+    out and reported; only when none parses is it an error. ``on_step("pack")``
+    is called before each bundle is written.
+
+    Each part is packed and let go before the next is read, so a merge holds
+    the parts' bundles, never two parses."""
+    from app.services import demo_parser
+
+    step = on_step or (lambda _key: None)
+    if not (len(paths) > 1 if parts is None else parts):
+        parsed = demo_parser.parse_map(paths[0])
+        step("pack")
+        return Parse(parsed, pack(parsed, scratch))
+    parts, failed, awpy_version = [], [], ""
+    for path in paths:
+        try:
+            parsed = demo_parser.parse_map(path)
+            numbers = demo_parser.round_numbers(parsed)
+            step("pack")
+            blob = pack(parsed, scratch)
+            awpy_version = awpy_version or parsed.awpy_version
+            del parsed
+        except demo_parser.DemoParseError as exc:
+            failed.append((path.name, str(exc)))
+            continue
+        if blob is None:
+            failed.append((path.name, "no tick data was written"))
+            continue
+        parts.append((blob, numbers))
+    if not parts:
+        raise demo_parser.DemoParseError(
+            "no Demo part could be parsed: " + "; ".join(f"{n}: {e}" for n, e in failed)
+        )
+    blob, missing = merge(parts)
+    parsed = parsed_map(blob, paths[0].name, awpy_version)
+    return Parse(parsed, blob, missing, failed)
+
+
+def merge(parts: list[tuple[bytes, pl.DataFrame]]) -> tuple[bytes, list[int]]:
+    """Demo parts' bundles as one Match Map's bundle, and the Rounds none held.
+
+    ``parts`` are ``(bundle, round_numbers)`` in order, ``round_numbers`` as
+    :func:`app.services.demo_parser.round_numbers` gives them. Every Round takes
+    its number as played, and the last part holding a Round plays it: a backup
+    restored over Rounds already played means they were played again. Each part's
+    ticks follow the one before's, :data:`PART_GAP_TICKS` apart. A Sightings or aim
+    table counts only when every part has it, so :func:`has_sightings` never claims
+    what a part lacked."""
+    owner: dict[int, tuple[int, int]] = {}
+    for i, (_blob, numbers) in enumerate(parts):
+        for round_num, number in numbers.iter_rows():
+            owner[int(number)] = (i, int(round_num))
+    kept: dict[int, list[tuple[int, int]]] = {}
+    for number, (i, round_num) in owner.items():
+        kept.setdefault(i, []).append((round_num, number))
+
+    tables: dict[str, list[pl.DataFrame]] = {}
+    present: dict[str, int] = {}
+    header: dict = {}
+    offset = 0
+    for i, (blob, _numbers) in enumerate(parts):
+        bundle = read(blob)
+        header = header or bundle.header
+        keep = pl.DataFrame(
+            kept.get(i, []), schema={"round_num": pl.Int64, "_number": pl.Int64}, orient="row"
+        )
+        last = 0
+        for name, frame in bundle.tables.items():
+            present[name] = present.get(name, 0) + 1
+            last = max(last, _last_tick(frame))
+            if "round_num" in frame.columns:
+                kind = frame.schema["round_num"]
+                frame = (
+                    frame.with_columns(pl.col("round_num").cast(pl.Int64))
+                    .join(keep, on="round_num", maintain_order="left")
+                    .with_columns(pl.col("_number").cast(kind).alias("round_num"))
+                    .drop("_number")
+                )
+            shifted = [c for c in TICK_COLUMNS if c in frame.columns]
+            frame = frame.with_columns((pl.col(c) + offset).cast(frame.schema[c]) for c in shifted)
+            tables.setdefault(name, []).append(frame)
+        offset += last + PART_GAP_TICKS
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as out:
+        for name, frames in tables.items():
+            if name in SIGHT_TABLES and present[name] < len(parts):
+                continue
+            _write_table(out, name, pl.concat(frames, how="diagonal_relaxed"))
+        out.writestr("header.json", json.dumps(header))
+    numbers = sorted(owner)
+    missing = [n for n in range(1, numbers[-1]) if n not in owner] if numbers else []
+    return buffer.getvalue(), missing
+
+
+def _last_tick(frame: pl.DataFrame) -> int:
+    values = [frame[c].max() for c in TICK_COLUMNS if c in frame.columns and frame.height]
+    return max((int(v) for v in values if v is not None), default=0)
 
 
 def read(blob: bytes) -> Bundle:

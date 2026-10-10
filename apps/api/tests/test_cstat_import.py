@@ -67,6 +67,7 @@ def parsed_paths(monkeypatch, tmp_path):
 
     class Parsed:
         n_rounds = 21
+        awpy_version = "2.0.2"
 
     monkeypatch.setattr(demo_parser, "parse_map", lambda path: seen.append(path.name) or Parsed())
     monkeypatch.setattr(tickdata, "pack", lambda parsed, scratch: b"tick data")
@@ -122,3 +123,37 @@ def test_what_cs_analyze_holds_wins(db, cstat, parsed_paths):
 def test_no_database_is_a_clear_error(db, tmp_path):
     with pytest.raises(FileNotFoundError, match="No cstat database"):
         cstat_import.run(db, tmp_path)
+
+
+def test_demo_parts_kept_as_stems_are_merged(db, cstat, parsed_paths, monkeypatch):
+    """cstat kept a Demo part's whole stem as its map, with no map number."""
+    import polars as pl
+
+    folder = cstat / "data" / "maps" / "100-alpha-vs-bravo-cup"
+    con = sqlite3.connect(cstat / "db.sqlite3")
+    for n, part in ((4, "p1"), (5, "p2")):
+        name = f"alpha-vs-bravo-m2-nuke-{part}"
+        (folder / f"{name}.dem").write_bytes(b"demo")
+        con.execute(
+            "INSERT INTO hltv_demo VALUES (?, '', ?, '', 10, '', NULL, 1, 1, 1, ?, NULL, NULL)",
+            (n, f"{name}.dem", name),
+        )
+    con.execute("DELETE FROM hltv_demo WHERE id = 3")
+    con.commit()
+    con.close()
+    numbers = pl.DataFrame({"round_num": [1], "number": [1]})
+    monkeypatch.setattr(demo_parser, "round_numbers", lambda parsed: numbers)
+    merged = []
+    monkeypatch.setattr(tickdata, "merge", lambda parts: merged.append(len(parts)) or (b"m", []))
+    one = type("Parsed", (), {"n_rounds": 30})()
+    monkeypatch.setattr(tickdata, "parsed_map", lambda blob, label, version="": one)
+
+    totals = cstat_import.run(db, cstat, log=lambda _line: None)
+    assert totals == {"maps": 2, "parsed": 2, "current": 0, "missing": 0, "failed": 0}
+    assert merged == [2]
+    assert parsed_paths[-2:] == ["alpha-vs-bravo-m2-nuke-p1.dem", "alpha-vs-bravo-m2-nuke-p2.dem"]
+    parts = db.scalars(select(Demo).where(Demo.map == "nuke").order_by(Demo.part)).all()
+    assert [(d.part, d.map_number, d.is_processed) for d in parts] == [(1, 2, True), (2, 2, True)]
+
+    again = cstat_import.run(db, cstat, log=lambda _line: None)
+    assert again["current"] == 2 and again["parsed"] == 0

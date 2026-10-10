@@ -184,8 +184,10 @@ class Demo(TimestampMixin, Base):
 
     HLTV publishes a single archive per match holding one ``.dem`` per map
     played, so a match ends up with one **archive** row (``map`` blank) plus one
-    **map** row per unpacked ``.dem``. ``(match, map)`` is unique: that is what
-    stops a re-run from creating a second row for a file it already has.
+    **map** row per unpacked ``.dem``. A Match Map recorded as Demo parts has one
+    row per part (``part`` 1, 2, ...), parsed together as one Match Map whose
+    ``demo`` is part 1 (docs/adr/0009). ``(match, map, part)`` is unique: that is
+    what stops a re-run from creating a second row for a file it already has.
 
     ==========  =====================  ==============================
     row         ``is_downloaded``      ``is_processed``
@@ -200,7 +202,7 @@ class Demo(TimestampMixin, Base):
 
     __tablename__ = "demos"
     __table_args__ = (
-        UniqueConstraint("match_id", "map", name="uq_demos_match_map"),
+        UniqueConstraint("match_id", "map", "part", name="uq_demos_match_map_part"),
         CheckConstraint("NOT is_processed OR is_downloaded", name="processed_requires_download"),
     )
 
@@ -211,6 +213,12 @@ class Demo(TimestampMixin, Base):
     )
     map_number: Mapped[int | None] = mapped_column(
         PositiveSmallInt, doc="Map order within the match: the m1/m2 in the filename."
+    )
+    part: Mapped[int] = mapped_column(
+        PositiveSmallInt,
+        default=0,
+        server_default="0",
+        doc="Which Demo part: the p1/p2 in the filename; 0 for a map recorded whole.",
     )
 
     url: Mapped[str] = mapped_column(String(200), default="", doc="/download/demo/<id>")

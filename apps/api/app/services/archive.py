@@ -6,6 +6,10 @@ One RAR per match, holding one ``.dem`` per map played and named
     vitality-vs-inner-circle-m1-anubis.dem
     vitality-vs-inner-circle-m2-cache.dem
 
+A Bo1 has no ``-m<n>`` (``magic-vs-the-mongolz-mirage.dem``), and a map whose
+server was restarted mid-play comes as Demo parts, ``…-m2-inferno-p1.dem`` and
+``…-p2.dem`` (CONTEXT.md, docs/adr/0009).
+
 The archives are RAR5. libarchive reads that format as ``bsdtar``, which is
 macOS's stock ``tar`` but is a separate ``libarchive-tools`` package on
 Ubuntu (not installed by default), so
@@ -53,8 +57,12 @@ def _find_tar() -> str | None:
 
 TAR = _find_tar()
 
-# "...-m1-anubis.dem" -> map number 1, map "anubis".
-_DEM_NAME = re.compile(r"-m(\d+)-([A-Za-z0-9_]+)\.dem$", re.IGNORECASE)
+# "...-m1-anubis.dem" -> map number 1, map "anubis"; "...-m2-inferno-p1.dem" is
+# part 1 of map 2; "...-mirage.dem" (a Bo1) is just the map.
+_DEM_NAME = re.compile(r"-m(\d+)-([A-Za-z0-9_]+?)(?:-p(\d+))?\.dem$", re.IGNORECASE)
+_BO1_NAME = re.compile(r"-([A-Za-z0-9_]+?)(?:-p(\d+))?\.dem$", re.IGNORECASE)
+# demos.map is VARCHAR(40).
+MAP_NAME_MAX = 40
 
 
 class ArchiveError(RuntimeError):
@@ -68,27 +76,39 @@ class DemoEntry:
     name: str
     map: str
     map_number: int | None
+    # 1, 2, ... for a Demo part; 0 for a map recorded whole.
+    part: int = 0
 
 
 def parse_demo_name(name: str) -> DemoEntry:
-    """Pull the map and its order out of a ``.dem`` filename.
+    """Pull the map, its order and its part out of a ``.dem`` filename.
 
-    Falls back to the bare stem when HLTV names a file some other way, so an
-    unfamiliar layout still yields a usable row instead of an exception.
+    A Bo1's file has no map number. A name in some other layout falls back to
+    its last word, or its bare stem, cut to fit the column, so it still yields a
+    usable row instead of an exception.
     """
-    stem = Path(name).name
-    match = _DEM_NAME.search(stem)
+    base = Path(name).name
+    match = _DEM_NAME.search(base)
     if match:
         return DemoEntry(
-            name=name, map=_normalise_map(match.group(2)), map_number=int(match.group(1))
+            name=name,
+            map=_normalise_map(match.group(2)),
+            map_number=int(match.group(1)),
+            part=int(match.group(3) or 0),
         )
-    return DemoEntry(name=name, map=_normalise_map(Path(stem).stem), map_number=None)
+    match = _BO1_NAME.search(base)
+    if match:
+        return DemoEntry(
+            name=name, map=_normalise_map(match.group(1)), map_number=None,
+            part=int(match.group(2) or 0),
+        )  # fmt: skip
+    return DemoEntry(name=name, map=_normalise_map(Path(base).stem), map_number=None)
 
 
 def _normalise_map(value: str) -> str:
     """``"De_Anubis"`` and ``"anubis"`` are the same map; store one spelling."""
     value = value.strip().lower()
-    return value[3:] if value.startswith("de_") else value
+    return (value[3:] if value.startswith("de_") else value)[:MAP_NAME_MAX]
 
 
 def _run(args: list[str]) -> str:

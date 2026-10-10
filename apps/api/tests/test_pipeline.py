@@ -88,6 +88,7 @@ class FakeClient:
 class FakeParsed:
     map_name = "de_anubis"
     n_rounds = 21
+    awpy_version = "2.0.2"
 
 
 INGESTED: list = []
@@ -353,3 +354,89 @@ def test_stop_before_start(pipeline, db, monkeypatch):
     with pytest.raises(jobs.JobCancelled):
         pipeline()
     assert db.query(Team).count() == 0 and db.query(Match).count() == 0
+
+
+def _archive_of(*names):
+    """FakeBrowser.download, writing an archive with these map demos."""
+
+    def download(self, url, dest, on_progress=None):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        slug = dest.stem.split("-", 1)[1]
+        with tarfile.open(dest, "w") as archive:
+            for name in names:
+                data = b"not really a demo"
+                member = tarfile.TarInfo(f"{slug}-{name}")
+                member.size = len(data)
+                archive.addfile(member, io.BytesIO(data))
+        FakeBrowser.downloads.append(url)
+        return dest
+
+    return download
+
+
+@pytest.fixture
+def split_inferno(monkeypatch):
+    """Each archive: Anubis whole, then Inferno in two Demo parts, round 5 in neither."""
+    import polars as pl
+
+    monkeypatch.setattr(
+        FakeBrowser, "download", _archive_of("m1-de_anubis.dem", "m2-inferno-p1.dem",
+                                             "m2-inferno-p2.dem"),
+    )  # fmt: skip
+    numbers = pl.DataFrame({"round_num": [1], "number": [1]})
+    monkeypatch.setattr(demo_parser, "round_numbers", lambda parsed: numbers)
+    merged = []
+    monkeypatch.setattr(
+        tickdata, "merge", lambda parts: merged.append(len(parts)) or (b"merged", [5])
+    )
+    monkeypatch.setattr(tickdata, "parsed_map", lambda blob, label, version="": FakeParsed())
+    return merged
+
+
+def test_demo_parts_are_merged_into_one_match_map(pipeline, db, split_inferno):
+    job = pipeline()
+    assert job.status == "success"
+    assert split_inferno == [2] * 3
+    assert sorted(INGESTED) == sorted([("anubis", b"tick data"), ("inferno", b"merged")] * 3)
+    parts = db.query(Demo).filter_by(map="inferno").all()
+    assert sorted(d.part for d in parts) == [1, 1, 1, 2, 2, 2]
+    assert all(d.is_processed and d.map_number == 2 for d in parts)
+    assert job.result["totals"]["parsing"] == {"parsed": 6, "rounds": 126, "failed": 0}
+    assert any("Inferno (2 хэсэг)" in e.message for e in job.events)
+    assert any("аль ч хэсэгт алга: 5" in e.message for e in job.events)
+
+    # Part 2 never counts as a map of its own: nothing is left to do.
+    again = pipeline()
+    assert again.result["totals"]["fetching"]["skipped"] == 3
+    assert again.result["totals"]["reparsing"]["stuck"] == 0
+
+
+def test_parts_parsed_before_merging_are_downloaded_again(pipeline, db, split_inferno):
+    pipeline()
+    # What migration 0008 leaves of parts parsed as unrelated maps.
+    db.query(Demo).filter_by(map="inferno").update({"is_processed": False})
+    db.commit()
+    offline = pipeline(download=False)
+    assert offline.result["totals"]["reparsing"]["stuck"] == 3
+
+    again = pipeline()
+    assert again.result["totals"]["fetching"]["downloaded"] == 3
+    assert any("demo хэсгүүд нэгтгэгдээгүй" in e.message for e in again.events)
+    assert again.result["totals"]["reparsing"]["stuck"] == 0
+
+
+def test_a_match_whose_demos_wont_store_fails_alone(pipeline, db, monkeypatch):
+    from app.services import store
+
+    real = store.record_extraction
+
+    def record(db_, archive, extracted):
+        if archive.match.hltv_id == 102:
+            raise RuntimeError("(1406, \"Data too long for column 'map' at row 1\")")
+        return real(db_, archive, extracted)
+
+    monkeypatch.setattr(store, "record_extraction", record)
+    job = pipeline()
+    assert job.status == "success"
+    assert job.result["totals"]["unpacking"]["failed"] == 1
+    assert job.result["totals"]["parsing"]["parsed"] == 2

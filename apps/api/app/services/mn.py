@@ -238,6 +238,22 @@ def game_map(name: str) -> str:
     return MAPS.get(name, (name or "").replace("de_", "").title())
 
 
+def demo_maps(entries: list[tuple[str, int]]) -> str:
+    """An archive's maps, ``(map, part)`` each, a Map in Demo parts named once:
+    "Dust II, Nuke (2 хэсэг)"."""
+    order: list[str] = []
+    parts: dict[str, int] = {}
+    for name, part in entries:
+        if name not in parts:
+            order.append(name)
+            parts[name] = 0
+        parts[name] += 1 if part else 0
+    return ", ".join(
+        f"{game_map(name)} ({parts[name]} хэсэг)" if parts[name] else game_map(name)
+        for name in order
+    )
+
+
 def role(key: str) -> str:
     return ROLES.get(key, key or "тодорхойгүй")
 

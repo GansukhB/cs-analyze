@@ -208,6 +208,47 @@ def _grenade_detonation(dem, event_name: str) -> pl.DataFrame:
     return frame.filter(pl.col("round_num").is_not_null())
 
 
+def _optional(dem, name: str) -> pl.DataFrame:
+    """One of awpy's lazy event tables, empty when the demo lacks its events.
+
+    awpy raises a ``KeyError`` for a table whose events never occurred: a short
+    Demo part where nobody threw a molotov has no ``inferno_startburn`` at all.
+    The empty frame is left on the Demo so ``compress()`` doesn't ask again.
+    """
+    try:
+        return getattr(dem, name)
+    except KeyError as exc:
+        logger.warning("%s unavailable (%s) -- writing empty", name, exc)
+        setattr(dem, name, pl.DataFrame())
+        return pl.DataFrame()
+
+
+def round_numbers(parsed: ParsedMap) -> pl.DataFrame:
+    """``(round_num, number)``: each round as the game counted it.
+
+    A Demo part numbers its rounds from 1 although its server resumed from a
+    round backup (CONTEXT.md, docs/adr/0009). The game's own
+    ``total_rounds_played`` as each round ends is the round's real number (awpy's
+    ``end`` is that event's tick); a round whose end the events don't show
+    follows the one before it.
+    """
+    totals: dict[int, int] = {}
+    try:
+        ends = parsed._demo.parser.parse_event("round_end", other=["total_rounds_played"])
+        for tick, total in zip(ends["tick"], ends["total_rounds_played"], strict=True):
+            if total == total and total:  # NaN on the pseudo-event at the start
+                totals[int(tick)] = int(total)
+    except Exception as exc:  # demoparser raises bare exceptions on odd demos
+        logger.warning("%s: round totals unavailable (%s)", parsed.path.name, exc)
+    rows, last = [], 0
+    for row in parsed.rounds.sort("round_num").iter_rows(named=True):
+        end = row.get("end")
+        number = totals.get(int(end)) if end is not None else None
+        last = number or last + 1
+        rows.append((int(row["round_num"]), last))
+    return pl.DataFrame(rows, schema={"round_num": pl.Int64, "number": pl.Int64}, orient="row")
+
+
 def _economy(dem) -> pl.DataFrame:
     """One row per player per round: ``ECONOMY_PROPS`` as the round went live.
 
@@ -470,9 +511,9 @@ def parse_map(path: Path) -> ParsedMap:
         ticks=ticks,
         kills=dem.kills,
         damages=dem.damages,
-        bomb=dem.bomb,
-        smokes=dem.smokes,
-        infernos=dem.infernos,
+        bomb=_optional(dem, "bomb"),
+        smokes=_optional(dem, "smokes"),
+        infernos=_optional(dem, "infernos"),
         flashes=_grenade_detonation(dem, "flashbang_detonate"),
         he_grenades=_grenade_detonation(dem, "hegrenade_detonate"),
         economy=_economy(dem),
