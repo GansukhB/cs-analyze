@@ -7,6 +7,10 @@
 
 Дүрэм: энэ модуль ORM-д хандахгүй, тоо бодохгүй. Зөвхөн хэлбэржүүлнэ.
 
+Flash-д өртсөн тоглогч «цайрсан», бусдыг өртүүлсэн нь «цайруулсан»; «сохор»,
+«сохорсон», «сохорлосон» гэж бичихгүй. Багийнхаа тоглогчийг «багийн гишүүн» гэнэ,
+«нөхөр» гэж бичихгүй.
+
 cstat-ийн ``hltv/services/mn.py``-аас бүтнээр нь шилжүүлсэн.
 """
 
@@ -1365,7 +1369,7 @@ _FOCUS = {
     "negative_kd": "Дуэл сонголтоо болгоомжтой болгож, дэмжлэгтэй орох цэгээс тоглох хэрэгтэй.",
     "loses_openings": "Ганцаараа эхний холбоо руу орохоос зайлсхий — мэдээлэл эсвэл "
     "гранат бэлдээд ор.",
-    "untraded": "Нөхдөөсөө хол биш, trade хийж чадах зайд байрлаж тоглох хэрэгтэй.",
+    "untraded": "Багийн гишүүдээсээ хол биш, trade хийж чадах зайд байрлаж тоглох хэрэгтэй.",
     "wasted_molotov": "Молотовоо мэдэгдэж буй байрлал эсвэл түгээмэл зам руу шид, "
     "хоосон газар бүү шид.",
 }
@@ -1820,7 +1824,7 @@ REVIEW_CODE = {
     "kitless": "Kit-гүй retake",
     "no_trade": "Trade хийгээгүй",
     "unfinished": "Дуусгаагүй дайсан",
-    "blind_unpunished": "Сохор дайсныг ашиглаагүй",
+    "blind_unpunished": "Цайрсан дайсныг ашиглаагүй",
     "advantage_lost": "Давуу байдлаа алдсан",
     "defuse_chance": "Defuse хийх боломж",
     "saw_no_shot": "Харсан ч буудаагүй",
@@ -1828,7 +1832,7 @@ REVIEW_CODE = {
     "flash_kill": "Flash → kill",
     "nade_damage_kill": "Граната → kill",
     "fire_delay": "Molotov саатуулсан",
-    "team_flash": "Багаа сохорлосон",
+    "team_flash": "Багаа цайруулсан",
     "empty_utility": "Хоосон flash",
 }
 
@@ -1972,9 +1976,9 @@ def review_finding(finding: dict, who) -> dict:
     elif code == "untraded":
         title = f"{main} — trade-гүй ганцаардал{_at(f.get('spot'))}"
         near = (
-            f"хамгийн ойр нөхөр нь {_metres(f['nearest'])} зайтай"
+            f"хамгийн ойр багийн гишүүн нь {_metres(f['nearest'])} зайтай"
             if f.get("nearest")
-            else "ойр нөхөр байгаагүй"
+            else "ойр багийн гишүүн байгаагүй"
         )
         text = (
             f"{main} {alive[0]}v{alive[1]} үед ганцаараа {who(f.get('killer'))}-д унав; {near} "
@@ -1990,8 +1994,8 @@ def review_finding(finding: dict, who) -> dict:
         victim = who(f.get("victim"))
         title = f"{main}-ийн flash {victim}-г үхүүлэв"
         text = (
-            f"{main}-ийн шидсэн flash багийн хүн {victim}-г {_secs(f.get('seconds', 0))} сохорч, "
-            f"тэр сохор байхдаа {who(f.get('killer'))}-д унав. Swing {swing}."
+            f"{main}-ийн шидсэн flash багийн хүн {victim}-г {_secs(f.get('seconds', 0))} цайруулж, "
+            f"тэр цайрсан байхдаа {who(f.get('killer'))}-д унав. Swing {swing}."
         )
     elif code == "no_gun_in_hand":
         thing = "хутга" if f.get("held_kind") == "knife" else _NADES.get(f.get("held"), "граната")
@@ -2092,10 +2096,10 @@ def review_finding(finding: dict, who) -> dict:
         enemies = ", ".join(
             f"{who(e['sid'])} ({_secs(e['seconds'])})" for e in f.get("enemies") or []
         )
-        title = f"{main} — сохор дайсныг ашиглаагүй"
+        title = f"{main} — цайрсан дайсныг ашиглаагүй"
         saw = ", түүнийг харсан" if f.get("saw") else ""
         text = (
-            f"{who(f.get('thrower'))}-ийн flash {enemies}-г{_at(f.get('spot'))} сохорсон; "
+            f"{who(f.get('thrower'))}-ийн flash {enemies}-г{_at(f.get('spot'))} цайруулсан; "
             f"{main} {_metres(f.get('distance'))} зайд байсан{saw} ч хэн нь ч алсангүй."
         )
     elif code == "advantage_lost":
@@ -2123,7 +2127,7 @@ def review_finding(finding: dict, who) -> dict:
         then = (
             "түүнийг алав"
             if f.get("self_killed")
-            else f"нөхөр {who(f.get('victim'))}-г алав"
+            else f"багийн гишүүн {who(f.get('victim'))}-г алав"
         )
         title = f"{main} — {enemy}-г харсан ч буудаагүй"
         text = (
@@ -2143,11 +2147,11 @@ def review_finding(finding: dict, who) -> dict:
         killer, victim = who(f.get("killer")), who(f.get("victim"))
         if f.get("own"):
             title = f"{main} — өөрийн flash-аар kill"
-            text = f"{main} flash шидээд {_secs(f.get('seconds', 0))} сохорсон {victim}-г өөрөө алав"
+            text = f"{main} flash шидээд {_secs(f.get('seconds', 0))} цайрсан {victim}-г өөрөө алав"
         else:
             title = f"{main}-ийн flash → {killer}-ийн kill"
             text = (
-                f"{main}-ийн flash {victim}-г {_secs(f.get('seconds', 0))} сохорч, {killer} алав"
+                f"{main}-ийн flash {victim}-г {_secs(f.get('seconds', 0))} цайруулж, {killer} алав"
             )
         text += f"{_at(f.get('spot'))}; kill-ийн Swing {review_swing(f.get('kill_swing'))}."
     elif code == "nade_damage_kill":
@@ -2175,15 +2179,15 @@ def review_finding(finding: dict, who) -> dict:
         blinded = ", ".join(
             f"{who(b['sid'])} ({_secs(b['seconds'])})" for b in f.get("blinded") or []
         )
-        title = f"{main} — багийнхаа хүмүүсийг сохорлов"
-        text = f"{main}-ийн flash{_at(f.get('spot'))} {blinded}-г сохорлов."
+        title = f"{main} — багийнхаа хүмүүсийг цайруулав"
+        text = f"{main}-ийн flash{_at(f.get('spot'))} {blinded}-г цайруулав."
         if f.get("died"):
-            text += f" {plural_players([who(s) for s in f['died']])} сохор байхдаа унав."
+            text += f" {plural_players([who(s) for s in f['died']])} цайрсан байхдаа унав."
     elif code == "empty_utility":
         title = f"{main} — хоосон flash"
         text = (
             f"Энэ мапад шидсэн {f.get('flashes')} flash-ийн {f.get('empty_flashes')} нь нэг ч "
-            "дайсныг 1 секундээс дээш сохорсонгүй."
+            "дайсныг 1 секундээс дээш цайруулсангүй."
         )
     return {"title": title, "text": text}
 
@@ -2222,7 +2226,7 @@ SUMMARY_LABEL = {
 SUMMARY_ADVICE = {
     "pistol": "Pistol раундын buy, эхний 20 секундын төлөвлөгөөгөө дахин бэлд.",
     "opening": "Эхний холбоонд ганцаараа бүү ор: flash-тай, хосоороо, мэдээлэлтэй ор.",
-    "trade": "Хосоороо хөдөл: нөхрөө trade хийж чадах зайд байрлаж, тэр унахад шууд "
+    "trade": "Хосоороо хөдөл: багийн гишүүнээ trade хийж чадах зайд байрлаж, тэр унахад шууд "
     "сольж ор.",
     "full_v_full": "Full buy раундын default, execute-ээ шинэчил: utility-гаа нэгтгэж нэг цэг рүү "
     "хамт ор.",
@@ -2232,7 +2236,7 @@ SUMMARY_ADVICE = {
     "саатуулахад хадгал.",
     "loss_streak": "Дараалан алдаж эхлэхэд timeout авч, эдийн засаг, тактикаа шинэчил.",
     "died_in_advantage": "Давуу байдалтай үед яарч бүү тулалд: хосоороо, utility-тай хаалт хий.",
-    "team_flashed_death": "Flash шидэхээсээ өмнө нөхдөдөө дуудаж хэл; pop flash-ын замаа "
+    "team_flashed_death": "Flash шидэхээсээ өмнө багийн гишүүддээ дуудаж хэл; pop flash-ын замаа "
     "сур.",
     "lost_weapon_save": "Раунд алдагдсан үед save хийх шийдвэрээ эрт гаргаж, буугаа хадгал.",
     "moving_shots": "Counter-strafe хий: буудахын өмнө бүрэн зогс.",
@@ -2244,15 +2248,15 @@ SUMMARY_ADVICE = {
     "no_gun_in_hand": "Дайсантай таарч болох газар буугаа гартаа барьж яв.",
     "crosshair": "Crosshair-ээ дайсан гарч ирэх өнцөг, толгойн өндөрт урьдчилан байрлуул.",
     "unscoped_awp": "AWP-аар peek хийхдээ scope-оо урьдчилан нээ.",
-    "unfinished": "Шархдуулсан дайсныг дуусга: шууд repeek хий эсвэл нөхдөдөө HP-г нь хэл.",
+    "unfinished": "Шархдуулсан дайсныг дуусга: шууд repeek хий эсвэл багийн гишүүддээ HP-г нь хэл.",
     "advantage_lost": "Давуу байдлаа хадгал: хосоороо, цагтай тоглож өрсөлдөгчийг өөр дээрээ "
     "ирүүл.",
-    "blind_unpunished": "Дайсан сохорсон агшинд шууд peek хийж ашигла.",
-    "defuse_chance": "Defuse хийх цонхыг ашигла: smoke-той, нөхдийн хамгаалалттай суу.",
-    "saw_no_shot": "Дайсныг харангуут бууд, эсвэл байрлалыг нь нөхдөдөө хэл.",
+    "blind_unpunished": "Дайсан цайрсан агшинд шууд peek хийж ашигла.",
+    "defuse_chance": "Defuse хийх цонхыг ашигла: smoke-той, багийн гишүүдийн хамгаалалттай суу.",
+    "saw_no_shot": "Дайсныг харангуут бууд, эсвэл байрлалыг нь багийн гишүүддээ хэл.",
     "saw_first_lost": "Түрүүлж харсан бол түрүүлж бууд: урьдчилсан байрлал, reaction-оо "
     "дасгалжуул.",
-    "team_flash": "Flash-аа нөхдийнхөө харах чиглэлээс гадуур шид, шидэхээсээ өмнө дууд.",
+    "team_flash": "Flash-аа багийн гишүүдийнхээ харах чиглэлээс гадуур шид, шидэхээсээ өмнө дууд.",
     "empty_utility": "Flash, HE-гээ мэдээлэлтэй цэг рүү шид; хоосон шидэлт мөнгө, цаг үрнэ.",
 }
 
@@ -2431,7 +2435,7 @@ ADVICE_TEXT = {
     ("opening", "my_weak"): ("Эхний тулаанд бид унадаг", ""),
     ("trade", "their_weak"): (
         "Тэднийг тусгаарлаж ал",
-        "Тэд нөхрөө trade хийдэггүй: ганцаардсан тоглогч руу нь шууд ор, нэгийг алсны "
+        "Тэд багийн гишүүнээ trade хийдэггүй: ганцаардсан тоглогч руу нь шууд ор, нэгийг алсны "
         "дараа дахин нэг-нэгээр нь тулал.",
     ),
     ("trade", "my_strong"): (
@@ -2579,7 +2583,7 @@ ADVICE_TEXT = {
     ),
     ("clutch", "my_strong"): (
         "Clutch-д итгэ",
-        "Манай clutch хүчтэй: сүүлчийн хүн цагтай бол яаралгүй, нөхдүүд мэдээллээр дэмжинэ.",
+        "Манай clutch хүчтэй: сүүлчийн хүн цагтай бол яаралгүй, багийн гишүүд мэдээллээр дэмжинэ.",
     ),
     ("clutch", "their_strong"): (
         "Сүүлчийн хүнийг хамтдаа ал",
@@ -2641,12 +2645,12 @@ ADVICE_TEXT = {
     ),
     ("team_flashed_death", "their_weak"): (
         "Тэдний flash-ын дараа тулал",
-        "Тэд өөрсдийн flash-д сохорч үхдэг: тэдний flash-ын дараах агшинд peek хий — эхэлж "
+        "Тэд өөрсдийн flash-д цайрч үхдэг: тэдний flash-ын дараах агшинд peek хий — эхэлж "
         "орсон нь харахгүй байж магадгүй.",
     ),
     ("team_flash", "their_weak"): (
         "Тэдний execute-ийг хүлээ",
-        "Тэдний flash өөрсдийгөө сохолдог: execute-ийн эхэнд хүлээж, flash нь буусны дараа "
+        "Тэдний flash өөрсдийгөө цайруулдаг: execute-ийн эхэнд хүлээж, flash нь буусны дараа "
         "тулал.",
     ),
     ("lost_weapon_save", "their_weak"): (
@@ -2666,11 +2670,11 @@ ADVICE_TEXT = {
     ("unfinished", "their_weak"): (
         "Шархадсан ч дахин тулал",
         "Тэд шархдуулсан дайснаа дуусгадаггүй: HP цөөн ч байрлалаа сольж дахин тулал, "
-        "мэдээллээ нөхөддөө өг.",
+        "мэдээллээ багийн гишүүддээ өг.",
     ),
     ("blind_unpunished", "their_weak"): (
         "Тэдний flash-ыг бүү хэт хүндэл",
-        "Тэдний flash-ын араас peek ирдэггүй: сохорсон бол ухарч, сэргээд байрлалаа эргүүлэн барь.",
+        "Тэдний flash-ын араас peek ирдэггүй: цайрсан бол ухарч, сэргээд байрлалаа эргүүлэн барь.",
     ),
     ("no_gun_in_hand", "their_weak"): (
         "Эргэлтийн замд нь тос",
@@ -2737,7 +2741,7 @@ ADVICE_PAIR = {
     ),
     ("trade", "trade", "caution"): (
         "Тэд trade хийдэг, бид хийдэггүй",
-        "Тусдаа тоглох бүрт хүн алдана: нөхрөө trade хийх зайд байрлаж, тэр унахад шууд "
+        "Тусдаа тоглох бүрт хүн алдана: багийн гишүүнээ trade хийх зайд байрлаж, тэр унахад шууд "
         "сольж ор.",
     ),
     ("entry", "trade", "lever"): (
@@ -2826,7 +2830,7 @@ ADVICE_PAIR = {
     ),
     ("post_plant", "defuse_chance", "caution"): (
         "Defuse-ийн цонхыг ашигла",
-        "Тэдний post-plant хүчтэй, бид defuse хийх боломжоо алддаг: smoke-той, нөхдийн "
+        "Тэдний post-plant хүчтэй, бид defuse хийх боломжоо алддаг: smoke-той, багийн гишүүдийн "
         "хамгаалалттай defuse-д суу.",
     ),
     ("fire_delay", "time_out", "lever"): (

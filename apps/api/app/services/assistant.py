@@ -138,6 +138,10 @@ transliterated version of the same word reads as wrong. Never translate or \
 transliterate: {_glossary_line()}. Everything else in the sentence -- grammar, \
 particles, the words around them -- follows the reply language as normal; \
 only these terms themselves stay untouched.
+- In Mongolian, a player blinded by a flash is "цайрсан" and one who blinded \
+someone "цайруулсан" (and their other forms: цайрч, цайруулж, цайруулав). \
+Never write "сохор", "сохорсон" or "сохорлосон". A teammate is "багийн \
+гишүүн" (plural "багийн гишүүд"), never "нөхөр" or "нөхөд".
 - Keep the whole reply to at most about five paragraphs unless the user \
 explicitly asks for more detail.
 - When you need a tool, call it directly with no preamble -- don't write "let \

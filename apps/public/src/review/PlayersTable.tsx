@@ -147,10 +147,10 @@ function Row(props: {
 
 const UTILITY_LABEL: [string, string, (v: number) => string][] = [
   ['flashes', 'flash шидсэн', (v) => String(v)],
-  ['enemies_blinded', 'дайсан сохорлосон (≥1с)', (v) => String(v)],
-  ['blind_seconds', 'дайсны сохор секунд', (v) => v.toFixed(1)],
+  ['enemies_blinded', 'дайсан цайруулсан (≥1с)', (v) => String(v)],
+  ['blind_seconds', 'дайсны цайрсан секунд', (v) => v.toFixed(1)],
   ['flash_kills', 'flash → kill', (v) => String(v)],
-  ['team_flashes', 'багаа сохорлосон', (v) => String(v)],
+  ['team_flashes', 'багаа цайруулсан', (v) => String(v)],
   ['he_damage', 'HE damage', (v) => String(Math.round(v))],
   ['fire_damage', 'молотовын damage', (v) => String(Math.round(v))],
 ]

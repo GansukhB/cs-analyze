@@ -11,7 +11,7 @@
 | Дата | Хаана хадгалагддаг | Юунд ашигладаг |
 |---|---|---|
 | Раунд (эхлэл, freeze end, төгсгөл, хожсон тал, шалтгаан, bomb тавьсан цэг ба tick) | `rounds` | Бүх тайлан, Playbook |
-| Kill (буу, headshot, зай, хананы цаанаас, smoke дундуур, сохорсон, байрлал, callout) | `kill_events` | Дуэль, нээлт, trade, heatmap |
+| Kill (буу, headshot, зай, хананы цаанаас, smoke дундуур, цайрсан, байрлал, callout) | `kill_events` | Дуэль, нээлт, trade, heatmap |
 | Гэмтэл (HP/armor, hitgroup, callout) | `damage_events` | ADR, тоглогчийн задаргаа |
 | Bomb (plant, defuse, detonate, pickup, drop) | `bomb_events` | Цэгийн байрлал, retake |
 | Smoke, molotov (хугацаа), flash, HE (дэлбэрэлт), шидсэн ба буусан байрлал, **буусан callout** | `grenade_throws` | Utility тайлан, Set play |
