@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+import threading
 import time
 import traceback
 from collections import deque
@@ -56,7 +57,17 @@ from app.models import (
     Team,
     TickDataset,
 )
-from app.services import analysis_store, dbctx, jobs, mn, review, review_pool, store, tickdata
+from app.services import (
+    analysis_store,
+    dbctx,
+    gameplan,
+    jobs,
+    mn,
+    review,
+    review_pool,
+    store,
+    tickdata,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +152,8 @@ def _recover(**_) -> None:
     with SessionLocal() as db:
         jobs.recover(db)
     review_pool.request_refresh(force=True)
+    # Beside the queue, not on it: a Scout re-sent above would hold it for an hour.
+    threading.Thread(target=gameplan.warm_pool, name="warm-pool", daemon=True).start()
 
 
 @celery_app.task(name="cs_analyze.refresh_reviews")
@@ -612,6 +625,7 @@ def _process_match(
         for demo in analysis_store.pending_map_demos(db, match_ids=[match.id]):
             jobs.check_cancelled(job_db, job)
             _parse_one(job_db, db, job, demo, scratch, totals["parsing"], step)
+        _warm_pool(job_db, job)
         jobs.finish_stage(job_db, job, STAGE.PARSING, "", totals["parsing"])
     except jobs.JobCancelled:
         raise
@@ -1163,8 +1177,17 @@ def _reparse(job_db: Session, db: Session, job: AnalysisJob, match_ids: list[int
         jobs.check_cancelled(job_db, job)
         _parse_one(job_db, db, job, demo, None, totals, steps.next())
         jobs.set_stage(job_db, job, STAGE.PARSING, _at(STAGE.PARSING, steps.done, steps.total))
+    if totals["parsed"]:
+        _warm_pool(job_db, job)
     jobs.finish_stage(job_db, job, STAGE.PARSING, "", totals)
     return totals
+
+
+def _warm_pool(job_db: Session, job: AnalysisJob) -> None:
+    """Measure the Pool on what was just parsed, so a Game Plan opened meanwhile
+    finds it ready instead of computing it inside the request (`pool_cache`)."""
+    jobs.activity(job_db, job, key="pool", stage=STAGE.PARSING, text=mn.POOL_WARMING)
+    gameplan.warm_pool()
 
 
 def _why_parse(demo: Demo) -> str:

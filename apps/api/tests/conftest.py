@@ -12,7 +12,7 @@ from app.db import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import User  # noqa: E402
 from app.security import create_access_token, hash_password  # noqa: E402
-from app.services import live, review_pool  # noqa: E402
+from app.services import live, pool_cache, review_pool  # noqa: E402
 
 
 @pytest.fixture
@@ -51,6 +51,33 @@ def published(monkeypatch) -> list:
         lambda public_id, kind, payload: sent.append((str(public_id), kind, payload)),
     )
     return sent
+
+
+class FakeRedis:
+    """What `pool_cache` asks of Redis: get, set (nx, ex) and delete."""
+
+    def __init__(self):
+        self.store: dict = {}
+
+    def get(self, key):
+        return self.store.get(key)
+
+    def set(self, key, value, nx=False, ex=None):
+        if nx and key in self.store:
+            return None
+        self.store[key] = value
+        return True
+
+    def delete(self, key):
+        self.store.pop(key, None)
+
+
+@pytest.fixture(autouse=True)
+def pool_redis(monkeypatch) -> FakeRedis:
+    """The Pool's Redis as a dict, empty for every test."""
+    fake = FakeRedis()
+    monkeypatch.setattr(pool_cache, "get_cache", lambda: fake)
+    return fake
 
 
 @pytest.fixture(autouse=True)

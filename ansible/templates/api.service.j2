@@ -14,10 +14,12 @@ WorkingDirectory={{ api_path }}
 Environment=PYTHONUNBUFFERED=1
 # Loopback only; nginx proxies {{ api_domain }} here. Several workers are fine:
 # live job updates fan out through Redis pub/sub, not process memory.
+# A worker busy with heavy sync requests can miss the supervisor's 5 s ping, and
+# was killed with every request it held (502s); give it a minute.
 ExecStart={{ api_path }}/.venv/bin/uvicorn app.main:app \
     --host 127.0.0.1 --port {{ api_port }} --workers {{ api_workers }} \
     --proxy-headers --forwarded-allow-ips 127.0.0.1 \
-    --timeout-graceful-shutdown 20
+    --timeout-graceful-shutdown 20 --timeout-worker-healthcheck 60
 Restart=always
 RestartSec=5
 KillSignal=SIGTERM

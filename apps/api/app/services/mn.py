@@ -941,6 +941,9 @@ INGEST_STEPS = {
     "player_match": "матчийн дүнг дахин бодож байна",
 }
 
+# Shown while the worker measures the Pool again after a Match (pool_cache).
+POOL_WARMING = "Game Plan-д зориулж Pool-ийн үзүүлэлтийг шинэчилж байна"
+
 # ``build_report``-ийн секцүүд.
 REPORT_STEPS = {
     "sample": "түүврийг цуглуулж байна",

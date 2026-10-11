@@ -41,7 +41,7 @@ from app.models import (
     Round,
     Team,
 )
-from app.services import lineup, mapstrategy, playerplan, roles, scouting
+from app.services import dbctx, lineup, mapstrategy, playerplan, pool_cache, roles, scouting
 from app.services.dbctx import count_if, db, memo, total
 
 logger = logging.getLogger(__name__)
@@ -183,11 +183,17 @@ def _teams_with_parsed_maps() -> list[Team]:
     return list(db().scalars(select(Team).where(Team.id.in_(played)).order_by(Team.name)))
 
 
+# Bump when a metric or the pool's arithmetic changes: the whole pool is kept in
+# Redis under this and the parse stamp (`pool_cache`).
+METRIC_POOL_SCHEMA = 1
+
+
 def metric_pool(exclude: Team | None = None) -> dict[str, dict]:
     """Mean and spread of every metric across all teams with enough rounds.
 
     The yardstick "strength" is measured against; without it the page compares
     the two teams to each other, which on a 6-1 fixture says only "they are better".
+    The whole pool is computed once per parse and shared through Redis.
     """
 
     def compute():
@@ -215,7 +221,39 @@ def metric_pool(exclude: Team | None = None) -> dict[str, dict]:
             out[key] = {"mean": round(mean, 4), "sd": round(max(sd, floor), 5), "n": len(vals)}
         return out
 
-    return memo(("metric_pool", exclude.id if exclude else None), compute)
+    if exclude is not None:
+        return memo(("metric_pool", exclude.id), compute)
+    key = f"pool:metrics:v{METRIC_POOL_SCHEMA}:{pool_cache.parse_stamp()}"
+    return memo(("metric_pool", None), lambda: pool_cache.remember(key, compute))
+
+
+def parsed_maps() -> list[MatchMap]:
+    """Every parsed Match Map: what the Pool's role signals are measured on."""
+    return list(
+        db()
+        .scalars(
+            select(MatchMap)
+            .options(joinedload(MatchMap.match), joinedload(MatchMap.game_map))
+            .where(MatchMap.parsed_at.is_not(None))
+        )
+        .unique()
+    )
+
+
+def warm_pool() -> None:
+    """Compute the Pool for the current parse unless some process already has.
+
+    The worker calls it after each Match a Scout parses, after re-parsing and when
+    it starts, so a Game Plan opened later finds the Pool in Redis. Never raises.
+    """
+    from app.db import SessionLocal
+
+    try:
+        with SessionLocal() as session, dbctx.using(session):
+            roles.pool_signals(parsed_maps())
+            metric_pool()
+    except Exception:
+        logger.exception("could not warm the Pool")
 
 
 def profile_team(
@@ -659,16 +697,7 @@ class Report(Mapping):
         )
 
     def _all_parsed(self):
-        return self._part(
-            "all_parsed",
-            lambda: list(
-                db().scalars(
-                    select(MatchMap)
-                    .options(joinedload(MatchMap.match), joinedload(MatchMap.game_map))
-                    .where(MatchMap.parsed_at.is_not(None))
-                )
-            ),
-        )
+        return self._part("all_parsed", parsed_maps)
 
     def _signals(self):
         """Role signals for every parsed team, built once and shared by baseline and cohorts."""

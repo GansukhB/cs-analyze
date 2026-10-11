@@ -15,7 +15,16 @@ from collections.abc import Mapping
 from sqlalchemy import func, select
 
 from app.models import MatchMap, Round, Team
-from app.services import charts, decision, gameplan, levers, mn, playbook_view, review_pool
+from app.services import (
+    charts,
+    decision,
+    gameplan,
+    levers,
+    mn,
+    playbook_view,
+    pool_cache,
+    review_pool,
+)
 from app.services.dbctx import db
 
 DEFAULT_TAB = "decision"
@@ -85,19 +94,9 @@ def stamp() -> str:
     Global rather than per fixture, because the metric pool and the role
     baseline are measured against every parsed team.
     """
-    count, latest = (
-        db()
-        .execute(
-            select(func.count(MatchMap.id), func.max(MatchMap.parsed_at)).where(
-                MatchMap.parsed_at.is_not(None)
-            )
-        )
-        .one()
-    )
     # The Playbook's Levers and Cautions read the Reviews, which the worker
     # rebuilds after a parse (docs/adr/0008).
-    reviews = review_pool.stamp()
-    return f"{count}-{int(latest.timestamp()) if latest else 0}-{reviews}"
+    return f"{pool_cache.parse_stamp()}-{review_pool.stamp()}"
 
 
 # --------------------------------------------------------------- helpers ---

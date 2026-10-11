@@ -2,9 +2,12 @@ import datetime as dt
 
 import pytest
 from sqlalchemy import delete, select
+from sqlalchemy.orm import sessionmaker
 
+import app.db
 from app.config import get_settings
 from app.models import (
+    DamageEvent,
     GameMap,
     KillEvent,
     MapRoster,
@@ -20,7 +23,7 @@ from app.models import (
 )
 from app.models.base import utcnow
 from app.routers import gameplan as gameplan_router
-from app.services import dbctx, gameplan, heatmap_groups, lineup, mapstrategy, playbook
+from app.services import dbctx, gameplan, heatmap_groups, lineup, mapstrategy, playbook, roles
 
 TABS = ["decision", "verdict", "metrics", "h2h", "maps", "players", "duels", "roles", "edge",
         "heatmaps", "movement", "todo"]  # fmt: skip
@@ -312,3 +315,58 @@ def test_movement_for_one_player(client, auth, league, tmp_path):
     # No Tick Data in this fixture, so no walked tracks: an empty list.
     tracks = client.get(url.replace("/movement?", "/tracks?"), headers=auth).json()
     assert tracks == {"tracks": []}
+
+
+def test_the_pool_read_in_one_pass_matches_team_by_team(db, league):
+    # Damage on every kill's tick, and a hit back before it, so first contact
+    # reads both feeds and ties a kill.
+    for kill in db.scalars(select(KillEvent)).all():
+        db.add_all([
+            DamageEvent(round_id=kill.round_id, tick=kill.tick, attacker_id=kill.attacker_id,
+                        victim_id=kill.victim_id, attacker_side=kill.attacker_side,
+                        victim_side=kill.victim_side, weapon="ak47", damage=100),
+            DamageEvent(round_id=kill.round_id, tick=kill.tick - 300, attacker_id=kill.victim_id,
+                        victim_id=kill.attacker_id, attacker_side=kill.victim_side,
+                        victim_side=kill.attacker_side, weapon="glock", damage=20),
+        ])  # fmt: skip
+    db.commit()
+    with dbctx.using(db):
+        maps = gameplan.parsed_maps()
+        by_team: dict = {}
+        for m in maps:
+            for tid in (m.team1_id, m.team2_id):
+                by_team.setdefault(tid, []).append(m)
+        teams = {t.id: t for t in (league["a"], league["b"], league["c"])}
+        asked_one_by_one = [
+            [tid, player]
+            for tid, team_maps in by_team.items()
+            for player in roles.role_signals(teams[tid], team_maps).values()
+        ]
+        assert roles._pool_rows(maps) == asked_one_by_one
+        assert any(p["sides"]["ct"]["contact_rounds"] for _tid, p in asked_one_by_one)
+        pool = roles.pool_signals(maps)
+    assert [[team.id, player] for team, player in pool] == asked_one_by_one
+
+
+def test_a_parse_moves_the_pool(db, league):
+    with dbctx.using(db):
+        maps = gameplan.parsed_maps()
+        before = roles._pool_key(maps)
+        maps[0].parsed_at = maps[0].parsed_at + dt.timedelta(seconds=1)
+        assert roles._pool_key(maps) != before
+
+
+def test_a_warmed_pool_is_read_not_computed(client, auth, league, engine, monkeypatch, pool_redis):
+    monkeypatch.setattr(app.db, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    gameplan.warm_pool()
+    assert {key.split(":")[1] for key in pool_redis.store} == {"roles", "metrics"}
+
+    def recomputed(*_args):
+        raise AssertionError("the Pool was computed again")
+
+    monkeypatch.setattr(roles, "_pool_rows", recomputed)
+    monkeypatch.setattr(gameplan, "_teams_with_parsed_maps", recomputed)
+    a, b = league["a"].id, league["b"].id
+    for tab in ("decision", "verdict", "roles", "players", "todo"):
+        res = client.get(f"/gameplan/{a}/vs/{b}/s/{tab}", headers=auth)
+        assert res.status_code == 200, (tab, res.text)

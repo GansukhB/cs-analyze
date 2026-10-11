@@ -17,6 +17,7 @@ points, which no page here uses yet).
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import statistics
 from collections import defaultdict
@@ -41,7 +42,8 @@ from app.models import (
     Team,
 )
 from app.services import lineup as lineups
-from app.services.dbctx import count_if, db, total
+from app.services import pool_cache
+from app.services.dbctx import count_if, db, memo, total
 
 logger = logging.getLogger(__name__)
 
@@ -165,12 +167,15 @@ EXPECTED_COVERAGE = {
 
 
 # ---------------------------------------------------------------- signals ---
-def role_signals(team: Team, match_maps: Iterable[MatchMap]) -> dict[int, dict]:
+def role_signals(
+    team: Team, match_maps: Iterable[MatchMap], feed: _Feed | None = None
+) -> dict[int, dict]:
     """Every measurable role signal, per player, split by side.
 
     Returns ``{player_id: {"name", "sides": {"ct": {...}, "t": {...}}, "overall"}}``.
     The per-round work that cannot be a GROUP BY (first contact, trades) is done
-    in Python over a few thousand rows.
+    in Python over a few thousand rows, read from ``feed`` when the caller has
+    already read them for many teams at once.
     """
     match_maps = list(match_maps)
     map_ids = [m.id for m in match_maps]
@@ -320,9 +325,9 @@ def role_signals(team: Team, match_maps: Iterable[MatchMap]) -> dict[int, dict]:
         places[pid][side][map_id].append((place, int(n or 0)))
 
     # -- timing and trades: needs the raw feed, one pass each
-    contact = _first_contact(map_ids, pids, tickrates)
-    trades = _trade_share(map_ids, pids, tickrates)
-    lateness = _kill_timing(map_ids, pids, tickrates)
+    contact = _first_contact(map_ids, pids, tickrates, feed)
+    trades = _trade_share(map_ids, pids, tickrates, feed)
+    lateness = _kill_timing(map_ids, pids, tickrates, feed)
 
     out: dict[int, dict] = {}
     for pid, name in players.items():
@@ -398,14 +403,42 @@ def _events(model, map_ids):
     )
 
 
-def _first_contact(map_ids, pids, tickrates) -> dict[tuple, dict]:
+class _Feed:
+    """Every round's clock and its kill and damage feed for many Match Maps, read once.
+
+    :func:`pool_signals` measures every team in the Pool. Asked team by team, each
+    Match Map's feed was read once for each team that played it and again for each
+    signal: 731k rows through the driver for 355 Match Maps, most of a minute.
+    Read here once, a third of that, and each team's :func:`role_signals` takes its
+    own maps' share. Within a round the rows keep the database's order, which is
+    what :func:`_trade_share` breaks a same-tick tie by.
+    """
+
+    def __init__(self, map_ids):
+        self._freeze = _round_freeze(map_ids)
+        self._events: dict = {}
+        for model in (DamageEvent, KillEvent):
+            by_map: dict[int, list] = defaultdict(list)
+            for row in _events(model, map_ids):
+                by_map[self._freeze[row[0]][1]].append(tuple(row))
+            self._events[model] = by_map
+
+    def rounds(self, map_ids) -> dict:
+        wanted = set(map_ids)
+        return {rid: value for rid, value in self._freeze.items() if value[1] in wanted}
+
+    def events(self, model, map_ids) -> list:
+        return [row for map_id in map_ids for row in self._events[model].get(map_id, ())]
+
+
+def _first_contact(map_ids, pids, tickrates, feed=None) -> dict[tuple, dict]:
     """Seconds from freeze end to a player's first fight, per (player, side).
 
     Damage is the better clock than kills (being shot at is contact), so both feeds
     are read and the earlier one wins. Median, so one eco nobody left spawn on
     does not drag an entry's clock into lurker territory.
     """
-    freeze = _round_freeze(map_ids)
+    freeze = feed.rounds(map_ids) if feed else _round_freeze(map_ids)
     pids_set = set(pids)
     earliest: dict[tuple, int] = {}
 
@@ -417,7 +450,8 @@ def _first_contact(map_ids, pids, tickrates) -> dict[tuple, dict]:
             earliest[key] = tick
 
     for model in (DamageEvent, KillEvent):
-        for round_id, tick, attacker, victim, a_side, v_side in _events(model, map_ids):
+        rows = feed.events(model, map_ids) if feed else _events(model, map_ids)
+        for round_id, tick, attacker, victim, a_side, v_side in rows:
             offer(round_id, attacker, a_side, tick)
             offer(round_id, victim, v_side, tick)
 
@@ -453,16 +487,18 @@ def _first_contact(map_ids, pids, tickrates) -> dict[tuple, dict]:
     return out
 
 
-def _trade_share(map_ids, pids, tickrates) -> dict[tuple, dict]:
+def _trade_share(map_ids, pids, tickrates, feed=None) -> dict[tuple, dict]:
     """Share of a player's kills that follow a *team-mate's* death within TRADE_SECONDS.
 
     Team-mate is decided by side within the round, which stays correct across the
     half swap without a roster join.
     """
     pids_set = set(pids)
-    map_of = {rid: map_id for rid, (_f, map_id) in _round_freeze(map_ids).items()}
+    freeze = feed.rounds(map_ids) if feed else _round_freeze(map_ids)
+    map_of = {rid: map_id for rid, (_f, map_id) in freeze.items()}
     by_round: dict[int, list] = defaultdict(list)
-    for round_id, tick, attacker, victim, a_side, v_side in _events(KillEvent, map_ids):
+    rows = feed.events(KillEvent, map_ids) if feed else _events(KillEvent, map_ids)
+    for round_id, tick, attacker, victim, a_side, v_side in rows:
         by_round[round_id].append(
             {
                 "tick": tick,
@@ -496,19 +532,29 @@ def _trade_share(map_ids, pids, tickrates) -> dict[tuple, dict]:
     }
 
 
-def _kill_timing(map_ids, pids, tickrates) -> dict[tuple, dict]:
+def _kill_timing(map_ids, pids, tickrates, feed=None) -> dict[tuple, dict]:
     """When in the round a player's kills happen -- the lurker's signature."""
-    freeze = _round_freeze(map_ids)
-    seconds: dict[tuple, list] = defaultdict(list)
-    for round_id, tick, attacker, side in db().execute(
-        select(
-            KillEvent.round_id, KillEvent.tick, KillEvent.attacker_id, KillEvent.attacker_side
-        ).where(
-            KillEvent.round_id.in_(list(freeze)),
-            KillEvent.attacker_id.in_(list(pids)),
-            KillEvent.attacker_side != "",
+    if feed:
+        freeze = feed.rounds(map_ids)
+        pids_set = set(pids)
+        kills = (
+            (round_id, tick, attacker, side)
+            for round_id, tick, attacker, _victim, side, _v_side in feed.events(KillEvent, map_ids)
+            if attacker in pids_set and side
         )
-    ):
+    else:
+        freeze = _round_freeze(map_ids)
+        kills = db().execute(
+            select(
+                KillEvent.round_id, KillEvent.tick, KillEvent.attacker_id, KillEvent.attacker_side
+            ).where(
+                KillEvent.round_id.in_(list(freeze)),
+                KillEvent.attacker_id.in_(list(pids)),
+                KillEvent.attacker_side != "",
+            )
+        )
+    seconds: dict[tuple, list] = defaultdict(list)
+    for round_id, tick, attacker, side in kills:
         freeze_tick, map_id = freeze[round_id]
         rate = tickrates.get(map_id) or 64
         secs = (tick - freeze_tick) / rate
@@ -621,27 +667,58 @@ BASELINE_SIGNALS = (
 )
 
 
+# Bump when a role signal is measured differently: the Pool's signals are kept in
+# Redis under this and the Match Maps they were measured on (`pool_cache`).
+POOL_SCHEMA = 1
+
+
 def pool_signals(match_maps: Iterable[MatchMap], signals: list | None = None) -> list:
     """``[(team, player_signals), ...]`` for every team in the pool.
 
     Shared by :func:`league_baseline` and :func:`role_cohorts`, which otherwise
-    each ran `role_signals` over the whole database for the same answer.
+    each ran `role_signals` over the whole database for the same answer. Computed
+    once for these Match Maps as they were parsed, by whichever process asks first
+    (the worker warms it after each parse), and shared through Redis.
     """
     if signals is not None:
         return signals
+    match_maps = list(match_maps)
+    key = _pool_key(match_maps)
+
+    def compute():
+        rows = pool_cache.remember(key, lambda: _pool_rows(match_maps))
+        wanted = {tid for tid, _player in rows}
+        teams = {t.id: t for t in db().scalars(select(Team).where(Team.id.in_(wanted)))}
+        return [(teams[tid], player) for tid, player in rows if tid in teams]
+
+    return memo(("pool_signals", key), compute)
+
+
+def _pool_key(match_maps: list[MatchMap]) -> str:
+    """Names the Match Maps, each as parsed and with its two teams."""
+    digest = hashlib.sha1()
+    for m in sorted(match_maps, key=lambda m: m.id):
+        parsed = m.parsed_at.isoformat() if m.parsed_at else ""
+        digest.update(f"{m.id}:{parsed}:{m.team1_id}:{m.team2_id};".encode())
+    return f"pool:roles:v{POOL_SCHEMA}:{digest.hexdigest()}"
+
+
+def _pool_rows(match_maps: list[MatchMap]) -> list:
+    """``[[team_id, player_signals], ...]``: :func:`pool_signals` before the teams are loaded."""
     by_team: dict[int, list] = defaultdict(list)
     for m in match_maps:
         for tid in (m.team1_id, m.team2_id):
             if tid:
                 by_team[tid].append(m)
     teams = {t.id: t for t in db().scalars(select(Team).where(Team.id.in_(list(by_team))))}
+    feed = _Feed([m.id for m in match_maps])
     out = []
     for tid, maps in by_team.items():
         team = teams.get(tid)
         if team is None:
             continue
-        for player in role_signals(team, maps).values():
-            out.append((team, player))
+        for player in role_signals(team, maps, feed).values():
+            out.append([tid, player])
     return out
 
 
