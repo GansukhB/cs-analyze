@@ -174,11 +174,15 @@ def extract(
     exits once. Still one invocation for all the members, deliberately -- these
     archives are solid, so extracting a member at a time to get a progress line
     would re-read the whole thing per map.
+
+    Some archives keep their demos in a folder (``Demos/x-m1-nuke.dem``); ``-s``
+    drops every member's folders, so each one lands straight in ``dest_dir``.
     """
     if not entries:
         return []
     dest_dir.mkdir(parents=True, exist_ok=True)
-    args = [TAR, "-x", "-f", str(archive), "-C", str(dest_dir), "--"] + [e.name for e in entries]
+    args = [TAR, "-x", "-f", str(archive), "-C", str(dest_dir), "-s", ",.*/,,", "--"]
+    args += [e.name for e in entries]
     wanted = [dest_dir / Path(e.name).name for e in entries]
 
     if on_progress is None:
@@ -188,7 +192,11 @@ def extract(
 
     missing = [p.name for p in wanted if not p.exists()]
     if missing:
-        raise ArchiveError(f"extraction reported success but {', '.join(missing)} is not on disk")
+        landed = sorted(p.relative_to(dest_dir).as_posix() for p in dest_dir.rglob("*.dem"))
+        raise ArchiveError(
+            f"extraction reported success but {', '.join(missing)} is not on disk"
+            f" (found: {', '.join(landed) or 'nothing'})"
+        )
     return wanted
 
 
