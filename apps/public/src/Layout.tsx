@@ -3,6 +3,7 @@ import { NavLink, Outlet, useMatch } from 'react-router'
 import { $api } from './api/client'
 import Assistant from './assistant/Assistant'
 import { tokenStore } from './auth/token'
+import SystemFooter from './system/SystemFooter'
 
 const link = ({ isActive }: { isActive: boolean }) =>
   isActive ? 'text-ink' : 'text-ink-3 hover:text-ink'
@@ -19,7 +20,8 @@ export default function Layout() {
   }
 
   return (
-    <>
+    // A column at least the screen tall, so a short page still puts the footer at the bottom.
+    <div className="flex min-h-screen flex-col">
       <header className="border-b border-line bg-surface">
         <div className={`mx-auto flex ${width} flex-wrap items-center gap-6 px-4 py-3 text-sm`}>
           <span className="font-semibold text-ink">cs-analyze</span>
@@ -45,10 +47,11 @@ export default function Layout() {
           </div>
         </div>
       </header>
-      <main className={`mx-auto ${width} px-4 py-8`}>
+      <main className={`mx-auto w-full ${width} flex-1 px-4 py-8`}>
         <Outlet />
       </main>
+      <SystemFooter width={width} />
       <Assistant />
-    </>
+    </div>
   )
 }

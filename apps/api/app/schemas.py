@@ -240,6 +240,44 @@ class BrokerState(BaseModel):
     error: str
 
 
+# -- system ------------------------------------------------------------------------
+class Usage(BaseModel):
+    """Bytes in use out of the bytes there are."""
+
+    used: int
+    total: int
+
+
+class HostStats(BaseModel):
+    """The whole host's load right now (app/services/system.py)."""
+
+    cpu_percent: float
+    cpus: int
+    load: list[float] = Field(description="Load average over 1, 5 and 15 minutes")
+    memory: Usage
+    swap: Usage
+    disk: Usage
+    uptime: float = Field(description="Seconds since the host booted")
+
+
+class ScoutNow(BaseModel):
+    """The Analysis Job the worker is on."""
+
+    public_id: uuid.UUID
+    label: str
+    stage_label: str
+    cycle: JobCycle | None
+
+
+class SystemState(BaseModel):
+    """What the footer shows: the host, the worker's pulse, and the Scouts."""
+
+    host: HostStats
+    worker: bool
+    scout: ScoutNow | None
+    queued: int
+
+
 # -- teams -------------------------------------------------------------------------
 class TeamRef(BaseModel):
     id: int

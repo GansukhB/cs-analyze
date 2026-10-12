@@ -38,7 +38,7 @@ import traceback
 from collections import deque
 from pathlib import Path
 
-from celery.signals import worker_ready
+from celery.signals import worker_ready, worker_shutdown
 from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -66,6 +66,7 @@ from app.services import (
     review,
     review_pool,
     store,
+    system,
     tickdata,
 )
 
@@ -154,6 +155,17 @@ def _recover(**_) -> None:
     review_pool.request_refresh(force=True)
     # Beside the queue, not on it: a Scout re-sent above would hold it for an hour.
     threading.Thread(target=gameplan.warm_pool, name="warm-pool", daemon=True).start()
+
+
+@worker_ready.connect
+def _heartbeat(**_) -> None:
+    """The footer's worker light (`app/services/system.py`)."""
+    system.start_heartbeat()
+
+
+@worker_shutdown.connect
+def _flatline(**_) -> None:
+    system.stop_heartbeat()
 
 
 @celery_app.task(name="cs_analyze.refresh_reviews")

@@ -531,6 +531,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** System State */
+        get: operations["system_state_system_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -818,6 +835,29 @@ export interface components {
             /** Parsed Maps */
             parsed_maps: number;
             defaults: components["schemas"]["ScoutDefaults"];
+        };
+        /**
+         * HostStats
+         * @description The whole host's load right now (app/services/system.py).
+         */
+        HostStats: {
+            /** Cpu Percent */
+            cpu_percent: number;
+            /** Cpus */
+            cpus: number;
+            /**
+             * Load
+             * @description Load average over 1, 5 and 15 minutes
+             */
+            load: number[];
+            memory: components["schemas"]["Usage"];
+            swap: components["schemas"]["Usage"];
+            disk: components["schemas"]["Usage"];
+            /**
+             * Uptime
+             * @description Seconds since the host booted
+             */
+            uptime: number;
         };
         /**
          * JobCreate
@@ -1607,6 +1647,22 @@ export interface components {
             max_matches: number;
         };
         /**
+         * ScoutNow
+         * @description The Analysis Job the worker is on.
+         */
+        ScoutNow: {
+            /**
+             * Public Id
+             * Format: uuid
+             */
+            public_id: string;
+            /** Label */
+            label: string;
+            /** Stage Label */
+            stage_label: string;
+            cycle: components["schemas"]["JobCycle"] | null;
+        };
+        /**
          * SpotLabel
          * @description A Spot's name and where to print it.
          */
@@ -1746,6 +1802,18 @@ export interface components {
             /** Sid */
             sid: string | null;
         };
+        /**
+         * SystemState
+         * @description What the footer shows: the host, the worker's pulse, and the Scouts.
+         */
+        SystemState: {
+            host: components["schemas"]["HostStats"];
+            /** Worker */
+            worker: boolean;
+            scout: components["schemas"]["ScoutNow"] | null;
+            /** Queued */
+            queued: number;
+        };
         /** TeamDetail */
         TeamDetail: {
             team: components["schemas"]["TeamRow"];
@@ -1877,6 +1945,16 @@ export interface components {
              * @default bearer
              */
             token_type: string;
+        };
+        /**
+         * Usage
+         * @description Bytes in use out of the bytes there are.
+         */
+        Usage: {
+            /** Used */
+            used: number;
+            /** Total */
+            total: number;
         };
         /** UserRead */
         UserRead: {
@@ -2727,6 +2805,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    system_state_system_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemState"];
                 };
             };
         };

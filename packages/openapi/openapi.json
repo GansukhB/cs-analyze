@@ -1516,6 +1516,32 @@
         ]
       }
     },
+    "/system": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "System State",
+        "operationId": "system_state_system_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemState"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -2261,6 +2287,52 @@
           "defaults"
         ],
         "title": "HomeInfo"
+      },
+      "HostStats": {
+        "properties": {
+          "cpu_percent": {
+            "type": "number",
+            "title": "Cpu Percent"
+          },
+          "cpus": {
+            "type": "integer",
+            "title": "Cpus"
+          },
+          "load": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Load",
+            "description": "Load average over 1, 5 and 15 minutes"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/Usage"
+          },
+          "swap": {
+            "$ref": "#/components/schemas/Usage"
+          },
+          "disk": {
+            "$ref": "#/components/schemas/Usage"
+          },
+          "uptime": {
+            "type": "number",
+            "title": "Uptime",
+            "description": "Seconds since the host booted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cpu_percent",
+          "cpus",
+          "load",
+          "memory",
+          "swap",
+          "disk",
+          "uptime"
+        ],
+        "title": "HostStats",
+        "description": "The whole host's load right now (app/services/system.py)."
       },
       "JobCreate": {
         "properties": {
@@ -4434,6 +4506,42 @@
         ],
         "title": "ScoutDefaults"
       },
+      "ScoutNow": {
+        "properties": {
+          "public_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Public Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "stage_label": {
+            "type": "string",
+            "title": "Stage Label"
+          },
+          "cycle": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobCycle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "public_id",
+          "label",
+          "stage_label",
+          "cycle"
+        ],
+        "title": "ScoutNow",
+        "description": "The Analysis Job the worker is on."
+      },
       "SpotLabel": {
         "properties": {
           "name": {
@@ -4739,6 +4847,40 @@
         ],
         "title": "SummaryRef",
         "description": "Where a Summary line can be seen in the Replay."
+      },
+      "SystemState": {
+        "properties": {
+          "host": {
+            "$ref": "#/components/schemas/HostStats"
+          },
+          "worker": {
+            "type": "boolean",
+            "title": "Worker"
+          },
+          "scout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScoutNow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued"
+          }
+        },
+        "type": "object",
+        "required": [
+          "host",
+          "worker",
+          "scout",
+          "queued"
+        ],
+        "title": "SystemState",
+        "description": "What the footer shows: the host, the worker's pulse, and the Scouts."
       },
       "TeamDetail": {
         "properties": {
@@ -5154,6 +5296,25 @@
           "access_token"
         ],
         "title": "Token"
+      },
+      "Usage": {
+        "properties": {
+          "used": {
+            "type": "integer",
+            "title": "Used"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "used",
+          "total"
+        ],
+        "title": "Usage",
+        "description": "Bytes in use out of the bytes there are."
       },
       "UserRead": {
         "properties": {
