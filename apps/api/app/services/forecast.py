@@ -31,7 +31,7 @@ from functools import cache, lru_cache
 from sqlalchemy import select
 
 from app.models import GameMap, Match, MatchMap, Team, TeamAlias
-from app.services import mapstrategy, rating, stats
+from app.services import map_pool, rating, stats
 from app.services.dbctx import db, memo
 
 MAP_TO_SERIES = 1.5
@@ -432,7 +432,7 @@ def build(
     if a is None or b is None:
         return out
 
-    pool = list(mapstrategy.ACTIVE_DUTY)
+    pool = list(map_pool.active_duty())
     edge = gap(a, b)
     use_offsets = offsets_help()
     mine_off, theirs_off = offsets(mine.id, today=today), offsets(theirs.id, today=today)

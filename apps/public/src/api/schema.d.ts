@@ -2454,6 +2454,31 @@ export interface components {
             openings: components["schemas"]["OpeningLine"][];
             pool: components["schemas"]["AuditPool"];
         };
+        /** MapPoolRow */
+        MapPoolRow: {
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** Active */
+            active: boolean;
+            /** Maps */
+            maps: number;
+            /** Won */
+            won: number;
+            /** Rounds */
+            rounds: number;
+            /** Share */
+            share: number | null;
+            /** Shrunk */
+            shrunk: number | null;
+            /** Recent */
+            recent: number;
+            /** Last */
+            last: string | null;
+            /** Status */
+            status: string;
+        };
         /** MapRecordRow */
         MapRecordRow: {
             /** Map */
@@ -3874,6 +3899,7 @@ export interface components {
              */
             plannable: components["schemas"]["TeamRef"][];
             strength?: components["schemas"]["TeamStrength"] | null;
+            map_pool?: components["schemas"]["TeamMapPool"] | null;
         };
         /** TeamList */
         TeamList: {
@@ -3883,6 +3909,20 @@ export interface components {
             parsed_teams: number;
             /** Total Matches */
             total_matches: number;
+        };
+        /**
+         * TeamMapPool
+         * @description How strong and how deep a Team's map pool is (TM-6).
+         */
+        TeamMapPool: {
+            /** Mean */
+            mean: number;
+            /** Depth */
+            depth: number;
+            /** Active */
+            active: string[];
+            /** Rows */
+            rows: components["schemas"]["MapPoolRow"][];
         };
         /** TeamPlayer */
         TeamPlayer: {

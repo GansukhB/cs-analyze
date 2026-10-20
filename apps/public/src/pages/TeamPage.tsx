@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router'
 import { $api } from '../api/client'
+import MapPool from '../team/MapPool'
 import StrengthSection from '../team/Strength'
 import StyleSection from '../team/Style'
 import type { components } from '../api/schema'
@@ -19,7 +20,8 @@ export default function TeamPage() {
   const team = $api.useQuery('get', '/teams/{team_id}', { params: { path: { team_id: Number(teamId) } } })
   if (team.error) return <p className="text-crit">Баг олдсонгүй.</p>
   if (!team.data) return <p className="text-ink-3">Уншиж байна…</p>
-  const { team: info, record, results, n_parsed_maps, map_record, players, plannable = [], strength } = team.data
+  const { team: info, record, results, n_parsed_maps, map_record, players, plannable = [], strength, map_pool } =
+    team.data
   const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`
 
   return (
@@ -52,6 +54,7 @@ export default function TeamPage() {
       </div>
 
       {strength && <StrengthSection s={strength} />}
+      {map_pool && <MapPool pool={map_pool} />}
       {n_parsed_maps > 0 && <StyleSection teamId={info.id} name={info.name} />}
 
       {plannable.length > 0 && (

@@ -51,8 +51,8 @@ RUSH_PLANT_SEC = 35.0
 # Plants needed from *other* teams before a map's tempo is worth comparing against.
 MIN_PLANTS_FOR_BASELINE = 8
 
-# Valve's Active Duty pool since 2026-07-08 (docs/plans/09 VIZ-11 will read it
-# from the data). The Forecast's veto needs exactly seven.
+# Valve's Active Duty pool since 2026-07-08: what `map_pool.active_duty` tops up
+# from when the data names fewer than seven. The Forecast's veto needs seven.
 ACTIVE_DUTY = (
     "de_ancient",
     "de_anubis",
@@ -600,7 +600,9 @@ def map_pool(team: Team, *, since=None, until=None, profiles: list[dict] | None 
     seen = {p["map"] for p in profiles}
     rated = [p for p in profiles if not p["thin"]]
     rated.sort(key=lambda p: (-p["win_pct"], -p["round_diff"]))
-    unseen = [m for m in ACTIVE_DUTY if m not in seen]
+    from app.services import map_pool
+
+    unseen = [m for m in map_pool.active_duty() if m not in seen]
     return {
         "team": team.name,
         "profiles": profiles,

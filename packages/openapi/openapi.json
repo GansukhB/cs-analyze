@@ -6939,6 +6939,90 @@
         ],
         "title": "MapAudit"
       },
+      "MapPoolRow": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share"
+          },
+          "shrunk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shrunk"
+          },
+          "recent": {
+            "type": "integer",
+            "title": "Recent"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "label",
+          "active",
+          "maps",
+          "won",
+          "rounds",
+          "share",
+          "shrunk",
+          "recent",
+          "last",
+          "status"
+        ],
+        "title": "MapPoolRow"
+      },
       "MapRecordRow": {
         "properties": {
           "map": {
@@ -11058,6 +11142,16 @@
                 "type": "null"
               }
             ]
+          },
+          "map_pool": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamMapPool"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -11096,6 +11190,41 @@
           "total_matches"
         ],
         "title": "TeamList"
+      },
+      "TeamMapPool": {
+        "properties": {
+          "mean": {
+            "type": "number",
+            "title": "Mean"
+          },
+          "depth": {
+            "type": "integer",
+            "title": "Depth"
+          },
+          "active": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Active"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/MapPoolRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mean",
+          "depth",
+          "active",
+          "rows"
+        ],
+        "title": "TeamMapPool",
+        "description": "How strong and how deep a Team's map pool is (TM-6)."
       },
       "TeamPlayer": {
         "properties": {

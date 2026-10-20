@@ -20,6 +20,7 @@ from app.schemas import (
     MatchRecord,
     TeamDetail,
     TeamList,
+    TeamMapPool,
     TeamPlayer,
     TeamRef,
     TeamResult,
@@ -28,7 +29,7 @@ from app.schemas import (
     TeamStrength,
     TeamStyleView,
 )
-from app.services import dbctx, style, team_strength
+from app.services import dbctx, map_pool, style, team_strength
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -147,6 +148,7 @@ def get_team(team_id: int, db: DbSession, _: StaffUser) -> TeamDetail:
         if team.id in parsed
         else [],
         strength=_strength(db, team),
+        map_pool=_map_pool(db, team),
     )
 
 
@@ -154,6 +156,12 @@ def _strength(db: Session, team: Team) -> TeamStrength | None:
     with dbctx.using(db):
         built = team_strength.build(team)
     return TeamStrength(**built) if built else None
+
+
+def _map_pool(db: Session, team: Team) -> TeamMapPool | None:
+    with dbctx.using(db):
+        built = map_pool.team_pool(team)
+    return TeamMapPool(**built) if any(r["maps"] for r in built["rows"]) else None
 
 
 def _result(team: Team, match: Match) -> TeamResult:

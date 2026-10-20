@@ -45,6 +45,7 @@ from app.models import (
 from app.services import (
     dbctx,
     lineup,
+    map_pool,
     mapstrategy,
     playerplan,
     pool_cache,
@@ -585,7 +586,7 @@ def map_board(my_team: Team, opponent: Team, *, since=None, until=None) -> dict:
             p["map"]: p
             for p in mapstrategy.map_profiles(my_team, since=since, until=until, opponent=opponent)
         }
-        names = sorted(set(mapstrategy.ACTIVE_DUTY) | set(mine) | set(theirs))
+        names = sorted(set(map_pool.active_duty()) | set(mine) | set(theirs))
         board = []
         for name in names:
             m, t, h = mine.get(name), theirs.get(name), h2h.get(name)

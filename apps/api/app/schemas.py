@@ -435,6 +435,29 @@ class TeamStrength(BaseModel):
     tiers: list[TeamTier]
 
 
+class MapPoolRow(BaseModel):
+    map: str
+    label: str
+    active: bool
+    maps: int
+    won: int
+    rounds: int
+    share: float | None  # Rounds won, percent
+    shrunk: float | None  # pulled toward the Team's own share over every Map
+    recent: int  # Match Maps in the last 90 days of its data
+    last: str | None
+    status: str  # deep | weak | thin | untested
+
+
+class TeamMapPool(BaseModel):
+    """How strong and how deep a Team's map pool is (TM-6)."""
+
+    mean: float
+    depth: int
+    active: list[str]
+    rows: list[MapPoolRow]
+
+
 class TeamDetail(BaseModel):
     team: TeamRow
     record: MatchRecord
@@ -444,6 +467,7 @@ class TeamDetail(BaseModel):
     players: list[TeamPlayer]
     plannable: list[TeamRef] = []
     strength: TeamStrength | None = None
+    map_pool: TeamMapPool | None = None
 
 
 # -- matches -----------------------------------------------------------------------
