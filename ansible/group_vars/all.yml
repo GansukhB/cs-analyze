@@ -52,3 +52,12 @@ redis_url: "redis://{{ redis_user | urlencode }}:{{ redis_password | urlencode }
 certbot_webroot: /var/www/html
 certbot_email: bganaa2009@gmail.com
 tls_cert_name: "{{ public_domain }}"
+
+# --- Backups (backup.yml) -------------------------------------------------------
+backup_dir: /var/backups/cs2
+# An rclone remote and path, e.g. "r2:cs2-backups". Empty keeps the dumps on the host.
+backup_remote: ""
+backup_time: "03:30:00"
+backup_keep_days: 7
+backup_remote_keep_days: 30
+backup_keep_days_monthly: 186

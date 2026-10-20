@@ -38,7 +38,8 @@
     "build:public": "npm run build -w public",
     "deploy": "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/deploy.yml",
     "deploy:certs": "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/certbot.yml",
-    "deploy:db-copy": "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/db_copy.yml"
+    "deploy:db-copy": "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/db_copy.yml",
+    "deploy:backup": "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/backup.yml"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

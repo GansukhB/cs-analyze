@@ -1,0 +1,51 @@
+# The nightly backup of the cs_analyze database (docs/plans/11-platform.md OPS-2).
+#
+#   npm run deploy:backup                         # install or update it
+#   npm run deploy:backup -- -e backup_remote=r2:cs2-backups
+#
+# Off-host copies need an rclone remote configured on the server first
+# (`rclone config`, as root): Cloudflare R2 and Backblaze B2 both fit a small
+# budget. Without one the dumps stay in {{ backup_dir }} only, and the run says so.
+
+- name: Back up cs-analyze
+  hosts: cs2
+  gather_facts: false
+
+  tasks:
+    - name: Install zstd and rclone
+      ansible.builtin.apt:
+        name: [zstd, rclone]
+        state: present
+
+    - name: Create the backup directory
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Write mysqldump's credentials
+      ansible.builtin.template:
+        src: templates/backup.cnf.j2
+        dest: /etc/cs2/backup.cnf
+        mode: "0600"
+      no_log: true
+
+    - name: Install the backup script
+      ansible.builtin.template:
+        src: templates/backup.sh.j2
+        dest: /usr/local/bin/cs2-backup
+        mode: "0750"
+
+    - name: Install the backup unit and timer
+      ansible.builtin.template:
+        src: "templates/{{ item }}.j2"
+        dest: "/etc/systemd/system/cs2-{{ item | replace('.j2', '') }}"
+        mode: "0644"
+      loop: [backup.service, backup.timer]
+
+    - name: Enable the timer
+      ansible.builtin.systemd:
+        name: cs2-backup.timer
+        state: started
+        enabled: true
+        daemon_reload: true

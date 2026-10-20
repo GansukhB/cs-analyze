@@ -1,0 +1,6 @@
+# Rendered by ansible/backup.yml (mode 0600): mysqldump's credentials, so they
+# never appear on a command line or in the process list.
+[client]
+user={{ mysql_user }}
+password={{ mysql_password }}
+socket={{ mysql_socket }}

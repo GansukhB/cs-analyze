@@ -1,0 +1,11 @@
+# Rendered by ansible/backup.yml. Started by cs2-backup.timer; run it by hand
+# with `systemctl start cs2-backup` and read `journalctl -u cs2-backup`.
+[Unit]
+Description=cs-analyze nightly database backup
+After=mysql.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/cs2-backup
+Nice=10
+IOSchedulingClass=idle

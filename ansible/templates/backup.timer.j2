@@ -1,0 +1,12 @@
+# Rendered by ansible/backup.yml. Late at night Mongolia time, when no Scout is
+# likely to run (the dump reads every Tick Data row it copies).
+[Unit]
+Description=cs-analyze nightly database backup
+
+[Timer]
+OnCalendar=*-*-* {{ backup_time }}
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

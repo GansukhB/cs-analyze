@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Rendered by ansible/backup.yml; overwritten on every run of it.
+#
+# The nightly backup of {{ mysql_database }}. Demos are deleted once parsed, so
+# the Tick Data in MySQL is the only copy of every parsed Match Map: losing the
+# database loses the analysis for good (docs/plans OPS-2).
+#
+#   daily/   everything but tick_datasets, whole, every night (a few hundred MB)
+#   monthly/ tick_datasets whole, on the 1st (or when no full copy exists yet)
+#   ticks/   tick_datasets rows written since the previous run, as REPLACE INTO
+#
+# Restore, into an empty database, in this order:
+#   zstd -dc daily/<newest>.sql.zst | mysql DB
+#   zstd -dc monthly/<newest>.sql.zst | mysql DB
+#   for f in ticks/<every file newer than that monthly>; do zstd -dc "$f" | mysql DB; done
+set -euo pipefail
+
+DB={{ mysql_database }}
+DIR={{ backup_dir }}
+CNF=/etc/cs2/backup.cnf
+REMOTE="{{ backup_remote }}"
+STATE="$DIR/.ticks-since"
+NOW=$(date -u '+%Y-%m-%d %H:%M:%S')
+DAY=$(date -u '+%Y%m%d')
+
+mkdir -p "$DIR/daily" "$DIR/monthly" "$DIR/ticks"
+DUMP=(mysqldump --defaults-extra-file="$CNF" --single-transaction --quick --hex-blob
+      --no-tablespaces --set-gtid-purged=OFF)
+
+# A file is written under a temporary name and renamed once complete, so a half
+# dump never looks like a backup.
+write() {  # write <path> <dump args...>
+  local out=$1; shift
+  "${DUMP[@]}" "$@" | zstd -q -T0 -o "$out.part"
+  mv "$out.part" "$out"
+}
+
+write "$DIR/daily/$DB-$DAY.sql.zst" --routines --ignore-table="$DB.tick_datasets" "$DB"
+
+if [[ $(date -u +%d) == 01 || -z $(ls -A "$DIR/monthly") ]]; then
+  write "$DIR/monthly/$DB-tick_datasets-$DAY.sql.zst" "$DB" tick_datasets
+else
+  SINCE=$(cat "$STATE" 2>/dev/null || echo '1970-01-01 00:00:00')
+  write "$DIR/ticks/$DB-tick_datasets-$DAY.sql.zst" --no-create-info --replace \
+    --where="updated_at >= '$SINCE'" "$DB" tick_datasets
+fi
+echo "$NOW" > "$STATE"
+
+# Kept here: a week of daily dumps, six months of full Tick Data, and the
+# increments that sit on top of the oldest full copy still kept.
+find "$DIR/daily" -name '*.sql.zst' -mtime +{{ backup_keep_days }} -delete
+find "$DIR/monthly" -name '*.sql.zst' -mtime +{{ backup_keep_days_monthly }} -delete
+find "$DIR/ticks" -name '*.sql.zst' -mtime +{{ backup_keep_days_monthly }} -delete
+
+if [[ -n $REMOTE ]]; then
+  # Off the host: the copy that survives the host. Only new files travel.
+  rclone copy "$DIR" "$REMOTE" --exclude '.*' --exclude '*.part' --max-age 3d
+  rclone delete "$REMOTE/daily" --min-age {{ backup_remote_keep_days }}d
+  rclone delete "$REMOTE/monthly" --min-age {{ backup_keep_days_monthly }}d
+  rclone delete "$REMOTE/ticks" --min-age {{ backup_keep_days_monthly }}d
+else
+  echo "no backup_remote set: the backup stays on this host only" >&2
+fi
+date -u '+%Y-%m-%dT%H:%M:%SZ' > "$DIR/last-success"
