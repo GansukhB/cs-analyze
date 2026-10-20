@@ -15,6 +15,7 @@ export default function MatchPage() {
   const { matchId = '', mapNumber } = useParams()
   const id = Number(matchId)
   const match = $api.useQuery('get', '/matches/{match_id}', { params: { path: { match_id: id } } })
+  const staff = useMe().data?.role === 'staff'
 
   if (match.error) return <p className="text-crit">Тоглолт олдсонгүй.</p>
   if (!match.data) return <p className="text-ink-3">Уншиж байна…</p>
@@ -27,7 +28,7 @@ export default function MatchPage() {
       <MapTabs info={info} />
       {mapNumber !== undefined ? (
         // Keyed: each map starts with its own round and its own Replay bridge.
-        <MapReview key={`${id}-${mapNumber}`} matchId={id} mapNumber={Number(mapNumber)} />
+        <MapReview key={`${id}-${mapNumber}`} matchId={id} mapNumber={Number(mapNumber)} staff={staff} />
       ) : parsed ? (
         <MatchOverview matchId={id} />
       ) : (

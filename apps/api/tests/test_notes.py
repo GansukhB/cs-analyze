@@ -1,0 +1,60 @@
+# ruff: noqa: F811  (the Game Plan tests' fixtures, imported by name)
+"""Review notes, Finding disputes and Playlists (docs/plans/07 RV-7)."""
+
+from sqlalchemy import select
+
+from app.models import Match
+from tests.test_gameplan import league, memory_cache  # noqa: F401
+from tests.test_me import player_login  # noqa: F401
+
+
+def _match(db, home, away):
+    return db.scalar(select(Match).where(Match.team1_id == home.id, Match.team2_id == away.id))
+
+
+def test_a_note_reaches_the_player_it_names_and_a_dispute_does_not(
+    client, db, auth, league, player_login
+):
+    them, me = player_login
+    match = _match(db, league["a"], league["b"])
+    url = f"/matches/{match.id}/maps/1/notes"
+    note = {"round": 3, "t": 41.5, "sids": [str(me.steamid)], "text": "Утаагаа эрт", "tag": "util"}
+    assert client.post(url, json=note, headers=auth).status_code == 201
+    dispute = {"kind": "dispute", "round": 3, "code": "untraded", "reason": "lurk"}
+    assert client.post(url, json=dispute, headers=auth).status_code == 201
+    bad = {"kind": "dispute", "round": 3, "code": "untraded", "reason": "nope"}
+    assert client.post(url, json=bad, headers=auth).status_code == 400
+    assert client.post(url, json=note, headers=them).status_code == 403
+
+    kinds = sorted(n["kind"] for n in client.get(url, headers=auth).json()["notes"])
+    assert kinds == ["dispute", "note"]
+    mine = client.get(url, headers=them).json()["notes"]
+    assert [n["text"] for n in mine] == ["Утаагаа эрт"] and mine[0]["tag"] == "util"
+    assert [n["round"] for n in client.get("/me/notes", headers=them).json()] == [3]
+
+    rates = client.get("/workspace/disputes", headers=auth).json()
+    assert rates[0]["code"] == "untraded" and rates[0]["reasons"] == {"lurk": 1}
+
+
+def test_a_shared_playlist_opens_its_rounds_to_the_players(client, db, auth, league, player_login):
+    them, _me = player_login
+    elsewhere = _match(db, league["b"], league["c"])  # A0 never played it
+    assert client.get(f"/matches/{elsewhere.id}", headers=them).status_code == 404
+    body = {
+        "title": "Bravo-гийн B rush",
+        "items": [{"match_id": elsewhere.id, "map_number": 1, "round": 4, "text": "5 хүн B"}],
+    }
+    made = client.post("/playlists", json=body, headers=auth)
+    assert made.status_code == 201, made.text
+    pid = made.json()["id"]
+    assert made.json()["items"][0]["label"] == "Bravo vs Charlie · Mirage"
+    assert client.get("/playlists", headers=them).json() == []
+    assert client.get(f"/playlists/{pid}", headers=them).status_code == 404
+
+    client.put(f"/playlists/{pid}", json={**body, "shared": True}, headers=auth)
+    assert [p["id"] for p in client.get("/playlists", headers=them).json()] == [pid]
+    assert client.get(f"/playlists/{pid}", headers=them).json()["items"][0]["round"] == 4
+    assert client.get(f"/matches/{elsewhere.id}", headers=them).status_code == 200
+    assert client.post("/playlists", json=body, headers=them).status_code == 403
+    missing = {"title": "x", "items": [{"match_id": 999, "map_number": 1, "round": 1}]}
+    assert client.post("/playlists", json=missing, headers=auth).status_code == 404

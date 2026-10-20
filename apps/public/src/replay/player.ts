@@ -35,6 +35,8 @@ export interface SceneData {
 export interface ReplayBridge {
   goto?: (round: number, t: number, sid?: string | null, play?: boolean) => void
   onRound?: (round: number) => void
+  // The Round and second on the canvas, for a note pinned to this moment (RV-7).
+  now?: () => { round: number; t: number } | null
 }
 
 // A Review link opens a little before its moment, and rings its player until
@@ -412,6 +414,8 @@ export function mountReplay(
       pending = { t, sid, play }
       void load(n)
     }
+    bridge.now = () =>
+      state.data && state.round !== null ? { round: state.round, t: Math.round(state.t * 10) / 10 } : null
   }
 
   // Who is on each side is fixed for the round, so it is built once here.
@@ -1244,7 +1248,10 @@ export function mountReplay(
   if (ROUNDS.length) void load(startRound && ROUNDS.includes(startRound) ? startRound : ROUNDS[0])
 
   return () => {
-    if (bridge) bridge.goto = undefined
+    if (bridge) {
+      bridge.goto = undefined
+      bridge.now = undefined
+    }
     destroyed = true
     cancelAnimationFrame(frame)
     abort.abort()

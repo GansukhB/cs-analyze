@@ -7,6 +7,7 @@ import type { components } from '../api/schema'
 import { day } from '../jobs/format'
 import { BriefingList } from './BriefingsPage'
 import DevelopmentPlan from '../development/Plan'
+import { MyNotes } from '../review/Notes'
 import { clock, swingRateText, swingText } from '../review/format'
 
 type Finding = components['schemas']['MeFinding']
@@ -31,6 +32,7 @@ export default function MePage() {
       <Briefings />
 
       <DevelopmentPlan steamid={player.steamid} staff={false} />
+      <MyNotes />
 
       <section className="space-y-3">
         <h2 className="font-medium text-ink">Эхлээд засах</h2>

@@ -59,21 +59,26 @@ StaffUser = Annotated[User, Depends(get_staff_user)]
 
 def can_see_match(db: Session, user: User, match_id: int) -> bool:
     """Staff see every Match their scope does; a Player login, the ones they played
-    (docs/plans WS-4)."""
+    (docs/plans WS-4) and the ones in a Playlist Staff shared (RV-7)."""
     if user.is_staff:
         return True
     if user.player_id is None:
         return False
     from sqlalchemy import select
 
-    from app.models import MapRoster, MatchMap
+    from app.models import MapRoster, MatchMap, Playlist
 
-    return (
-        db.scalar(
-            select(MapRoster.id)
-            .join(MatchMap, MatchMap.id == MapRoster.match_map_id)
-            .where(MatchMap.match_id == match_id, MapRoster.player_id == user.player_id)
-            .limit(1)
-        )
-        is not None
+    played = db.scalar(
+        select(MapRoster.id)
+        .join(MatchMap, MatchMap.id == MapRoster.match_map_id)
+        .where(MatchMap.match_id == match_id, MapRoster.player_id == user.player_id)
+        .limit(1)
     )
+    if played is not None:
+        return True
+    shared = db.scalars(
+        select(Playlist.items).where(
+            Playlist.workspace_id == user.workspace_id, Playlist.shared.is_(True)
+        )
+    )
+    return any(i.get("match_id") == match_id for items in shared for i in items or [])

@@ -17,6 +17,7 @@ import LoginPage from './pages/LoginPage'
 import MatchPage from './pages/MatchPage'
 import MePage from './pages/MePage'
 import PlayerPage from './pages/PlayerPage'
+import { PlaylistPage, PlaylistsPage } from './pages/PlaylistsPage'
 import ScrimsPage from './pages/ScrimsPage'
 import TeamPage from './pages/TeamPage'
 import TeamsPage from './pages/TeamsPage'
@@ -51,6 +52,8 @@ export default function App() {
         <Route path="gameplan/:mine/vs/:theirs/briefing" element={<BriefingNewPage />} />
         <Route path="uploads" element={<UploadsPage />} />
         <Route path="scrims" element={<ScrimsPage />} />
+        <Route path="playlists" element={<PlaylistsPage />} />
+        <Route path="playlists/:playlistId" element={<PlaylistPage />} />
         <Route path="workspace" element={<WorkspacePage />} />
         <Route path="gameplan/:mine/vs/:theirs" element={<GameplanPage />} />
         <Route path="gameplan/:mine/vs/:theirs/s/:tab" element={<GameplanPage />} />

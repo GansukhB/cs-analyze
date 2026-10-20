@@ -900,6 +900,92 @@ class Agenda(BaseModel):
     players: list[AgendaPlayer]
 
 
+# -- Review notes and disputes (docs/plans/07 RV-7) ---------------------------------
+class NoteRead(BaseModel):
+    id: int
+    kind: str
+    match_id: int
+    map_number: int
+    round: int | None
+    t: float | None
+    code: str
+    sids: list[str]
+    text: str
+    tag: str
+    reason: str
+    created_by: str
+    created_at: dt.datetime
+
+    @field_validator("created_at")
+    @classmethod
+    def created_utc(cls, value: dt.datetime) -> dt.datetime:
+        return _utc(value)
+
+
+class NoteCreate(BaseModel):
+    kind: Literal["note", "dispute"] = "note"
+    round: int | None = None
+    t: float | None = None
+    code: str = Field(default="", max_length=32)
+    sids: list[str] = Field(default_factory=list, max_length=10)
+    text: str = Field(default="", max_length=4000)
+    tag: str = Field(default="", max_length=32)
+    reason: str = Field(default="", max_length=32)
+
+
+class NoteList(BaseModel):
+    notes: list[NoteRead]
+    reasons: dict[str, str]
+
+
+class PlaylistItem(BaseModel):
+    match_id: int
+    map_number: int
+    round: int
+    t: float | None = None
+    sid: str | None = None
+    text: str = Field(default="", max_length=1000)
+
+
+class PlaylistItemRead(PlaylistItem):
+    label: str  # "Team vs Team · Map", read from the Match now
+
+
+class PlaylistWrite(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    note: str = Field(default="", max_length=4000)
+    items: list[PlaylistItem] = Field(default_factory=list, max_length=60)
+    shared: bool = False
+
+
+class PlaylistSummary(BaseModel):
+    id: int
+    title: str
+    rounds: int
+    shared: bool
+    created_by: str
+    updated_at: dt.datetime
+
+    @field_validator("updated_at")
+    @classmethod
+    def updated_utc(cls, value: dt.datetime) -> dt.datetime:
+        return _utc(value)
+
+
+class PlaylistRead(PlaylistSummary):
+    note: str
+    items: list[PlaylistItemRead]
+
+
+class DisputeRate(BaseModel):
+    code: str
+    label: str
+    disputes: int
+    findings: int
+    rate: float | None
+    reasons: dict[str, int]
+
+
 # -- Briefings (docs/plans/01 WS-5) ------------------------------------------------
 class BriefingMapPick(BaseModel):
     map: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")

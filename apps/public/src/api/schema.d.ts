@@ -380,6 +380,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/matches/{match_id}/maps/{map_number}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Map Notes */
+        get: operations["map_notes_matches__match_id__maps__map_number__notes_get"];
+        put?: never;
+        /** Add Note */
+        post: operations["add_note_matches__match_id__maps__map_number__notes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{note_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Note */
+        delete: operations["delete_note_notes__note_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Notes
+         * @description The notes Staff left that name this Player login's Player, newest first.
+         */
+        get: operations["my_notes_me_notes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workspace/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dispute Rates
+         * @description How often each Finding code is disputed against how often it is found.
+         */
+        get: operations["dispute_rates_workspace_disputes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playlists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Playlists */
+        get: operations["list_playlists_playlists_get"];
+        put?: never;
+        /** Create Playlist */
+        post: operations["create_playlist_playlists_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playlists/{playlist_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Playlist */
+        get: operations["get_playlist_playlists__playlist_id__get"];
+        /** Update Playlist */
+        put: operations["update_playlist_playlists__playlist_id__put"];
+        post?: never;
+        /** Delete Playlist */
+        delete: operations["delete_playlist_playlists__playlist_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gameplan/teams": {
         parameters: {
             query?: never;
@@ -1491,6 +1603,23 @@ export interface components {
             /** Kpis */
             kpis: components["schemas"]["KpiChoice"][];
         };
+        /** DisputeRate */
+        DisputeRate: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /** Disputes */
+            disputes: number;
+            /** Findings */
+            findings: number;
+            /** Rate */
+            rate: number | null;
+            /** Reasons */
+            reasons: {
+                [key: string]: number;
+            };
+        };
         /**
          * ForecastCreate
          * @description Make the Fixture's Forecast now and keep it. Lineups are Steam ids.
@@ -2436,6 +2565,82 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** NoteCreate */
+        NoteCreate: {
+            /**
+             * Kind
+             * @default note
+             * @enum {string}
+             */
+            kind: "note" | "dispute";
+            /** Round */
+            round?: number | null;
+            /** T */
+            t?: number | null;
+            /**
+             * Code
+             * @default
+             */
+            code: string;
+            /** Sids */
+            sids?: string[];
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * Tag
+             * @default
+             */
+            tag: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /** NoteList */
+        NoteList: {
+            /** Notes */
+            notes: components["schemas"]["NoteRead"][];
+            /** Reasons */
+            reasons: {
+                [key: string]: string;
+            };
+        };
+        /** NoteRead */
+        NoteRead: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Round */
+            round: number | null;
+            /** T */
+            t: number | null;
+            /** Code */
+            code: string;
+            /** Sids */
+            sids: string[];
+            /** Text */
+            text: string;
+            /** Tag */
+            tag: string;
+            /** Reason */
+            reason: string;
+            /** Created By */
+            created_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** Plate */
         Plate: {
             /** Url */
@@ -2636,6 +2841,101 @@ export interface components {
             kills: number;
             /** Share */
             share: number | null;
+        };
+        /** PlaylistItem */
+        PlaylistItem: {
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Round */
+            round: number;
+            /** T */
+            t?: number | null;
+            /** Sid */
+            sid?: string | null;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /** PlaylistItemRead */
+        PlaylistItemRead: {
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Round */
+            round: number;
+            /** T */
+            t?: number | null;
+            /** Sid */
+            sid?: string | null;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /** Label */
+            label: string;
+        };
+        /** PlaylistRead */
+        PlaylistRead: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+            /** Rounds */
+            rounds: number;
+            /** Shared */
+            shared: boolean;
+            /** Created By */
+            created_by: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Note */
+            note: string;
+            /** Items */
+            items: components["schemas"]["PlaylistItemRead"][];
+        };
+        /** PlaylistSummary */
+        PlaylistSummary: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+            /** Rounds */
+            rounds: number;
+            /** Shared */
+            shared: boolean;
+            /** Created By */
+            created_by: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** PlaylistWrite */
+        PlaylistWrite: {
+            /** Title */
+            title: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Items */
+            items?: components["schemas"]["PlaylistItem"][];
+            /**
+             * Shared
+             * @default false
+             */
+            shared: boolean;
         };
         /** Review */
         Review: {
@@ -4135,6 +4435,291 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeOverview"];
+                };
+            };
+        };
+    };
+    map_notes_matches__match_id__maps__map_number__notes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: number;
+                map_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_note_matches__match_id__maps__map_number__notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: number;
+                map_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_note_notes__note_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                note_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_notes_me_notes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteRead"][];
+                };
+            };
+        };
+    };
+    dispute_rates_workspace_disputes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisputeRate"][];
+                };
+            };
+        };
+    };
+    list_playlists_playlists_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaylistSummary"][];
+                };
+            };
+        };
+    };
+    create_playlist_playlists_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaylistWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaylistRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_playlist_playlists__playlist_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                playlist_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaylistRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_playlist_playlists__playlist_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                playlist_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaylistWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaylistRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_playlist_playlists__playlist_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                playlist_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

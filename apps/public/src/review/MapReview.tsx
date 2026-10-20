@@ -7,6 +7,7 @@ import Replay from '../replay/Replay'
 import RoundTimeline from '../replay/RoundTimeline'
 import { applyFilters, type Filters, isActive, useFilters } from './filters'
 import FilterBar from './FilterBar'
+import { NotesProvider, RoundNotes } from './Notes'
 import { TEAM_DOT } from './format'
 import PlayersTable, { PlayerFocus } from './PlayersTable'
 import RoundPanel from './RoundPanel'
@@ -22,7 +23,15 @@ export type Goto = (round: number, t: number, sid: string | null, play?: boolean
  * talk through the bridge: the Review's links call the Replay's `goto`, and the
  * Replay says which Round it is showing.
  */
-export default function MapReview({ matchId, mapNumber }: { matchId: number; mapNumber: number }) {
+export default function MapReview(props: { matchId: number; mapNumber: number; staff?: boolean }) {
+  return (
+    <NotesProvider matchId={props.matchId} mapNumber={props.mapNumber} staff={!!props.staff}>
+      <MapReviewBody matchId={props.matchId} mapNumber={props.mapNumber} />
+    </NotesProvider>
+  )
+}
+
+function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: number }) {
   const path = { params: { path: { match_id: matchId, map_number: mapNumber } } }
   const detail = $api.useQuery('get', '/matches/{match_id}/maps/{map_number}', path)
   const reviewQuery = $api.useQuery('get', '/matches/{match_id}/maps/{map_number}/review', path, {
@@ -140,6 +149,14 @@ export default function MapReview({ matchId, mapNumber }: { matchId: number; map
               onGoto={goto}
               onPlayer={(sid) => onPlayer(filters.player === sid ? null : sid)}
             />
+            <div className="mt-3">
+              <RoundNotes
+                round={round ?? review.rounds[0]?.n ?? null}
+                bridge={bridge}
+                names={Object.fromEntries(review.players.map((p) => [p.sid, p.name]))}
+                onGoto={goto}
+              />
+            </div>
           </div>
         )}
       </div>

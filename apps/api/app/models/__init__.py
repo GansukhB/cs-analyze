@@ -57,6 +57,7 @@ from app.models.jobs import (
     JobStatus,
     analysis_job_matches,
 )
+from app.models.notes import NoteKind, Playlist, ReviewNote
 from app.models.results import SeriesResult, VrsStanding
 from app.models.source import Demo, Match, MatchKind, MatchSource, Team, Tournament
 from app.models.upload import Upload, UploadPart, UploadStatus
@@ -74,6 +75,7 @@ __all__ = [
     "Forecast",
     "GoalStatus",
     "Invite",
+    "ReviewNote",
     "SeriesResult",
     "Upload",
     "UploadPart",
@@ -85,12 +87,14 @@ __all__ = [
     "Team",
     "Tournament",
     "Match",
+    "NoteKind",
     "MatchKind",
     "MatchSource",
     "Demo",
     # analysis
     "Side",
     "Player",
+    "Playlist",
     "PlayerAlias",
     "TeamAlias",
     "GameMap",

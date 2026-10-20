@@ -80,7 +80,48 @@ export default function WorkspacePage() {
           </ul>
         </section>
       )}
+      <Disputes />
     </div>
+  )
+}
+
+/** How often each Finding code is disputed (RV-7): a detector's only real feedback. */
+function Disputes() {
+  const rates = $api.useQuery('get', '/workspace/disputes')
+  if (!rates.data?.length) return null
+  return (
+    <section className="space-y-2">
+      <h2 className="font-medium text-ink">Маргасан Finding</h2>
+      <p className="max-w-2xl text-sm text-ink-3">
+        Review дээр «Буруу?» гэж тэмдэглэсэн Finding, кодоор. Давтамж өндөр кодын босгыг дахин харах хэрэгтэй.
+      </p>
+      <table className="text-sm">
+        <thead className="text-left text-xs text-ink-3">
+          <tr>
+            <th className="py-1 pr-6 font-normal">Finding</th>
+            <th className="py-1 pr-6 text-right font-normal">Маргасан</th>
+            <th className="py-1 pr-6 text-right font-normal">Нийт</th>
+            <th className="py-1 pr-6 text-right font-normal">Хувь</th>
+            <th className="py-1 font-normal">Шалтгаан</th>
+          </tr>
+        </thead>
+        <tbody className="text-ink-2">
+          {rates.data.map((r) => (
+            <tr key={r.code} className="border-t-1 border-line">
+              <td className="py-1 pr-6 text-ink">{r.label}</td>
+              <td className="py-1 pr-6 text-right font-mono">{r.disputes}</td>
+              <td className="py-1 pr-6 text-right font-mono">{r.findings}</td>
+              <td className="py-1 pr-6 text-right font-mono">{r.rate == null ? '—' : `${(r.rate * 100).toFixed(1)}%`}</td>
+              <td className="py-1 text-xs text-ink-3">
+                {Object.entries(r.reasons)
+                  .map(([k, n]) => `${k} ${n}`)
+                  .join(', ')}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   )
 }
 

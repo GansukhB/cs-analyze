@@ -162,6 +162,18 @@ _Avoid_: Trend, habit
 One of the few things that went wrong that a Summary puts first as what to work on, ranked by the Swing it cost.
 _Avoid_: Lesson, todo, tip
 
+**Note**:
+Staff's words pinned to a Match Map, a Round and a moment of it, naming the Players it is about. A Player sees the Notes that name them.
+_Avoid_: Comment, annotation, bookmark
+
+**Dispute**:
+Staff's mark that a Finding is wrong, with the reason. How often a Finding is disputed is what its detector's thresholds are judged by.
+_Avoid_: Flag, report, false positive (in prose)
+
+**Playlist**:
+Rounds from any Match Maps in a watching order, each with a line, that Staff share with the Players.
+_Avoid_: Clip list, reel, compilation
+
 ## Development (getting better)
 
 **Development plan**:

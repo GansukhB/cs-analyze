@@ -3303,3 +3303,13 @@ def playbook_beaten(b: dict, theirs: str) -> list[dict]:
             }
         )
     return out
+
+
+# -- RV-7: why Staff say a Finding is wrong --------------------------------------
+DISPUTE_REASONS = {
+    "lurk": "Lurker-ийн санаатай ганц тоглолт",
+    "save": "Санаатай save",
+    "role": "Үүргийн шаардлага (anchor, bait)",
+    "misread": "Нөхцөлийг буруу уншсан",
+    "other": "Бусад",
+}

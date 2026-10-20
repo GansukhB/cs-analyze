@@ -3,6 +3,7 @@ import type { components } from '../api/schema'
 import type { Filters } from './filters'
 import { BUY, clock, KIND_TONE, swingText, TEAM_DOT } from './format'
 import type { Goto } from './MapReview'
+import { FindingActions } from './Notes'
 import WinChart from './WinChart'
 
 type Review = components['schemas']['Review']
@@ -217,6 +218,7 @@ export function FindingCard(props: {
               {names[sid] || '?'}
             </button>
           ))}
+          <FindingActions f={f} />
         </div>
       </div>
     </article>
