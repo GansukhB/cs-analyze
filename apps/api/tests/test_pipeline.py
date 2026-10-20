@@ -17,6 +17,13 @@ from app.models import AnalysisJob, Demo, MapRoster, Match, MatchMap, Team, Tick
 from app.models.base import utcnow
 from app.services import analysis_store, browser, client, demo_parser, jobs, tickdata
 
+
+@pytest.fixture(autouse=True)
+def _unchecked_parse(monkeypatch):
+    """These tests fake the parse with stand-ins that carry no frames to check."""
+    monkeypatch.setattr(demo_parser, "quality", lambda parsed: ([], []))
+
+
 VITALITY = client.Team(id=9565, name="Vitality", slug="vitality")
 SPIRIT = client.Team(id=7020, name="Spirit", slug="spirit")
 

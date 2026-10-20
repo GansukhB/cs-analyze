@@ -16,6 +16,12 @@ from app.services.archive import parse_demo_name
 from tests.test_tickdata import _bundle
 
 
+@pytest.fixture(autouse=True)
+def _unchecked_parse(monkeypatch):
+    """These tests fake the parse with stand-ins that carry no frames to check."""
+    monkeypatch.setattr(demo_parser, "quality", lambda parsed: ([], []))
+
+
 @pytest.mark.parametrize(
     ("name", "map_", "number", "part"),
     [

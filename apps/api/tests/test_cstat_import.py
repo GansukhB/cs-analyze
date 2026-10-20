@@ -9,6 +9,13 @@ from app.models import Demo, Match, MatchMap, Team, TeamAlias, TickDataset, Tour
 from app.models.base import utcnow
 from app.services import analysis_store, cstat_import, demo_parser, tickdata
 
+
+@pytest.fixture(autouse=True)
+def _unchecked_parse(monkeypatch):
+    """These tests fake the parse with stand-ins that carry no frames to check."""
+    monkeypatch.setattr(demo_parser, "quality", lambda parsed: ([], []))
+
+
 SCHEMA = """
 CREATE TABLE hltv_team (id INTEGER PRIMARY KEY, hltv_id INTEGER, name TEXT, slug TEXT);
 CREATE TABLE hltv_teamalias (id INTEGER PRIMARY KEY, clan_name TEXT, note TEXT, team_id INTEGER);

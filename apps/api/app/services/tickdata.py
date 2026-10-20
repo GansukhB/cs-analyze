@@ -155,6 +155,8 @@ class Parse:
     missing: list[int] = field(default_factory=list)
     # (file name, error) for each part that could not be read.
     failed: list[tuple[str, str]] = field(default_factory=list)
+    # What the parse's sanity check flagged without rejecting it.
+    warnings: list[str] = field(default_factory=list)
 
 
 def parse_parts(
@@ -175,14 +177,25 @@ def parse_parts(
     from app.services import demo_parser
 
     step = on_step or (lambda _key: None)
+    warnings: list[str] = []
+
+    def checked(path: Path):
+        """The parse, refused when its frames can't be trusted (``demo_parser.quality``)."""
+        parsed = demo_parser.parse_map(path)
+        errors, flagged = demo_parser.quality(parsed)
+        if errors:
+            raise demo_parser.DemoParseError("the parse looks broken: " + "; ".join(errors))
+        warnings.extend(flagged)
+        return parsed
+
     if not (len(paths) > 1 if parts is None else parts):
-        parsed = demo_parser.parse_map(paths[0])
+        parsed = checked(paths[0])
         step("pack")
-        return Parse(parsed, pack(parsed, scratch))
+        return Parse(parsed, pack(parsed, scratch), warnings=warnings)
     parts, failed, awpy_version = [], [], ""
     for path in paths:
         try:
-            parsed = demo_parser.parse_map(path)
+            parsed = checked(path)
             numbers = demo_parser.round_numbers(parsed)
             step("pack")
             blob = pack(parsed, scratch)
@@ -201,7 +214,7 @@ def parse_parts(
         )
     blob, missing = merge(parts)
     parsed = parsed_map(blob, paths[0].name, awpy_version)
-    return Parse(parsed, blob, missing, failed)
+    return Parse(parsed, blob, missing, failed, warnings)
 
 
 def merge(parts: list[tuple[bytes, pl.DataFrame]]) -> tuple[bytes, list[int]]:

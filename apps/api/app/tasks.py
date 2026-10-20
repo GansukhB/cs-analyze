@@ -1084,6 +1084,15 @@ def _parse_one(job_db, db, job, demo: Demo, scratch: Path | None, totals: dict, 
                     stage=STAGE.PARSING,
                     step=step,
                 )
+            for warning in result.warnings:
+                jobs.log(
+                    job_db,
+                    job,
+                    f"   ! parse-ийн шалгалт: {warning}",
+                    level=LEVEL.WARNING,
+                    stage=STAGE.PARSING,
+                    step=step,
+                )
             if result.missing:
                 jobs.log(
                     job_db,

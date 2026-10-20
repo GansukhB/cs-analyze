@@ -223,6 +223,46 @@ def _optional(dem, name: str) -> pl.DataFrame:
         return pl.DataFrame()
 
 
+# The parse's own sanity check (docs/plans DATA-8). A parser bug can return a
+# Player with every position empty (demoparser2 #362, pawn index >= 2048); stored,
+# it silently skews every number about him, and the Demo is deleted after the parse.
+MAX_EMPTY_POSITION_SHARE = 0.5
+MIN_TICKS_TO_JUDGE = 1000
+MAX_SHORT_ROUND_SHARE = 0.2
+FULL_ROUND_PLAYERS = 10
+
+
+def quality(parsed: ParsedMap) -> tuple[list[str], list[str]]:
+    """``(errors, warnings)`` about what the parse returned. An error means the
+    frames can't be trusted; a warning is worth a line in the job log.
+
+    Only Players who held a Side are judged: a spectator slot (a caster, a coach,
+    another team's player watching) stays in the ticks with no Side and no
+    position, and that is not a parse failure."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    ticks = parsed.ticks
+    if ticks.is_empty() or parsed.rounds.is_empty():
+        return ["no ticks or no rounds"], warnings
+    sides = ticks.filter(pl.col("side").is_in(["ct", "t"]))
+    playing = sides.select(pl.col("steamid").unique()).to_series()
+    judged = (
+        ticks.filter(pl.col("steamid").is_in(playing.implode()))
+        .group_by("steamid", "name")
+        .agg(pl.col("X").is_null().mean().alias("empty"), pl.len().alias("n"))
+        .filter((pl.col("n") >= MIN_TICKS_TO_JUDGE) & (pl.col("empty") > MAX_EMPTY_POSITION_SHARE))
+    )
+    for row in judged.iter_rows(named=True):
+        errors.append(
+            f"{row['name'] or row['steamid']} has no position in {row['empty']:.0%} of their ticks"
+        )
+    per_round = sides.group_by("round_num").agg(pl.col("steamid").n_unique().alias("players"))
+    short = per_round.filter(pl.col("players") < FULL_ROUND_PLAYERS).height
+    if per_round.height and short / per_round.height > MAX_SHORT_ROUND_SHARE:
+        warnings.append(f"{short} of {per_round.height} rounds have fewer than 10 players")
+    return errors, warnings
+
+
 def round_numbers(parsed: ParsedMap) -> pl.DataFrame:
     """``(round_num, number)``: each round as the game counted it.
 
