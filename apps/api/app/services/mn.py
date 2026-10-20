@@ -3191,3 +3191,36 @@ def card_lines(proven: list[dict], reviewed: dict | None) -> dict:
                 f"(бусад тоглогч {line['pool_per24']:g}, {line['count']} удаа)"
             )
     return out
+
+
+# -- GP-5: pistols and what a Team makes of them ----------------------------------
+def _of(x: int, n: int, pool_x: int = 0, pool_n: int = 0) -> str:
+    if not n:
+        return "—"
+    out = f"{x}/{n} ({round(100 * x / n)}%)"
+    if pool_n:
+        out += f", Pool {round(100 * pool_x / pool_n)}%"
+    return out
+
+
+def playbook_conversion(c: dict, mine: str, theirs: str) -> list[dict]:
+    """One line per Team: pistols won, converted, broken, both pistols to the Map."""
+    pool = c.get("pool") or {}
+    out = []
+    for name, row in ((theirs, c.get("theirs") or {}), (mine, c.get("mine") or {})):
+        if not row.get("pistols"):
+            continue
+        out.append(
+            {
+                "team": name,
+                "pistols": _of(row["pistols_won"], row["pistols"], pool.get("pistols_won", 0),
+                               pool.get("pistols", 0)),
+                "converted": _of(row["converted"], row["chances"], pool.get("converted", 0),
+                                 pool.get("chances", 0)),
+                "broken": _of(row["broken"], row["breaks"], pool.get("broken", 0),
+                              pool.get("breaks", 0)),
+                "both": _of(row["both_map_won"], row["both"], pool.get("both_map_won", 0),
+                            pool.get("both", 0)),
+            }
+        )  # fmt: skip
+    return out

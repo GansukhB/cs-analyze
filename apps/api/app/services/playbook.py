@@ -780,6 +780,73 @@ def pistols(team_id: int, rounds: list[_Round], detail: _Detail, sites) -> list[
     return out
 
 
+def _conversion_rows(rows) -> dict[int, dict]:
+    """Per Team: pistols won, then the next two Rounds (GP-5). ``rows`` are
+    ``(match_map_id, number, winner, ct, t)`` in Round order."""
+    by_map: dict[int, dict[int, tuple]] = defaultdict(dict)
+    for mm, number, winner, ct, t in rows:
+        by_map[mm][number] = (winner, ct, t)
+    out: dict[int, dict] = defaultdict(
+        lambda: {"pistols": 0, "pistols_won": 0, "chances": 0, "converted": 0,
+                 "breaks": 0, "broken": 0, "both": 0, "both_map_won": 0}
+    )  # fmt: skip
+    for rounds in by_map.values():
+        teams = {x for _w, ct, t in rounds.values() for x in (ct, t) if x}
+        wins = Counter(w for w, _ct, _t in rounds.values() if w)
+        won_pistols: Counter = Counter()
+        for pistol in PISTOL_ROUNDS:
+            if pistol not in rounds:
+                continue
+            winner = rounds[pistol][0]
+            nxt = [rounds.get(pistol + 1), rounds.get(pistol + 2)]
+            for team in teams:
+                row = out[team]
+                row["pistols"] += 1
+                if winner == team:
+                    row["pistols_won"] += 1
+                    won_pistols[team] += 1
+                    if all(nxt):
+                        row["chances"] += 1
+                        row["converted"] += all(r[0] == team for r in nxt)
+                elif all(nxt):
+                    row["breaks"] += 1
+                    row["broken"] += any(r[0] == team for r in nxt)
+        for team in teams:
+            if won_pistols[team] == len([p for p in PISTOL_ROUNDS if p in rounds]) == 2:
+                out[team]["both"] += 1
+                others = [wins[o] for o in teams if o != team]
+                out[team]["both_map_won"] += int(bool(others) and wins[team] > max(others))
+    return out
+
+
+def conversion(team_id: int, rounds: list[_Round]) -> dict:
+    """GP-5: this Team's pistols on the Map and what it made of them."""
+    rows = [(r.match_map_id, r.number, r.winner, r.ct_team, r.t_team) for r in rounds]
+    return dict(_conversion_rows(rows)[team_id])
+
+
+def conversion_pool(map_name: str | None) -> dict:
+    """GP-5's baseline: the same over every Team's Match Maps on this Map."""
+
+    def compute():
+        if not map_name:
+            return {}
+        rows = db().execute(
+            select(Round.match_map_id, Round.number, Round.winner_team_id, Round.ct_team_id,
+                   Round.t_team_id)
+            .join(MatchMap, MatchMap.id == Round.match_map_id)
+            .join(GameMap, GameMap.id == MatchMap.game_map_id)
+            .where(GameMap.name == map_name)
+            .order_by(Round.match_map_id, Round.number)
+        ).all()  # fmt: skip
+        total: Counter = Counter()
+        for row in _conversion_rows(rows).values():
+            total.update(row)
+        return dict(total)
+
+    return memo(("playbook_conversion_pool", map_name), compute)
+
+
 def economy(team_id: int, rounds: list[_Round]) -> dict:
     """How they spend, over every Map: force or save when short, and after a lost pistol."""
     known = [r for r in rounds if r.buy(team_id) and r.number not in PISTOL_ROUNDS]
@@ -1028,6 +1095,11 @@ def build(my_team: Team, opponent: Team, map_name: str) -> dict:
             opponent, side_habits(opponent.id, theirs, "ct", detail, sites, pools)
         ),
         "pistols": pistols(opponent.id, theirs, detail, sites),
+        "conversion": {
+            "theirs": conversion(opponent.id, theirs),
+            "mine": conversion(my_team.id, mine),
+            "pool": conversion_pool(map_name),
+        },
         "economy": economy(opponent.id, all_theirs),
         "matchups": matchups(opponent, my_team, theirs, detail),
         "self_scout": {

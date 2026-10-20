@@ -99,6 +99,7 @@ def panel(my_team: Team, opponent: Team, map_name: str) -> dict:
             },
         ],
         "pistols": [mn.playbook_pistol(row) for row in raw["pistols"]],
+        "conversion": mn.playbook_conversion(raw["conversion"], my_team.name, opponent.name),
         "economy": {
             "known": economy["known"],
             "buys": economy.get("buys"),

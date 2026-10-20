@@ -152,3 +152,17 @@ def test_site_and_retake_habits_are_judged_against_the_map_pool():
     retakes = {team: (2 + team % 2, 10, 3) for team in range(10, 20)}
     judged = playbook._pool_judged(retakes, 1, 2, 9, 3, playbook.RETAKE_MIN_SPREAD)
     assert not judged.clear(playbook.LEAN_LFSR)
+
+
+def test_pistol_conversion_counts_the_next_two_rounds():
+    from app.services import playbook
+
+    # One Match Map: team 1 wins pistol 1 and rounds 2-3, loses pistol 13, takes 15.
+    rows = [(1, 1, 1, 1, 2), (1, 2, 1, 1, 2), (1, 3, 1, 1, 2), (1, 13, 2, 2, 1),
+            (1, 14, 2, 2, 1), (1, 15, 1, 2, 1)]  # fmt: skip
+    out = playbook._conversion_rows(rows)
+    assert out[1]["pistols"] == 2 and out[1]["pistols_won"] == 1
+    assert (out[1]["chances"], out[1]["converted"]) == (1, 1)
+    assert (out[1]["breaks"], out[1]["broken"]) == (1, 1)
+    assert (out[2]["chances"], out[2]["converted"]) == (1, 0)
+    assert out[1]["both"] == 0

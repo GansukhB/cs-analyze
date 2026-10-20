@@ -131,6 +131,36 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
       ))}
 
       <h3 className="pb-section">Pistol раунд</h3>
+      {d.conversion.length > 0 && (
+        <div className="tw">
+          <table className="setup">
+            <thead>
+              <tr>
+                <th>Баг</th>
+                <th>Pistol хожсон</th>
+                <th>Дараагийн 2-ыг хожсон</th>
+                <th>Алдаад 2-оос 1-ийг авсан</th>
+                <th>2 pistol → map</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.conversion.map((c) => (
+                <tr key={c.team}>
+                  <td>{c.team}</td>
+                  <td className="mono">{c.pistols}</td>
+                  <td className="mono">{c.converted}</td>
+                  <td className="mono">{c.broken}</td>
+                  <td className="mono">{c.both}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="cap">
+            Pool: энэ map-ын бүх багийн дүн. Pistol хожоод дараагийн хоёр раундыг авах нь хувиргалт; хоёр pistol хожсон баг
+            map-ын ихэнхийг хождог тул pistol-д бэлдэх нь хамгийн хямд раундууд.
+          </p>
+        </div>
+      )}
       {d.pistols.length ? (
         <ul className="pb-rows">
           {d.pistols.map((p) => (
