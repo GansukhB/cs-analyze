@@ -164,6 +164,8 @@ def _team_rounds(team: Team, other: Team, map_name: str | None) -> list[_Round]:
         ]
         if not maps:
             return []
+        # The current five's era (TM-3): habits of a roster that is gone mislead.
+        maps, _narrowed = mapstrategy.era_maps(team, maps)
         h2h = {m.id for m in mapstrategy.maps_in_window(team, opponent=other)}
         info = {m.id: m for m in maps}
         rows = (
@@ -1000,8 +1002,15 @@ def build(my_team: Team, opponent: Team, map_name: str) -> dict:
     pools = map_pools(map_name)
 
     def sample(team: Team, rounds: list[_Round]) -> dict:
+        every = [
+            m
+            for m in mapstrategy.maps_in_window(team)
+            if m.game_map and m.game_map.name == map_name
+        ]
         return {
             "maps": len({r.match_map_id for r in rounds}),
+            # Match Maps on this Map in the window, before the era narrowed them.
+            "all_maps": len(every),
             "h2h_maps": len({r.match_map_id for r in rounds if r.h2h}),
             "rounds": {side: len(_side_rounds(team.id, rounds, side)) for side in ("ct", "t")},
             "economy": any(r.buy(team.id) and r.number not in PISTOL_ROUNDS for r in rounds),

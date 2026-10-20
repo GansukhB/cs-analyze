@@ -31,7 +31,7 @@ from datetime import datetime
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import joinedload
 
-from app.models import BombEvent, Match, MatchMap, PlayerRound, Round, Team
+from app.models import BombEvent, MapRoster, Match, MatchMap, PlayerRound, Round, Team
 from app.services.analysis_store import PISTOL_ROUNDS
 from app.services.dbctx import count_if, db, memo
 
@@ -90,6 +90,39 @@ def _ordered(query):
     return query.join(Match, Match.id == MatchMap.match_id).order_by(
         Match.played_at.desc(), Match.hltv_id.desc(), MatchMap.map_number
     )
+
+
+# TM-3: a Team's habits are read from the Match Maps its current five mostly
+# played: at least ERA_CORE of the Lineup, unless that leaves too few.
+ERA_CORE = 4
+ERA_MIN_MAPS = 3
+
+
+def era_maps(team: Team, maps: list[MatchMap]) -> tuple[list[MatchMap], bool]:
+    """``(maps, narrowed)``: the ones at least :data:`ERA_CORE` of the Team's Lineup
+    played for it, or all of them when that leaves fewer than :data:`ERA_MIN_MAPS`."""
+    from app.services import lineup
+
+    fielded = lineup.fielded(team)
+    if len(fielded) < ERA_CORE or not maps:
+        return maps, False
+
+    def compute():
+        rows = db().execute(
+            select(MapRoster.match_map_id, MapRoster.player_id).where(
+                MapRoster.match_map_id.in_([m.id for m in maps]), MapRoster.team_id == team.id
+            )
+        )
+        played: dict[int, set] = defaultdict(set)
+        for map_id, pid in rows:
+            played[map_id].add(pid)
+        return played
+
+    played = memo(("era_rosters", team.id, tuple(sorted(m.id for m in maps))), compute)
+    kept = [m for m in maps if len(played.get(m.id, set()) & fielded) >= ERA_CORE]
+    if len(kept) < ERA_MIN_MAPS:
+        return maps, False
+    return kept, len(kept) < len(maps)
 
 
 def maps_in_window(

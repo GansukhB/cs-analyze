@@ -73,6 +73,12 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
         {d.opponent}: {them.maps} map ({them.h2h_maps} нь хоорондын), T {them.rounds.t} · CT {them.rounds.ct} раунд.{' '}
         {d.my_team}: {us.maps} map.
       </p>
+      {them.all_maps !== undefined && them.all_maps > them.maps && (
+        <p className="caveat">
+          {d.opponent}-ийн habit-ийг одоогийн бүрэлдэхүүний (Lineup-ийн 4+ тоглогч) {them.maps} map-аас уншив; хуучин
+          бүрэлдэхүүнтэй {them.all_maps - them.maps} map тооцогдоогүй.
+        </p>
+      )}
       {!them.maps && <p className="caveat">{d.opponent} энэ map-ыг тоглоогүй — зөвхөн Self-scout харагдана.</p>}
       {them.maps > 0 && !them.economy && (
         <p className="caveat">

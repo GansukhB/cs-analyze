@@ -119,6 +119,8 @@ export interface AdviceSide {
 
 export interface TeamSample {
   maps: number
+  /** On this Map in the window before the current five's era narrowed them (TM-3). */
+  all_maps?: number
   h2h_maps: number
   rounds: { ct: number; t: number }
   economy: boolean
