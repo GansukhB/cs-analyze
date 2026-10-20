@@ -56,3 +56,41 @@ body {
   background-color: var(--ground);
   color: var(--ink);
 }
+
+/* Paper (docs/plans GP-7): browsers drop backgrounds when printing, so the dark
+   palette's light ink would vanish on white. Print gets its own steps of the
+   same hues, dark on white, and nothing interactive. */
+@media print {
+  :root {
+    color-scheme: light;
+    --ground: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f4f5f7;
+    --raised: #eef0f3;
+    --ink: #111418;
+    --ink-2: #33393f;
+    --ink-3: #5c646c;
+    --line: #c9ced4;
+    --line-soft: #e1e4e8;
+    --ct: #1f5f9e;
+    --t: #94591a;
+    --good: #1f6f4c;
+    --warn: #8a5a12;
+    --crit: #a33a26;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button,
+  select,
+  input,
+  textarea {
+    display: none !important;
+  }
+  section,
+  .panel,
+  li {
+    break-inside: avoid;
+  }
+}
