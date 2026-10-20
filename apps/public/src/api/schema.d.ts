@@ -311,6 +311,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/matches/{match_id}/maps/{map_number}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Audit
+         * @description The Match Map's timeouts, the losing runs that went without one, and each
+         *     Player's opening duels (RV-8); the Pool's next Round after a run beside them.
+         */
+        get: operations["get_audit_matches__match_id__maps__map_number__audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/{steamid}": {
         parameters: {
             query?: never;
@@ -1369,6 +1390,54 @@ export interface components {
             /** Tts Chars */
             tts_chars: number;
         };
+        /** AuditMissed */
+        AuditMissed: {
+            /** Round */
+            round: number;
+            /** Team Id */
+            team_id: number;
+            /** Team */
+            team: string;
+            /** Lost Before */
+            lost_before: number;
+            /** Won Next */
+            won_next: boolean;
+            /** Left */
+            left: number;
+        };
+        /** AuditPool */
+        AuditPool: {
+            /** Maps */
+            maps: number;
+            after_timeout: components["schemas"]["AuditPoolLine"];
+            without: components["schemas"]["AuditPoolLine"];
+        };
+        /** AuditPoolLine */
+        AuditPoolLine: {
+            /** Rounds */
+            rounds: number;
+            /** Won */
+            won: number;
+            /** Pct */
+            pct: number | null;
+        };
+        /** AuditTimeout */
+        AuditTimeout: {
+            /** Round */
+            round: number;
+            /** Team Id */
+            team_id: number;
+            /** Team */
+            team: string;
+            /** Side */
+            side: string;
+            /** Lost Before */
+            lost_before: number;
+            /** Won Next */
+            won_next: boolean;
+            /** Expected */
+            expected: number | null;
+        };
         /** Body_login_auth_token_post */
         Body_login_auth_token_post: {
             /** Grant Type */
@@ -2229,6 +2298,18 @@ export interface components {
             /** Players */
             players: components["schemas"]["LineupPlayer"][];
         };
+        /** MapAudit */
+        MapAudit: {
+            /** Known */
+            known: boolean;
+            /** Timeouts */
+            timeouts: components["schemas"]["AuditTimeout"][];
+            /** Missed */
+            missed: components["schemas"]["AuditMissed"][];
+            /** Openings */
+            openings: components["schemas"]["OpeningLine"][];
+            pool: components["schemas"]["AuditPool"];
+        };
         /** MapRecordRow */
         MapRecordRow: {
             /** Map */
@@ -2641,6 +2722,31 @@ export interface components {
              */
             created_at: string;
         };
+        /** OpeningLine */
+        OpeningLine: {
+            /** Sid */
+            sid: string;
+            /** Name */
+            name: string;
+            /** Team Id */
+            team_id: number | null;
+            /** Team */
+            team: string;
+            /** Attempts */
+            attempts: number;
+            /** Won */
+            won: number;
+            /** Won Pct */
+            won_pct: number | null;
+            /** Traded */
+            traded: number;
+            /** Traded Pct */
+            traded_pct: number | null;
+            /** After Kill Won Pct */
+            after_kill_won_pct: number | null;
+            /** After Death Won Pct */
+            after_death_won_pct: number | null;
+        };
         /** Plate */
         Plate: {
             /** Url */
@@ -2771,6 +2877,7 @@ export interface components {
             spots: components["schemas"]["PlayerSpot"][];
             /** Weapons */
             weapons: components["schemas"]["PlayerWeapon"][];
+            openings?: components["schemas"]["OpeningLine"] | null;
         };
         /** PlayerRef */
         PlayerRef: {
@@ -4309,6 +4416,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Agenda"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_audit_matches__match_id__maps__map_number__audit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: number;
+                map_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapAudit"];
                 };
             };
             /** @description Validation Error */

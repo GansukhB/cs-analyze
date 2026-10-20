@@ -85,15 +85,25 @@ function Tiles({ p }: { p: Page }) {
     ['Opening хожил', `${num(t.opening_win_pct, 0, '%')} · ${t.opening_attempts}`],
     ['Trade хийгдсэн үхэл', num(t.traded_death_pct, 0, '%')],
   ]
+  const o = p.openings
   return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-      {tiles.map(([label, value]) => (
-        <div key={label} className="rounded-lg border border-line bg-surface px-3 py-2">
-          <dt className="text-xs text-ink-3">{label}</dt>
-          <dd className="font-mono text-lg text-ink">{value}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="space-y-2">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        {tiles.map(([label, value]) => (
+          <div key={label} className="rounded-lg border border-line bg-surface px-3 py-2">
+            <dt className="text-xs text-ink-3">{label}</dt>
+            <dd className="font-mono text-lg text-ink">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {o && o.attempts > 0 && (
+        // What his Team made of his opening duels (RV-8).
+        <p className="text-sm text-ink-2">
+          Opening duel {o.attempts}: эхний kill-ийн дараа баг {num(o.after_kill_won_pct, 0, '%')} хожсон (5v4), эхний үхлийн дараа{' '}
+          {num(o.after_death_won_pct, 0, '%')} (4v5); эхний үхлийнх нь {num(o.traded_pct, 0, '%')} trade хийгдсэн.
+        </p>
+      )}
+    </div>
   )
 }
 

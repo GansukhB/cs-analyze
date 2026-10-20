@@ -5,6 +5,7 @@ import type { components } from '../api/schema'
 import type { ReplayBridge } from '../replay/player'
 import Replay from '../replay/Replay'
 import RoundTimeline from '../replay/RoundTimeline'
+import Audit from './Audit'
 import { applyFilters, type Filters, isActive, useFilters } from './filters'
 import FilterBar from './FilterBar'
 import { NotesProvider, RoundNotes } from './Notes'
@@ -167,6 +168,7 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
           <PlayersTable scoreboard={scoreboard} review={review} team={filters.team} player={filters.player} onPlayer={onPlayer} />
         </section>
       )}
+      {parsed && <Audit matchId={matchId} mapNumber={mapNumber} onGoto={goto} />}
     </div>
   )
 }

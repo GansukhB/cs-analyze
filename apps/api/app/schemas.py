@@ -986,6 +986,60 @@ class DisputeRate(BaseModel):
     reasons: dict[str, int]
 
 
+# -- Timeout audit and opening duels (docs/plans/07 RV-8) --------------------------
+class AuditTimeout(BaseModel):
+    round: int
+    team_id: int
+    team: str
+    side: str
+    lost_before: int
+    won_next: bool
+    expected: float | None
+
+
+class AuditMissed(BaseModel):
+    round: int
+    team_id: int
+    team: str
+    lost_before: int
+    won_next: bool
+    left: int
+
+
+class OpeningLine(BaseModel):
+    sid: str
+    name: str
+    team_id: int | None
+    team: str
+    attempts: int
+    won: int
+    won_pct: float | None
+    traded: int
+    traded_pct: float | None
+    after_kill_won_pct: float | None
+    after_death_won_pct: float | None
+
+
+class AuditPoolLine(BaseModel):
+    rounds: int
+    won: int
+    pct: float | None
+
+
+class AuditPool(BaseModel):
+    maps: int
+    after_timeout: AuditPoolLine
+    without: AuditPoolLine
+
+
+class MapAudit(BaseModel):
+    known: bool
+    timeouts: list[AuditTimeout]
+    missed: list[AuditMissed]
+    openings: list[OpeningLine]
+    pool: AuditPool
+
+
 # -- Briefings (docs/plans/01 WS-5) ------------------------------------------------
 class BriefingMapPick(BaseModel):
     map: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")
@@ -1528,3 +1582,4 @@ class PlayerPage(BaseModel):
     rounds_reviewed: int
     spots: list[PlayerSpot]
     weapons: list[PlayerWeapon]
+    openings: OpeningLine | None = None

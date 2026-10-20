@@ -29,7 +29,7 @@ from app.models import (
     SnapshotMoment,
     Team,
 )
-from app.services import mn, review, review_pool
+from app.services import audit, mn, review, review_pool
 from app.services.dbctx import count_if, db, total
 
 PER_ROUNDS = 24  # Finding rates are said per 24 Rounds, a regulation Map
@@ -243,6 +243,8 @@ def build(steamid: int) -> dict | None:
         "rounds_reviewed": rounds_reviewed,
         "spots": spots,
         "weapons": weapons,
+        # Opening duels over every Match Map he played (RV-8).
+        "openings": next(iter(audit.openings([mm.id for mm, *_ in rows], player.id)), None),
     }
 
 

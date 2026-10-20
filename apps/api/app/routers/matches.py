@@ -19,6 +19,7 @@ from app.models import Match, MatchMap, PlayerMap, Round, User
 from app.routers.teams import map_label
 from app.schemas import (
     Agenda,
+    MapAudit,
     MatchInfo,
     MatchMapDetail,
     MatchMapTab,
@@ -30,7 +31,7 @@ from app.schemas import (
     ScoreboardSide,
     TeamRef,
 )
-from app.services import agenda, replay, review_view, scope
+from app.services import agenda, audit, dbctx, replay, review_view, scope
 
 logger = logging.getLogger(__name__)
 
@@ -308,3 +309,14 @@ def get_agenda(
     if team_id not in sides:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "That team did not play this match")
     return Agenda(**agenda.build(db, match, team_id))
+
+
+@router.get("/{match_id}/maps/{map_number}/audit")
+def get_audit(match_id: int, map_number: int, db: DbSession, user: CurrentUser) -> MapAudit:
+    """The Match Map's timeouts, the losing runs that went without one, and each
+    Player's opening duels (RV-8); the Pool's next Round after a run beside them."""
+    match_map = _map(db, match_id, map_number, user)
+    with dbctx.using(db):
+        out = audit.map_audit(match_map)
+        out["pool"] = audit.pool()
+    return MapAudit(**out)

@@ -727,6 +727,63 @@
         }
       }
     },
+    "/matches/{match_id}/maps/{map_number}/audit": {
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Get Audit",
+        "description": "The Match Map's timeouts, the losing runs that went without one, and each\nPlayer's opening duels (RV-8); the Pool's next Round after a run beside them.",
+        "operationId": "get_audit_matches__match_id__maps__map_number__audit_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Match Id"
+            }
+          },
+          {
+            "name": "map_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Map Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapAudit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/players/{steamid}": {
       "get": {
         "tags": [
@@ -3992,6 +4049,145 @@
         ],
         "title": "AssistantUserUsage"
       },
+      "AuditMissed": {
+        "properties": {
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "lost_before": {
+            "type": "integer",
+            "title": "Lost Before"
+          },
+          "won_next": {
+            "type": "boolean",
+            "title": "Won Next"
+          },
+          "left": {
+            "type": "integer",
+            "title": "Left"
+          }
+        },
+        "type": "object",
+        "required": [
+          "round",
+          "team_id",
+          "team",
+          "lost_before",
+          "won_next",
+          "left"
+        ],
+        "title": "AuditMissed"
+      },
+      "AuditPool": {
+        "properties": {
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "after_timeout": {
+            "$ref": "#/components/schemas/AuditPoolLine"
+          },
+          "without": {
+            "$ref": "#/components/schemas/AuditPoolLine"
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "after_timeout",
+          "without"
+        ],
+        "title": "AuditPool"
+      },
+      "AuditPoolLine": {
+        "properties": {
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rounds",
+          "won",
+          "pct"
+        ],
+        "title": "AuditPoolLine"
+      },
+      "AuditTimeout": {
+        "properties": {
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "lost_before": {
+            "type": "integer",
+            "title": "Lost Before"
+          },
+          "won_next": {
+            "type": "boolean",
+            "title": "Won Next"
+          },
+          "expected": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "round",
+          "team_id",
+          "team",
+          "side",
+          "lost_before",
+          "won_next",
+          "expected"
+        ],
+        "title": "AuditTimeout"
+      },
       "Body_login_auth_token_post": {
         "properties": {
           "grant_type": {
@@ -6215,6 +6411,47 @@
         ],
         "title": "LineupPlayers"
       },
+      "MapAudit": {
+        "properties": {
+          "known": {
+            "type": "boolean",
+            "title": "Known"
+          },
+          "timeouts": {
+            "items": {
+              "$ref": "#/components/schemas/AuditTimeout"
+            },
+            "type": "array",
+            "title": "Timeouts"
+          },
+          "missed": {
+            "items": {
+              "$ref": "#/components/schemas/AuditMissed"
+            },
+            "type": "array",
+            "title": "Missed"
+          },
+          "openings": {
+            "items": {
+              "$ref": "#/components/schemas/OpeningLine"
+            },
+            "type": "array",
+            "title": "Openings"
+          },
+          "pool": {
+            "$ref": "#/components/schemas/AuditPool"
+          }
+        },
+        "type": "object",
+        "required": [
+          "known",
+          "timeouts",
+          "missed",
+          "openings",
+          "pool"
+        ],
+        "title": "MapAudit"
+      },
       "MapRecordRow": {
         "properties": {
           "map": {
@@ -7434,6 +7671,104 @@
         ],
         "title": "NoteRead"
       },
+      "OpeningLine": {
+        "properties": {
+          "sid": {
+            "type": "string",
+            "title": "Sid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "won_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Won Pct"
+          },
+          "traded": {
+            "type": "integer",
+            "title": "Traded"
+          },
+          "traded_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traded Pct"
+          },
+          "after_kill_won_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Kill Won Pct"
+          },
+          "after_death_won_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Death Won Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sid",
+          "name",
+          "team_id",
+          "team",
+          "attempts",
+          "won",
+          "won_pct",
+          "traded",
+          "traded_pct",
+          "after_kill_won_pct",
+          "after_death_won_pct"
+        ],
+        "title": "OpeningLine"
+      },
       "Plate": {
         "properties": {
           "url": {
@@ -7862,6 +8197,16 @@
             },
             "type": "array",
             "title": "Weapons"
+          },
+          "openings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpeningLine"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
