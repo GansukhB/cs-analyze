@@ -8,10 +8,19 @@ Players behind it the way the Review was agreed:
   damaged the victim earlier in the Round (by the HP they took, at most half in
   all) and 20% for the teammate whose flash still had the victim blind;
 * the victim is charged the whole of their Team's loss; a Trade wins it back
-  for the trader, so an entry that is traded nets out near zero for the Team;
-* a plant goes to the planter, a defuse to the defuser; the bomb going off or
-  the clock running out goes to nobody, because the actions that led there
-  already moved the number.
+  for the trader, so an entry that is traded nets out near zero for the Team.
+  A kill never takes Swing from the killer's side (the model's clock can make
+  one look like a loss); a teamkill charges the teamkiller alone;
+* a plant goes to the planter and is charged to the CTs alive, a defuse to the
+  defuser and is charged to the Ts alive;
+* Swing v2 (RV-2, after HLTV Rating 3.0 and Leetify): whatever the events left
+  unassigned (the clock, a Round the bomb or the time decided) is settled at
+  the end, so each Team's Players add up to exactly its Win probability's move
+  over the Round. The winners share it 1x surviving, 2x for a kill that moved
+  the number (after the plant only, once there is one), 1x the clutch, 1x the
+  defuse; the losers alive at the end carry theirs, or all of them when none is.
+  A traded death gets back 20% of the Trade's gain from the trader, and the
+  teammate who could have traded and didn't takes 20% of the death's loss.
 
 On that timeline the detectors below look for the four kinds of Finding: Key
 plays, Mistakes, Missed chances and Utility effects. A Finding is stored as
@@ -59,7 +68,8 @@ logger = logging.getLogger(__name__)
 # Bump when the stored payload's shape or a detector changes.
 # 4: the Loadout's availability, entry/big_frag rarer, lost_weapon_save not at
 # a half's end, moving shots per weapon class, unscoped_awp held long enough.
-REVIEW_SCHEMA = 4
+# 5: Swing v2 (RV-2): every Round settled to its Win probability's move.
+REVIEW_SCHEMA = 5
 
 # CONTEXT.md: a Trade is killing the killer within 5 seconds.
 TRADE_SECONDS = 5.0
@@ -94,6 +104,12 @@ ADVANTAGE_MEN = 2  # "two up" is an advantage
 
 # Utility.
 FLASH_SHARE = 0.20
+# Of a Trade's gain to the death it avenged, and of an untraded death's loss to
+# the teammate who could have traded (Leetify).
+TRADE_SHARE = 0.20
+# How a Round's unassigned Win probability is shared among its winners (HLTV
+# Rating 3.0, 2025-10): weights added up per Player.
+RESIDUAL_WEIGHTS = {"survived": 1.0, "killed": 2.0, "clutch": 1.0, "defuse": 1.0}
 DAMAGE_SHARE_CAP = 0.50
 BLIND_MEANINGFUL = 1.0  # seconds; less is a flicker
 BLIND_UNPUNISHED = 2.0
@@ -883,7 +899,8 @@ class _RoundReview:
         events.sort(key=lambda e: (e[0], e[1]))
 
         alive = set(self.side)
-        self.wp.append([0.0, round(self.wp_ct(alive, self.start), 4)])
+        self._start_wp = self.wp_ct(alive, self.start)
+        self.wp.append([0.0, round(self._start_wp, 4)])
         step = int(2 * self.rate)
         cursor = self.start + step
         first_kill = True
@@ -901,6 +918,7 @@ class _RoundReview:
                 after = self.wp_ct(alive, tick + 1)
                 if self.planter:
                     self.swing[self.planter] += before - after
+                self._share([s for s in alive if self.side.get(s) == "ct"], after - before)
                 self.events.append(
                     {
                         "t": self.t(tick),
@@ -915,6 +933,7 @@ class _RoundReview:
                 sid = item.get("sid")
                 if sid:
                     self.swing[sid] += after - before
+                self._share([s for s in alive if self.side.get(s) == "t"], before - after)
                 self.events.append(
                     {
                         "t": self.t(tick),
@@ -938,6 +957,11 @@ class _RoundReview:
                 k["wp_ct_before"] = final
                 k["alive_before"] = (0, 0)
 
+    def _share(self, sids: list[str], amount: float) -> None:
+        """``amount`` split evenly among ``sids``."""
+        for s in sids:
+            self.swing[s] += amount / len(sids)
+
     def _credit_kill(self, k: dict, before: float, after: float, opening: bool) -> None:
         attacker, victim = k["attacker"], k["victim"]
         a_side = self.side.get(attacker) or k["attacker_side"]
@@ -952,10 +976,16 @@ class _RoundReview:
         )
         credits: dict[str, float] = defaultdict(float)
         victim_loss = d_ct if v_side == "ct" else -d_ct  # negative for the victim's team
-        if victim:
+        enemy = bool(attacker and a_side and a_side != v_side)
+        # A kill never costs the killer's side; what the model moved is left to settle().
+        if enemy and victim_loss > 0:
+            victim_loss = 0.0
+        # A teamkill is the teamkiller's loss alone.
+        teamkill = bool(attacker and attacker != victim and a_side == v_side)
+        if victim and not teamkill:
             credits[victim] += victim_loss
-        if attacker and a_side and a_side != v_side:
-            gain = d_ct if a_side == "ct" else -d_ct
+        if enemy:
+            gain = -victim_loss
             shares: dict[str, float] = defaultdict(float)
             for d in self.damages:
                 if (
@@ -973,6 +1003,7 @@ class _RoundReview:
             flasher = None
             if (
                 blind
+                and blind.seconds >= BLIND_MEANINGFUL
                 and blind.thrower
                 and blind.thrower != attacker
                 and self.side.get(blind.thrower) == a_side
@@ -990,8 +1021,8 @@ class _RoundReview:
                 credits[s] += gain * v * scale
             k["d_team"] = gain
         else:
-            # A teamkill, the bomb, a fall: the killer (if any) carries the loss.
-            if attacker and attacker != victim:
+            # A teamkill: the teamkiller carries the loss. The bomb, a fall: the victim.
+            if teamkill:
                 credits[attacker] += victim_loss
             k["d_team"] = victim_loss
             k["flasher"] = None
@@ -2140,12 +2171,78 @@ class _RoundReview:
                     tally[pop["thrower"]]["empty_hes"] += 1
         return {sid: dict(v) for sid, v in tally.items()}
 
+    # -- settling the Round (RV-2) --------------------------------------
+    def settle(self) -> None:
+        """The Trades' shares, then what the events left unassigned, so each
+        Team's Players add up to its Win probability's move over the Round."""
+        for k in self.kills:
+            trader = k.get("traded_by")
+            if not trader or k.get("post"):
+                continue
+            revenge = next(
+                (
+                    x
+                    for x in self.kills
+                    if x.get("trade_of") == k["victim"] and x["attacker"] == trader
+                ),
+                None,
+            )
+            gain = revenge["credits"].get(trader, 0.0) if revenge else 0.0
+            if gain > 0:
+                self.swing[trader] -= TRADE_SHARE * gain
+                self.swing[k["victim"]] += TRADE_SHARE * gain
+        for f in self.findings:
+            if f["code"] == "no_trade" and len(f["sids"]) >= 2:
+                mate, victim = f["sids"][0], f["sids"][1]
+                moved = TRADE_SHARE * abs(f["swing"])
+                self.swing[mate] -= moved
+                self.swing[victim] += moved
+
+        start = getattr(self, "_start_wp", None)
+        if start is None:
+            return
+        winner = self.rnd.winner_side
+        final = 1.0 if winner == "ct" else 0.0
+        alive = self.alive_at(self.end, inclusive=True)
+        planted = self.plant is not None and self.start <= self.plant <= self.end
+        clutcher = next((f["sids"][0] for f in self.findings if f["code"] == "clutch"), None)
+        defuser = self.defuse.get("sid") if self.defuse else None
+        for side in ("ct", "t"):
+            members = [s for s, sd in self.side.items() if sd == side]
+            if not members:
+                continue
+            moved = (final - start) if side == "ct" else (start - final)
+            rest = moved - sum(self.swing.get(s, 0.0) for s in members)
+            if abs(rest) < 1e-9:
+                continue
+            weights = {}
+            for s in members:
+                w = RESIDUAL_WEIGHTS["survived"] if s in alive else 0.0
+                if side == winner:
+                    killed = any(
+                        x["attacker"] == s
+                        and not x.get("post")
+                        and x["credits"].get(s, 0.0) > 0
+                        and (not planted or x["tick"] >= self.plant)
+                        for x in self.kills
+                    )
+                    w += RESIDUAL_WEIGHTS["killed"] if killed else 0.0
+                    w += RESIDUAL_WEIGHTS["clutch"] if s == clutcher else 0.0
+                    w += RESIDUAL_WEIGHTS["defuse"] if s == defuser else 0.0
+                weights[s] = w
+            total = sum(weights.values())
+            if total <= 0:
+                weights, total = dict.fromkeys(members, 1.0), float(len(members))
+            for s, w in weights.items():
+                self.swing[s] += rest * w / total
+
     def run(self) -> tuple[dict, dict]:
         self.timeline()
         self.trades()
         self.key_plays()
         self.mistakes()
         self.missed_chances()
+        self.settle()
         tally = self.utility()
         deaths = [k for k in self.kills if not k.get("post")]
         winners = [s for s, sd in self.side.items() if sd == self.rnd.winner_side]

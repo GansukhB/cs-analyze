@@ -79,7 +79,16 @@ function Tiles({ p }: { p: Page }) {
   const tiles: [string, string][] = [
     ['Map', String(t.maps)],
     ['Раунд', String(t.rounds)],
-    ['Swing / раунд', t.swing_per_round == null ? '—' : swingRateText(t.swing_per_round)],
+    [
+      'Swing / раунд',
+      t.swing_per_round == null
+        ? '—'
+        : swingRateText(t.swing_per_round) +
+          // An 80% range over his Match Maps (RV-2).
+          (t.swing_low != null && t.swing_high != null
+            ? ` (${swingRateText(t.swing_low)}…${swingRateText(t.swing_high)})`
+            : ''),
+    ],
     ['ADR', num(t.adr)],
     ['KAST', num(t.kast_pct, 1, '%')],
     ['Opening хожил', `${num(t.opening_win_pct, 0, '%')} · ${t.opening_attempts}`],

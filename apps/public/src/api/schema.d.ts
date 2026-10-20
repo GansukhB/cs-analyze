@@ -2937,6 +2937,10 @@ export interface components {
             traded_death_pct: number | null;
             /** Swing Per Round */
             swing_per_round: number | null;
+            /** Swing Low */
+            swing_low?: number | null;
+            /** Swing High */
+            swing_high?: number | null;
             /** Maps */
             maps: number;
         };

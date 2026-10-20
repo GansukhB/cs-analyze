@@ -15,6 +15,7 @@ fires.
 import io
 import json
 import zipfile
+from collections import defaultdict
 from types import SimpleNamespace
 
 import polars as pl
@@ -263,10 +264,14 @@ def test_a_kill_is_split_with_the_flash_and_the_damage_behind_it(db, inferno):
     assert gain > 0
     swing = rnd["swing"]
     # b1 flashed (20%) and damaged a1 for 40 (40%); b2 keeps the rest. Each of
-    # them is then charged their own death: the CT's gain on that kill.
+    # them is then charged their own death: the CT's gain on that kill. Both died,
+    # so Bravo's unassigned rest is split between them evenly (RV-2): only the
+    # difference between them is the kill's split.
     died = {e["victim"]: e["d_ct"] for e in rnd["events"] if e["kind"] == "kill"}
-    assert swing["22"] == pytest.approx(gain * 0.4 - died["22"], abs=1e-3)
-    assert swing["21"] == pytest.approx(gain * 0.6 - died["21"], abs=1e-3)
+    split = (gain * 0.6 - died["21"]) - (gain * 0.4 - died["22"])
+    assert swing["21"] - swing["22"] == pytest.approx(split, abs=1e-3)
+    # a1 died untraded with a2 too far to trade, and Alpha's rest went to a2,
+    # who survived and won it.
     assert swing["11"] == pytest.approx(-gain, abs=1e-3)
     # The Round ends decided, and a2 won it.
     assert rnd["wp"][-1] == [round((END - START) / 64, 2), 1.0]
@@ -409,9 +414,22 @@ def test_kills_move_swing_between_players_and_create_none(db, inferno):
     # Every kill hands the killer's side what it takes from the victim's (RV-3):
     # in a Round with no plant or defuse, the Players' Swing adds up to zero.
     rnd = _review(db, inferno)["rounds"][0]
-    assert sum(rnd["swing"].values()) == pytest.approx(0.0, abs=1e-6)
+    assert sum(rnd["swing"].values()) == pytest.approx(0.0, abs=1e-3)
     kills = [e for e in rnd["events"] if e["kind"] == "kill"]
     assert len(kills) == 3
+
+
+@pytest.mark.parametrize("bombed", [False, True])
+def test_each_teams_swing_adds_up_to_its_win_probabilitys_move(db, request, bombed):
+    # RV-2: settled, each Team's Players add up to exactly its Win probability's
+    # move over the Round, plant and defuse included.
+    inferno = request.getfixturevalue("defused" if bombed else "inferno")
+    payload = _review(db, inferno)
+    for rnd in payload["rounds"]:
+        start, final = rnd["wp"][0][1], rnd["wp"][-1][1]
+        for side, moved in (("ct", final - start), ("t", start - final)):
+            mine = [v for sid, v in rnd["swing"].items() if rnd["sides"].get(sid) == side]
+            assert sum(mine) == pytest.approx(moved, abs=2e-3), (side, rnd["n"])
 
 
 def test_every_finding_code_has_its_kind(db, inferno):
@@ -465,3 +483,24 @@ def test_a_pool_rate_counts_only_the_maps_that_could_show_it():
     assert not review_pool.can_show(blind, "crosshair")
     assert not review_pool.can_show(blind, "no_gun_in_hand")
     assert review_pool.can_show(blind, "untraded")
+
+
+def test_settling_shares_the_trades_and_the_rest():
+    k1 = {"attacker": "t1", "victim": "c1", "tick": 100, "traded_by": "c2",
+          "credits": {"t1": 0.2, "c1": -0.2}}  # fmt: skip
+    k2 = {"attacker": "c2", "victim": "t1", "tick": 200, "trade_of": "c1",
+          "credits": {"c2": 0.25, "t1": -0.25}}  # fmt: skip
+    rr = SimpleNamespace(
+        kills=[k1, k2],
+        findings=[{"code": "no_trade", "sids": ["c3", "c4", "t2"], "swing": -0.15}],
+        swing=defaultdict(float, {"t1": -0.05, "c1": -0.2, "c2": 0.25, "c4": -0.15, "t2": 0.15}),
+        side={"c1": "ct", "c2": "ct", "c3": "ct", "c4": "ct", "t1": "t", "t2": "t"},
+        _start_wp=0.5, rnd=SimpleNamespace(winner_side="ct"), plant=None, start=0, end=1000,
+        defuse=None, alive_at=lambda tick, inclusive=False: {"c2", "c3"},
+    )  # fmt: skip
+    review._RoundReview.settle(rr)
+    got = {s: round(v, 4) for s, v in rr.swing.items()}
+    # c1 gets 20% of c2's Trade back; c3, who could have traded c4, takes 20% of
+    # that death. Alpha's rest (0.6) goes 3:1 to c2 (alive, a kill) and c3 (alive);
+    # Bravo's (-0.6) evenly, nobody being alive.
+    assert got == {"c1": -0.15, "c2": 0.65, "c3": 0.12, "c4": -0.12, "t1": -0.35, "t2": -0.15}

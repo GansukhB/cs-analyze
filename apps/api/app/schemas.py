@@ -1521,6 +1521,9 @@ class PlayerLine(BaseModel):
 
 class PlayerTotals(PlayerLine):
     swing_per_round: float | None
+    # 80% range from resampling his Match Maps, with three or more (RV-2).
+    swing_low: float | None = None
+    swing_high: float | None = None
     maps: int
 
 

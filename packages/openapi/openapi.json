@@ -8413,6 +8413,28 @@
             ],
             "title": "Swing Per Round"
           },
+          "swing_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swing Low"
+          },
+          "swing_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swing High"
+          },
           "maps": {
             "type": "integer",
             "title": "Maps"

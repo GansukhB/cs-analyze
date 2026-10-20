@@ -31,10 +31,12 @@ from app.models import (
 )
 from app.services import audit, mn, review, review_pool
 from app.services.dbctx import count_if, db, total
+from app.services.stats import bootstrap
 
 PER_ROUNDS = 24  # Finding rates are said per 24 Rounds, a regulation Map
 SPOTS_PER_SIDE = 3
 WEAPONS = 6
+SWING_RANGE_MIN_MAPS = 3
 
 
 def _pct(part: float, whole: float) -> float | None:
@@ -171,6 +173,16 @@ def build(steamid: int) -> dict | None:
     totals = _line(*[a + b for a, b in zip(sides["ct"], sides["t"], strict=True)])
     all_swings = [s for v in swing_by_map.values() for s in v]
     totals["swing_per_round"] = round(sum(all_swings) / len(all_swings), 4) if all_swings else None
+    # An 80% range from resampling whole Match Maps (RV-2): a night's luck moves
+    # the mean less than it seems.
+    groups = [(sum(v), len(v)) for v in swing_by_map.values() if v]
+    low = high = None
+    if len(groups) >= SWING_RANGE_MIN_MAPS:
+        low, high = bootstrap(
+            groups, lambda g: sum(x[0] for x in g) / max(1, sum(x[1] for x in g)), draws=400
+        )
+        low, high = round(low, 4), round(high, 4)
+    totals["swing_low"], totals["swing_high"] = low, high
     totals["maps"] = len(rows)
 
     # -- Findings: his rate per 24 Rounds against every Player's
