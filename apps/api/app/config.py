@@ -28,7 +28,8 @@ class Settings(BaseSettings):
     jwt_secret: SecretStr
     jwt_algorithm: str = "HS256"
     # See docs/adr/0001-jwt-in-localstorage.md before changing token lifetime or storage.
-    access_token_expire_minutes: int = 60 * 24
+    # 12 hours (docs/plans WS-6): a token stolen through XSS works for half as long.
+    access_token_expire_minutes: int = 60 * 12
 
     cors_origins: list[str] = ["http://localhost:5173"]
     # Swagger and the raw schema. Off in production (ansible/templates/api.env.j2):

@@ -41,7 +41,7 @@ from app.models import (
 )
 from app.security import hash_password
 
-MIN_PASSWORD_LENGTH = 8
+MIN_PASSWORD_LENGTH = 10  # docs/plans WS-6
 
 
 def _workspace(db, name: str | None) -> Workspace:
