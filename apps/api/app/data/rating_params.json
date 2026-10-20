@@ -1,0 +1,47 @@
+{
+  "params": {
+    "k": 56.0,
+    "prior_center": 1000.0,
+    "prior_slope": 0.7,
+    "unranked": 700.0,
+    "idle_half_life": 180.0,
+    "keep_core": 3,
+    "calibration": 0.8972,
+    "version": "20261021"
+  },
+  "tune": {
+    "n": 20206,
+    "log_loss": 0.6188,
+    "brier": 0.2152,
+    "accuracy": 0.654
+  },
+  "test": {
+    "n": 12644,
+    "log_loss": 0.6183,
+    "brier": 0.2149,
+    "accuracy": 0.6518
+  },
+  "baselines": {
+    "coin": {
+      "n": 12644,
+      "log_loss": 0.6931,
+      "brier": 0.25,
+      "accuracy": 0.0
+    },
+    "vrs_points": {
+      "n": 12644,
+      "log_loss": 0.6668,
+      "brier": 0.2373,
+      "accuracy": 0.6184
+    }
+  },
+  "vs_vrs_points": {
+    "log_loss_gain": 0.0485,
+    "low": 0.0427,
+    "high": 0.0539,
+    "weeks": 40
+  },
+  "split": "2026-01-01",
+  "burn_in": "2024-06-01",
+  "series": 35761
+}

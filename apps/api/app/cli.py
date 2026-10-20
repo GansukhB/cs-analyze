@@ -11,6 +11,8 @@ python -m app.cli import-tickdata [folder]   # parquet bundles on disk -> MySQL
 python -m app.cli rebuild-tickdata           # Replays, walks, geometry from the stored bundles
 python -m app.cli fit-winprob                # refit the Review's Win probability model
 python -m app.cli rebuild-reviews [--map ID] # cut every Match Map's Review again
+python -m app.cli import-vrs [checkout]       # Valve Regional Standings -> series results
+python -m app.cli forecast-backtest           # fit the Rating walk-forward (rating_params.json)
 python -m app.cli import-cstat [root] [--match HLTV_ID] [--map NAME]
                                              # cstat's teams, matches and .dem files -> MySQL
 """
@@ -263,6 +265,39 @@ def import_cstat(
             sys.exit(str(exc))
 
 
+def import_vrs(root: Path | None) -> None:
+    """Valve's monthly standings and every series they counted (DATA-2)."""
+    from app.services import vrs_import
+
+    scratch = get_settings().hltv_data_dir / "tmp"
+    with SessionLocal() as db:
+        out = vrs_import.run(db, scratch, root, log=lambda line: print(line, flush=True))
+    print(
+        f"{out['standings']} standings lines; {out['series']} series read, "
+        f"{out['added']} new, {out['total']} stored."
+    )
+
+
+def forecast_backtest() -> None:
+    """Fit the Rating on series before 2026, score it on 2026 (FC-5), and commit it."""
+    import json
+    from datetime import date
+
+    from app.services import rating
+
+    with SessionLocal() as db:
+        series, vrs = rating.load_series(db), rating.load_vrs(db)
+    if not series:
+        sys.exit("No series results: run `npm run data:vrs` first.")
+    out = rating.backtest(series, vrs, split=date(2026, 1, 1), burn_in=date(2024, 6, 1))
+    out["params"]["version"] = date.today().strftime("%Y%m%d")
+    out["series"] = len(series)
+    rating.PARAMS_PATH.write_text(json.dumps(out, indent=2) + "\n")
+    keys = ("params", "tune", "test", "baselines", "vs_vrs_points")
+    print(json.dumps({k: out[k] for k in keys}, indent=2))
+    print(f"Wrote {rating.PARAMS_PATH}; commit it.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -284,7 +319,11 @@ def main() -> None:
         "folder", nargs="?", help="Defaults to <HLTV_DATA_DIR>/parquet."
     )
     sub.add_parser("rebuild-tickdata")
+    sub.add_parser("import-vrs").add_argument(
+        "root", nargs="?", help="A checkout of the repo; cloned into scratch if omitted."
+    )
     sub.add_parser("fit-winprob")
+    sub.add_parser("forecast-backtest")
     sub.add_parser("rebuild-reviews").add_argument("--map", type=int, help="One Match Map id.")
     cstat = sub.add_parser("import-cstat")
     cstat.add_argument("root", nargs="?", help="The cstat checkout; defaults to ../cstat.")
@@ -310,8 +349,14 @@ def main() -> None:
         default = get_settings().hltv_data_dir / "parquet"
         import_tickdata(Path(args.folder) if args.folder else default)
         return
+    if args.command == "import-vrs":
+        import_vrs(Path(args.root) if args.root else None)
+        return
     if args.command == "rebuild-tickdata":
         rebuild_tickdata()
+        return
+    if args.command == "forecast-backtest":
+        forecast_backtest()
         return
     if args.command == "fit-winprob":
         fit_winprob()
