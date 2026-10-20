@@ -220,6 +220,15 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
       )}
 
       <h3 className="pb-section">Self-scout — бидний таагдахуйц зуршил</h3>
+      {d.predictability.length > 0 && (
+        <ul className="pb-rows">
+          {d.predictability.map((p) => (
+            <li key={p.side} className={p.predictable ? 'warn-text' : undefined}>
+              {p.text}
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="sides2">
         {d.self_scout.map((s) => (
           <div key={s.side}>

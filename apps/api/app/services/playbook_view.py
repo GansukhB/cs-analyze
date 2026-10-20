@@ -115,4 +115,5 @@ def panel(my_team: Team, opponent: Team, map_name: str) -> dict:
             }
             for side, habits in raw["self_scout"].items()
         ],
+        "predictability": mn.playbook_predictability(raw.get("predictability") or {}),
     }

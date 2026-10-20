@@ -166,3 +166,15 @@ def test_pistol_conversion_counts_the_next_two_rounds():
     assert (out[1]["breaks"], out[1]["broken"]) == (1, 1)
     assert (out[2]["chances"], out[2]["converted"]) == (1, 0)
     assert out[1]["both"] == 0
+
+
+def test_a_spread_says_how_many_moves_it_is_worth():
+    from collections import Counter
+
+    from app.services import playbook
+
+    even = playbook._spread(Counter({"a": 10, "b": 10, "c": 10}))
+    assert even["options"] == 3.0 and not even["predictable"]
+    one = playbook._spread(Counter({"a": 12, "b": 2}))
+    assert one["top"] == "a" and one["predictable"] and one["options"] < 2
+    assert playbook._spread(Counter())["rounds"] == 0

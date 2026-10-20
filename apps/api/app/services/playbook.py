@@ -780,6 +780,97 @@ def pistols(team_id: int, rounds: list[_Round], detail: _Detail, sites) -> list[
     return out
 
 
+PREDICTABLE_SHARE = 0.5  # one first move in half the Rounds is something to anti-strat
+PREDICTABLE_ROUNDS = 10
+
+
+def _spread(counts: Counter) -> dict:
+    """How varied a set of first moves is: its top one's share, and how many
+    equally likely moves would be as unpredictable (exp of the entropy)."""
+    n = sum(counts.values())
+    if not n:
+        return {"rounds": 0, "top": None, "top_share": None, "options": None, "predictable": False}
+    top, k = counts.most_common(1)[0]
+    entropy = -sum(c / n * math.log(c / n) for c in counts.values() if c)
+    share = k / n
+    return {
+        "rounds": n,
+        "top": top,
+        "top_share": round(share, 3),
+        "options": round(math.exp(entropy), 1),
+        "predictable": n >= PREDICTABLE_ROUNDS and share >= PREDICTABLE_SHARE,
+    }
+
+
+def t_spread_pool(map_name: str | None) -> float | None:
+    """The 75th percentile of every Team's T top-move share on this Map (GP-11):
+    a Team is readable only past what most Teams are."""
+
+    def compute():
+        if not map_name:
+            return None
+        rows = db().execute(
+            select(Round.t_team_id, Round.match_map_id, Round.bomb_site, Round.bomb_plant_tick,
+                   Round.freeze_end_tick, MatchMap.tickrate, Round.number)
+            .join(MatchMap, MatchMap.id == Round.match_map_id)
+            .join(GameMap, GameMap.id == MatchMap.game_map_id)
+            .where(GameMap.name == map_name, Round.bomb_plant_tick.is_not(None))
+        ).all()  # fmt: skip
+        by_team: dict[int, Counter] = defaultdict(Counter)
+        for team, _mm, site, plant, freeze, rate, number in rows:
+            if team is None or number in PISTOL_ROUNDS or freeze is None:
+                continue
+            secs = (plant - freeze) / (rate or 64)
+            tempo = "rush" if secs <= mapstrategy.RUSH_PLANT_SEC else "default"
+            by_team[team][(site or "?", tempo)] += 1
+        shares = sorted(
+            c.most_common(1)[0][1] / sum(c.values())
+            for c in by_team.values()
+            if sum(c.values()) >= PREDICTABLE_ROUNDS
+        )
+        if len(shares) < 3:
+            return None
+        return shares[int(0.75 * (len(shares) - 1))]
+
+    return memo(("playbook_t_spread_pool", map_name), compute)
+
+
+def predictability(
+    team_id: int, rounds: list[_Round], detail: _Detail, sites, map_name: str | None = None
+) -> dict:
+    """GP-11: how readable our first moves are on this Map: CT Setups, and T
+    rounds by where and how fast the bomb went down (official Matches only)."""
+    ct_rounds = [r for r in rounds if r.side_of(team_id) == "ct"]
+    full = [
+        s for s in _setups(team_id, ct_rounds, "ct", detail, sites).values()
+        if sum(s["count"].values()) >= 4
+    ]  # fmt: skip
+    ct = (
+        Counter(tuple(s["count"].get(lean_, 0) for lean_ in LEANS) for s in full)
+        if sites
+        else Counter()
+    )
+    # Where and how fast the bomb went down; a Round with no plant is an outcome,
+    # not a move, so it is left out.
+    t = Counter()
+    for r in rounds:
+        if r.side_of(team_id) != "t" or r.number in PISTOL_ROUNDS or r.plant is None:
+            continue
+        tempo = "rush" if r.secs(r.plant) <= mapstrategy.RUSH_PLANT_SEC else "default"
+        t[(r.site or "?", tempo)] += 1
+    ct_spread, t_spread = _spread(ct), _spread(t)
+    # A site lean most Teams have is no tell: T is readable only past the Map's p75.
+    bar = t_spread_pool(map_name)
+    if bar is not None and t_spread["top_share"] is not None:
+        t_spread["pool_p75"] = round(bar, 3)
+        t_spread["predictable"] = t_spread["predictable"] and t_spread["top_share"] > bar
+    if ct_spread["top"] is not None:
+        ct_spread["top"] = dict(zip(LEANS, ct_spread["top"], strict=True))
+    if t_spread["top"] is not None:
+        t_spread["top"] = {"site": t_spread["top"][0], "tempo": t_spread["top"][1]}
+    return {"ct": ct_spread, "t": t_spread}
+
+
 def _conversion_rows(rows) -> dict[int, dict]:
     """Per Team: pistols won, then the next two Rounds (GP-5). ``rows`` are
     ``(match_map_id, number, winner, ct, t)`` in Round order."""
@@ -1106,4 +1197,5 @@ def build(my_team: Team, opponent: Team, map_name: str) -> dict:
             side: _fielded_only(my_team, side_habits(my_team.id, mine, side, detail, sites, pools))
             for side in ("t", "ct")
         },
+        "predictability": predictability(my_team.id, mine, detail, sites, map_name),
     }

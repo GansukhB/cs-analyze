@@ -3224,3 +3224,50 @@ def playbook_conversion(c: dict, mine: str, theirs: str) -> list[dict]:
             }
         )  # fmt: skip
     return out
+
+
+# -- GP-11: how readable our first moves are ------------------------------------
+TEMPO = {"rush": "rush", "default": "default"}
+
+
+def playbook_predictability(p: dict) -> list[dict]:
+    """``[{side, text, predictable}]``: our CT Setups and T plants on this Map."""
+    out = []
+    ct = p.get("ct") or {}
+    if ct.get("rounds"):
+        top = ct["top"] or {}
+        shape = " · ".join(f"{k} {v}" for k, v in top.items() if v)
+        out.append(
+            {
+                "side": "ct",
+                "predictable": ct["predictable"],
+                "text": (
+                    f"CT: хамгийн түгээмэл Setup ({shape}) {round(ct['top_share'] * 100)}% "
+                    f"({ct['rounds']} раунд), ~{ct['options']:g} өөр Setup-тэй адил олон янз."
+                ),
+            }
+        )
+    t = p.get("t") or {}
+    if t.get("rounds"):
+        top = t["top"] or {}
+        what = f"{top.get('site')} site, {TEMPO.get(top.get('tempo'), top.get('tempo'))}"
+        out.append(
+            {
+                "side": "t",
+                "predictable": t["predictable"],
+                "text": (
+                    f"T: plant хийсэн раундын хамгийн түгээмэл нь {what} — "
+                    f"{round(t['top_share'] * 100)}% ({t['rounds']} раунд), "
+                    f"~{t['options']:g} өөр сонголттой адил"
+                    + (
+                        f" (багуудын 75% нь {round(t['pool_p75'] * 100)}% хүртэл)."
+                        if t.get("pool_p75")
+                        else "."
+                    )
+                ),
+            }
+        )
+    for line in out:
+        if line["predictable"]:
+            line["text"] += " Өрсөлдөгч үүнийг anti-strat хийж чадна: хувилбар нэмэх."
+    return out
