@@ -87,8 +87,13 @@ function TimeoutCard(props: { fixture: Fixture; map: string; label: string; oppo
                 дарамтанд {m.pressed}% ({m.rounds} раунд).{' '}
                 <span className="pb-counter">{m.counter}</span>{' '}
                 {m.refs.map((r) => (
-                  <Link key={`${r.map}-${r.round}`} to={replayHref(r)} className="mono">
-                    R{r.round}
+                  <Link
+                    key={`${r.match}-${r.map}-${r.round}`}
+                    to={replayHref(r)}
+                    className="mono"
+                    title={`Тоглолт ${r.match}, map ${r.map}`}
+                  >
+                    R{r.round}{' '}
                   </Link>
                 ))}
               </li>
