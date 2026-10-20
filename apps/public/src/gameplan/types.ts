@@ -187,6 +187,9 @@ export interface H2HPanel {
     delta: number
     unit: string
     worse: boolean
+    // TM-9: past its unit's bar and beyond chance; a sample big enough to tell.
+    clear: boolean
+    enough: boolean
   }[]
   own_rounds: number
   versus_rounds: number

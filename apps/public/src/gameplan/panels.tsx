@@ -455,7 +455,9 @@ export function H2H({ data }: { data: H2HPanel }) {
             <Chart svg={data.chart} />
             <p className="cap">
               Өөрсдийн тоглолтын түвшнээс энэ багийн эсрэг үзүүлэлт хэр зөрж байгаа нь. Энэ зөрүү л "бид энэ зүйлд
-              тааруу" ба "тэд биднийг тааруу болгодог" хоёрыг ялгана.
+              тааруу" ба "тэд биднийг тааруу болгодог" хоёрыг ялгана. ✓ нь зөрүү санамсаргүй тохиолдлоос давсан (хувь нь 5+
+              пункт, p &lt; 0.10, Match Map-ын раундуудыг хамааралтай гэж тооцсон); саарал нь дээж хүрэлцэхгүй эсвэл
+              санамсаргүйгээр гарч болох зөрүү.
             </p>
           </div>
           <div className="tw">
@@ -481,9 +483,14 @@ export function H2H({ data }: { data: H2HPanel }) {
                       {r.versus}
                       {r.unit}
                     </td>
-                    <td className="mono" style={{ color: r.worse ? 'var(--crit)' : 'var(--good)' }}>
+                    <td
+                      className="mono"
+                      style={{ color: r.clear ? (r.worse ? 'var(--crit)' : 'var(--good)') : 'var(--ink-3)' }}
+                      title={r.enough ? undefined : 'Тэдний эсрэг дээж бага'}
+                    >
                       {r.delta}
                       {r.unit}
+                      {r.clear ? ' ✓' : ''}
                     </td>
                     <td>{r.why}</td>
                   </tr>

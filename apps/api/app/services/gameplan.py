@@ -20,6 +20,7 @@ Ported from cstat's ``hltv/services/gameplan.py``.
 from __future__ import annotations
 
 import logging
+import math
 import statistics
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
@@ -181,6 +182,10 @@ def team_metrics(team: Team, match_maps: Iterable[MatchMap]) -> dict:
         "kast_pct": _pct(kast, pr_rounds),
         "util_per_round": _ratio(smokes + infernos, len(ours), 2),
         "flash_assists": flashes,
+        # The denominators TM-9's test needs.
+        "openings": opening_k + opening_d,
+        "deaths": deaths,
+        "player_rounds": pr_rounds,
     }
 
 
@@ -372,6 +377,7 @@ def h2h_delta(team: Team, opponent: Team) -> dict:
         if a is None or b is None:
             continue
         delta = round(float(b) - float(a), 2)
+        judged = _delta_test(key, own, versus)
         rows.append(
             {
                 "key": key,
@@ -382,6 +388,7 @@ def h2h_delta(team: Team, opponent: Team) -> dict:
                 "versus": b,
                 "delta": delta,
                 "worse": (delta < 0) if higher_better else (delta > 0),
+                **judged,
             }
         )
     rows.sort(key=lambda r: r["delta"])
@@ -389,8 +396,58 @@ def h2h_delta(team: Team, opponent: Team) -> dict:
         "rows": rows,
         "own_rounds": own.get("rounds", 0),
         "versus_rounds": versus.get("rounds", 0),
-        "collapses": [r for r in rows if r["worse"] and abs(r["delta"]) >= 8][:5],
-        "holds": [r for r in rows if not r["worse"]][:5],
+        # TM-9: a collapse is a drop past its unit's bar that chance doesn't explain;
+        # a hold is no drop on a sample big enough to have shown one.
+        "collapses": [r for r in rows if r["worse"] and r["clear"]][:5],
+        "holds": [r for r in rows if not r["worse"] and r["enough"]][:5],
+    }
+
+
+# kpi -> (its denominator in team_metrics, the value's scale: 100 for a percent).
+# The rest (ADR, utility per round) are continuous.
+DELTA_DENOM = {
+    "ct_win_pct": ("ct_rounds", 100.0),
+    "t_win_pct": ("t_rounds", 100.0),
+    "pistol_win_pct": ("pistols_played", 100.0),
+    "opening_win_pct": ("openings", 100.0),
+    "plant_rate": ("t_rounds", 100.0),
+    "post_plant_win_pct": ("plants", 100.0),
+    "retake_win_pct": ("retakes_faced", 100.0),
+    "traded_death_pct": ("deaths", 100.0),
+    "kast_pct": ("player_rounds", 100.0),
+    "multi_kill_rate": ("player_rounds", 1.0),
+}
+DELTA_MIN_EVENTS = 8  # against them, before a rate's change can be read
+DELTA_MIN_POINTS = 5.0  # a rate must move this many points
+DELTA_MIN_RELATIVE = 0.15  # a per-round number must move this share of its own value
+DELTA_MIN_ROUNDS = 48  # two Match Maps against them, for a per-round number
+DELTA_P = 0.10
+
+
+def _delta_test(key: str, own: dict, versus: dict) -> dict:
+    """Whether a metric's change against this opponent is past chance (TM-9)."""
+    a, b = float(own[key]), float(versus[key])
+    spec = DELTA_DENOM.get(key)
+    if spec is None:
+        enough = (versus.get("rounds") or 0) >= DELTA_MIN_ROUNDS
+        moved = abs(b - a) >= DELTA_MIN_RELATIVE * max(abs(a), 1e-9)
+        return {"enough": enough, "clear": enough and moved, "p": None}
+    denom, scale = spec
+    n_own, n_vs = float(own.get(denom) or 0), float(versus.get(denom) or 0)
+    enough = n_vs >= DELTA_MIN_EVENTS
+    if not enough or n_own <= 0:
+        return {"enough": enough, "clear": False, "p": None}
+    # Rounds of one Match Map aren't independent: discount both samples for it.
+    e_own = stats.effective_n(n_own, n_own / max(1, own.get("maps") or 1))
+    e_vs = stats.effective_n(n_vs, n_vs / max(1, versus.get("maps") or 1))
+    p1, p2 = a / scale, b / scale
+    pooled = (p1 * e_own + p2 * e_vs) / (e_own + e_vs)
+    se = math.sqrt(max(pooled * (1 - pooled), 1e-9) * (1 / e_own + 1 / e_vs))
+    p = math.erfc(abs(p2 - p1) / se / math.sqrt(2))
+    return {
+        "enough": True,
+        "clear": p < DELTA_P and abs(p2 - p1) * 100 >= DELTA_MIN_POINTS * (scale / 100),
+        "p": round(p, 4),
     }
 
 

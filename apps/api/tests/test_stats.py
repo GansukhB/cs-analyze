@@ -99,3 +99,17 @@ def test_a_card_says_only_what_passed():
     assert out["strengths"] == ["CT: ADR 82.3 (үүргийн жишиг 74.8)"]
     assert out["weaknesses"][0].endswith("бусдаас доогуур") and len(out["weaknesses"]) == 2
     assert out["tendencies"][0].startswith("Entry: 24 раундад 2.2")
+
+
+def test_a_head_to_head_drop_is_called_only_past_chance():
+    from app.services import gameplan
+
+    own = {"t_win_pct": 55.0, "t_rounds": 600, "maps": 50, "rounds": 1200}
+    big = {"t_win_pct": 30.0, "t_rounds": 120, "maps": 10, "rounds": 240}
+    few = {"t_win_pct": 30.0, "t_rounds": 6, "maps": 1, "rounds": 12}
+    assert gameplan._delta_test("t_win_pct", own, big)["clear"]
+    assert not gameplan._delta_test("t_win_pct", own, few)["enough"]
+    small = {"t_win_pct": 52.0, "t_rounds": 120, "maps": 10, "rounds": 240}
+    assert not gameplan._delta_test("t_win_pct", own, small)["clear"]
+    adr_own, adr_vs = {"adr": 80.0, "rounds": 1200}, {"adr": 60.0, "rounds": 96}
+    assert gameplan._delta_test("adr", adr_own, adr_vs)["clear"]

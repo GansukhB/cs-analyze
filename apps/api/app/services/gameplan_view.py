@@ -391,6 +391,9 @@ def _h2h(report, my_team, opponent) -> dict:
                 "delta": r["delta"],
                 "unit": r["unit"],
                 "worse": r["worse"],
+                # TM-9: past its unit's bar and beyond chance, or no sample to tell.
+                "clear": bool(r.get("clear")),
+                "enough": bool(r.get("enough")),
             }
             for r in delta.get("rows", [])
         ],
