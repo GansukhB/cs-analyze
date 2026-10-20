@@ -80,3 +80,22 @@ def test_a_role_kpi_is_called_only_on_enough_evidence():
     assert roles._judge(few, "opening_win_pct", stat, cohort, None)["verdict"] == "par"
     judged = roles._judge(many, "opening_win_pct", stat, cohort, None)
     assert judged["verdict"] == "above" and judged["shrunk"] < 72.0
+
+
+def test_a_card_says_only_what_passed():
+    from app.services import mn
+
+    proven = [
+        {"side": "ct", "kpi": "adr", "label": "ADR", "shrunk": 82.318, "cohort_mean": 74.78,
+         "verdict": "above"},
+    ]  # fmt: skip
+    reviewed = {
+        "maps": 12,
+        "swing": {"per_round": -0.021, "low": -0.035, "high": -0.004, "clear": True},
+        "weaknesses": [{"label": "Trade-гүй", "per24": 3.1, "pool_per24": 2.6, "count": 40}],
+        "tendencies": [{"label": "Entry", "per24": 2.2, "pool_per24": 1.5, "count": 30}],
+    }
+    out = mn.card_lines(proven, reviewed)
+    assert out["strengths"] == ["CT: ADR 82.3 (үүргийн жишиг 74.8)"]
+    assert out["weaknesses"][0].endswith("бусдаас доогуур") and len(out["weaknesses"]) == 2
+    assert out["tendencies"][0].startswith("Entry: 24 раундад 2.2")

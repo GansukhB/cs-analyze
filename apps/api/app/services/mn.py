@@ -3140,3 +3140,49 @@ UPLOAD_WHO = (
 )
 UPLOAD_GONE = "{map}: хадгалсан tick дата алга, дахин upload хийнэ үү."
 UPLOAD_SIDES_SET = "талуудыг сонгосноор дахин хадгаллаа."
+
+
+# -- PL-7: what the evidence settles about a Player -----------------------------------
+def _signed_pct(v: float) -> str:
+    return f"{v * 100:+.1f}%"
+
+
+def _kpi_number(kpi: str, value: float) -> str:
+    if kpi.endswith("_pct"):
+        return f"{value:.1f}%"
+    if kpi.endswith(("_per_round", "_rate", "_share")) or kpi == "kd_ratio":
+        return f"{value:.2f}"
+    return f"{value:.1f}"
+
+
+def card_lines(proven: list[dict], reviewed: dict | None) -> dict:
+    """``{"strengths", "weaknesses", "tendencies", "swing"}``, each line worded with
+    its sample. Only what passed its test is here (PL-3, PL-7)."""
+    out: dict = {"strengths": [], "weaknesses": [], "tendencies": [], "swing": ""}
+    for row in proven:
+        side = SIDE_SHORT.get(row["side"], row["side"])
+        text = (
+            f"{side}: {row['label']} {_kpi_number(row['kpi'], row['shrunk'])} "
+            f"(үүргийн жишиг {_kpi_number(row['kpi'], row['cohort_mean'])})"
+        )
+        (out["strengths"] if row["verdict"] == "above" else out["weaknesses"]).append(text)
+    if not reviewed:
+        return out
+    sw = reviewed.get("swing")
+    if sw:
+        out["swing"] = (
+            f"Swing/раунд {_signed_pct(sw['per_round'])} "
+            f"({reviewed['maps']} мап, 80%: {_signed_pct(sw['low'])}…{_signed_pct(sw['high'])})"
+        )
+        if sw["clear"]:
+            up = sw["per_round"] > 0
+            (out["strengths"] if up else out["weaknesses"]).append(
+                out["swing"] + (" — бусдаас дээгүүр" if up else " — бусдаас доогуур")
+            )
+    for key in ("weaknesses", "tendencies"):
+        for line in reviewed.get(key) or []:
+            out[key].append(
+                f"{line['label']}: 24 раундад {line['per24']:g} "
+                f"(бусад тоглогч {line['pool_per24']:g}, {line['count']} удаа)"
+            )
+    return out

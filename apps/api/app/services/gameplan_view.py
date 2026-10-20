@@ -23,6 +23,7 @@ from app.services import (
     levers,
     mn,
     playbook_view,
+    player_cards,
     pool_cache,
     rating,
     review_pool,
@@ -518,6 +519,8 @@ def _players(report, my_team, opponent) -> dict:
     """
     cards, hidden = [], []
     for scope, key, _, team in _scopes(my_team, opponent):
+        fielded = [p["player_id"] for p in report["players"][key] if p["in_lineup"]]
+        reviewed = player_cards.lines(team, fielded)
         for player in report["players"][key]:
             if not player["in_lineup"]:
                 hidden.append(player["name"])
@@ -548,6 +551,10 @@ def _players(report, my_team, opponent) -> dict:
                     "own": _form(player["form"]["own"]),
                     "vs": _form(player["form"]["vs"]),
                     "instructions": mn.instructions(player.get("instructions") or []),
+                    # PL-7: what the evidence settles about him, each line with its sample.
+                    "proven": mn.card_lines(
+                        player.get("proven") or [], reviewed.get(player["player_id"])
+                    ),
                 }
             )
     return {"cards": cards, "hidden": hidden}

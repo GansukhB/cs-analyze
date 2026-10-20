@@ -296,6 +296,8 @@ export interface PlayersPanel {
     own: Form | null
     vs: Form | null
     instructions: { title: string; text: string; tone: string }[]
+    /** What the evidence settles: role KPIs past their test (PL-3), the Reviews' Swing and Findings (PL-7). */
+    proven: { strengths: string[]; weaknesses: string[]; tendencies: string[]; swing: string }
   }[]
   hidden: string[]
 }

@@ -199,6 +199,37 @@ function ForecastBlock({ forecast, fixture }: { forecast: DecisionForecast; fixt
   )
 }
 
+// What the evidence settles about one Player (PL-3, PL-7): each line passed its
+// test against the cohort or every reviewed Player, so a short list is the honest one.
+function Proven({ proven }: { proven?: PlayersPanel['cards'][number]['proven'] }) {
+  if (!proven) return null
+  const groups: [string, string[], string][] = [
+    ['Давуу тал', proven.strengths, 'var(--good)'],
+    ['Сул тал', proven.weaknesses, 'var(--crit)'],
+    ['Хандлага', proven.tendencies, 'var(--ink-2)'],
+  ]
+  if (!groups.some(([, lines]) => lines.length) && !proven.swing) return null
+  return (
+    <div className="proven">
+      {groups
+        .filter(([, lines]) => lines.length)
+        .map(([title, lines, color]) => (
+          <div key={title}>
+            <b style={{ color }}>{title}</b>
+            <ul>
+              {lines.map((l, i) => (
+                <li key={i}>{l}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      {proven.swing && !proven.strengths.concat(proven.weaknesses).some((l) => l.startsWith('Swing')) && (
+        <p className="cap">{proven.swing}: бусдаас ялгарахгүй.</p>
+      )}
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------- verdict ---
 export function Verdict({ data, fixture }: { data: VerdictPanel; fixture: Fixture }) {
   const r = data.record
@@ -824,6 +855,7 @@ export function Players({ data }: { data: PlayersPanel }) {
               </p>
             )}
             {!card.own && !card.vs && <p className="none">Задлан шинжилсэн раунд байхгүй.</p>}
+            <Proven proven={card.proven} />
             {card.instructions.length ? (
               <div className="ins">
                 {card.instructions.map((i, n) => (

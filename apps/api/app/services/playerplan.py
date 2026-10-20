@@ -534,6 +534,13 @@ def team_players(team: Team, opponent: Team, *, baseline=None, cohorts=None) -> 
                     if v.get("role")
                 },
                 "rating": rp.get("rating"),
+                # PL-3: only the KPIs the evidence calls above or below the cohort.
+                "proven": [
+                    {"side": s, **row}
+                    for s, fit in fits.items()
+                    for row in fit.get("kpis") or []
+                    if row.get("verdict") in ("above", "below")
+                ],
                 "form": {"own": form_own.get(pid), "vs": form_vs.get(pid)},
                 "delta": _form_delta(form_own.get(pid), form_vs.get(pid)),
                 "weapons": {"own": weapons_own.get(pid, {}), "vs": weapons_vs.get(pid, {})},

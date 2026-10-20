@@ -410,3 +410,9 @@
 .lu-apply { background: var(--ct); color: var(--ground); font-weight: 600; padding: 7px 16px;
             border-radius: 6px; font-size: 13.5px; }
 .lu-apply:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* A Player card's settled lines (PL-7): proven-*, clear of Tailwind's names. */
+.proven { display: grid; gap: 8px 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin: 10px 0 4px; }
+.proven b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.proven ul { margin: 0; padding-left: 16px; font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
+.proven .cap { grid-column: 1 / -1; margin: 0; }
