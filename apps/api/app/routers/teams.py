@@ -25,7 +25,9 @@ from app.schemas import (
     TeamResult,
     TeamResultMap,
     TeamRow,
+    TeamStrength,
 )
+from app.services import dbctx, team_strength
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -143,7 +145,14 @@ def get_team(team_id: int, db: DbSession, _: StaffUser) -> TeamDetail:
         )
         if team.id in parsed
         else [],
+        strength=_strength(db, team),
     )
+
+
+def _strength(db: Session, team: Team) -> TeamStrength | None:
+    with dbctx.using(db):
+        built = team_strength.build(team)
+    return TeamStrength(**built) if built else None
 
 
 def _result(team: Team, match: Match) -> TeamResult:

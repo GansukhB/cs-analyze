@@ -7987,6 +7987,16 @@
             "type": "array",
             "title": "Plannable",
             "default": []
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamStrength"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -8287,6 +8297,98 @@
         ],
         "title": "TeamRow"
       },
+      "TeamStrength": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "rating": {
+            "type": "number",
+            "title": "Rating"
+          },
+          "series": {
+            "type": "integer",
+            "title": "Series"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          },
+          "cold": {
+            "type": "boolean",
+            "title": "Cold"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "lineup_changed": {
+            "type": "boolean",
+            "title": "Lineup Changed"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "ranked": {
+            "type": "integer",
+            "title": "Ranked"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/TeamTrendPoint"
+            },
+            "type": "array",
+            "title": "Trend"
+          },
+          "tiers": {
+            "items": {
+              "$ref": "#/components/schemas/TeamTier"
+            },
+            "type": "array",
+            "title": "Tiers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "rating",
+          "series",
+          "last",
+          "cold",
+          "region",
+          "lineup_changed",
+          "rank",
+          "ranked",
+          "trend",
+          "tiers"
+        ],
+        "title": "TeamStrength",
+        "description": "The Team's Rating and its results by the opponent's tier (TM-2, TM-10)."
+      },
       "TeamSummary": {
         "properties": {
           "team_id": {
@@ -8349,6 +8451,58 @@
           "focus"
         ],
         "title": "TeamSummary"
+      },
+      "TeamTier": {
+        "properties": {
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "expected": {
+            "type": "number",
+            "title": "Expected"
+          },
+          "residual": {
+            "type": "number",
+            "title": "Residual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tier",
+          "maps",
+          "won",
+          "expected",
+          "residual"
+        ],
+        "title": "TeamTier"
+      },
+      "TeamTrendPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "rating": {
+            "type": "number",
+            "title": "Rating"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "rating"
+        ],
+        "title": "TeamTrendPoint"
       },
       "Token": {
         "properties": {

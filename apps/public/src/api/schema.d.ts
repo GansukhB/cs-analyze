@@ -2911,6 +2911,7 @@ export interface components {
              * @default []
              */
             plannable: components["schemas"]["TeamRef"][];
+            strength?: components["schemas"]["TeamStrength"] | null;
         };
         /** TeamList */
         TeamList: {
@@ -3001,6 +3002,34 @@ export interface components {
             /** Last */
             last: string | null;
         };
+        /**
+         * TeamStrength
+         * @description The Team's Rating and its results by the opponent's tier (TM-2, TM-10).
+         */
+        TeamStrength: {
+            /** Name */
+            name: string;
+            /** Rating */
+            rating: number;
+            /** Series */
+            series: number;
+            /** Last */
+            last: string | null;
+            /** Cold */
+            cold: boolean;
+            /** Region */
+            region: string | null;
+            /** Lineup Changed */
+            lineup_changed: boolean;
+            /** Rank */
+            rank: number | null;
+            /** Ranked */
+            ranked: number;
+            /** Trend */
+            trend: components["schemas"]["TeamTrendPoint"][];
+            /** Tiers */
+            tiers: components["schemas"]["TeamTier"][];
+        };
         /** TeamSummary */
         TeamSummary: {
             /** Team Id */
@@ -3020,6 +3049,29 @@ export interface components {
              * @description The Focus points, costliest first.
              */
             focus: components["schemas"]["SummaryItem"][];
+        };
+        /** TeamTier */
+        TeamTier: {
+            /** Tier */
+            tier: string;
+            /** Maps */
+            maps: number;
+            /** Won */
+            won: number;
+            /** Expected */
+            expected: number;
+            /** Residual */
+            residual: number;
+        };
+        /** TeamTrendPoint */
+        TeamTrendPoint: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Rating */
+            rating: number;
         };
         /** Token */
         Token: {

@@ -406,6 +406,35 @@ class MatchRecord(BaseModel):
     drawn: int
 
 
+class TeamTier(BaseModel):
+    tier: str
+    maps: int
+    won: int
+    expected: float
+    residual: float  # Maps won above (or below) what the two Ratings expected
+
+
+class TeamTrendPoint(BaseModel):
+    date: dt.date
+    rating: float
+
+
+class TeamStrength(BaseModel):
+    """The Team's Rating and its results by the opponent's tier (TM-2, TM-10)."""
+
+    name: str
+    rating: float
+    series: int
+    last: dt.date | None
+    cold: bool
+    region: str | None
+    lineup_changed: bool
+    rank: int | None
+    ranked: int
+    trend: list[TeamTrendPoint]
+    tiers: list[TeamTier]
+
+
 class TeamDetail(BaseModel):
     team: TeamRow
     record: MatchRecord
@@ -414,6 +443,7 @@ class TeamDetail(BaseModel):
     map_record: list[MapRecordRow]
     players: list[TeamPlayer]
     plannable: list[TeamRef] = []
+    strength: TeamStrength | None = None
 
 
 # -- matches -----------------------------------------------------------------------

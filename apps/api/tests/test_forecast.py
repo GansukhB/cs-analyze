@@ -135,3 +135,27 @@ def test_an_unrated_fixture_cannot_be_kept(client, db, auth):
     out = client.post("/forecasts", json={"my_team_id": a.id, "opponent_id": b.id}, headers=auth)
     assert out.status_code == 409
     assert db.query(Forecast).count() == 0
+
+
+def test_a_team_page_splits_its_maps_by_the_opponents_tier(client, db, auth):
+    import datetime as dt
+
+    from app.models import GameMap, Player
+    from tests.test_gameplan import _map
+
+    teams = [Team(name=n, hltv_id=i + 1) for i, n in enumerate(("Alpha", "Bravo"))]
+    db.add_all(teams)
+    db.flush()
+    a, b = teams
+    players = {t.id: [Player(steamid=t.id * 100 + i, name=f"{t.name[0]}{i}") for i in range(5)]
+               for t in teams}  # fmt: skip
+    _results(db, "Alpha", "Bravo", a_wins=9, b_wins=3, start=date(2026, 1, 1))
+    mirage = GameMap(name="de_mirage", display_name="Mirage")
+    match = Match(hltv_id=1, team1=a, team2=b, played_at=dt.datetime(2026, 3, 1))
+    db.add(match)
+    db.flush()
+    _map(db, match, 1, mirage, a, b, players=players)
+    db.commit()
+    s = client.get(f"/teams/{a.id}", headers=auth).json()["strength"]
+    assert s["name"] == "Alpha" and s["series"] == 12 and len(s["trend"]) >= 2
+    assert sum(t["maps"] for t in s["tiers"]) == 1 and s["tiers"][0]["won"] == 1

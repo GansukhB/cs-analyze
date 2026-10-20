@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router'
 import { $api } from '../api/client'
+import StrengthSection from '../team/Strength'
 import type { components } from '../api/schema'
 import Count from '../components/Count'
 import { day, PILL } from '../jobs/format'
@@ -17,7 +18,7 @@ export default function TeamPage() {
   const team = $api.useQuery('get', '/teams/{team_id}', { params: { path: { team_id: Number(teamId) } } })
   if (team.error) return <p className="text-crit">Баг олдсонгүй.</p>
   if (!team.data) return <p className="text-ink-3">Уншиж байна…</p>
-  const { team: info, record, results, n_parsed_maps, map_record, players, plannable = [] } = team.data
+  const { team: info, record, results, n_parsed_maps, map_record, players, plannable = [], strength } = team.data
   const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`
 
   return (
@@ -48,6 +49,8 @@ export default function TeamPage() {
           <Count n={players.length} label={players.length === 1 ? 'player seen' : 'players seen'} />
         </div>
       </div>
+
+      {strength && <StrengthSection s={strength} />}
 
       {plannable.length > 0 && (
         <section className="space-y-2">
