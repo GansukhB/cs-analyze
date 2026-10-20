@@ -109,6 +109,8 @@ Briefing-ийн Map бүрийн нэгж. Хэвлэхэд тохиромжто
 
 ### GP-5. Pistol ба хувиргалт (conversion) (P1, M)
 
+> **Төлөв:** 🟡 `a41ceaf` (improvement-01). Pistol хожил, хувиргалт, break, хоёр pistol → map (Pool-той). Pistol Setup/execute ба 2–3 дахь Round-ын buy үлдсэн.
+
 - **Pistol:**
   - CT-ийн pistol Setup, T-ийн pistol execute.
   - 2, 3 дахь Round-ын шийдвэр: хожсон эсвэл ялагдсаны дараа force, eco.
@@ -119,6 +121,8 @@ Briefing-ийн Map бүрийн нэгж. Хэвлэхэд тохиромжто
 
 ### GP-6. "Бусад баг тэднийг яаж хожсон" (P1, M)
 
+> **Төлөв:** ✅ `6975d8b` (improvement-01). Replay playlist (VIZ-5) хийгдэхэд холбогдоно.
+
 - Өрсөлдөгчийн хожигдсон Round-уудыг хожсон багийн Setup эсвэл стратегиар бүлэглэнэ. Жишээ нь:
   - тэдний B execute-ийг аль CT Setup зогсоосон
   - тэдний CT Setup-ийг ямар T арга эвдсэн
@@ -126,6 +130,8 @@ Briefing-ийн Map бүрийн нэгж. Хэвлэхэд тохиромжто
 - ImAPet "бусад баг тэдний эсрэг юуг сайн хийдгийг бичиж, pause-д ашигладаг" байсан (`12-research-sources.md`).
 
 ### GP-7. Export ба хэвлэх (P1, S–M)
+
+> **Төлөв:** ✅ `9039f8a` (improvement-01). Сервер талын PDF/XLSX нь P2.
 
 - Game Plan, Playbook, Map-ын хуудас, Briefing-д `@media print` CSS. Browser-ийн print-ээр PDF болгоно.
 - Сервер талын PDF болон XLSX export: P2.
@@ -159,6 +165,8 @@ Briefing (бидний таамаглал) ба тоглолтын Review (бо�
 - Bo1, Bo3-ийн замууд FC-3-ийн магадлалтай. "Хэрэв тэд X-ийг pick хийвэл" гэсэн шинжилгээ.
 
 ### GP-11. Self-scout: урьдчилан таамаглагдах байдлын индекс (P1, M)
+
+> **Төлөв:** ✅ `972e3e5` (improvement-01).
 
 - **Хэмжүүр:** манай эхний нүүдэл Map ба Buy type бүрээр хэр давтагддаг вэ. T-ийн default, execute ба CT-ийн Setup-ийн entropy-оор хэмжинэ.
 - **Анхааруулга:** босгоос давбал "өрсөлдөгч бидний эсрэг юуг anti-strat хийж чадах вэ" гэж анхааруулна.
