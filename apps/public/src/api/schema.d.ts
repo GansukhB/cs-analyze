@@ -2870,6 +2870,35 @@ export interface components {
             extent: number[];
         };
         /**
+         * PlayerAim
+         * @description Aim from his engagements (PL-5); ``rank`` 0-100 among every Player past the bar.
+         */
+        PlayerAim: {
+            /** Engagements */
+            engagements: number;
+            /** Maps */
+            maps: number;
+            /** Ttd Ms */
+            ttd_ms: number | null;
+            /** Xhair Deg */
+            xhair_deg: number | null;
+            /** Counter Strafe Pct */
+            counter_strafe_pct: number | null;
+            /** First Hit Pct */
+            first_hit_pct: number | null;
+            /** Enough */
+            enough: boolean;
+            /** Players */
+            players?: number | null;
+            /**
+             * Rank
+             * @default {}
+             */
+            rank: {
+                [key: string]: number;
+            };
+        };
+        /**
          * PlayerDuels
          * @description Duels against what the guns on both sides expected (PL-6).
          */
@@ -3011,6 +3040,7 @@ export interface components {
              * @default []
              */
             by_tier: components["schemas"]["PlayerTierLine"][];
+            aim?: components["schemas"]["PlayerAim"] | null;
         };
         /** PlayerRef */
         PlayerRef: {

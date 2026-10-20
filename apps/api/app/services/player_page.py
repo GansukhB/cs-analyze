@@ -29,7 +29,7 @@ from app.models import (
     SnapshotMoment,
     Team,
 )
-from app.services import audit, duels, mn, review, review_pool, team_strength
+from app.services import aim, audit, duels, mn, review, review_pool, team_strength
 from app.services.dbctx import count_if, db, total
 from app.services.stats import bootstrap
 
@@ -260,6 +260,8 @@ def build(steamid: int) -> dict | None:
         # His duels against what the guns on both sides expected (PL-6).
         "duels": duels.player(player.id, [mm.id for mm, *_ in rows]),
         "by_tier": _by_tier(rows, swing_by_map, names),
+        # Aim from his engagements on Match Maps with Sightings (PL-5).
+        "aim": aim.player(sid, {mm.id for mm, *_ in rows}),
     }
 
 

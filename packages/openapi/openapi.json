@@ -8206,6 +8206,97 @@
         ],
         "title": "Plate"
       },
+      "PlayerAim": {
+        "properties": {
+          "engagements": {
+            "type": "integer",
+            "title": "Engagements"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "ttd_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttd Ms"
+          },
+          "xhair_deg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Xhair Deg"
+          },
+          "counter_strafe_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Strafe Pct"
+          },
+          "first_hit_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Hit Pct"
+          },
+          "enough": {
+            "type": "boolean",
+            "title": "Enough"
+          },
+          "players": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Players"
+          },
+          "rank": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Rank",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "engagements",
+          "maps",
+          "ttd_ms",
+          "xhair_deg",
+          "counter_strafe_pct",
+          "first_hit_pct",
+          "enough"
+        ],
+        "title": "PlayerAim",
+        "description": "Aim from his engagements (PL-5); ``rank`` 0-100 among every Player past the bar."
+      },
       "PlayerDuels": {
         "properties": {
           "duels": {
@@ -8658,6 +8749,16 @@
             "type": "array",
             "title": "By Tier",
             "default": []
+          },
+          "aim": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlayerAim"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

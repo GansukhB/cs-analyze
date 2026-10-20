@@ -1641,6 +1641,20 @@ class PlayerDuels(BaseModel):
     over_per_round: float
 
 
+class PlayerAim(BaseModel):
+    """Aim from his engagements (PL-5); ``rank`` 0-100 among every Player past the bar."""
+
+    engagements: int
+    maps: int
+    ttd_ms: int | None
+    xhair_deg: float | None
+    counter_strafe_pct: float | None
+    first_hit_pct: float | None
+    enough: bool
+    players: int | None = None
+    rank: dict[str, int] = {}
+
+
 class PlayerTierLine(BaseModel):
     tier: str
     maps: int
@@ -1662,3 +1676,4 @@ class PlayerPage(BaseModel):
     openings: OpeningLine | None = None
     duels: PlayerDuels | None = None
     by_tier: list[PlayerTierLine] = []
+    aim: PlayerAim | None = None

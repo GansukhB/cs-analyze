@@ -69,7 +69,8 @@ logger = logging.getLogger(__name__)
 # 4: the Loadout's availability, entry/big_frag rarer, lost_weapon_save not at
 # a half's end, moving shots per weapon class, unscoped_awp held long enough.
 # 5: Swing v2 (RV-2): every Round settled to its Win probability's move.
-REVIEW_SCHEMA = 5
+# 6: each Player's engagements (PL-5): time to damage, crosshair, counter-strafe.
+REVIEW_SCHEMA = 6
 
 # CONTEXT.md: a Trade is killing the killer within 5 seconds.
 TRADE_SECONDS = 5.0
@@ -194,6 +195,10 @@ KNIVES = ("knife", "bayonet", "karambit", "dagger")
 SIGHT_CODES = ("crosshair", "unscoped_awp", "saw_no_shot", "saw_first_lost")
 # The codes that read the Loadout (schema 12): without it they never fire.
 LOADOUT_CODES = ("no_gun_in_hand", "unused_utility", "unscoped_awp", "saw_no_shot")
+# Engagements (PL-5, Leetify's measures): time to damage counts within this long
+# of the first Sighting; a shot hits when its damage lands this many ticks after.
+TTD_MAX_SECONDS = 1.0
+HIT_TICKS = 3
 # An AWP is a mistake unscoped only when the enemy was in sight this long first.
 UNSCOPED_MIN_SECONDS = 0.5
 # Regulation halves end here; overtime halves every OT_HALF after.
@@ -2231,6 +2236,70 @@ class _RoundReview:
                     tally[pop["thrower"]]["empty_hes"] += 1
         return {sid: dict(v) for sid, v in tally.items()}
 
+    # -- engagements (PL-5) ---------------------------------------------
+    def engagements(self) -> dict[str, dict]:
+        """Each Player's clean engagements this Round: a stretch of Sighting of a
+        living enemy, gun in hand, not blind. For each: the crosshair's angle off
+        the enemy's head as he came into view, the time to the first damage on
+        him (within :data:`TTD_MAX_SECONDS`), the shots fired below the weapon
+        class's moving share (counter-strafed), and whether the first shot hit."""
+        out: dict[str, dict] = {}
+        if not self.i.sightings:
+            return out
+        reach = int(TTD_MAX_SECONDS * self.rate)
+        for (spotter, seen), ticks in self.i.sight.get(self.n, {}).items():
+            s_side = self.side.get(spotter)
+            if not s_side or self.side.get(seen) in (None, s_side):
+                continue
+            track = self.tracks.get(spotter)
+            for a, b in self._spans(ticks):
+                if a < self.start or a > self.end:
+                    continue
+                alive = self.alive_at(a)
+                if spotter not in alive or seen not in alive or self.blind_at(spotter, a):
+                    continue
+                held, _ = self.loadout_at(spotter, a)
+                if not held or any(w in held.lower() for w in NOT_AIMING):
+                    continue
+                o = out.setdefault(spotter, {"engagements": 0, "ttd": [], "xhair": [],
+                                             "shots": 0, "still": 0, "first": 0,
+                                             "first_hit": 0})  # fmt: skip
+                o["engagements"] += 1
+                err = self._aim_error(spotter, seen, a)
+                if err is not None:
+                    o["xhair"].append(round(err, 1))
+                hurt = [
+                    d["tick"]
+                    for d in self.damages
+                    if d["attacker"] == spotter
+                    and d["victim"] == seen
+                    and a <= d["tick"] <= a + reach
+                ]
+                if hurt:
+                    o["ttd"].append(round((min(hurt) - a) / self.rate, 3))
+                shots = [
+                    x for x in self.shots_between(spotter, a, b + self.rate // 5)
+                    if x[1] in WEAPON_CLASS
+                ]  # fmt: skip
+                for tick, weapon in shots:
+                    o["shots"] += 1
+                    if track and (
+                        track.speed(tick, self.rate) / MAX_SPEED[weapon]
+                        <= MOVING_SHARE[WEAPON_CLASS[weapon]]
+                    ):
+                        o["still"] += 1
+                if shots:
+                    o["first"] += 1
+                    o["first_hit"] += int(
+                        any(
+                            d["attacker"] == spotter
+                            and d["victim"] == seen
+                            and 0 <= d["tick"] - shots[0][0] <= HIT_TICKS
+                            for d in self.damages
+                        )
+                    )
+        return out
+
     # -- settling the Round (RV-2) --------------------------------------
     def settle(self) -> None:
         """The Trades' shares, then what the events left unassigned, so each
@@ -2304,6 +2373,7 @@ class _RoundReview:
         self.missed_chances()
         self.settle()
         tally = self.utility()
+        self.aim = self.engagements()
         deaths = [k for k in self.kills if not k.get("post")]
         winners = [s for s, sd in self.side.items() if sd == self.rnd.winner_side]
         decider = max(winners, key=lambda s: self.swing.get(s, 0.0)) if winners else None
@@ -2375,6 +2445,7 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict:
     inputs = _Inputs(db, match_map, bundle)
     rounds, findings = [], []
     tallies: dict[str, dict] = defaultdict(lambda: defaultdict(float))
+    aims: dict[str, dict] = {}
     for rnd in inputs.rounds:
         if rnd.number not in inputs.tracks or rnd.winner_side not in ("ct", "t"):
             continue
@@ -2382,6 +2453,11 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict:
         summary, tally = review.run()
         rounds.append(summary)
         findings += review.findings
+        for sid, o in review.aim.items():
+            mine = aims.setdefault(sid, {"engagements": 0, "ttd": [], "xhair": [], "shots": 0,
+                                         "still": 0, "first": 0, "first_hit": 0})  # fmt: skip
+            for key, value in o.items():
+                mine[key] += value
         for sid, counts in tally.items():
             for key, value in counts.items():
                 tallies[sid][key] += value
@@ -2438,6 +2514,8 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict:
                 "worst_round": {"n": worst, "swing": round(per_round[worst], 4)},
                 "counts": dict(counts),
                 "utility": {k: round(float(v), 1) for k, v in t.items()},
+                # Engagements, with Sightings only (PL-5).
+                "aim": aims.get(sid),
             }
         )
     players.sort(key=lambda p: (str(p["team_id"]), -p["swing"]))

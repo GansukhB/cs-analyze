@@ -254,6 +254,8 @@ class Data:
     pools: dict[tuple, dict[str, dict]]
     player_pools: dict[tuple, dict]
     untagged: dict[int, int]  # team -> its Match Maps whose Rounds name no Teams
+    # sid -> {match_map id: his engagements there} (PL-5), Reviews with Sightings only
+    aims: dict[str, dict[int, dict]] = field(default_factory=dict)
 
 
 _lock = threading.Lock()
@@ -309,6 +311,7 @@ def _load(key: str) -> Data:
     tallies: list[Tally] = []
     names: dict[str, str] = {}
     untagged: Counter = Counter()
+    aims: dict[str, dict[int, dict]] = defaultdict(dict)
     for payload, mm, match, num, team1, team2, map_name in rows:
         stored = json.loads(gzip.decompress(payload))
         cut = _cut(stored, {"mm": mm, "match": match, "num": num, "map": map_name})
@@ -319,11 +322,13 @@ def _load(key: str) -> Data:
                     untagged[team] += 1
         for p in stored.get("players") or []:
             names[p["sid"]] = p.get("name") or names.get(p["sid"], "?")
+            if p.get("aim"):
+                aims[p["sid"]][mm] = p["aim"]
     by_team: dict[int, list[Tally]] = defaultdict(list)
     for t in tallies:
         by_team[t.team].append(t)
     pools, player_pools = _pools(by_team)
-    return Data(key, tallies, dict(by_team), names, pools, player_pools, dict(untagged))
+    return Data(key, tallies, dict(by_team), names, pools, player_pools, dict(untagged), dict(aims))
 
 
 # ----------------------------------------------------------------- numbers ---

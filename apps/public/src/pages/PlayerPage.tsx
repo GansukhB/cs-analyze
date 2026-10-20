@@ -103,6 +103,7 @@ function Tiles({ p }: { p: Page }) {
         ))}
       </dl>
       <Duels p={p} />
+      <Aim p={p} />
       {o && o.attempts > 0 && (
         // What his Team made of his opening duels (RV-8).
         <p className="text-sm text-ink-2">
@@ -111,6 +112,43 @@ function Tiles({ p }: { p: Page }) {
         </p>
       )}
     </div>
+  )
+}
+
+/** Aim from his engagements on Match Maps with Sightings (PL-5), each against every Player's. */
+function Aim({ p }: { p: Page }) {
+  const a = p.aim
+  if (!a) return null
+  if (!a.enough) {
+    return (
+      <p className="text-sm text-ink-3">
+        Aim: Sighting-тэй {a.maps} map-д {a.engagements} engagement — 100 хүрэхээр харуулна.
+      </p>
+    )
+  }
+  const items: [string, string, string, string][] = [
+    ['Time to damage', a.ttd_ms == null ? '—' : `${a.ttd_ms} ms`, 'ttd_ms', 'Анх харснаас анхны damage хүртэл (1 s дотор), median'],
+    ['Crosshair', a.xhair_deg == null ? '—' : `${a.xhair_deg}°`, 'xhair_deg', 'Дайсан анх харагдахад толгойноос хазайсан өнцөг, median'],
+    ['Counter-strafe', num(a.counter_strafe_pct, 0, '%'), 'counter_strafe_pct', 'Зэвсгийн ангиллын хурдны босгоос доош буудсан сум'],
+    ['Эхний сум онох', num(a.first_hit_pct, 0, '%'), 'first_hit_pct', 'Engagement-ийн эхний сум онсон хувь'],
+  ]
+  return (
+    <section className="space-y-1">
+      <p className="text-sm text-ink-2">
+        Aim · {a.engagements} engagement, {a.maps} map{a.players ? ` · ${a.players} тоглогчтой харьцуулсан` : ''}
+      </p>
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {items.map(([label, value, key, hint]) => (
+          <div key={key} className="rounded-lg border border-line bg-surface px-3 py-2" title={hint}>
+            <dt className="text-xs text-ink-3">{label}</dt>
+            <dd className="font-mono text-lg text-ink">{value}</dd>
+            {a.rank[key] != null && (
+              <dd className="text-xs text-ink-3">{a.rank[key]}-р percentile</dd>
+            )}
+          </div>
+        ))}
+      </dl>
+    </section>
   )
 }
 

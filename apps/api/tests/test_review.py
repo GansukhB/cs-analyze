@@ -504,3 +504,32 @@ def test_settling_shares_the_trades_and_the_rest():
     # that death. Alpha's rest (0.6) goes 3:1 to c2 (alive, a kill) and c3 (alive);
     # Bravo's (-0.6) evenly, nobody being alive.
     assert got == {"c1": -0.15, "c2": 0.65, "c3": 0.12, "c4": -0.12, "t1": -0.35, "t2": -0.15}
+
+
+def test_engagements_are_measured_with_sightings_only(db, inferno):
+    # PL-5: b1 (21) has a2 (12) in sight from 2300; no Sightings, no engagements.
+    payload = _review(db, inferno, sightings=True)
+    b1 = next(p for p in payload["players"] if p["sid"] == "21")
+    assert b1["aim"]["engagements"] >= 1 and b1["aim"]["xhair"]
+    assert b1["aim"]["shots"] == 0 and b1["aim"]["ttd"] == []
+
+
+def test_without_sightings_a_player_has_no_aim(db, inferno):
+    assert all(p["aim"] is None for p in _review(db, inferno)["players"])
+
+
+def test_aim_is_ranked_against_every_player_past_the_bar(monkeypatch):
+    from app.services import aim
+
+    def part(n, ttd, hit):
+        return {"engagements": n, "ttd": [ttd] * 5, "xhair": [5.0] * 5, "shots": 10,
+                "still": 7, "first": 10, "first_hit": hit}  # fmt: skip
+
+    aims = {"me": {1: part(120, 0.3, 6)}, "a": {2: part(150, 0.5, 4)},
+            "b": {3: part(200, 0.6, 3)}, "few": {4: part(10, 0.1, 9)}}  # fmt: skip
+    monkeypatch.setattr(review_pool, "data", lambda: SimpleNamespace(aims=aims))
+    me = aim.player("me")
+    assert me["enough"] and me["players"] == 3 and me["ttd_ms"] == 300
+    # Quicker and more first shots on target than both others past 100 engagements.
+    assert me["rank"]["ttd_ms"] == 67 and me["rank"]["first_hit_pct"] == 67
+    assert aim.player("few")["enough"] is False
