@@ -133,6 +133,8 @@ Leetify-ийн тодорхойлолтыг өөрийн датанд таару
 
 ### PL-6. Eco-adjusted duel ба Swing-ийн дүрэм (P1, M; RV-2-той хамт)
 
+> **Төлөв:** ✅ `3cade6c` (improvement-01). Зэвсгийн ангиллын duel table, тоглогчийн duel хүлээлтээс дээш, Rating-ийн түвшнээр Swing (одоогийн rank-аар).
+
 - **Duel table:** equipment-ийн ангиллын хос (sniper, tier-1 rifle, tier-2 rifle, SMG/shotgun, сайжруулсан pistol, анхны pistol) × Map × Side бүрээр хожих магадлалыг Pool дээр тооцно. Энэ нь HLTV Rating 3.0-ийн eco adjustment-тай ижил санаа. Pistol-той тоглогчийг rifle-аар алах нь rifle vs rifle-ээс бага үнэлэгдэнэ.
 - **Swing per Round:** тоглогчийн гол тоо хэвээр. Тооцох дүрмийн өөрчлөлтийг `07-review-development.md` RV-2-д бичсэн (HLTV-ийн 2025–26 оны дүрэм, Leetify-ийн traded-death credit).
 - **Өрсөлдөгчөөр задлах** (FC-1-ийн дараа): "Top-30 багийн эсрэг Swing per Round" гэх мэт.

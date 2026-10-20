@@ -172,6 +172,8 @@ GRID-ийн үнэгүй Open Access хаагдсан бололтой (`grid.gg
 
 ### DATA-5. Parse-ийн хамрах хүрээ, schema 14 (P1, M; ADR 0006 шиг заавал биш)
 
+> **Төлөв:** ✅ `ff3aa8b` (improvement-01). Timeout, scoreboard-ын раундын тоо, шидэлт (trajectory-ээс, хуучин map-д ч), pickup, ping. GOTV demo-д bomb_beginplant/begindefuse байдаггүй; defuse-ийн эхлэл нь aim grid-ийн is_defusing.
+
 - **awpy аль хэдийн уншиж байгаа ч хаядаг event-ууд:**
   - `item_pickup`: AWP-ийг хэнд өгдөг, буу шидэж өгөх зан.
   - `player_spawn`.

@@ -87,6 +87,8 @@
 
 #### RV-2. Swing-ийн дүрэм v2 (P1, M)
 
+> **Төлөв:** ✅ `4879185` (improvement-01). Round бүр багийн WP-ийн өөрчлөлттэй тэнцэнэ (settle), trade-ийн 20%, teamkill, ≥1 s flash, Swing/раунд-ын 80% муж.
+
 HLTV Rating 3.0-ийн 2025–26 оны өөрчлөлт ба Leetify-ээс (`12-research-sources.md`):
 
 - **Kill:**
@@ -119,6 +121,8 @@ Detector өөрчлөх бүрт тестээр баталгаажуулна (OP
 
 #### RV-4. Win probability v2 (P1, M; ADR 0007-ийн committed table хэвээр)
 
+> **Төлөв:** 🟡 `2c22da7` (improvement-01). HP, utility, сүүлийн kill, defuse race, buy-ийн хос; калибровкийн тайлан. Patch-ийн үе DATA-7-г хүлээнэ.
+
 - **Онцлог:**
   - HP, armor, амьд kit
   - үлдсэн utility (Loadout 8 Hz)
@@ -133,6 +137,8 @@ Detector өөрчлөх бүрт тестээр баталгаажуулна (OP
 - **Model-ийн төрөл:** logistic хэвээр. Swing-д гөлгөр байдал чухал, tree model шаталсан гажуудал үүсгэдэг. GBM-ийг Match-аар бүлэглэсэн CV-д илт сайн гарвал л авна.
 
 #### RV-5. Датаны хүртээмж ба хуучин тодорхойлолтыг засах (P1, S)
+
+> **Төлөв:** ✅ `b80d507` (improvement-01). Loadout-ын хүртээмж, entry/big_frag-ийн босго, lost_weapon_save, зэвсгийн ангиллын moving_shots, unscoped_awp, review:thresholds.
 
 - **Хүртээмжийн тэмдэг:** payload ба хуудсанд `loadout` ба `needs_loadout`-ийг нэмнэ. `review_pool.read` нь тухайн код гарах боломжтой tally-уудыг л уншина.
 - **`lost_weapon_save`:** хагас ба Map-ын сүүлийн Round-ыг алгасаж, дараагийн Round-ын мөнгөөр жигнэнэ.
@@ -168,6 +174,8 @@ Detector өөрчлөх бүрт тестээр баталгаажуулна (OP
 - **Playlist:** Review, Playbook, хайлтын (VIZ-7) Round-уудыг дараалуулж, тайлбартай болгож тоглогчидтой хуваалцана. Ghost горимоор үзэх боломжтой (VIZ-5).
 
 #### RV-8. Timeout audit ба opening duel-ийн бүртгэл (P1, M; DATA-5-ийн timeout-оос)
+
+> **Төлөв:** ✅ `9791fa4` (improvement-01). Timeout audit, timeout аваагүй 3+ алдагдал, Pool-ын харьцуулалт; opening duel (тоглогчийн хуудсанд ч).
 
 - **Timeout audit:**
   - Аль ч багийн timeout бүр, түүний өмнөх дараалсан Round-ууд, өмнөх ба дараах Win probability.
