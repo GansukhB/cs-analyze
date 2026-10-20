@@ -42,7 +42,7 @@ from app.models import (
     Team,
 )
 from app.services import lineup as lineups
-from app.services import pool_cache
+from app.services import pool_cache, stats
 from app.services.dbctx import count_if, db, memo, total
 
 logger = logging.getLogger(__name__)
@@ -767,15 +767,19 @@ def league_baseline(
 
     out: dict[str, dict] = {}
     for side, side_signals in pools.items():
-        stats = {}
+        side_stats = {}
         for key, values in side_signals.items():
             if len(values) < 2:
                 continue
             mean = statistics.fmean(values)
             sd = statistics.pstdev(values)
             floor = max(abs(mean) * 0.10, 0.01)
-            stats[key] = {"mean": round(mean, 4), "sd": round(max(sd, floor), 4), "n": len(values)}
-        out[side] = stats
+            side_stats[key] = {
+                "mean": round(mean, 4),
+                "sd": round(max(sd, floor), 4),
+                "n": len(values),
+            }
+        out[side] = side_stats
     return out
 
 
@@ -792,7 +796,7 @@ def classify_player(bucket: dict, side: str, baseline: dict[str, dict]) -> dict:
     The runner-up is not decoration: a player who scores 2.1 as a lurker and 2.0 as
     a trader is genuinely both.
     """
-    stats = baseline.get(side, {})
+    side_stats = baseline.get(side, {})
     scores = []
     for key, spec in ROLES.items():
         if side not in spec["sides"]:
@@ -802,7 +806,7 @@ def classify_player(bucket: dict, side: str, baseline: dict[str, dict]) -> dict:
             continue
         evidence, score_total, weight_sum = [], 0.0, 0.0
         for signal, weight, direction in spec["signals"]:
-            z = _z(bucket.get(signal), stats.get(signal))
+            z = _z(bucket.get(signal), side_stats.get(signal))
             contribution = z * weight * direction
             score_total += contribution
             weight_sum += weight
@@ -986,6 +990,48 @@ KPI_LABELS = {
 }
 
 
+# PL-3 (docs/plans/04): a KPI that is a rate is judged against the cohort by
+# empirical Bayes (stats.beta_prior/shrink, Rounds of one Match Map discounted);
+# a continuous one is pulled toward the cohort by n/(n + k).
+# kpi -> (the bucket's denominator, the value's scale: 100 for a percent)
+RATE_KPIS = {
+    "opening_win_pct": ("opening_attempts", 100.0),
+    "traded_death_pct": ("deaths", 100.0),
+    "kast_pct": ("rounds", 100.0),
+    "open_round_win_pct": ("opening_kills", 100.0),
+    "smoke_win_pct": ("smoke_rounds", 100.0),
+    "multi_kill_rate": ("rounds", 1.0),
+    "opening_rate": ("rounds", 1.0),
+    "assists_per_round": ("rounds", 1.0),
+    "awp_kills_per_round": ("rounds", 1.0),
+    "flash_assists_per_round": ("rounds", 1.0),
+    "trade_kill_share": ("kills", 1.0),
+    "late_kill_share": ("kills", 1.0),
+}
+# Rounds of evidence that count half (n/(n+k) = 1/2), from split-half reliability
+# over the local Pool on 2026-10-21 (48 Players with 6+ Match Maps: ADR r 0.60,
+# K/D r 0.81 at 356 Rounds); the others have not been measured.
+CONTINUOUS_K = {"adr": 239.0, "kd_ratio": 83.0}
+DEFAULT_K = 150.0
+ROUNDS_PER_HALF = 12  # one Side of one Match Map
+MIN_EVENTS = 8  # events under a rate before it can be called above or below
+
+
+def _rate(bucket: dict, kpi: str) -> tuple[float, float] | None:
+    """``(successes, effective trials)`` for a rate KPI, or None."""
+    spec = RATE_KPIS.get(kpi)
+    value = _kpi_value(bucket, kpi)
+    if spec is None or value is None:
+        return None
+    n = float(bucket.get(spec[0]) or 0)
+    if n <= 0:
+        return None
+    x = min(max(value / spec[1] * n, 0.0), n)
+    halves = max(1.0, float(bucket.get("rounds") or 0) / ROUNDS_PER_HALF)
+    n_eff = stats.effective_n(n, n / halves)
+    return x * n_eff / n, n_eff
+
+
 def role_cohorts(match_maps: Iterable[MatchMap], baseline=None, signals=None) -> dict[tuple, dict]:
     """KPI distributions for everyone doing the same job, keyed ``(side, role)``.
 
@@ -998,6 +1044,7 @@ def role_cohorts(match_maps: Iterable[MatchMap], baseline=None, signals=None) ->
         baseline = league_baseline(match_maps, signals=signals)
 
     pools: dict = defaultdict(lambda: defaultdict(list))
+    rates: dict = defaultdict(lambda: defaultdict(list))
     members: dict[tuple, list] = defaultdict(list)
     for team, player in signals:
         for side, bucket in player["sides"].items():
@@ -1014,21 +1061,29 @@ def role_cohorts(match_maps: Iterable[MatchMap], baseline=None, signals=None) ->
                 value = _kpi_value(bucket, kpi)
                 if value is not None:
                     pools[key][kpi].append(value)
+                rate = _rate(bucket, kpi)
+                if rate is not None:
+                    rates[key][kpi].append((*rate, player["player_id"]))
 
     out = {}
     for key, kpis in pools.items():
-        stats = {}
+        kpi_stats = {}
         for kpi, values in kpis.items():
             if len(values) < 2:
                 continue
             mean = statistics.fmean(values)
             sd = statistics.pstdev(values)
-            stats[kpi] = {
+            kpi_stats[kpi] = {
                 "mean": round(mean, 3),
                 "sd": round(max(sd, max(abs(mean) * 0.10, 0.01)), 4),
                 "n": len(values),
             }
-        out[key] = {"kpis": stats, "members": members[key], "n": len(members[key])}
+        out[key] = {
+            "kpis": kpi_stats,
+            "rates": {kpi: list(rows) for kpi, rows in rates[key].items()},
+            "members": members[key],
+            "n": len(members[key]),
+        }
     return out
 
 
@@ -1039,7 +1094,35 @@ def _kpi_value(bucket: dict, kpi: str):
     return None
 
 
-def role_fit(bucket: dict, side: str, role: str, cohorts: dict[tuple, dict]) -> dict:
+def _judge(bucket: dict, kpi: str, stat: dict, cohort: dict, player_id) -> dict | None:
+    """One KPI against the cohort, shrunk: its ``z`` and ``verdict``."""
+    direction = KPI_DIRECTION.get(kpi, +1)
+    rate = _rate(bucket, kpi)
+    others = [(x, n) for x, n, pid in (cohort.get("rates") or {}).get(kpi, []) if pid != player_id]
+    prior = stats.beta_prior(others) if rate is not None and len(others) >= 2 else None
+    if rate is not None and prior is not None:
+        x, n = rate
+        post = stats.shrink(x, n, prior)
+        spread = (prior.mean * (1 - prior.mean) / (prior.strength + 1)) ** 0.5
+        z = (post.mean - prior.mean) / spread * direction if spread else 0.0
+        clear = post.clear() and float(bucket.get(RATE_KPIS[kpi][0]) or 0) >= MIN_EVENTS
+        better = (post.mean > prior.mean) == (direction > 0)
+        verdict = ("above" if better else "below") if clear else "par"
+        return {"z": z, "verdict": verdict, "shrunk": post.mean * RATE_KPIS[kpi][1],
+                "lfsr": round(post.lfsr, 3)}  # fmt: skip
+    value = _kpi_value(bucket, kpi)
+    if value is None:
+        return None
+    n = float(bucket.get("rounds") or 0)
+    pulled = stats.shrink_mean(value, n, stat["mean"], CONTINUOUS_K.get(kpi, DEFAULT_K))
+    z = (pulled - stat["mean"]) / stat["sd"] * direction
+    verdict = "above" if z >= 0.5 else ("below" if z <= -0.5 else "par")
+    return {"z": z, "verdict": verdict, "shrunk": pulled, "lfsr": None}
+
+
+def role_fit(
+    bucket: dict, side: str, role: str, cohorts: dict[tuple, dict], player_id=None
+) -> dict:
     """How this player rates against everyone else doing the same job.
 
     The verdict is deliberately coarse (strong / solid / below par / struggling):
@@ -1060,7 +1143,10 @@ def role_fit(bucket: dict, side: str, role: str, cohorts: dict[tuple, dict]) -> 
         value = _kpi_value(bucket, kpi)
         if stat is None or value is None:
             continue
-        z = (value - stat["mean"]) / stat["sd"] * KPI_DIRECTION.get(kpi, +1)
+        judged = _judge(bucket, kpi, stat, cohort, player_id)
+        if judged is None:
+            continue
+        z = judged["z"]
         score_total += z
         n += 1
         rows.append(
@@ -1068,9 +1154,11 @@ def role_fit(bucket: dict, side: str, role: str, cohorts: dict[tuple, dict]) -> 
                 "kpi": kpi,
                 "label": KPI_LABELS.get(kpi, kpi),
                 "value": round(value, 3),
+                "shrunk": round(judged["shrunk"], 3),
                 "cohort_mean": stat["mean"],
                 "z": round(z, 2),
-                "verdict": "above" if z >= 0.5 else ("below" if z <= -0.5 else "par"),
+                "lfsr": judged["lfsr"],
+                "verdict": judged["verdict"],
             }
         )
 
@@ -1113,7 +1201,7 @@ def rate_team(team: Team, match_maps: Iterable[MatchMap], baseline=None, cohorts
         for side, bucket in player["sides"].items():
             role = player["roles"][side]["role"]
             if role:
-                fits[side] = role_fit(bucket, side, role, cohorts)
+                fits[side] = role_fit(bucket, side, role, cohorts, player.get("player_id"))
         player["fit"] = fits
         player["rating"] = _overall_rating(fits)
     # Which of these men are still fielded: ranking a player who left months ago
@@ -1533,7 +1621,9 @@ def player_dossier(
             entry["sides"][side] = bucket
             entry["roles"][side] = verdict
             if verdict["role"]:
-                entry["fit"][side] = role_fit(bucket, side, verdict["role"], cohorts)
+                entry["fit"][side] = role_fit(
+                    bucket, side, verdict["role"], cohorts, signals.get("player_id")
+                )
         entry["rating"] = _overall_rating(entry["fit"])
         dated = [m.match.played_at for m in maps if m.match and m.match.played_at]
         entry["from"] = min(dated).isoformat() if dated else None

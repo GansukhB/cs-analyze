@@ -63,3 +63,20 @@ def test_a_stratified_gap_beats_chance_only_when_it_is_there():
     assert abs(gap) < 0.1 and p > 0.2
     # A stratum with only flagged rows says nothing.
     assert stats.stratified_gap([("x", True, False)] * 5)[2] == 0
+
+
+def test_a_role_kpi_is_called_only_on_enough_evidence():
+    from app.services import roles
+
+    cohort = {
+        "kpis": {"opening_win_pct": {"mean": 50.0, "sd": 8.0, "n": 6}},
+        "rates": {
+            "opening_win_pct": [(x, 40.0, pid) for pid, x in enumerate((18, 20, 22, 19, 21))]
+        },
+    }
+    few = {"rounds": 24, "opening_attempts": 5, "opening_win_pct": 100.0}
+    many = {"rounds": 480, "opening_attempts": 200, "opening_win_pct": 72.0}
+    stat = cohort["kpis"]["opening_win_pct"]
+    assert roles._judge(few, "opening_win_pct", stat, cohort, None)["verdict"] == "par"
+    judged = roles._judge(many, "opening_win_pct", stat, cohort, None)
+    assert judged["verdict"] == "above" and judged["shrunk"] < 72.0
