@@ -192,7 +192,18 @@ function Result({ result, words }: { result: JobResult; words: Record<string, st
         Object.entries(result.windows).map(([key, matches]) => (
           <Matches key={key} title={WINDOW_TITLES[key] ?? key} matches={matches} />
         ))}
-      <Matches title="Энэ хоёр багийн parse хийгдсэн бүх тоглолт" matches={result.parsed_matches} />
+      {result.match_id ? (
+        <p className="text-sm">
+          <Link to={`/matches/${result.match_id}`} className="text-ct hover:underline">
+            Upload хийсэн тоглолтыг нээх →
+          </Link>{' '}
+          <Link to="/uploads" className="text-ink-3 hover:underline">
+            Uploads
+          </Link>
+        </p>
+      ) : (
+        <Matches title="Энэ хоёр багийн parse хийгдсэн бүх тоглолт" matches={result.parsed_matches} />
+      )}
     </section>
   )
 }

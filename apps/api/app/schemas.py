@@ -225,6 +225,9 @@ class JobResult(BaseModel):
     scanned: int | None
     h2h_found: int | None
     totals: dict[str, dict[str, int]]
+    # An upload's job (DATA-1): where its Demos went.
+    upload: uuid.UUID | None = None
+    match_id: int | None = None
 
 
 class JobWords(BaseModel):
@@ -424,8 +427,10 @@ class MatchMapTab(BaseModel):
 
 class MatchInfo(BaseModel):
     id: int
-    hltv_id: int
+    hltv_id: int | None  # None for a Match a Workspace uploaded
     hltv_url: str
+    kind: str = "official"  # or "scrim" (CONTEXT.md)
+    opponent_label: str = ""  # the other side's name when it has no Team row
     team1: TeamRef | None
     team2: TeamRef | None
     score: str
@@ -595,6 +600,74 @@ class GameplanPanel(BaseModel):
     cached: bool
     ms: float
     data: dict[str, Any]
+
+
+# -- Uploads (docs/plans/02 DATA-1) -------------------------------------------------
+class UploadCreate(BaseModel):
+    """Describe the file first; its bytes follow in parts."""
+
+    kind: Literal["scrim", "official"]
+    played_on: dt.date
+    my_team_id: int
+    opponent_id: int | None = None
+    opponent_name: str = Field(default="", max_length=120)
+    note: str = Field(default="", max_length=500)
+    filename: str = Field(min_length=1, max_length=255)
+    size: int = Field(gt=0)
+
+
+class UploadPlayer(BaseModel):
+    steamid: str
+    name: str
+    known: str  # "mine", "theirs" or "": whom the stored Maps have him playing for
+
+
+class UploadMap(BaseModel):
+    map_number: int
+    map: str
+    mine: int | None  # which of the two groups is my team's; None waits for Staff
+    assigned: bool
+    groups: list[list[UploadPlayer]]
+
+
+class UploadRead(BaseModel):
+    id: uuid.UUID
+    created_at: dt.datetime
+    kind: str
+    played_on: dt.date
+    my_team: TeamRef
+    opponent: TeamRef | None
+    opponent_name: str
+    note: str
+    filename: str
+    size_bytes: int
+    parts_total: int
+    part_bytes: int
+    received: int
+    status: str
+    error: str
+    job_id: uuid.UUID | None
+    match_id: int | None
+    maps: list[UploadMap]
+
+    @field_validator("created_at")
+    @classmethod
+    def created_utc(cls, value: dt.datetime) -> dt.datetime:
+        return _utc(value)
+
+
+class UploadList(BaseModel):
+    uploads: list[UploadRead]
+
+
+class UploadSides(BaseModel):
+    map_number: int
+    mine: int = Field(ge=0, le=1)
+
+
+class UploadPartAck(BaseModel):
+    received: int
+    parts_total: int
 
 
 # -- Forecasts (docs/plans/03 FC-4) -------------------------------------------------

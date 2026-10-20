@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User
 from app.security import decode_access_token
+from app.services import scope
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
@@ -36,6 +37,9 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSessio
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    # Everything this request reads sees the User's Workspace and no other's
+    # private Matches, and no Scrims unless its page asks (docs/adr/0010, 0011).
+    scope.bind(db, user.workspace_id)
     return user
 
 

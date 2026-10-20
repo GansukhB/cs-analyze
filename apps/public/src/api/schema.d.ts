@@ -532,6 +532,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Index */
+        get: operations["index_uploads_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{public_id}/parts/{n}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Part
+         * @description One part of the file (0-based), at most ``part_bytes``; sending it again replaces it.
+         */
+        put: operations["put_part_uploads__public_id__parts__n__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{public_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete */
+        post: operations["complete_uploads__public_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{public_id}/sides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sides
+         * @description Staff say which five are ours on one Map; it is stored again with the Teams.
+         */
+        post: operations["sides_uploads__public_id__sides_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{public_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detail */
+        get: operations["detail_uploads__public_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assistant/config": {
         parameters: {
             query?: never;
@@ -819,6 +911,11 @@ export interface components {
              * Format: password
              */
             client_secret?: string | null;
+        };
+        /** Body_put_part_uploads__public_id__parts__n__put */
+        Body_put_part_uploads__public_id__parts__n__put: {
+            /** Data */
+            data: string;
         };
         /** Body_transcribe_assistant_transcribe_post */
         Body_transcribe_assistant_transcribe_post: {
@@ -1163,6 +1260,10 @@ export interface components {
                     [key: string]: number;
                 };
             };
+            /** Upload */
+            upload?: string | null;
+            /** Match Id */
+            match_id?: number | null;
         };
         /**
          * JobRow
@@ -1321,9 +1422,19 @@ export interface components {
             /** Id */
             id: number;
             /** Hltv Id */
-            hltv_id: number;
+            hltv_id: number | null;
             /** Hltv Url */
             hltv_url: string;
+            /**
+             * Kind
+             * @default official
+             */
+            kind: string;
+            /**
+             * Opponent Label
+             * @default
+             */
+            opponent_label: string;
             team1: components["schemas"]["TeamRef"] | null;
             team2: components["schemas"]["TeamRef"] | null;
             /** Score */
@@ -2360,6 +2471,127 @@ export interface components {
             token_type: string;
         };
         /**
+         * UploadCreate
+         * @description Describe the file first; its bytes follow in parts.
+         */
+        UploadCreate: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "scrim" | "official";
+            /**
+             * Played On
+             * Format: date
+             */
+            played_on: string;
+            /** My Team Id */
+            my_team_id: number;
+            /** Opponent Id */
+            opponent_id?: number | null;
+            /**
+             * Opponent Name
+             * @default
+             */
+            opponent_name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Filename */
+            filename: string;
+            /** Size */
+            size: number;
+        };
+        /** UploadList */
+        UploadList: {
+            /** Uploads */
+            uploads: components["schemas"]["UploadRead"][];
+        };
+        /** UploadMap */
+        UploadMap: {
+            /** Map Number */
+            map_number: number;
+            /** Map */
+            map: string;
+            /** Mine */
+            mine: number | null;
+            /** Assigned */
+            assigned: boolean;
+            /** Groups */
+            groups: components["schemas"]["UploadPlayer"][][];
+        };
+        /** UploadPartAck */
+        UploadPartAck: {
+            /** Received */
+            received: number;
+            /** Parts Total */
+            parts_total: number;
+        };
+        /** UploadPlayer */
+        UploadPlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Known */
+            known: string;
+        };
+        /** UploadRead */
+        UploadRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Played On
+             * Format: date
+             */
+            played_on: string;
+            my_team: components["schemas"]["TeamRef"];
+            opponent: components["schemas"]["TeamRef"] | null;
+            /** Opponent Name */
+            opponent_name: string;
+            /** Note */
+            note: string;
+            /** Filename */
+            filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Parts Total */
+            parts_total: number;
+            /** Part Bytes */
+            part_bytes: number;
+            /** Received */
+            received: number;
+            /** Status */
+            status: string;
+            /** Error */
+            error: string;
+            /** Job Id */
+            job_id: string | null;
+            /** Match Id */
+            match_id: number | null;
+            /** Maps */
+            maps: components["schemas"]["UploadMap"][];
+        };
+        /** UploadSides */
+        UploadSides: {
+            /** Map Number */
+            map_number: number;
+            /** Mine */
+            mine: number;
+        };
+        /**
          * Usage
          * @description Bytes in use out of the bytes there are.
          */
@@ -3255,6 +3487,192 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ForecastRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    index_uploads_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadList"];
+                };
+            };
+        };
+    };
+    create_uploads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_part_uploads__public_id__parts__n__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                public_id: string;
+                n: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_put_part_uploads__public_id__parts__n__put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadPartAck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_uploads__public_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                public_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sides_uploads__public_id__sides_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                public_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadSides"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detail_uploads__public_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                public_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadRead"];
                 };
             };
             /** @description Validation Error */

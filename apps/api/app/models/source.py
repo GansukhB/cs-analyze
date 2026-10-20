@@ -16,6 +16,7 @@ Ported from cstat's ``hltv/models/source.py``; cstat's ``Event`` is ``Tournament
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -101,6 +102,18 @@ class Tournament(TimestampMixin, Base):
         return self.name
 
 
+class MatchKind(StrEnum):
+    """A Match proper, or a Scrim (CONTEXT.md): reviewed like one, counted nowhere."""
+
+    OFFICIAL = "official"
+    SCRIM = "scrim"
+
+
+class MatchSource(StrEnum):
+    HLTV = "hltv"
+    UPLOAD = "upload"
+
+
 class Match(TimestampMixin, Base):
     """A played match from ``/results``.
 
@@ -113,8 +126,18 @@ class Match(TimestampMixin, Base):
     __tablename__ = "matches"
 
     id: Mapped[int] = mapped_column(BigId, primary_key=True)
-    hltv_id: Mapped[int] = mapped_column(PositiveInt, unique=True)
+    # None for a Match a Workspace uploaded (DATA-1); MySQL lets many NULLs share a UNIQUE.
+    hltv_id: Mapped[int | None] = mapped_column(PositiveInt, unique=True)
     slug: Mapped[str] = mapped_column(String(200), default="", index=True)
+    # Private rows (docs/adr/0011): an uploaded Match is seen only in its Workspace,
+    # and a Scrim stays out of every Own form, habit and Pool (docs/adr/0010).
+    workspace_id: Mapped[int | None] = mapped_column(
+        BigId, ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16), default=MatchKind.OFFICIAL)
+    source: Mapped[str] = mapped_column(String(16), default=MatchSource.HLTV)
+    # The other side's name when it has no Team row (a scrim partner typed in).
+    opponent_label: Mapped[str] = mapped_column(String(120), default="")
 
     team1_id: Mapped[int | None] = mapped_column(BigId, ForeignKey("teams.id", ondelete="RESTRICT"))
     team2_id: Mapped[int | None] = mapped_column(BigId, ForeignKey("teams.id", ondelete="RESTRICT"))
@@ -153,7 +176,13 @@ class Match(TimestampMixin, Base):
 
     @property
     def url(self) -> str:
+        if self.hltv_id is None:
+            return ""
         return f"/matches/{self.hltv_id}/{self.slug}" if self.slug else f"/matches/{self.hltv_id}"
+
+    @property
+    def is_scrim(self) -> bool:
+        return self.kind == MatchKind.SCRIM
 
     @property
     def label(self) -> str:

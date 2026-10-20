@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import math
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 import polars as pl
 from sqlalchemy import case, delete, func, insert, or_, select
@@ -248,8 +248,12 @@ def ingest_map(
     *,
     bundle: bytes | None = None,
     on_step: Callable[[str], None] | None = None,
+    sides: Mapping[int, int] | None = None,
 ) -> MatchMap:
     """Store one parsed map, in one transaction. Replaces any previous analysis of it.
+
+    ``sides`` (Steam id -> Team id) says outright whose each Player is, before any
+    clan name: an uploaded Scrim's Demo rarely carries one (DATA-1's "who is who").
 
     ``bundle`` is the map's Tick Data (:func:`app.services.tickdata.pack`, or the
     stored bundle a re-parse was read from). It is stored with the rows, and the
@@ -289,7 +293,7 @@ def ingest_map(
         db.flush()
 
         step("roster")
-        players, teams, player_teams = _ingest_roster(db, match_map, parsed, match)
+        players, teams, player_teams = _ingest_roster(db, match_map, parsed, match, sides)
         step("rounds")
         rounds = _ingest_rounds(db, match_map, parsed, teams, player_teams)
         step("events")
@@ -339,8 +343,11 @@ def _team_from_roster_history(db: Session, player: Player, match: Match) -> Team
     return db.get(Team, seen.pop()) if len(seen) == 1 else None
 
 
-def _ingest_roster(db: Session, match_map: MatchMap, parsed, match: Match):
+def _ingest_roster(
+    db: Session, match_map: MatchMap, parsed, match: Match, sides: Mapping[int, int] | None = None
+):
     """Players, their team for this map, and their rounds-per-side denominators."""
+    given = {sid: db.get(Team, team_id) for sid, team_id in (sides or {}).items()}
     totals: dict[int, dict[str, int]] = {}
     if parsed.round_totals is not None and not parsed.round_totals.is_empty():
         for row in parsed.round_totals.to_dicts():
@@ -357,8 +364,9 @@ def _ingest_roster(db: Session, match_map: MatchMap, parsed, match: Match):
 
         clan = (row.get("clan_name") or "").strip()
         if clan not in teams:
-            teams[clan] = resolve_team(db, clan, match)
-        team = teams[clan] or _team_from_roster_history(db, player, match)
+            # Sides given outright: no clan-name guess, and no alias written from one.
+            teams[clan] = None if given else resolve_team(db, clan, match)
+        team = given.get(steamid) or teams[clan] or _team_from_roster_history(db, player, match)
         player_teams[steamid] = team
 
         counts = totals.get(steamid, {})

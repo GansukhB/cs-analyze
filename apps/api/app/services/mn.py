@@ -3126,3 +3126,17 @@ def forecast_line(fmt: str, p: float, mine: str, theirs: str) -> str:
 
 # The host's one heavy permit (OPS-6): a parse waits for another to finish.
 HEAVY_WAIT = "Өөр parse ({holder}) дуусахыг хүлээж байна: хоёр зэрэг явбал санах ой хүрэхгүй."
+
+
+# Uploads (DATA-1)
+UPLOAD_ASSEMBLE = "{name} файлыг хэсгүүдээс нь нийлүүлж байна."
+UPLOAD_SAME_MAP = (
+    "{name}: {map} энэ upload-д аль хэдийн байна. Нэг Map-ыг хоёр удаа тоглосон бол "
+    "тусад нь upload хийнэ үү."
+)
+UPLOAD_WHO = (
+    "{n} Map дээр аль тал нь манай баг болохыг тоглогчдоос нь таньж чадсангүй: "
+    "Upload-ын хуудаснаас сонгоно уу."
+)
+UPLOAD_GONE = "{map}: хадгалсан tick дата алга, дахин upload хийнэ үү."
+UPLOAD_SIDES_SET = "талуудыг сонгосноор дахин хадгаллаа."

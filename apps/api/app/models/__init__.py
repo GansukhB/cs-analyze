@@ -56,7 +56,8 @@ from app.models.jobs import (
     analysis_job_matches,
 )
 from app.models.results import SeriesResult, VrsStanding
-from app.models.source import Demo, Match, Team, Tournament
+from app.models.source import Demo, Match, MatchKind, MatchSource, Team, Tournament
+from app.models.upload import Upload, UploadPart, UploadStatus
 from app.models.user import User
 from app.models.workspace import UserRole, Workspace, WorkspaceTeam
 
@@ -67,6 +68,9 @@ __all__ = [
     "AssistantUsage",
     "Forecast",
     "SeriesResult",
+    "Upload",
+    "UploadPart",
+    "UploadStatus",
     "VrsStanding",
     "Workspace",
     "WorkspaceTeam",
@@ -74,6 +78,8 @@ __all__ = [
     "Team",
     "Tournament",
     "Match",
+    "MatchKind",
+    "MatchSource",
     "Demo",
     # analysis
     "Side",

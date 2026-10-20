@@ -29,7 +29,7 @@ from app.schemas import (
     ScoreboardSide,
     TeamRef,
 )
-from app.services import replay, review_view
+from app.services import replay, review_view, scope
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,8 @@ def _playable(match_map: MatchMap) -> bool:
 
 
 def _match(db: Session, match_id: int) -> Match:
+    # A Match's own pages show the Workspace's Scrims too (docs/adr/0010).
+    scope.allow_scrims(db)
     match = db.scalar(
         select(Match)
         .where(Match.id == match_id)
@@ -61,6 +63,7 @@ def _match(db: Session, match_id: int) -> Match:
 
 
 def _map(db: Session, match_id: int, map_number: int) -> MatchMap:
+    scope.allow_scrims(db)
     match_map = db.scalar(
         select(MatchMap)
         .where(MatchMap.match_id == match_id, MatchMap.map_number == map_number)
@@ -85,7 +88,9 @@ def get_match(match_id: int, db: DbSession, _: StaffUser) -> MatchInfo:
     return MatchInfo(
         id=match.id,
         hltv_id=match.hltv_id,
-        hltv_url=f"https://www.hltv.org{match.url}",
+        hltv_url=f"https://www.hltv.org{match.url}" if match.url else "",
+        kind=match.kind,
+        opponent_label=match.opponent_label,
         team1=_ref(match.team1),
         team2=_ref(match.team2),
         score=match.score,

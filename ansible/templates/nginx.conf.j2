@@ -97,6 +97,13 @@ server {
 {{ proxy() }}
     }
 
+    # An uploaded Demo arrives in parts of 15 MiB (app/models/upload.py PART_BYTES),
+    # well under Cloudflare's 100 MB per request.
+    location /uploads/ {
+        client_max_body_size 16m;
+{{ proxy() }}
+    }
+
     location / {
 {{ proxy() }}
     }

@@ -1567,6 +1567,299 @@
         }
       }
     },
+    "/uploads": {
+      "get": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Index",
+        "operationId": "index_uploads_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Create",
+        "operationId": "create_uploads_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/uploads/{public_id}/parts/{n}": {
+      "put": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Put Part",
+        "description": "One part of the file (0-based), at most ``part_bytes``; sending it again replaces it.",
+        "operationId": "put_part_uploads__public_id__parts__n__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          },
+          {
+            "name": "n",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "N"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_put_part_uploads__public_id__parts__n__put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadPartAck"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads/{public_id}/complete": {
+      "post": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Complete",
+        "operationId": "complete_uploads__public_id__complete_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads/{public_id}/sides": {
+      "post": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Sides",
+        "description": "Staff say which five are ours on one Map; it is stored again with the Teams.",
+        "operationId": "sides_uploads__public_id__sides_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadSides"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads/{public_id}": {
+      "get": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Detail",
+        "operationId": "detail_uploads__public_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/assistant/config": {
       "get": {
         "tags": [
@@ -2203,6 +2496,20 @@
           "password"
         ],
         "title": "Body_login_auth_token_post"
+      },
+      "Body_put_part_uploads__public_id__parts__n__put": {
+        "properties": {
+          "data": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Body_put_part_uploads__public_id__parts__n__put"
       },
       "Body_transcribe_assistant_transcribe_post": {
         "properties": {
@@ -3096,6 +3403,29 @@
             },
             "type": "object",
             "title": "Totals"
+          },
+          "upload": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload"
+          },
+          "match_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Id"
           }
         },
         "type": "object",
@@ -3480,12 +3810,29 @@
             "title": "Id"
           },
           "hltv_id": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Hltv Id"
           },
           "hltv_url": {
             "type": "string",
             "title": "Hltv Url"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "official"
+          },
+          "opponent_label": {
+            "type": "string",
+            "title": "Opponent Label",
+            "default": ""
           },
           "team1": {
             "anyOf": [
@@ -6506,6 +6853,318 @@
           "access_token"
         ],
         "title": "Token"
+      },
+      "UploadCreate": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "scrim",
+              "official"
+            ],
+            "title": "Kind"
+          },
+          "played_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Played On"
+          },
+          "my_team_id": {
+            "type": "integer",
+            "title": "My Team Id"
+          },
+          "opponent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Id"
+          },
+          "opponent_name": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Opponent Name",
+            "default": ""
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Note",
+            "default": ""
+          },
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "played_on",
+          "my_team_id",
+          "filename",
+          "size"
+        ],
+        "title": "UploadCreate",
+        "description": "Describe the file first; its bytes follow in parts."
+      },
+      "UploadList": {
+        "properties": {
+          "uploads": {
+            "items": {
+              "$ref": "#/components/schemas/UploadRead"
+            },
+            "type": "array",
+            "title": "Uploads"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uploads"
+        ],
+        "title": "UploadList"
+      },
+      "UploadMap": {
+        "properties": {
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "mine": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mine"
+          },
+          "assigned": {
+            "type": "boolean",
+            "title": "Assigned"
+          },
+          "groups": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/UploadPlayer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Groups"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_number",
+          "map",
+          "mine",
+          "assigned",
+          "groups"
+        ],
+        "title": "UploadMap"
+      },
+      "UploadPartAck": {
+        "properties": {
+          "received": {
+            "type": "integer",
+            "title": "Received"
+          },
+          "parts_total": {
+            "type": "integer",
+            "title": "Parts Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "received",
+          "parts_total"
+        ],
+        "title": "UploadPartAck"
+      },
+      "UploadPlayer": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "known": {
+            "type": "string",
+            "title": "Known"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "known"
+        ],
+        "title": "UploadPlayer"
+      },
+      "UploadRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "played_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Played On"
+          },
+          "my_team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "opponent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opponent_name": {
+            "type": "string",
+            "title": "Opponent Name"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "parts_total": {
+            "type": "integer",
+            "title": "Parts Total"
+          },
+          "part_bytes": {
+            "type": "integer",
+            "title": "Part Bytes"
+          },
+          "received": {
+            "type": "integer",
+            "title": "Received"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "match_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Id"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/UploadMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "kind",
+          "played_on",
+          "my_team",
+          "opponent",
+          "opponent_name",
+          "note",
+          "filename",
+          "size_bytes",
+          "parts_total",
+          "part_bytes",
+          "received",
+          "status",
+          "error",
+          "job_id",
+          "match_id",
+          "maps"
+        ],
+        "title": "UploadRead"
+      },
+      "UploadSides": {
+        "properties": {
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "mine": {
+            "type": "integer",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Mine"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_number",
+          "mine"
+        ],
+        "title": "UploadSides"
       },
       "Usage": {
         "properties": {

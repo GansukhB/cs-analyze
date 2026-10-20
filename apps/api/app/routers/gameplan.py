@@ -45,6 +45,7 @@ from app.services import (
     playbook_view,
     radar,
     review_pool,
+    scope,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ router = APIRouter(prefix="/gameplan", tags=["gameplan"])
 
 # Cached panels outlive a deploy: the stamp moves on a parse or a Review rebuilt,
 # not when the code that words a panel changes. Bump with any such change.
-CACHE_VERSION = 12
+CACHE_VERSION = 13
 
 CACHE_TTL = 7 * 24 * 3600
 LEVELS = {heatmap_groups.ALL_LEVELS, radar.UPPER, radar.LOWER}
@@ -171,7 +172,7 @@ def header(
         # rebuild them (docs/adr/0008). A no-op while one rebuild is running.
         review_pool.request_refresh()
         stamp = gameplan_view.stamp()
-        part = lineup.cache_part(my_five, their_five)
+        part = lineup.cache_part(my_five, their_five) + scope.cache_part(db)
         key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:header:{stamp}"
         cached = _cache_get(key)
         if cached is None:
@@ -214,7 +215,7 @@ def panel(
     started = time.perf_counter()
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()
-        part = lineup.cache_part(my_five, their_five)
+        part = lineup.cache_part(my_five, their_five) + scope.cache_part(db)
         key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:{tab}:{stamp}"
         data = _cache_get(key)
         hit = data is not None
@@ -255,7 +256,7 @@ def playbook(
     started = time.perf_counter()
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()
-        part = lineup.cache_part(my_five, their_five)
+        part = lineup.cache_part(my_five, their_five) + scope.cache_part(db)
         key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:playbook:{map_name}:{stamp}"
         data = _cache_get(key)
         hit = data is not None

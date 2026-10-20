@@ -12,6 +12,7 @@ import MatchPage from './pages/MatchPage'
 import PlayerPage from './pages/PlayerPage'
 import TeamPage from './pages/TeamPage'
 import TeamsPage from './pages/TeamsPage'
+import UploadsPage from './pages/UploadsPage'
 
 export default function App() {
   const token = useToken()
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="players/:steamid" element={<PlayerPage />} />
         <Route path="gameplan" element={<GameplanPickPage />} />
         <Route path="forecasts" element={<ForecastsPage />} />
+        <Route path="uploads" element={<UploadsPage />} />
         <Route path="gameplan/:mine/vs/:theirs" element={<GameplanPage />} />
         <Route path="gameplan/:mine/vs/:theirs/s/:tab" element={<GameplanPage />} />
         <Route path="gameplan/:mine/vs/:theirs/s/:tab/m/:map" element={<GameplanPage />} />

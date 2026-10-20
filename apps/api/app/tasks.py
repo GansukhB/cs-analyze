@@ -35,12 +35,13 @@ import shutil
 import threading
 import time
 import traceback
+import uuid
 from collections import deque
 from pathlib import Path
 
 from celery.signals import worker_ready, worker_shutdown
 from sqlalchemy import distinct, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.celery_app import celery_app
 from app.config import get_settings
@@ -49,6 +50,7 @@ from app.models import (
     AnalysisJob,
     Demo,
     EventLevel,
+    JobKind,
     JobStage,
     JobStatus,
     MapRoster,
@@ -56,7 +58,10 @@ from app.models import (
     MatchMap,
     Team,
     TickDataset,
+    Upload,
+    UploadStatus,
 )
+from app.models.base import utcnow
 from app.services import (
     analysis_store,
     dbctx,
@@ -69,6 +74,7 @@ from app.services import (
     store,
     system,
     tickdata,
+    uploads,
 )
 
 logger = logging.getLogger(__name__)
@@ -155,6 +161,15 @@ def _recover(**_) -> None:
     heavy.clear()
     with SessionLocal() as db:
         jobs.recover(db)
+        # Uploads wait on no slot: the ones the purge dropped go straight back.
+        for job in db.scalars(
+            select(AnalysisJob).where(
+                AnalysisJob.kind == JobKind.UPLOAD,
+                AnalysisJob.status == JobStatus.QUEUED,
+                AnalysisJob.celery_task_id == "",
+            )
+        ):
+            uploads.dispatch(db, job)
     review_pool.request_refresh(force=True)
     # Beside the queue, not on it: a Scout re-sent above would hold it for an hour.
     threading.Thread(target=gameplan.warm_pool, name="warm-pool", daemon=True).start()
@@ -169,6 +184,211 @@ def _heartbeat(**_) -> None:
 @worker_shutdown.connect
 def _flatline(**_) -> None:
     system.stop_heartbeat()
+
+
+@celery_app.task(bind=True, name="cs_analyze.ingest_upload")
+def ingest_upload(self, job_id: int) -> dict:
+    """A Workspace's own Demo file into one private Match (DATA-1), on the parse
+    queue: parse it if its parts are still here, then re-ingest any Map whose
+    "who is who" Staff have just answered."""
+    with SessionLocal() as job_db, SessionLocal() as db:
+        job = job_db.get(AnalysisJob, job_id)
+        if job is None or not _is_current(job, self.request.id):
+            logger.warning("skipping a stale message for upload job %s", job_id)
+            return {"job": str(job.public_id) if job else None, "status": "skipped"}
+        job.celery_task_id = self.request.id or ""
+        job_db.commit()
+        upload = db.scalar(select(Upload).where(Upload.job_id == job.id))
+        if upload is None:
+            jobs.fail(job_db, job, "Энэ job-ын upload алга.")
+            return {"job": str(job.public_id), "status": job.status}
+        scratch = _scratch(job)
+        try:
+            out = _ingest_upload(job_db, db, job, upload, scratch)
+            jobs.finish(job_db, job, out)
+            return out
+        except jobs.JobCancelled:
+            db.rollback()
+            upload.status, upload.error = UploadStatus.FAILED, "Зогсоосон."
+            db.commit()
+            jobs.cancel(job_db, job)
+            return {"job": str(job.public_id), "status": job.status}
+        except BaseException as exc:
+            logger.exception("upload job %s failed", job.public_id)
+            db.rollback()
+            upload.status, upload.error = UploadStatus.FAILED, f"{type(exc).__name__}: {exc}"[:2000]
+            db.commit()
+            jobs.fail(job_db, job, f"{type(exc).__name__}: {exc}")
+            jobs.log(job_db, job, traceback.format_exc()[-2000:], level=LEVEL.DEBUG)
+            raise
+        finally:
+            shutil.rmtree(scratch, ignore_errors=True)
+
+
+def _ingest_upload(job_db, db, job, upload: Upload, scratch: Path) -> dict:
+    upload.status = UploadStatus.PARSING
+    db.commit()
+    match = uploads.match_for(db, upload)
+    mine_known = uploads.known_players(db, upload.my_team_id)
+    theirs_known = uploads.known_players(db, match.team2_id)
+    entries = list(upload.maps or [])
+    has_parts = uploads.received(db, upload)[0] > 0
+
+    if has_parts:
+        jobs.set_stage(
+            job_db, job, STAGE.UNPACKING, 10, mn.UPLOAD_ASSEMBLE.format(name=upload.filename)
+        )
+        whole = uploads.assemble(db, upload, scratch)
+        files = uploads.demo_files(whole, scratch)
+        jobs.finish_stage(job_db, job, STAGE.UNPACKING, "", {"demos": len(files)})
+        jobs.set_stage(job_db, job, STAGE.PARSING, 30)
+        taken = {e["map_number"] for e in entries}
+        for path in files:
+            jobs.check_cancelled(job_db, job)
+            number = max(taken, default=0) + 1
+            entry = _ingest_upload_demo(
+                job_db, db, job, upload, match, path, number, scratch, mine_known, theirs_known
+            )
+            if entry is not None:
+                taken.add(number)
+                entries.append(entry)
+                upload.maps = list(entries)
+                db.commit()
+        uploads.drop_parts(db, upload)
+
+    # "Who is who" answered: the Map again from its stored Tick Data, Teams given.
+    for i, entry in enumerate(entries):
+        if entry.get("mine") is None or entry.get("assigned"):
+            continue
+        jobs.check_cancelled(job_db, job)
+        entries[i] = _reassign_upload_map(job_db, db, job, upload, match, entry)
+        upload.maps = list(entries)
+        db.commit()
+
+    analysis_store.rebuild_player_match(db, match)
+    _score_upload_match(db, match)
+    waiting = [e for e in entries if not e.get("assigned")]
+    upload.status = UploadStatus.NEEDS_SIDES if waiting else UploadStatus.DONE
+    db.commit()
+    jobs.finish_stage(job_db, job, STAGE.PARSING, "", {"maps": len(entries)})
+    if waiting:
+        jobs.log(
+            job_db, job, mn.UPLOAD_WHO.format(n=len(waiting)), level=LEVEL.WARNING,
+            stage=STAGE.PARSING,
+        )  # fmt: skip
+    return {
+        "windows": None,
+        "parsed_matches": [],
+        "scanned": None,
+        "h2h_found": None,
+        "totals": {"parsing": {"parsed": sum(1 for e in entries if e.get("assigned"))}},
+        "upload": str(upload.public_id),
+        "match_id": match.id,
+    }
+
+
+def _ingest_upload_demo(
+    job_db, db, job, upload, match, path: Path, number: int, scratch, mine_known, theirs_known
+) -> dict | None:
+    label = path.name
+
+    def waiting(holder: str) -> None:
+        jobs.activity(
+            job_db, job, key="parse:waiting", stage=STAGE.PARSING,
+            text=mn.HEAVY_WAIT.format(holder=holder or "өөр ажил"),
+        )  # fmt: skip
+
+    def cancelled() -> bool:
+        jobs.check_cancelled(job_db, job)
+        return False
+
+    with heavy.permit(f"job:{job.public_id}", on_wait=waiting, cancelled=cancelled):
+        jobs.activity(
+            job_db, job, key="parse:awpy", stage=STAGE.PARSING,
+            text=f"{label} · {mn.ingest_step('awpy')} ({mn.mb(path.stat().st_size)})",
+        )  # fmt: skip
+        result = tickdata.parse_parts([path], scratch / "tickdata", parts=False)
+        parsed, bundle = result.parsed, result.bundle
+        for warning in result.warnings:
+            jobs.log(job_db, job, f"   ! {label}: {warning}", level=LEVEL.WARNING)
+        demo = store._demo(db, match, map=parsed.map_name)
+        if demo.is_processed:
+            same = mn.UPLOAD_SAME_MAP.format(name=label, map=mn.game_map(parsed.map_name))
+            jobs.log(job_db, job, same, level=LEVEL.WARNING, stage=STAGE.PARSING)
+            return None
+        demo.map_number = number
+        demo.url = f"upload:{upload.public_id}/{label}"[:200]
+        demo.filename = label[:255]
+        demo.size_bytes = path.stat().st_size
+        demo.is_downloaded = True
+        demo.downloaded_at = utcnow()
+        groups = uploads.side_groups(parsed)
+        mine = uploads.pick_mine(groups, mine_known, theirs_known)
+        given = (
+            uploads.sides(groups, mine, upload.my_team_id, match.team2_id)
+            if mine is not None
+            else None
+        )
+        match_map = analysis_store.ingest_map(
+            db, demo, parsed, bundle=bundle, sides=given,
+            on_step=_ingest_reporter(job_db, job, label),
+        )  # fmt: skip
+        store._mark_processed(demo)
+        db.commit()
+    names = uploads.names_by_steamid(parsed)
+    assigned = mine is not None or _has_my_team(match_map, upload.my_team_id)
+    jobs.log(
+        job_db, job,
+        f"   ✓ {mn.game_map(parsed.map_name)} {match_map.scoreline} · {parsed.n_rounds} раунд",
+        level=LEVEL.SUCCESS, stage=STAGE.PARSING,
+    )  # fmt: skip
+    return {
+        "map_number": number,
+        "map": parsed.map_name,
+        "demo_id": demo.id,
+        "groups": [[{"steamid": str(s), "name": names.get(s, "")} for s in g] for g in groups],
+        "mine": mine,
+        "assigned": assigned,
+        "match_map_id": match_map.id,
+    }
+
+
+def _has_my_team(match_map: MatchMap, my_team_id: int) -> bool:
+    return my_team_id in (match_map.team1_id, match_map.team2_id) and None not in (
+        match_map.team1_id,
+        match_map.team2_id,
+    )
+
+
+def _reassign_upload_map(job_db, db, job, upload, match, entry: dict) -> dict:
+    demo = db.get(Demo, entry["demo_id"])
+    stored = db.scalar(select(TickDataset).where(TickDataset.match_map_id == entry["match_map_id"]))
+    if demo is None or stored is None:
+        jobs.log(job_db, job, mn.UPLOAD_GONE.format(map=mn.game_map(entry["map"])),
+                 level=LEVEL.WARNING, stage=STAGE.PARSING)  # fmt: skip
+        return {**entry, "mine": None}
+    groups = [[int(p["steamid"]) for p in g] for g in entry["groups"]]
+    given = uploads.sides(groups, entry["mine"], upload.my_team_id, match.team2_id)
+    with heavy.permit(f"job:{job.public_id}"):
+        bundle, version = stored.bundle, stored.awpy_version
+        parsed = tickdata.parsed_map(bundle, demo.filename, version)
+        match_map = analysis_store.ingest_map(db, demo, parsed, bundle=bundle, sides=given)
+        db.commit()
+    jobs.log(
+        job_db, job, f"   ✓ {mn.game_map(entry['map'])}: {mn.UPLOAD_SIDES_SET}",
+        level=LEVEL.SUCCESS, stage=STAGE.PARSING,
+    )  # fmt: skip
+    return {**entry, "assigned": True, "match_map_id": match_map.id}
+
+
+def _score_upload_match(db, match: Match) -> None:
+    """The Match's score in Maps, from my team's side (team1)."""
+    maps = db.scalars(select(MatchMap).where(MatchMap.match_id == match.id)).all()
+    won = sum(1 for m in maps if m.winner_id and m.winner_id == match.team1_id)
+    lost = sum(1 for m in maps if m.winner_id and m.winner_id == match.team2_id)
+    match.team1_score, match.team2_score = won, lost
+    match.score = f"{won} - {lost}" if won or lost else ""
+    db.commit()
 
 
 @celery_app.task(name="cs_analyze.refresh_reviews")
@@ -500,16 +720,34 @@ def _plan_matches(job_db: Session, job: AnalysisJob, client, my_team: Team, oppo
     return plan
 
 
-def _scratch(job: AnalysisJob) -> Path:
-    """This run's own scratch folder, and the leftovers of any run that died.
+LEFTOVER_HOURS = 6
 
-    Only one job runs at a time, so anything else under ``tmp/`` belongs to a
-    run that never reached its cleanup (a killed worker, a restarted container).
+
+def _is_job_folder(name: str) -> bool:
+    try:
+        uuid.UUID(name)
+    except ValueError:
+        return False
+    return True
+
+
+def _scratch(job: AnalysisJob) -> Path:
+    """This run's own scratch folder, and the leftovers of any run that died:
+    a job's folder whose job is no longer in flight (a killed worker, a restarted
+    container), or anything else left for hours.
     """
     root = get_settings().hltv_data_dir / "tmp"
     if root.exists():
+        # Uploads run beside a Scout (OPS-6): a folder of a job still in flight, or
+        # one touched in the last hours (a CLI's clone), is someone else's.
+        live = {
+            str(j.public_id) for j in object_session(job).scalars(jobs._in_flight(all_kinds=True))
+        }
+        cutoff = time.time() - LEFTOVER_HOURS * 3600
         for leftover in root.iterdir():
-            if leftover.name != str(job.public_id):
+            if leftover.name == str(job.public_id) or leftover.name in live:
+                continue
+            if leftover.stat().st_mtime < cutoff or _is_job_folder(leftover.name):
                 shutil.rmtree(leftover, ignore_errors=True)
     folder = root / str(job.public_id)
     folder.mkdir(parents=True, exist_ok=True)

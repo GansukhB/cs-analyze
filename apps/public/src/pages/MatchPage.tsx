@@ -32,7 +32,7 @@ export default function MatchPage() {
       ) : (
         <p className="rounded-xl border border-line bg-surface p-6 text-ink-2">
           None of this match's maps has been parsed, so there is nothing to review. Run an analysis that
-          includes match {info.hltv_id} first.
+          includes {info.hltv_id ? `match ${info.hltv_id}` : 'this match'} first.
         </p>
       )}
     </div>
@@ -48,15 +48,30 @@ function Header({ info }: { info: MatchInfo }) {
         {info.team2 && <Link to={`/teams/${info.team2.id}`} className="hover:underline">{info.team2.name}</Link>}
       </p>
       <h1 className="text-2xl font-semibold text-ink">
-        {info.team1?.name ?? '?'} <span className="font-mono">{info.score || '–'}</span> {info.team2?.name ?? '?'}
+        {info.team1?.name ?? '?'} <span className="font-mono">{info.score || '–'}</span>{' '}
+        {info.team2?.name ?? (info.opponent_label || '?')}
       </h1>
       <p className="font-mono text-xs text-ink-3">
         {info.tournament || 'unknown event'} ·{' '}
         {info.played_at
           ? new Date(info.played_at).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
           : 'date unknown'}{' '}
-        ·{' '}
-        <a href={info.hltv_url} target="_blank" rel="noreferrer" className="text-ct hover:underline">HLTV</a>
+        {info.hltv_url ? (
+          <>
+            ·{' '}
+            <a href={info.hltv_url} target="_blank" rel="noreferrer" className="text-ct hover:underline">HLTV</a>
+          </>
+        ) : (
+          <> · uploaded</>
+        )}
+        {info.kind === 'scrim' && (
+          <span
+            title="Scrim: reviewed like a Match, counted in no Own form, habit or Pool"
+            className="ml-2 rounded border border-line px-1.5 text-[10px] uppercase tracking-wide text-ink-2"
+          >
+            scrim
+          </span>
+        )}
       </p>
     </div>
   )

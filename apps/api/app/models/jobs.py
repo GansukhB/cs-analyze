@@ -50,6 +50,8 @@ class JobKind(StrEnum):
     # re-parsing. Reuses this model so it inherits the job list and live progress;
     # `demo` carries the target instead of the two team fields.
     REPARSE_MAP = "reparse_map"
+    # A Workspace's own Demo file (DATA-1): parsed on the parse queue, beside a Scout.
+    UPLOAD = "upload"
 
 
 class JobStatus(StrEnum):

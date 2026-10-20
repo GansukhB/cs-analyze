@@ -35,6 +35,7 @@ from sqlalchemy import func, or_, select
 
 from app.models import GameMap, MatchMap, MatchMapReview, Player, Team, TickDataset
 from app.services import mapstrategy, review, review_summary
+from app.services import scope as visibility
 from app.services.dbctx import db, memo
 from app.services.gameplan import MIN_POOL_ROUNDS, STRENGTH_Z
 from app.services.playbook import MAX_REFS, MIN_HABIT_ROUNDS, strength
@@ -275,7 +276,8 @@ def stamp() -> str:
 
 def data() -> Data:
     """The tallies and Pools for the stored Reviews, cut once per :func:`stamp`."""
-    key = stamp()
+    # Per scope too: a Workspace with official uploads has a Pool of its own (WS-2).
+    key = stamp() + visibility.cache_part(db())
     with _lock:
         found = _cached.get(key)
         if found is None:

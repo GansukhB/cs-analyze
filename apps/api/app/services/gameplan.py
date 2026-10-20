@@ -41,7 +41,16 @@ from app.models import (
     Round,
     Team,
 )
-from app.services import dbctx, lineup, mapstrategy, playerplan, pool_cache, roles, scouting
+from app.services import (
+    dbctx,
+    lineup,
+    mapstrategy,
+    playerplan,
+    pool_cache,
+    roles,
+    scope,
+    scouting,
+)
 from app.services.dbctx import count_if, db, memo, total
 
 logger = logging.getLogger(__name__)
@@ -250,6 +259,8 @@ def warm_pool() -> None:
 
     try:
         with SessionLocal() as session, dbctx.using(session):
+            # The Pool every Workspace without uploads reads (docs/adr/0011).
+            scope.bind(session, None)
             roles.pool_signals(parsed_maps())
             metric_pool()
     except Exception:

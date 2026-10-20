@@ -32,7 +32,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.models import AnalysisEvent, AnalysisJob, EventLevel, JobStage, JobStatus
+from app.models import AnalysisEvent, AnalysisJob, EventLevel, JobKind, JobStage, JobStatus
 from app.models.base import utcnow
 from app.services import live
 
@@ -85,14 +85,21 @@ def _json_safe(value):
 # to Celery if nothing else is RUNNING or already sitting in the broker, and
 # every terminal state (`finish`/`fail`/`cancel`) hands on the next-oldest
 # waiting job. A job that loses the race stays QUEUED with no `celery_task_id`.
-def _in_flight():
-    """Jobs that occupy the one slot: running, or sent to Celery and waiting."""
-    return select(AnalysisJob).where(
+# The one slot is HLTV's (one Chromium); an upload has nothing to fetch and runs
+# beside it on the parse queue (OPS-6), taking the heavy permit to parse.
+SLOT_KINDS = (JobKind.SCOUT, JobKind.REPARSE_MAP)
+
+
+def _in_flight(*, all_kinds: bool = False):
+    """Jobs that occupy the one slot: running, or sent to Celery and waiting.
+    ``all_kinds`` counts uploads too."""
+    query = select(AnalysisJob).where(
         or_(
             AnalysisJob.status == JobStatus.RUNNING,
             and_(AnalysisJob.status == JobStatus.QUEUED, AnalysisJob.celery_task_id != ""),
         )
     )
+    return query if all_kinds else query.where(AnalysisJob.kind.in_(SLOT_KINDS))
 
 
 def _dispatch(db: Session, job: AnalysisJob) -> None:
@@ -144,7 +151,11 @@ def start_next(db: Session, after: AnalysisJob | None = None) -> None:
     busy = db.scalars(_in_flight().with_for_update()).first()
     candidate = None
     if busy is None:
-        waiting = [AnalysisJob.status == JobStatus.QUEUED, AnalysisJob.celery_task_id == ""]
+        waiting = [
+            AnalysisJob.status == JobStatus.QUEUED,
+            AnalysisJob.celery_task_id == "",
+            AnalysisJob.kind.in_(SLOT_KINDS),
+        ]
         if after is not None:
             waiting.append(AnalysisJob.id != after.id)
         candidate = db.scalars(

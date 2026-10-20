@@ -38,6 +38,9 @@ export default function Layout() {
               <NavLink to="/teams" className={link}>
                 Teams
               </NavLink>
+              <NavLink to="/uploads" className={link}>
+                Uploads
+              </NavLink>
               <NavLink to="/gameplan" className={link}>
                 Game plan
               </NavLink>
