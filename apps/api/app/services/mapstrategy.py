@@ -32,6 +32,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import joinedload
 
 from app.models import BombEvent, Match, MatchMap, PlayerRound, Round, Team
+from app.services.analysis_store import PISTOL_ROUNDS
 from app.services.dbctx import count_if, db, memo
 
 logger = logging.getLogger(__name__)
@@ -63,14 +64,11 @@ ACTIVE_DUTY = (
 
 
 def pistol_rounds(numbers: Iterable[int]) -> set:
-    """Which round numbers are pistol rounds, for MR12 plus MR3 overtime (25, 28, 31...)."""
-    out = set()
-    for n in numbers:
-        if n in (1, 13):
-            out.add(n)
-        elif n >= 25 and (n - 25) % 3 == 0:
-            out.add(n)
-    return out
+    """Which round numbers are pistol rounds: the first of each regulation half.
+
+    Overtime halves are not: everyone starts them on $10,000 (CONTEXT.md, Buy type),
+    the same rule as ``analysis_store.PISTOL_ROUNDS``."""
+    return {n for n in numbers if n in PISTOL_ROUNDS}
 
 
 def _plays(team_id: int):

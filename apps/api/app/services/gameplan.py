@@ -25,7 +25,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping
 
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import aliased, joinedload
+from sqlalchemy.orm import joinedload
 
 from app.models import (
     KillEvent,
@@ -410,16 +410,14 @@ def duel_matrix(
     if not map_ids:
         return {"rows": [], "cols": [], "cells": {}, "note": "No head-to-head maps parsed."}
 
-    mine_current = _current_lineup(my_team)
-    theirs_current = _current_lineup(opponent)
+    # Players are told apart by id (Steam id), never by name: two can share one.
+    mine_current = lineup.fielded(my_team)
+    theirs_current = lineup.fielded(opponent)
 
-    killer, victim = aliased(Player), aliased(Player)
     D = PlayerMapDuel
-    pairs: dict[tuple, dict] = defaultdict(lambda: {"for": 0, "against": 0})
-    for k_name, v_name, k_team, n in db().execute(
-        select(killer.name, victim.name, D.killer_team_id, total(D.kills))
-        .join(killer, killer.id == D.killer_id)
-        .join(victim, victim.id == D.victim_id)
+    by_id: dict[tuple, dict] = defaultdict(lambda: {"for": 0, "against": 0})
+    for k_id, v_id, k_team, n in db().execute(
+        select(D.killer_id, D.victim_id, D.killer_team_id, total(D.kills))
         .where(
             D.match_map_id.in_(map_ids),
             or_(
@@ -427,17 +425,21 @@ def duel_matrix(
                 and_(D.killer_team_id == opponent.id, D.victim_team_id == my_team.id),
             ),
         )
-        .group_by(killer.name, victim.name, D.killer_team_id)
+        .group_by(D.killer_id, D.victim_id, D.killer_team_id)
     ):
         if k_team == my_team.id:
-            pairs[(k_name, v_name)]["for"] += int(n or 0)
+            by_id[(k_id, v_id)]["for"] += int(n or 0)
         else:
-            pairs[(v_name, k_name)]["against"] += int(n or 0)
+            by_id[(v_id, k_id)]["against"] += int(n or 0)
 
-    rows_all = sorted({k[0] for k in pairs})
-    cols_all = sorted({k[1] for k in pairs})
-    rows = [r for r in rows_all if r in mine_current] if current_only else rows_all
-    cols = [c for c in cols_all if c in theirs_current] if current_only else cols_all
+    names = _display_names({pid for pair in by_id for pid in pair})
+    pairs = {(names[r], names[c]): d for (r, c), d in by_id.items()}
+    row_ids = sorted({k[0] for k in by_id}, key=names.get)
+    col_ids = sorted({k[1] for k in by_id}, key=names.get)
+    rows_all = [names[r] for r in row_ids]
+    cols_all = [names[c] for c in col_ids]
+    rows = [names[r] for r in row_ids if r in mine_current] if current_only else rows_all
+    cols = [names[c] for c in col_ids if c in theirs_current] if current_only else cols_all
     rows = rows or rows_all
     cols = cols or cols_all
 
@@ -492,6 +494,17 @@ def _current_lineup(team: Team) -> set:
     return playerplan.current_lineup(team)
 
 
+def _display_names(player_ids: set[int]) -> dict[int, str]:
+    """Each Player's name, made unique: two Players can go by the same name."""
+    rows = sorted(db().execute(select(Player.id, Player.name).where(Player.id.in_(player_ids))))
+    out: dict[int, str] = {}
+    taken: dict[str, int] = defaultdict(int)
+    for pid, name in rows:
+        taken[name] += 1
+        out[pid] = name if taken[name] == 1 else f"{name} ({taken[name]})"
+    return out
+
+
 # ------------------------------------------------------------- map board -----
 def map_board(my_team: Team, opponent: Team, *, since=None, until=None) -> dict:
     """Every map, both teams' record on it, and what to do in the veto."""
@@ -534,23 +547,23 @@ def _map_verdict(name: str, m, t, h) -> dict:
         return {
             "call": "unknown",
             "rank": 0,
-            "why": "Neither side has a parsed game here.",
+            "why": "Энд аль ч багийн задлан шинжилсэн тоглолт алга.",
             "confidence": "none",
         }
     if t is None:
         return {
             "call": "blind",
             "rank": 1,
-            "why": f"We have {m['maps']} map(s) here, they have none parsed. "
-            "Unscouted, not weak — parse a demo before trusting it.",
+            "why": f"Бид энд {m['maps']} map тоглосон, тэднийх нэг ч задлагдаагүй. "
+            "Энэ нь сул тал биш, судлагдаагүй л газар: итгэхээс өмнө demo задал.",
             "confidence": "none",
         }
     if m is None:
         return {
             "call": "avoid",
             "rank": 1,
-            "why": f"They have {t['maps']} parsed map(s) here and we have none. "
-            "Playing it blind hands them the preparation edge.",
+            "why": f"Тэдний {t['maps']} map энд задлагдсан, бидэнд нэг ч алга. "
+            "Харалгүй тоглох нь бэлтгэлийн давуу байдлыг тэдэнд өгнө.",
             "confidence": "low",
         }
 
@@ -561,30 +574,28 @@ def _map_verdict(name: str, m, t, h) -> dict:
         return {
             "call": "ban",
             "rank": 5,
-            "why": f"They have beaten us here {h['lost']}-{h['won']} in "
-            f"{h['maps']} head-to-head map(s). Ban it.",
+            "why": f"Хоорондын {h['maps']} map-д тэд биднийг энд {h['lost']}-{h['won']} "
+            "хожсон. Хориглох.",
             "confidence": conf,
         }
     if gap >= 20:
         return {
             "call": "pick",
             "rank": 4,
-            "why": f"We are {m['win_pct']}% here against their {t['win_pct']}% "
-            f"({gap:+.0f} points).",
+            "why": f"Бид энд {m['win_pct']}%, тэд {t['win_pct']}% ({gap:+.0f} нэгж).",
             "confidence": conf,
         }
     if gap <= -20:
         return {
             "call": "ban",
             "rank": 3,
-            "why": f"They are {t['win_pct']}% here against our {m['win_pct']}% "
-            f"({gap:+.0f} points against us).",
+            "why": f"Тэд энд {t['win_pct']}%, бид {m['win_pct']}% (бидний эсрэг {gap:+.0f} нэгж).",
             "confidence": conf,
         }
     return {
         "call": "contest",
         "rank": 2,
-        "why": f"Close: us {m['win_pct']}%, them {t['win_pct']}%.",
+        "why": f"Ойролцоо: бид {m['win_pct']}%, тэд {t['win_pct']}%.",
         "confidence": conf,
     }
 
@@ -975,13 +986,10 @@ def verdict(report: Mapping, my_team: Team, opponent: Team) -> dict:
         by_key = {r["key"]: r for r in delta.get("rows", [])}
         t_drop = by_key.get("t_win_pct", {}).get("delta")
         ct_drop = by_key.get("ct_win_pct", {}).get("delta")
-        facts["worst_side"] = (
-            "t"
-            if (t_drop is not None and ct_drop is not None and t_drop < ct_drop)
-            else "ct"
-            if ct_drop is not None
-            else None
-        )
+        # A Side is named only when it did drop against them; two Sides that held
+        # or rose have no "worst".
+        drops = {side: d for side, d in (("t", t_drop), ("ct", ct_drop)) if d is not None and d < 0}
+        facts["worst_side"] = min(drops, key=drops.get) if drops else None
         collapses = delta.get("collapses") or []
         facts["top_collapse"] = collapses[0] if collapses else None
         for row in collapses[:3]:
@@ -1059,24 +1067,23 @@ def roster_continuity(my_team: Team, opponent: Team, h2h_maps: Iterable[MatchMap
 
     out = {"available": True, "sides": {}}
     for key, team in (("mine", my_team), ("theirs", opponent)):
-        current = _current_lineup(team)
+        current = lineup.fielded(team)
         played = set(
             db().scalars(
-                select(Player.name)
-                .join(MapRoster, MapRoster.player_id == Player.id)
-                .where(
+                select(MapRoster.player_id).where(
                     MapRoster.match_map_id.in_([m.id for m in h2h_maps]),
                     MapRoster.team_id == team.id,
                 )
             )
         )
-        overlap = sorted(current & played)
+        names = _display_names(current | played)
+        overlap = current & played
         out["sides"][key] = {
             "team": team.name,
-            "current": sorted(current),
-            "played": sorted(played),
-            "overlap": overlap,
-            "unseen": sorted(current - played),
+            "current": sorted(names[p] for p in current),
+            "played": sorted(names[p] for p in played),
+            "overlap": sorted(names[p] for p in overlap),
+            "unseen": sorted(names[p] for p in current - played),
             "n": len(overlap),
             "of": len(current) or 5,
         }

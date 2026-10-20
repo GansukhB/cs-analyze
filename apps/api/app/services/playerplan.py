@@ -348,6 +348,8 @@ def _positions(team: Team, match_maps: Iterable[MatchMap]) -> dict[int, dict]:
                         ({"place": p, "count": c} for p, c in acc.items()),
                         key=lambda r: -r["count"],
                     )[:5]
+                    # Before the cut to five: a share must be of every kill, not the top five's.
+                    merged[f"{key}_total"] = sum(acc.values())
                 tidy[pid][map_name][side] = merged
     return tidy
 
@@ -506,20 +508,20 @@ def team_players(team: Team, opponent: Team, *, baseline=None, cohorts=None) -> 
         baseline = baseline or role_service.league_baseline(pool)
         cohorts = cohorts or role_service.role_cohorts(pool, baseline)
     picture = role_service.rate_team(team, split["all"], baseline=baseline, cohorts=cohorts)
-    roles_by_name = {p["name"]: p for p in picture["players"]}
-    lineup = current_lineup(team)
+    roles_by_id = {p["player_id"]: p for p in picture["players"]}
+    fielded = lineups.fielded(team)
 
     out = []
     for pid in set(form_own) | set(form_vs):
         base = form_own.get(pid) or form_vs.get(pid) or {}
         name = base.get("name") or str(pid)
-        rp = roles_by_name.get(name) or {}
+        rp = roles_by_id.get(pid) or {}
         fits = rp.get("fit") or {}
         out.append(
             {
                 "player_id": pid,
                 "name": name,
-                "in_lineup": (not lineup) or name in lineup,
+                "in_lineup": (not fielded) or pid in fielded,
                 "role": {
                     s: {
                         "role": v["role"],
@@ -782,7 +784,7 @@ def map_side_setup(
         da = cell.get("deaths_at") or []
         if not kf and not da:
             continue
-        kills = sum(r["count"] for r in kf) or 0
+        kills = cell.get("kills_from_total") or sum(r["count"] for r in kf) or 0
         top = kf[0] if kf else None
         rows.append(
             {

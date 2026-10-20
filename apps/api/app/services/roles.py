@@ -23,7 +23,7 @@ import statistics
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload
 
 from app.models import (
@@ -250,6 +250,21 @@ def role_signals(
     ):
         if int(n or 0):
             _set(per_side, pid, side, "multi_kill_rounds", int(n))
+
+    # The entry's last KPI: how often the Round is won once he has opened it.
+    for pid, side, opened, won in session.execute(
+        select(
+            PlayerRound.player_id,
+            PlayerRound.side,
+            count_if(PlayerRound.opening_kill),
+            count_if(and_(PlayerRound.opening_kill, Round.winner_side == PlayerRound.side)),
+        )
+        .join(Round, Round.id == PlayerRound.round_id)
+        .where(*in_rounds)
+        .group_by(PlayerRound.player_id, PlayerRound.side)
+    ):
+        if int(opened or 0):
+            _set(per_side, pid, side, "open_round_win_pct", _pct(int(won or 0), int(opened)))
 
     # -- weapons: the AWP question, and it is only ever the AWP
     for pid, side, weapon, kills in session.execute(
@@ -488,10 +503,12 @@ def _first_contact(map_ids, pids, tickrates, feed=None) -> dict[tuple, dict]:
 
 
 def _trade_share(map_ids, pids, tickrates, feed=None) -> dict[tuple, dict]:
-    """Share of a player's kills that follow a *team-mate's* death within TRADE_SECONDS.
+    """Share of a player's kills that are Trades (CONTEXT.md): killing the enemy who
+    killed a *team-mate* within TRADE_SECONDS before.
 
     Team-mate is decided by side within the round, which stays correct across the
-    half swap without a roster join.
+    half swap without a roster join. A kill that merely follows a team-mate's
+    death, on someone else, is not a Trade (the Review and ingest agree).
     """
     pids_set = set(pids)
     freeze = feed.rounds(map_ids) if feed else _round_freeze(map_ids)
@@ -523,7 +540,11 @@ def _trade_share(map_ids, pids, tickrates, feed=None) -> dict[tuple, dict]:
             for prior in events[:i]:
                 if prior["tick"] < ev["tick"] - window:
                     continue
-                if prior["victim_side"] == side and prior["victim_id"] != aid:
+                if (
+                    prior["victim_side"] == side
+                    and prior["victim_id"] != aid
+                    and prior["attacker_id"] == ev["victim_id"]
+                ):
                     tally[key]["trades"] += 1
                     break
     return {
@@ -669,7 +690,7 @@ BASELINE_SIGNALS = (
 
 # Bump when a role signal is measured differently: the Pool's signals are kept in
 # Redis under this and the Match Maps they were measured on (`pool_cache`).
-POOL_SCHEMA = 1
+POOL_SCHEMA = 2
 
 
 def pool_signals(match_maps: Iterable[MatchMap], signals: list | None = None) -> list:

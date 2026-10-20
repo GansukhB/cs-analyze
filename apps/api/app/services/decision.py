@@ -35,7 +35,10 @@ def build(report: dict, my_team, opponent) -> dict:
     ahead, total, per_metric = _form_balance(report)
     stale = bool((report.get("continuity") or {}).get("stale"))
     levers = _levers(report)
-    call, label, tone = _call(ahead, total, stale, levers)
+    # Only their weak points move the call; our own collapses and the players we
+    # must protect are risks, and more of them must not turn "close" into "winnable".
+    theirs = [lever for lever in levers if lever["kind"] == "linchpin"]
+    call, label, tone = _call(ahead, total, stale, theirs)
 
     return {
         "call": call,
@@ -142,10 +145,16 @@ def _lead(call, report, my_team, opponent, ahead, total, stale) -> str:
         bits.append(f"H2H {won}-{lost}.")
 
     if total:
-        bits.append(
-            f"Өөрсдийн формоор {total} үзүүлэлтийн {ahead} дээр нь бид урд байна"
-            + (" — цаасан дээр тэнцүү." if ahead >= EVEN_METRICS else " — зөрүү бодитой.")
-        )
+        if ahead >= STRONG_METRICS:
+            verdict = " — цаасан дээр бид давуу."
+        elif ahead >= EVEN_METRICS:
+            verdict = " — цаасан дээр тэнцүү."
+        else:
+            verdict = " — цаасан дээр тэд давуу."
+        bits.append(f"Өөрсдийн формоор {total} үзүүлэлтийн {ahead} дээр нь бид урд байна{verdict}")
+        # Each side's numbers come from its own opponents: until the Forecast
+        # weighs them (docs/plans 03), say that the comparison doesn't.
+        bits.append("Хоёр багийн тоглосон өрсөлдөгчдийн хүчийг энэ харьцуулалт тооцоогүй.")
     return " ".join(bits)
 
 
@@ -188,25 +197,25 @@ def _cards(report: dict, opponent) -> list[dict]:
             }
         )
 
-    weak = (
-        (report.get("my_team") or {}).get("weaknesses")
-        or (report.get("my_team") or {}).get("worst_relative")
-        or []
-    )
+    mine = report.get("my_team") or {}
+    # A Weakness stands out below the Pool (CONTEXT.md); with none, the card shows
+    # our lowest number for what it is, not as a weakness.
+    flagged = bool(mine.get("weaknesses"))
+    weak = mine.get("weaknesses") or mine.get("worst_relative") or []
     if weak:
         w = weak[0]
-        rounds = ((report.get("my_team") or {}).get("metrics") or {}).get("rounds")
+        rounds = (mine.get("metrics") or {}).get("rounds")
         cards.append(
             {
                 "value": f"{w['value']}{w.get('unit') or ''}",
                 "unit": "",
                 "label": mn.metric(w["key"]),
-                "action": "багийн сул тал",
+                "action": "багийн сул тал" if flagged else "харьцангуй хамгийн доогуур",
                 # Түүврийг монголоор, жишгийг бөөрөнхийлж: 51.1889 гэсэн тоо
                 # нарийвчлалыг биш, хайнга байдлыг л илэрхийлнэ.
                 "detail": f"жишиг {round(float(w['pool_mean']), 1)}"
                 + (f" · {mn.sample(rounds=rounds)}" if rounds else ""),
-                "tone": "crit",
+                "tone": "crit" if flagged else "warn",
             }
         )
 

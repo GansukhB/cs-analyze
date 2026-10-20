@@ -130,8 +130,9 @@ def league(db):
     return {"a": a, "b": b, "c": c, "players": players}
 
 
-def test_pistol_rounds_follow_mr12_and_overtime():
-    assert mapstrategy.pistol_rounds(range(1, 32)) == {1, 13, 25, 28, 31}
+def test_pistol_rounds_are_the_first_of_each_regulation_half():
+    # Overtime halves start on $10,000, so none of them is a pistol (CONTEXT.md, Buy type).
+    assert mapstrategy.pistol_rounds(range(1, 32)) == {1, 13}
 
 
 def test_report_reads_sides_from_round_teams(db, league):

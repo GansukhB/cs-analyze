@@ -306,10 +306,12 @@ export function mountScene(
   let alive = true
   function upgrade(found: Track[]) {
     if (!alive) return
-    const byKey = new Map(found.map((t) => [`${t.side}|${t.route_key}`, t]))
+    // Keyed by player too: in the all-players view two men can share a route,
+    // and each must walk his own medoid, not whichever was read last.
+    const byKey = new Map(found.map((t) => [`${t.player}|${t.side}|${t.route_key}`, t]))
     let upgraded = 0
     for (const w of walkers) {
-      const real = byKey.get(`${w.route.side}|${w.route.route_key}`)
+      const real = byKey.get(`${w.route.player}|${w.route.side}|${w.route.route_key}`)
       if (!real || !real.points || real.points.length < 2) continue
       w.pts = real.points.map((p) => [px(p[0]), py(p[1])])
       w.stepAt = real.steps.map((st) => Math.min(st.i, w.pts.length - 1))

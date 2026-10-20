@@ -235,7 +235,7 @@ function ProfileBlock({ prof }: { prof: Profile }) {
           ) : (
             <>
               <p className="none" style={{ fontStyle: 'normal', margin: '8px 0 0' }}>
-                {prof.rounds} раундын түүвэр дээр сангийн дунджаас бүтэн нэг стандарт хазайлтаар дээгүүр гарсан
+                {prof.rounds} раундын түүвэр дээр сангийн дунджаас 0.8 стандарт хазайлтаас илүү дээгүүр гарсан
                 үзүүлэлт байхгүй. Харьцангуй хамгийн сайн нь:
               </p>
               <MetricRows rows={prof.best_relative} withWhy={false} />
@@ -249,7 +249,7 @@ function ProfileBlock({ prof }: { prof: Profile }) {
           ) : (
             <>
               <p className="none" style={{ fontStyle: 'normal', margin: '8px 0 0' }}>
-                Сангаас бүтэн нэг стандарт хазайлтаар доогуур зүйл байхгүй. Харьцангуй хамгийн тааруу нь:
+                Сангаас 0.8 стандарт хазайлтаас илүү доогуур зүйл байхгүй. Харьцангуй хамгийн тааруу нь:
               </p>
               <MetricRows rows={prof.worst_relative} withWhy={false} />
             </>
@@ -532,7 +532,7 @@ export function Maps({ data, fixture }: { data: MapsPanel; fixture: Fixture }) {
       <h2>Газрын зураг: вето, төлөвлөгөө, байрлал</h2>
       <div className="figure">
         <Chart svg={data.chart} />
-        <p className="cap">Задлан шинжилсэн бүх мап дээрх раундын хожил. Задлагдаагүй мап нь сул тал биш — судлагдаагүй хэсэг.</p>
+        <p className="cap">Задлан шинжилсэн бүх мап дээрх map-ын хожлын хувь. Задлагдаагүй мап нь сул тал биш — судлагдаагүй хэсэг.</p>
       </div>
       <div className="tw">
         <table className="setup">
@@ -775,7 +775,7 @@ export function Duels({ data }: { data: DuelsPanel }) {
           <div className="figure">
             <Chart svg={data.chart} />
             <p className="cap">
-              Багууд хоорондын алалт. Мөр манай тоглогч, багана тэдний. 3-аас доош дуэльтэй хос нь хандлага биш —
+              Багууд хоорондын алалт. Мөр манай тоглогч, багана тэдний. 4-өөс доош дуэльтэй хос нь хандлага биш —
               тэмдэглэгдсэн.
             </p>
           </div>
