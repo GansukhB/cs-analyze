@@ -1772,6 +1772,53 @@
         ]
       }
     },
+    "/briefings/draft": {
+      "post": {
+        "tags": [
+          "briefings"
+        ],
+        "summary": "Draft",
+        "description": "The Assistant's draft of the notes for the picked lines (AS-6): nothing is\nsaved; Staff edit it. Numbers the lines don't hold are listed to check.",
+        "operationId": "draft_briefings_draft_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BriefingCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefingDraft"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/briefings/{public_id}": {
       "get": {
         "tags": [
@@ -3200,6 +3247,44 @@
           "title"
         ],
         "title": "BriefingCreate"
+      },
+      "BriefingDraft": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "maps": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Maps"
+          },
+          "unverified": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Unverified"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "note",
+          "maps",
+          "unverified",
+          "cost_usd"
+        ],
+        "title": "BriefingDraft",
+        "description": "The Assistant's notes for a Briefing (AS-6), for Staff to edit."
       },
       "BriefingList": {
         "properties": {

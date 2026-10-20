@@ -31,31 +31,42 @@ export default function BriefingNewPage() {
   const save = $api.useMutation('post', '/briefings', {
     onSuccess: (b) => navigate(`/briefings/${b.id}`),
   })
+  const [checks, setChecks] = useState<Record<string, string[]>>({})
+  const draft = $api.useMutation('post', '/briefings/draft', {
+    onSuccess: (d) => {
+      setNote(d.note)
+      setNotes((prev) => ({ ...prev, ...d.maps }))
+      setChecks(d.unverified)
+    },
+  })
 
   if (!header.data || !todo.data) return <p className="text-ink-3">Game Plan-ийг уншиж байна…</p>
   const maps = (todo.data.data as unknown as TodoPanel).maps
   const ids = (raw?: string) => (raw ? raw.split(',').filter(Boolean) : [])
   const total = Object.values(picks).reduce((n, l) => n + l.length, 0)
 
-  function submit(share: boolean) {
-    save.mutate({
-      body: {
-        my_team_id: mine,
-        opponent_id: theirs,
-        my_lineup: ids(query.my_lineup),
-        their_lineup: ids(query.their_lineup),
-        title: title.trim() || `${header.data!.my_team.name} vs ${header.data!.opponent.name}`,
-        note,
-        include_forecast: forecast,
-        stamp: header.data!.stamp,
-        share,
-        maps: maps
-          .map((m) => ({ map: m.map, note: notes[m.map] ?? '', picks: picks[m.map] ?? [] }))
-          .filter((m) => m.picks.length || m.note.trim()),
-      },
-    })
+  function body(share: boolean) {
+    return {
+      my_team_id: mine,
+      opponent_id: theirs,
+      my_lineup: ids(query.my_lineup),
+      their_lineup: ids(query.their_lineup),
+      title: title.trim() || `${header.data!.my_team.name} vs ${header.data!.opponent.name}`,
+      note,
+      include_forecast: forecast,
+      stamp: header.data!.stamp,
+      share,
+      maps: maps
+        .map((m) => ({ map: m.map, note: notes[m.map] ?? '', picks: picks[m.map] ?? [] }))
+        .filter((m) => m.picks.length || m.note.trim()),
+    }
   }
-  const error = (save.error as { detail?: string } | undefined)?.detail
+  function submit(share: boolean) {
+    save.mutate({ body: body(share) })
+  }
+  const error =
+    (save.error as { detail?: string } | undefined)?.detail ?? (draft.error as { detail?: string } | undefined)?.detail
+  const flagged = Object.entries(checks)
 
   return (
     <div className="space-y-6">
@@ -109,8 +120,22 @@ export default function BriefingNewPage() {
         ))}
       </div>
 
+      {flagged.length > 0 && (
+        <p className="rounded-md border-l-2 border-warn bg-surface px-4 py-2 text-sm text-ink-2">
+          Ноорогт сонгосон мөрүүдэд байхгүй тоо байна, хадгалахаас өмнө шалгаарай:{' '}
+          {flagged.map(([where, nums]) => `${where === 'note' ? 'ерөнхий' : where.replace('de_', '')}: ${nums.join(', ')}`).join('; ')}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <span className="text-ink-3">{total} мөр сонгосон</span>
+        <button
+          type="button"
+          disabled={draft.isPending || total === 0}
+          onClick={() => draft.mutate({ body: body(false) })}
+          className="rounded-md border border-line bg-raised px-4 py-2 text-ink hover:border-ink-3 disabled:opacity-50"
+        >
+          {draft.isPending ? 'Ноорог бичиж байна…' : 'Assistant-аар тэмдэглэлийн ноорог'}
+        </button>
         <button
           type="button"
           disabled={save.isPending}

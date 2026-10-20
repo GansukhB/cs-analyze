@@ -1,6 +1,8 @@
 # ruff: noqa: F811  (the Game Plan tests' fixtures, imported by name)
 """Briefings: a Game Plan's lines frozen with notes, shared with the Players (WS-5)."""
 
+import json
+
 from app.models import Briefing, User, UserRole
 from app.security import create_access_token, hash_password
 from app.services import briefings
@@ -81,3 +83,70 @@ def test_players_read_it_once_shared(client, db, auth, league, workspace):
     assert client.post(f"/briefings/{bid}/share", headers=them).status_code == 403
     assert client.delete(f"/briefings/{bid}", headers=auth).status_code == 204
     assert db.query(Briefing).count() == 0
+
+
+class _Block:
+    type = "text"
+
+    def __init__(self, text):
+        self.text = text
+
+
+class _Usage:
+    input_tokens, output_tokens = 1200, 300
+    cache_read_input_tokens = cache_creation_input_tokens = 0
+
+
+class _Client:
+    def __init__(self, reply):
+        self.sent = []
+        reply_text = reply
+
+        class Messages:
+            def create(inner, **kwargs):
+                self.sent.append(kwargs)
+                return type("M", (), {"content": [_Block(reply_text)], "usage": _Usage()})()
+
+        self.beta = type("B", (), {"messages": Messages()})()
+
+
+def test_the_assistant_drafts_notes_and_flags_numbers_it_made_up(
+    client, db, auth, league, monkeypatch
+):
+    from app.models import AssistantUsage
+    from app.services import assistant
+
+    _made, panel, path = _make(client, auth, league)
+    fake = _Client('{"note": "Mirage-д 5 зүйл.", "maps": {"de_mirage": "Тэд A-д 999 удаа орно."}}')
+    monkeypatch.setattr(assistant, "is_configured", lambda: True)
+    monkeypatch.setattr(assistant, "_client", lambda: fake)
+    a, b = league["a"], league["b"]
+    body = {"my_team_id": a.id, "opponent_id": b.id, "title": "x", "stamp": panel["stamp"],
+            "maps": [{"map": "de_mirage", "picks": [path]}]}  # fmt: skip
+    out = client.post("/briefings/draft", json=body, headers=auth)
+    assert out.status_code == 200, out.text
+    drafted = out.json()
+    assert drafted["maps"]["de_mirage"].startswith("Тэд A-д")
+    assert "999" in drafted["unverified"]["de_mirage"]
+    assert drafted["cost_usd"] > 0
+    assert db.query(AssistantUsage).count() == 1
+    sent = json.loads(fake.sent[0]["messages"][0]["content"])
+    assert sent["maps"][0]["map"] == "de_mirage" and sent["maps"][0]["lines"]
+
+
+def test_no_draft_without_the_assistant(client, auth, league, monkeypatch):
+    from app.services import assistant
+
+    monkeypatch.setattr(assistant, "is_configured", lambda: False)
+    a, b = league["a"], league["b"]
+    body = {"my_team_id": a.id, "opponent_id": b.id, "title": "x", "maps": []}
+    out = client.post("/briefings/draft", json=body, headers=auth)
+    assert out.status_code == 503
+
+
+def test_numbers_are_checked_to_their_rounding():
+    from app.services import briefing_draft
+
+    lines = "Тэд 67.3% нь B-д, 12 раунд"
+    assert briefing_draft.unverified("67 хувь, 67.3, 12 раунд", lines) == []
+    assert briefing_draft.unverified("68 хувь", lines) == ["68"]

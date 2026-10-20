@@ -602,6 +602,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/briefings/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Draft
+         * @description The Assistant's draft of the notes for the picked lines (AS-6): nothing is
+         *     saved; Staff edit it. Numbers the lines don't hold are listed to check.
+         */
+        post: operations["draft_briefings_draft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/briefings/{public_id}": {
         parameters: {
             query?: never;
@@ -1172,6 +1193,24 @@ export interface components {
              * @default false
              */
             share: boolean;
+        };
+        /**
+         * BriefingDraft
+         * @description The Assistant's notes for a Briefing (AS-6), for Staff to edit.
+         */
+        BriefingDraft: {
+            /** Note */
+            note: string;
+            /** Maps */
+            maps: {
+                [key: string]: string;
+            };
+            /** Unverified */
+            unverified: {
+                [key: string]: string[];
+            };
+            /** Cost Usd */
+            cost_usd: number;
         };
         /** BriefingList */
         BriefingList: {
@@ -4155,6 +4194,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BriefingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    draft_briefings_draft_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BriefingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingDraft"];
                 };
             };
             /** @description Validation Error */

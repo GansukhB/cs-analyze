@@ -8,12 +8,31 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
+from app.config import get_settings
 from app.deps import CurrentUser, DbSession, StaffUser
 from app.models import Briefing, Team, User
 from app.models.base import utcnow
+from app.routers import assistant as assistant_router
 from app.routers import gameplan as gp
-from app.schemas import BriefingCreate, BriefingList, BriefingRead, BriefingRow, TeamRef
-from app.services import briefings, dbctx, decision, forecast, gameplan_view, lineup
+from app.schemas import (
+    BriefingCreate,
+    BriefingDraft,
+    BriefingList,
+    BriefingRead,
+    BriefingRow,
+    TeamRef,
+)
+from app.services import (
+    assistant,
+    briefing_draft,
+    briefings,
+    dbctx,
+    decision,
+    forecast,
+    gameplan_view,
+    lineup,
+    mn,
+)
 
 router = APIRouter(prefix="/briefings", tags=["briefings"])
 LIST_LIMIT = 100
@@ -49,6 +68,41 @@ def _get(db, user: User, public_id: uuid.UUID) -> Briefing:
     return found
 
 
+def _frozen(db, body, my_team, opponent, my_five, their_five) -> tuple[list[dict], str]:
+    """Each Map's picked lines frozen from its Playbook as it reads now, and the
+    stamp; 409 when a parse moved the Game Plan since the page loaded."""
+    stamp = gameplan_view.stamp()
+    if body.stamp and body.stamp != stamp:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "The Game Plan changed since this page loaded: reload it"
+        )
+    maps = []
+    try:
+        for pick in body.maps:
+            panel, _hit = gp.playbook_data(
+                db, my_team, opponent, my_five, their_five, pick.map, stamp
+            )
+            items = [briefings.freeze(panel, path) for path in pick.picks]
+            if items or pick.note.strip():
+                maps.append(
+                    {"map": pick.map, "label": panel.get("label") or pick.map,
+                     "note": pick.note.strip(), "items": items}
+                )  # fmt: skip
+    except briefings.BriefingError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from None
+    return maps, stamp
+
+
+def _forecast_view(my_team, opponent, my_five, their_five) -> dict:
+    built = forecast.build(
+        my_team,
+        opponent,
+        my_lineup=[p.name for p in my_five] or None,
+        their_lineup=[p.name for p in their_five] or None,
+    )
+    return decision._forecast(built, my_team, opponent)
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create(body: BriefingCreate, db: DbSession, user: StaffUser) -> BriefingRead:
     """Freeze the picked lines of each Map's Playbook as they read now."""
@@ -57,25 +111,7 @@ def create(body: BriefingCreate, db: DbSession, user: StaffUser) -> BriefingRead
         db, my_team, opponent, ",".join(body.my_lineup), ",".join(body.their_lineup)
     )
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
-        stamp = gameplan_view.stamp()
-        if body.stamp and body.stamp != stamp:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, "The Game Plan changed since this page loaded: reload it"
-            )
-        maps = []
-        try:
-            for pick in body.maps:
-                panel, _hit = gp.playbook_data(
-                    db, my_team, opponent, my_five, their_five, pick.map, stamp
-                )
-                items = [briefings.freeze(panel, path) for path in pick.picks]
-                if items or pick.note.strip():
-                    maps.append(
-                        {"map": pick.map, "label": panel.get("label") or pick.map,
-                         "note": pick.note.strip(), "items": items}
-                    )  # fmt: skip
-        except briefings.BriefingError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from None
+        maps, stamp = _frozen(db, body, my_team, opponent, my_five, their_five)
         content = {
             "note": body.note.strip(),
             "lineups": {
@@ -87,13 +123,7 @@ def create(body: BriefingCreate, db: DbSession, user: StaffUser) -> BriefingRead
             "stamp": stamp,
         }
         if body.include_forecast:
-            built = forecast.build(
-                my_team,
-                opponent,
-                my_lineup=[p.name for p in my_five] or None,
-                their_lineup=[p.name for p in their_five] or None,
-            )
-            content["forecast"] = decision._forecast(built, my_team, opponent)
+            content["forecast"] = _forecast_view(my_team, opponent, my_five, their_five)
     row = Briefing(
         workspace_id=user.workspace_id,
         my_team_id=my_team.id,
@@ -109,6 +139,38 @@ def create(body: BriefingCreate, db: DbSession, user: StaffUser) -> BriefingRead
     db.add(row)
     db.commit()
     return BriefingRead(**_row(db, row), include_forecast=row.include_forecast, content=content)
+
+
+@router.post("/draft")
+def draft(body: BriefingCreate, db: DbSession, user: StaffUser) -> BriefingDraft:
+    """The Assistant's draft of the notes for the picked lines (AS-6): nothing is
+    saved; Staff edit it. Numbers the lines don't hold are listed to check."""
+    if not assistant.is_configured():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, mn.ASSISTANT_NOT_CONFIGURED)
+    cost, _chars = assistant_router.spent_today(db, user)
+    if cost >= get_settings().assistant_daily_usd:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, mn.ASSISTANT_LIMIT)
+    my_team, opponent = gp._fixture(db, body.my_team_id, body.opponent_id)
+    my_five, their_five = gp._lineups(
+        db, my_team, opponent, ",".join(body.my_lineup), ",".join(body.their_lineup)
+    )
+    with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
+        maps, _stamp = _frozen(db, body, my_team, opponent, my_five, their_five)
+        line = ""
+        if body.include_forecast:
+            series = _forecast_view(my_team, opponent, my_five, their_five)["series"]
+            line = " ".join(f"{s['format']}: ~{s['pct']}% ({s['word']})." for s in series)
+    maps = [m for m in maps if m["items"]]
+    if not maps:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Pick some lines first")
+    try:
+        written, usage = briefing_draft.draft(my_team.name, opponent.name, maps, line)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, f"The draft came back unreadable: {exc}"
+        ) from None
+    assistant_router._record(user.id, user.workspace_id, usage)
+    return BriefingDraft(**written, cost_usd=round(usage.cost_usd(), 4))
 
 
 @router.get("")

@@ -786,6 +786,16 @@ class BriefingList(BaseModel):
     briefings: list[BriefingRow]
 
 
+class BriefingDraft(BaseModel):
+    """The Assistant's notes for a Briefing (AS-6), for Staff to edit."""
+
+    note: str
+    maps: dict[str, str]
+    # Numbers in the draft the picked lines don't hold, per map id (or "note").
+    unverified: dict[str, list[str]]
+    cost_usd: float
+
+
 # -- Uploads (docs/plans/02 DATA-1) -------------------------------------------------
 class UploadCreate(BaseModel):
     """Describe the file first; its bytes follow in parts."""
