@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.deps import CurrentUser, DbSession, StaffUser
-from app.models import Briefing, Team, User
+from app.models import Briefing, Match, Team, User
 from app.models.base import utcnow
 from app.routers import assistant as assistant_router
 from app.routers import gameplan as gp
@@ -20,6 +20,7 @@ from app.schemas import (
     BriefingList,
     BriefingRead,
     BriefingRow,
+    PlanCheck,
     TeamRef,
 )
 from app.services import (
@@ -32,6 +33,8 @@ from app.services import (
     gameplan_view,
     lineup,
     mn,
+    plan_check,
+    scope,
 )
 
 router = APIRouter(prefix="/briefings", tags=["briefings"])
@@ -186,6 +189,22 @@ def detail(public_id: uuid.UUID, db: DbSession, user: CurrentUser) -> BriefingRe
     return BriefingRead(
         **_row(db, b), include_forecast=b.include_forecast, content=briefings.unpack(b.payload)
     )
+
+
+@router.get("/{public_id}/check")
+def check(
+    public_id: uuid.UUID, db: DbSession, user: StaffUser, match_id: int | None = None
+) -> PlanCheck:
+    """After the Match: each habit the Briefing named against the opponent's
+    Rounds, the Maps played and the Forecast (GP-8)."""
+    b = _get(db, user, public_id)
+    scope.allow_scrims(db)
+    match = db.get(Match, match_id) if match_id else None
+    pair = {b.my_team_id, b.opponent_id}
+    if match_id and (match is None or {match.team1_id, match.team2_id} != pair):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not a Match between these Teams")
+    with dbctx.using(db):
+        return PlanCheck(**plan_check.check(b, match))
 
 
 @router.post("/{public_id}/share")

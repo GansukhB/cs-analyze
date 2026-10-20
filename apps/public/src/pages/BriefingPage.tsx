@@ -3,6 +3,7 @@
 // Prints cleanly (the nav, footer and Assistant hide under print).
 import { Link, useNavigate, useParams } from 'react-router'
 import { $api } from '../api/client'
+import Check from '../briefing/Check'
 import { useMe } from '../auth/useMe'
 import { day } from '../jobs/format'
 
@@ -151,6 +152,7 @@ export default function BriefingPage() {
           </ul>
         </section>
       ))}
+      {staff && <Check id={id} />}
     </article>
   )
 }

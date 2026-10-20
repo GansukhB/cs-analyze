@@ -1514,7 +1514,18 @@ def _pb(title: str, detail: str, counter: str, h: dict) -> dict:
         "counter": counter,
         "review": playbook_review(h.get("review")),
         "evidence": h.get("evidence"),
+        # The habit as found, kept by a Briefing so the Match can check it (GP-8).
+        "spec": _plain({k: v for k, v in h.items() if k not in ("evidence", "review")}),
     }
+
+
+def _plain(value):
+    """``value`` as plain JSON: tuples and sets as lists, keys as strings."""
+    if isinstance(value, dict):
+        return {str(k): _plain(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_plain(v) for v in value]
+    return value
 
 
 def playbook_review(note: dict | None) -> str:

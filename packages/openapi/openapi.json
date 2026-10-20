@@ -2463,6 +2463,71 @@
         }
       }
     },
+    "/briefings/{public_id}/check": {
+      "get": {
+        "tags": [
+          "briefings"
+        ],
+        "summary": "Check",
+        "description": "After the Match: each habit the Briefing named against the opponent's\nRounds, the Maps played and the Forecast (GP-8).",
+        "operationId": "check_briefings__public_id__check_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          },
+          {
+            "name": "match_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Match Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanCheck"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/briefings/{public_id}/share": {
       "post": {
         "tags": [
@@ -4613,6 +4678,282 @@
           "y"
         ],
         "title": "CalloutLabel"
+      },
+      "CheckForecast": {
+        "properties": {
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P"
+          },
+          "won": {
+            "type": "boolean",
+            "title": "Won"
+          },
+          "brier": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brier"
+          },
+          "winner": {
+            "type": "string",
+            "title": "Winner"
+          }
+        },
+        "type": "object",
+        "required": [
+          "format",
+          "p",
+          "won",
+          "brier",
+          "winner"
+        ],
+        "title": "CheckForecast"
+      },
+      "CheckLine": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "section",
+          "result"
+        ],
+        "title": "CheckLine"
+      },
+      "CheckMap": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "played": {
+            "type": "boolean",
+            "title": "Played"
+          },
+          "map_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map Number"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CheckLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "label",
+          "played",
+          "map_number",
+          "lines"
+        ],
+        "title": "CheckMap"
+      },
+      "CheckRef": {
+        "properties": {
+          "match": {
+            "type": "integer",
+            "title": "Match"
+          },
+          "map": {
+            "type": "integer",
+            "title": "Map"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match",
+          "map",
+          "round"
+        ],
+        "title": "CheckRef"
+      },
+      "CheckResult": {
+        "properties": {
+          "judged": {
+            "type": "boolean",
+            "title": "Judged"
+          },
+          "showed": {
+            "type": "boolean",
+            "title": "Showed"
+          },
+          "hits": {
+            "type": "integer",
+            "title": "Hits"
+          },
+          "chances": {
+            "type": "integer",
+            "title": "Chances"
+          },
+          "rate_before": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Before"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/CheckRef"
+            },
+            "type": "array",
+            "title": "Refs"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          },
+          "unchecked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unchecked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "judged",
+          "showed",
+          "hits",
+          "chances",
+          "rate_before",
+          "rate",
+          "won",
+          "refs"
+        ],
+        "title": "CheckResult"
+      },
+      "CheckVeto": {
+        "properties": {
+          "played": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Played"
+          },
+          "briefed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Briefed"
+          },
+          "hit": {
+            "type": "integer",
+            "title": "Hit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "played",
+          "briefed",
+          "hit"
+        ],
+        "title": "CheckVeto"
       },
       "DeclaredRolePut": {
         "properties": {
@@ -7768,6 +8109,64 @@
           "after_death_won_pct"
         ],
         "title": "OpeningLine"
+      },
+      "PlanCheck": {
+        "properties": {
+          "match_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Id"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/CheckMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "totals": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Totals"
+          },
+          "veto": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckVeto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "forecast": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckForecast"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "maps",
+          "totals",
+          "veto",
+          "forecast"
+        ],
+        "title": "PlanCheck"
       },
       "Plate": {
         "properties": {

@@ -795,6 +795,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/briefings/{public_id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check
+         * @description After the Match: each habit the Briefing named against the opponent's
+         *     Rounds, the Maps played and the Forecast (GP-8).
+         */
+        get: operations["check_briefings__public_id__check_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/briefings/{public_id}/share": {
         parameters: {
             query?: never;
@@ -1613,6 +1634,83 @@ export interface components {
             x: number;
             /** Y */
             y: number;
+        };
+        /** CheckForecast */
+        CheckForecast: {
+            /** Format */
+            format: string | null;
+            /** P */
+            p: number | null;
+            /** Won */
+            won: boolean;
+            /** Brier */
+            brier: number | null;
+            /** Winner */
+            winner: string;
+        };
+        /** CheckLine */
+        CheckLine: {
+            /** Title */
+            title: string;
+            /** Section */
+            section: string;
+            result: components["schemas"]["CheckResult"] | null;
+        };
+        /** CheckMap */
+        CheckMap: {
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** Played */
+            played: boolean;
+            /** Map Number */
+            map_number: number | null;
+            /** Lines */
+            lines: components["schemas"]["CheckLine"][];
+        };
+        /** CheckRef */
+        CheckRef: {
+            /** Match */
+            match: number;
+            /** Map */
+            map: number;
+            /** Round */
+            round: number;
+        };
+        /** CheckResult */
+        CheckResult: {
+            /** Judged */
+            judged: boolean;
+            /** Showed */
+            showed: boolean;
+            /** Hits */
+            hits: number;
+            /** Chances */
+            chances: number;
+            /** Rate Before */
+            rate_before: number | null;
+            /** Rate */
+            rate: number | null;
+            /** Won */
+            won: number;
+            /** Refs */
+            refs: components["schemas"]["CheckRef"][];
+            /** Median */
+            median?: number | null;
+            /** Pct */
+            pct?: number | null;
+            /** Unchecked */
+            unchecked?: string | null;
+        };
+        /** CheckVeto */
+        CheckVeto: {
+            /** Played */
+            played: string[];
+            /** Briefed */
+            briefed: string[];
+            /** Hit */
+            hit: number;
         };
         /** DeclaredRolePut */
         DeclaredRolePut: {
@@ -2746,6 +2844,19 @@ export interface components {
             after_kill_won_pct: number | null;
             /** After Death Won Pct */
             after_death_won_pct: number | null;
+        };
+        /** PlanCheck */
+        PlanCheck: {
+            /** Match Id */
+            match_id: number | null;
+            /** Maps */
+            maps: components["schemas"]["CheckMap"][];
+            /** Totals */
+            totals: {
+                [key: string]: number;
+            };
+            veto: components["schemas"]["CheckVeto"] | null;
+            forecast: components["schemas"]["CheckForecast"] | null;
         };
         /** Plate */
         Plate: {
@@ -5435,6 +5546,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_briefings__public_id__check_get: {
+        parameters: {
+            query?: {
+                match_id?: number | null;
+            };
+            header?: never;
+            path: {
+                public_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanCheck"];
+                };
             };
             /** @description Validation Error */
             422: {

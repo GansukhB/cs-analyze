@@ -3,7 +3,9 @@
 
 import json
 
-from app.models import Briefing, User, UserRole
+from sqlalchemy import select
+
+from app.models import Briefing, Match, User, UserRole
 from app.security import create_access_token, hash_password
 from app.services import briefings
 from tests.test_gameplan import _map, league, memory_cache  # noqa: F401
@@ -150,3 +152,41 @@ def test_numbers_are_checked_to_their_rounding():
     lines = "Тэд 67.3% нь B-д, 12 раунд"
     assert briefing_draft.unverified("67 хувь, 67.3, 12 раунд", lines) == []
     assert briefing_draft.unverified("68 хувь", lines) == ["68"]
+
+
+def test_after_the_match_each_habit_is_checked(client, db, auth, user, league):
+    """GP-8: Bravo plants A on its T side (rounds 3 and 6), as the Briefing said."""
+    a, b = league["a"], league["b"]
+    match = db.scalar(select(Match).where(Match.team1_id == a.id, Match.team2_id == b.id))
+    habit = {"kind": "habit", "section": "T", "title": "A цэг", "lines": [], "counter": "",
+             "refs": [], "spec": {"kind": "site", "side": "t", "site": "A"},
+             "seen": {"n": 6, "of": 8}}  # fmt: skip
+    rush = {
+        **habit,
+        "title": "Rush",
+        "spec": {"kind": "rush", "side": "t"},
+        "seen": {"n": 2, "of": 9},
+    }
+    old = {**habit, "title": "Old", "spec": {}}
+    content = {"note": "", "lineups": {}, "stamp": "x",
+               "maps": [{"map": "de_mirage", "label": "Mirage", "note": "",
+                         "items": [habit, rush, old]},
+                        {"map": "de_nuke", "label": "Nuke", "note": "",
+                         "items": [habit]}]}  # fmt: skip
+    row = Briefing(workspace_id=user.workspace_id, my_team_id=a.id, opponent_id=b.id,
+                   title="A vs B", payload=briefings.pack(content))  # fmt: skip
+    db.add(row)
+    db.commit()
+    out = client.get(f"/briefings/{row.public_id}/check?match_id={match.id}", headers=auth)
+    assert out.status_code == 200, out.text
+    body = out.json()
+    mirage, nuke = body["maps"]
+    site, fast, unknown = (line["result"] for line in mirage["lines"])
+    assert site["showed"] and (site["hits"], site["chances"], site["won"]) == (2, 2, 1)
+    assert fast["showed"] and fast["chances"] == 6
+    assert unknown is None and not nuke["played"]
+    assert body["totals"] == {"judged": 2, "showed": 2, "hit_rounds": 4, "won_rounds": 2,
+                              "unchecked": 2}  # fmt: skip
+    assert body["veto"] == {"played": ["de_mirage"], "briefed": ["de_mirage", "de_nuke"], "hit": 1}
+    other = client.get(f"/briefings/{row.public_id}/check?match_id=999999", headers=auth)
+    assert other.status_code == 404

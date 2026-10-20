@@ -1040,6 +1040,63 @@ class MapAudit(BaseModel):
     pool: AuditPool
 
 
+# -- After the Match: the Briefing checked (docs/plans/06 GP-8) ---------------------
+class CheckRef(BaseModel):
+    match: int
+    map: int
+    round: int
+
+
+class CheckResult(BaseModel):
+    judged: bool
+    showed: bool
+    hits: int
+    chances: int
+    rate_before: int | None
+    rate: int | None
+    won: int
+    refs: list[CheckRef]
+    median: float | None = None
+    pct: int | None = None
+    unchecked: str | None = None
+
+
+class CheckLine(BaseModel):
+    title: str
+    section: str
+    result: CheckResult | None
+
+
+class CheckMap(BaseModel):
+    map: str
+    label: str
+    played: bool
+    map_number: int | None
+    lines: list[CheckLine]
+
+
+class CheckVeto(BaseModel):
+    played: list[str]
+    briefed: list[str]
+    hit: int
+
+
+class CheckForecast(BaseModel):
+    format: str | None
+    p: float | None
+    won: bool
+    brier: float | None
+    winner: str
+
+
+class PlanCheck(BaseModel):
+    match_id: int | None
+    maps: list[CheckMap]
+    totals: dict[str, int]
+    veto: CheckVeto | None
+    forecast: CheckForecast | None
+
+
 # -- Briefings (docs/plans/01 WS-5) ------------------------------------------------
 class BriefingMapPick(BaseModel):
     map: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")
