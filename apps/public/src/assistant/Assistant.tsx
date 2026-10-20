@@ -28,6 +28,8 @@ interface Turn {
   error?: string
   stopped?: boolean
   spoken?: boolean
+  /** The page a question was asked on (its label). */
+  page?: string
 }
 
 type OrbState = 'idle' | 'thinking' | 'speaking' | 'listening'
@@ -51,9 +53,10 @@ function saveTurns(turns: Turn[]) {
   try {
     // Text only: audio URLs die with the page. An answer cut off by a reload
     // comes back as stopped, with whatever it had written.
-    const kept = turns.map(({ id, role, paras, error, stopped, spoken, steps, pending }) => ({
+    const kept = turns.map(({ id, role, paras, error, stopped, spoken, steps, pending, page }) => ({
       id,
       role,
+      page,
       paras: paras.filter(Boolean).map((p) => ({ text: p.text })),
       error,
       stopped: stopped || pending,
@@ -82,18 +85,20 @@ function saveVoice(on: boolean) {
   }
 }
 
-/** Earlier answered questions as plain text, oldest first: what the server is resent. */
+/** Earlier answered questions as plain text, oldest first: what the server is resent.
+ *  Each question carries the page it was asked on, so one asked about another
+ *  Fixture isn't read as about this one. The server keeps the last 12 messages. */
 function historyOf(turns: Turn[]) {
-  const out: { role: string; content: string }[] = []
+  const out: { role: string; content: string; page: string }[] = []
   turns.forEach((t, i) => {
     const q = turns[i - 1]
     if (t.role !== 'assistant' || t.error || t.pending || !t.paras.length || q?.role !== 'user') return
     out.push(
-      { role: 'user', content: q.paras.map((p) => p.text).join('\n\n') },
-      { role: 'assistant', content: t.paras.map((p) => p.text).join('\n\n') },
+      { role: 'user', content: q.paras.map((p) => p.text).join('\n\n'), page: q.page ?? '' },
+      { role: 'assistant', content: t.paras.map((p) => p.text).join('\n\n'), page: q.page ?? '' },
     )
   })
-  return out.slice(-24)
+  return out.slice(-12)
 }
 
 function scopeText(page: PageContext): string {
@@ -175,7 +180,7 @@ export default function Assistant() {
       speaker.stop()
       const reply: Turn = { id: uid(), role: 'assistant', paras: [], steps: [], pending: true }
       const history = historyOf(turnsRef.current)
-      setTurns((ts) => [...ts, { id: uid(), role: 'user', paras: [{ text: message }], spoken }, reply])
+      setTurns((ts) => [...ts, { id: uid(), role: 'user', paras: [{ text: message }], spoken, page: page.label }, reply])
       setDraft('')
       setNotice(null)
       setBusy(true)

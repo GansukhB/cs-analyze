@@ -605,6 +605,7 @@ class AssistantConfig(BaseModel):
 class AssistantTurn(BaseModel):
     role: str
     content: str
+    page: str = Field("", description="The page a question was asked on (its label).")
 
 
 class AssistantContext(BaseModel):
@@ -617,6 +618,8 @@ class AssistantContext(BaseModel):
     team: int | None = None
     match: int | None = None
     map: int | None = Field(default=None, description="The Match Map open on a match page.")
+    round: int | None = Field(default=None, description="The Round open on the Replay.")
+    page: str = Field("", description="This page's label, as the history's turns name theirs.")
 
 
 class AssistantChat(BaseModel):
@@ -630,6 +633,23 @@ class AssistantChat(BaseModel):
 
 class AssistantTranscript(BaseModel):
     text: str
+
+
+class AssistantUserUsage(BaseModel):
+    username: str
+    today_usd: float
+    month_usd: float
+    turns: int
+    tts_chars: int
+
+
+class AssistantUsageReport(BaseModel):
+    """At list prices (``assistant.PRICES``); ElevenLabs' speech is counted, not priced."""
+
+    today_usd: float
+    month_usd: float
+    daily_cap_usd: float
+    users: list[AssistantUserUsage]
 
 
 class ReviewTeam(BaseModel):

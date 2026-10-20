@@ -1469,6 +1469,33 @@
         ]
       }
     },
+    "/assistant/usage": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Usage",
+        "description": "What the Assistant cost today and over the last 30 days, per User (list prices).",
+        "operationId": "usage_assistant_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantUsageReport"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/assistant/transcribe": {
       "post": {
         "tags": [
@@ -1824,6 +1851,24 @@
             ],
             "title": "Map",
             "description": "The Match Map open on a match page."
+          },
+          "round": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round",
+            "description": "The Round open on the Replay."
+          },
+          "page": {
+            "type": "string",
+            "title": "Page",
+            "description": "This page's label, as the history's turns name theirs.",
+            "default": ""
           }
         },
         "type": "object",
@@ -1852,6 +1897,12 @@
           "content": {
             "type": "string",
             "title": "Content"
+          },
+          "page": {
+            "type": "string",
+            "title": "Page",
+            "description": "The page a question was asked on (its label).",
+            "default": ""
           }
         },
         "type": "object",
@@ -1860,6 +1911,71 @@
           "content"
         ],
         "title": "AssistantTurn"
+      },
+      "AssistantUsageReport": {
+        "properties": {
+          "today_usd": {
+            "type": "number",
+            "title": "Today Usd"
+          },
+          "month_usd": {
+            "type": "number",
+            "title": "Month Usd"
+          },
+          "daily_cap_usd": {
+            "type": "number",
+            "title": "Daily Cap Usd"
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantUserUsage"
+            },
+            "type": "array",
+            "title": "Users"
+          }
+        },
+        "type": "object",
+        "required": [
+          "today_usd",
+          "month_usd",
+          "daily_cap_usd",
+          "users"
+        ],
+        "title": "AssistantUsageReport",
+        "description": "At list prices (``assistant.PRICES``); ElevenLabs' speech is counted, not priced."
+      },
+      "AssistantUserUsage": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "today_usd": {
+            "type": "number",
+            "title": "Today Usd"
+          },
+          "month_usd": {
+            "type": "number",
+            "title": "Month Usd"
+          },
+          "turns": {
+            "type": "integer",
+            "title": "Turns"
+          },
+          "tts_chars": {
+            "type": "integer",
+            "title": "Tts Chars"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "today_usd",
+          "month_usd",
+          "turns",
+          "tts_chars"
+        ],
+        "title": "AssistantUserUsage"
       },
       "Body_login_auth_token_post": {
         "properties": {

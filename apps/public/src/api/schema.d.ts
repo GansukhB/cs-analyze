@@ -511,6 +511,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/assistant/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Usage
+         * @description What the Assistant cost today and over the last 30 days, per User (list prices).
+         */
+        get: operations["usage_assistant_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assistant/transcribe": {
         parameters: {
             query?: never;
@@ -658,6 +678,17 @@ export interface components {
              * @description The Match Map open on a match page.
              */
             map?: number | null;
+            /**
+             * Round
+             * @description The Round open on the Replay.
+             */
+            round?: number | null;
+            /**
+             * Page
+             * @description This page's label, as the history's turns name theirs.
+             * @default
+             */
+            page: string;
         };
         /** AssistantTranscript */
         AssistantTranscript: {
@@ -670,6 +701,39 @@ export interface components {
             role: string;
             /** Content */
             content: string;
+            /**
+             * Page
+             * @description The page a question was asked on (its label).
+             * @default
+             */
+            page: string;
+        };
+        /**
+         * AssistantUsageReport
+         * @description At list prices (``assistant.PRICES``); ElevenLabs' speech is counted, not priced.
+         */
+        AssistantUsageReport: {
+            /** Today Usd */
+            today_usd: number;
+            /** Month Usd */
+            month_usd: number;
+            /** Daily Cap Usd */
+            daily_cap_usd: number;
+            /** Users */
+            users: components["schemas"]["AssistantUserUsage"][];
+        };
+        /** AssistantUserUsage */
+        AssistantUserUsage: {
+            /** Username */
+            username: string;
+            /** Today Usd */
+            today_usd: number;
+            /** Month Usd */
+            month_usd: number;
+            /** Turns */
+            turns: number;
+            /** Tts Chars */
+            tts_chars: number;
         };
         /** Body_login_auth_token_post */
         Body_login_auth_token_post: {
@@ -2803,6 +2867,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    usage_assistant_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantUsageReport"];
                 };
             };
         };

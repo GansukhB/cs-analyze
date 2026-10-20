@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     claude_max_tokens: int = 16_000
     # Prior turns resent with each question: bounds the bill and the memory.
     claude_max_history_turns: int = 12
+    # Per User and UTC day: past the cost cap the chat says so; past the speech
+    # cap it answers in text (docs/plans AS-2).
+    assistant_daily_usd: float = 5.0
+    assistant_daily_tts_chars: int = 60_000
     elevenlabs_api_key: SecretStr = SecretStr("")
     elevenlabs_voice_id: str = ""
     # v4 is the first generation that supports Mongolian; turbo speaks about twice

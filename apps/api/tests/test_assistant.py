@@ -334,3 +334,73 @@ def test_keyterms_are_sent_one_field_each_within_limits(monkeypatch):
     keyterms = [v for k, v in sent["data"] if k == "keyterms"]
     assert keyterms[:3] == ["Mirage", "a bad term", "T0"]
     assert len(keyterms) == voice.MAX_KEYTERMS
+
+
+# ------------------------------------------------------------- AS-1, AS-2 ---
+def test_an_oversized_tool_result_is_cut_by_structure_not_mid_json():
+    rows = [{"round": n, "text": "x" * 200} for n in range(200)]
+    payload = assistant.fit({"team": "Alpha", "findings": rows}, limit=3000)
+    data = json.loads(payload)  # still valid JSON
+    assert len(payload) <= 3000 and data["team"] == "Alpha"
+    assert len(data["findings"]) + data["findings_omitted"] == 200
+    assert data["findings"][0]["round"] == 0  # the first (most important) rows stay
+
+
+def test_we_are_the_workspace_my_team(db, league):  # noqa: F811
+    from app.models import Match
+
+    a, b = league["a"], league["b"]
+    match = db.query(Match).filter_by(team1_id=a.id, team2_id=b.id).first()
+    ctx = assistant.clean_context(db, {"match": match.id, "map": 1, "round": 7})
+    ctx.my_teams = [a]
+    note = ctx.note()
+    assert f"The user works for {a.name!r}" in note
+    assert f"{a.name!r} is the user's own team in this match" in note
+    assert "Replay is showing round 7" in note
+    ctx.my_teams = []
+    assert "Neither side is the user's own team" in ctx.note()
+
+
+def test_a_question_from_another_page_is_marked():
+    history = assistant.clean_history(
+        [
+            {"role": "user", "content": "Who is their AWPer?", "page": "Huns vs 5star"},
+            {"role": "assistant", "content": "x1."},
+            {"role": "user", "content": "And here?", "page": "Huns vs NEXVOID"},
+            {"role": "assistant", "content": "y."},
+        ],
+        page="Huns vs NEXVOID",
+    )
+    assert history[0]["content"] == "[Asked on another page: Huns vs 5star] Who is their AWPer?"
+    assert history[2]["content"] == "And here?"
+
+
+def _with_usage(message, **tokens):
+    message.usage = SimpleNamespace(
+        input_tokens=tokens.get("input", 0),
+        output_tokens=tokens.get("output", 0),
+        cache_read_input_tokens=tokens.get("read", 0),
+        cache_creation_input_tokens=tokens.get("write", 0),
+    )
+    return message
+
+
+def test_each_turn_is_costed_and_the_day_is_capped(client, auth, db, configured, monkeypatch):
+    from app.models import AssistantUsage
+
+    fake = FakeClaude([_with_usage(_text("Нэг."), input=1000, output=500, read=20_000)])
+    monkeypatch.setattr(assistant, "_client", lambda: fake)
+    _events(client.post("/assistant/chat", json={"message": "hi", "voice": False}, headers=auth))
+    row = db.query(AssistantUsage).one()
+    # Sonnet 5.5: $2 in, $10 out, $0.20 cache read per million tokens.
+    assert row.cost_usd == pytest.approx((1000 * 2 + 500 * 10 + 20_000 * 0.2) / 1e6)
+    assert (
+        fake.calls[0]["metadata"]["user_id"] and "Bat" not in fake.calls[0]["metadata"]["user_id"]
+    )
+    report = client.get("/assistant/usage", headers=auth).json()
+    assert report["users"][0]["username"] == "Bat" and report["users"][0]["turns"] == 1
+
+    monkeypatch.setattr(get_settings(), "assistant_daily_usd", row.cost_usd)
+    monkeypatch.setattr(assistant, "_client", lambda: pytest.fail("asked Claude past the cap"))
+    events = _events(client.post("/assistant/chat", json={"message": "hi"}, headers=auth))
+    assert events[0]["text"] == assistant.mn.ASSISTANT_LIMIT and events[-1]["type"] == "done"

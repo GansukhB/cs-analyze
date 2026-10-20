@@ -59,19 +59,29 @@ export function usePageContext(): PageContext {
     const h = header.data
     return {
       scope: 'fixture',
-      context: { mine, theirs, my_lineup: lineups.mine, their_lineup: lineups.theirs },
+      context: {
+        mine,
+        theirs,
+        my_lineup: lineups.mine,
+        their_lineup: lineups.theirs,
+        page: h ? `${h.my_team.name} vs ${h.opponent.name}` : '',
+      },
       label: h ? `${h.my_team.name} vs ${h.opponent.name}` : '',
       key: `f:${mine}:${theirs}:${lineups.mine.join(',')}:${lineups.theirs.join(',')}`,
     }
   }
   if (isTeam) {
-    return { scope: 'team', context: { team: teamId }, label: teamDetail.data?.team.name ?? '', key: `t:${teamId}` }
+    const name = teamDetail.data?.team.name ?? ''
+    return { scope: 'team', context: { team: teamId, page: name }, label: name, key: `t:${teamId}` }
   }
   if (isMatch) {
     const m = matchInfo.data
     const label = m ? [m.team1?.name, m.team2?.name].filter(Boolean).join(' vs ') : ''
     const map = Number(matchMap?.params.mapNumber) || null
-    return { scope: 'match', context: { match: matchId, map }, label, key: `m:${matchId}:${map ?? ''}` }
+    // The Round open on the Replay rides along, so "this round" resolves; it is
+    // not part of the key, which would otherwise change at every click.
+    const round = map ? Number(searchParams.get('round')) || null : null
+    return { scope: 'match', context: { match: matchId, map, round, page: label }, label, key: `m:${matchId}:${map ?? ''}` }
   }
   return { scope: 'general', context: null, label: '', key: 'g' }
 }

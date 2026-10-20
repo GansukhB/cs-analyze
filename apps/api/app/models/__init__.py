@@ -41,6 +41,7 @@ from app.models.analysis import (
     TeamAlias,
     TickDataset,
 )
+from app.models.assistant import AssistantUsage
 from app.models.base import TimestampMixin
 from app.models.jobs import (
     AnalysisArtifact,
@@ -61,6 +62,7 @@ __all__ = [
     "TimestampMixin",
     "User",
     "UserRole",
+    "AssistantUsage",
     "Workspace",
     "WorkspaceTeam",
     # source

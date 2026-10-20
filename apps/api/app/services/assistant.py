@@ -63,6 +63,49 @@ logger = logging.getLogger(__name__)
 MAX_TOOL_ROUNDS = 6
 MAX_MESSAGE_CHARS = 2000
 TOOL_RESULT_CHAR_LIMIT = 12_000  # guard against one tool call blowing the budget
+
+# List prices, USD per million tokens: input, output, cache read, cache write
+# (a 5-minute write is 1.25x input). October 2026; a model not listed is costed
+# as Sonnet. Only the cap and the bill read them, never the answer.
+PRICES = {
+    "claude-sonnet-5-5": (2.0, 10.0, 0.20, 2.50),
+    "claude-opus-5-5": (4.0, 20.0, 0.20, 5.00),
+    "claude-haiku-5-5": (0.10, 0.50, 0.01, 0.125),
+}
+
+
+@dataclass
+class Usage:
+    """What one chat turn spent, added up over its tool rounds."""
+
+    model: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
+    tool_rounds: int = 0
+    tts_chars: int = 0
+
+    def add(self, usage) -> None:
+        if usage is None:
+            return
+        self.input_tokens += int(getattr(usage, "input_tokens", 0) or 0)
+        self.output_tokens += int(getattr(usage, "output_tokens", 0) or 0)
+        self.cache_read_tokens += int(getattr(usage, "cache_read_input_tokens", 0) or 0)
+        self.cache_write_tokens += int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
+
+    def cost_usd(self) -> float:
+        price_in, price_out, price_read, price_write = PRICES.get(
+            self.model, PRICES["claude-sonnet-5-5"]
+        )
+        return (
+            self.input_tokens * price_in
+            + self.output_tokens * price_out
+            + self.cache_read_tokens * price_read
+            + self.cache_write_tokens * price_write
+        ) / 1_000_000
+
+
 # Opt-in server-side retry when the model declines (Claude API only).
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
@@ -807,9 +850,24 @@ class Context:
     team: Team | None = None
     match: Match | None = None
     map_number: int | None = None
+    # The Round open on the Replay, on a match page.
+    round_number: int | None = None
+    # The signed-in User's Workspace's my teams (CONTEXT.md): who "we" are.
+    my_teams: list[Team] = field(default_factory=list)
 
     def note(self) -> str:
         """A preface for the system prompt: standing knowledge, not something the user said."""
+        return self._ours() + self._page()
+
+    def _ours(self) -> str:
+        if not self.my_teams:
+            return ""
+        names = ", ".join(f"{t.name!r} (team_id {t.id})" for t in self.my_teams)
+        return f"\n\nThe user works for {names}: when they say we, us or our team, they mean " + (
+            "it." if len(self.my_teams) == 1 else "the first of these unless they name another."
+        )
+
+    def _page(self) -> str:
         if self.fixture:
             mine, theirs = self.fixture
             text = (
@@ -839,11 +897,17 @@ class Context:
             sides = " versus ".join(
                 f"{t.name!r} (team_id {t.id})" for t in (m.team1, m.team2) if t is not None
             )
+            mine = {t.id for t in self.my_teams}
+            ours = next((t for t in (m.team1, m.team2) if t is not None and t.id in mine), None)
             return (
                 f"\n\nThe user is currently on the match page for {sides}"
                 + (f" at {m.tournament.name!r}" if m.tournament else "")
-                + ". Neither side is the user's own team unless they say so. Use "
-                f"match_summary with match_id {m.id} for the match as a whole, and "
+                + (
+                    f". {ours.name!r} is the user's own team in this match. Use "
+                    if ours
+                    else ". Neither side is the user's own team unless they say so. Use "
+                )
+                + f"match_summary with match_id {m.id} for the match as a whole, and "
                 f"match_review with match_id {m.id}"
                 + (
                     f" and map_number {self.map_number} (the map open on the page)"
@@ -851,6 +915,12 @@ class Context:
                     else ""
                 )
                 + " for how this match was played."
+                + (
+                    f" The Replay is showing round {self.round_number}: 'this round' means it "
+                    "(match_review's round argument)."
+                    if self.round_number
+                    else ""
+                )
             )
         return ""
 
@@ -876,7 +946,15 @@ def _steamids(raw) -> list[int]:
     return list(dict.fromkeys(out))
 
 
-def clean_context(session: Session, raw) -> Context:
+def clean_context(session: Session, raw, user=None) -> Context:
+    """See :func:`_page_context`; adds the User's my teams, so "we" resolves."""
+    ctx = _page_context(session, raw)
+    if user is not None and user.workspace is not None:
+        ctx.my_teams = [wt.team for wt in user.workspace.teams]
+    return ctx
+
+
+def _page_context(session: Session, raw) -> Context:
     """Validate the page hint against real rows, or drop it.
 
     A team id the client claims but the database does not have is worth ignoring
@@ -910,17 +988,21 @@ def clean_context(session: Session, raw) -> Context:
         if raw.get("match") not in (None, ""):
             match = session.get(Match, int(raw["match"]))
             number = int(raw["map"]) if raw.get("map") not in (None, "") else None
-            return Context(match=match, map_number=number) if match else Context()
+            rnd = int(raw["round"]) if raw.get("round") not in (None, "") and number else None
+            if match is None:
+                return Context()
+            return Context(match=match, map_number=number, round_number=rnd)
     except (TypeError, ValueError):
         return Context()
     return Context()
 
 
-def clean_history(raw) -> list[dict]:
+def clean_history(raw, page: str = "") -> list[dict]:
     """The last few turns, trimmed to plain text -- never raw SDK content blocks.
 
     Bounded on both axes, so a client cannot inflate the bill by replaying an
-    ever-growing history.
+    ever-growing history. A question asked on another page than ``page`` is
+    marked as such: "their AWPer" there meant that page's opponent, not this one's.
     """
     if not isinstance(raw, list):
         return []
@@ -934,7 +1016,11 @@ def clean_history(raw) -> list[dict]:
         content = content.strip()
         if role not in ("user", "assistant") or not content:
             continue
-        turns.append({"role": role, "content": content[:MAX_MESSAGE_CHARS]})
+        content = content[:MAX_MESSAGE_CHARS]
+        asked_on = entry.get("page")
+        if role == "user" and isinstance(asked_on, str) and asked_on and asked_on != page:
+            content = f"[Asked on another page: {asked_on[:120]}] {content}"
+        turns.append({"role": role, "content": content})
     turns = turns[-get_settings().claude_max_history_turns :]
     # The API wants the first turn from the user.
     while turns and turns[0]["role"] != "user":
@@ -1010,10 +1096,50 @@ def _execute_tool(session: Session, ctx: Context, name: str, tool_input: dict) -
             logger.exception("assistant tool %s(%r) failed", name, tool_input)
             session.rollback()
             result = {"error": "that lookup failed on the server"}
-    payload = json.dumps(result, default=str, ensure_ascii=False)
-    if len(payload) > TOOL_RESULT_CHAR_LIMIT:
-        payload = payload[:TOOL_RESULT_CHAR_LIMIT] + '..."(truncated)'
-    return payload
+    return fit(result)
+
+
+def _dump(value) -> str:
+    return json.dumps(value, default=str, ensure_ascii=False)
+
+
+def _lists(value, path=()):
+    """Every list inside ``value`` that sits under a dict key, with that dict."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if isinstance(item, list):
+                yield value, key, item
+            yield from _lists(item, (*path, key))
+    elif isinstance(value, list):
+        for item in value:
+            yield from _lists(item, path)
+
+
+def fit(result, limit: int = TOOL_RESULT_CHAR_LIMIT) -> str:
+    """``result`` as JSON within ``limit`` characters, still valid JSON.
+
+    Cutting the text mid-way handed the model broken JSON and no idea what was
+    lost. Instead the longest list is halved, again and again, and its dict says
+    how many items were left out (``<key>_omitted``), so the answer can say "and
+    N more" rather than invent them."""
+    payload = _dump(result)
+    if len(payload) <= limit:
+        return payload
+    data = json.loads(payload)  # a copy, with everything already JSON
+    if isinstance(data, list):
+        data = {"items": data}
+    for _ in range(64):
+        found = [(holder, key, items) for holder, key, items in _lists(data) if len(items) > 1]
+        if not found:
+            break
+        holder, key, items = max(found, key=lambda f: len(_dump(f[2])))
+        keep = len(items) // 2
+        holder[key] = items[:keep]
+        holder[f"{key}_omitted"] = holder.get(f"{key}_omitted", 0) + len(items) - keep
+        payload = _dump(data)
+        if len(payload) <= limit:
+            return payload
+    return _dump({"error": "this lookup returned too much; ask about one map or one player"})
 
 
 def _tool_status(session: Session, name: str, tool_input: dict) -> str:
@@ -1053,9 +1179,11 @@ class _Voices:
     def __init__(self, on: bool):
         self.pool = ThreadPoolExecutor(self.WORKERS) if on and voice.is_configured() else None
         self.pending: list[tuple[int, Future]] = []
+        self.chars = 0  # spoken, which ElevenLabs bills by
 
     def submit(self, n: int, text: str) -> None:
         if self.pool is not None:
+            self.chars += len(text)
             self.pending.append((n, self.pool.submit(voice.synthesize, text)))
 
     def ready(self, wait: bool = False) -> Iterator[dict]:
@@ -1077,6 +1205,8 @@ def chat_events(
     *,
     context: Context | None = None,
     voice_on: bool = True,
+    usage: Usage | None = None,
+    user_ref: str = "",
 ) -> Iterator[dict]:
     """The event sequence the chat endpoint streams, one piece at a time as it is ready.
 
@@ -1093,19 +1223,32 @@ def chat_events(
         return
 
     voices = _Voices(voice_on)
+    spent = usage if usage is not None else Usage()
     try:
-        yield from _turn(session, list(history), message, context or Context(), voices)
+        yield from _turn(
+            session, list(history), message, context or Context(), voices, spent, user_ref
+        )
         yield from voices.ready(wait=True)
         yield {"type": "done"}
     finally:
+        spent.tts_chars = voices.chars
         voices.close()
 
 
 def _turn(
-    session: Session, history: list, message: str, ctx: Context, voices: _Voices
+    session: Session,
+    history: list,
+    message: str,
+    ctx: Context,
+    voices: _Voices,
+    usage: Usage,
+    user_ref: str,
 ) -> Iterator[dict]:
     settings = get_settings()
     client = _client()
+    usage.model = settings.claude_model
+    # Anthropic's abuse detection sees an opaque id per User, never a name.
+    extra = {"metadata": {"user_id": user_ref}} if user_ref else {}
     note = ctx.note()
     system = [
         {"type": "text", "text": SYSTEM_PROMPT},
@@ -1135,6 +1278,7 @@ def _turn(
             cache_control={"type": "ephemeral"},
             betas=[FALLBACK_BETA],
             fallbacks="default",
+            **extra,
         ) as stream:
             for delta in stream.text_stream:
                 buf += delta
@@ -1144,6 +1288,7 @@ def _turn(
                         yield speak(para.strip())
                 yield from voices.ready()
             final = stream.get_final_message()
+        usage.add(getattr(final, "usage", None))
         if buf.strip():
             yield speak(buf.strip())
 
@@ -1153,6 +1298,7 @@ def _turn(
         messages.append({"role": "assistant", "content": final.content})
         if final.stop_reason != "tool_use":
             break
+        usage.tool_rounds += 1
         results = []
         for block in final.content:
             if block.type != "tool_use":
