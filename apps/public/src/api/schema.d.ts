@@ -1294,6 +1294,18 @@ export interface components {
             /** Players */
             players: components["schemas"]["MatchReviewSummaryPlayer"][];
         };
+        /**
+         * MyTeamRef
+         * @description One of the Workspace's my teams (CONTEXT.md).
+         */
+        MyTeamRef: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+        };
         /** Plate */
         Plate: {
             /** Url */
@@ -1958,12 +1970,20 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** UserRead */
+        /**
+         * UserRead
+         * @description Who is signed in, and for which club: the pages read "we" from ``my_teams``.
+         */
         UserRead: {
             /** Id */
             id: number;
             /** Username */
             username: string;
+            /** Role */
+            role: string;
+            /** Player Id */
+            player_id: number | null;
+            workspace: components["schemas"]["WorkspaceRead"];
         };
         /** ValidationError */
         ValidationError: {
@@ -1977,6 +1997,15 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WorkspaceRead */
+        WorkspaceRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** My Teams */
+            my_teams: components["schemas"]["MyTeamRef"][];
         };
     };
     responses: never;

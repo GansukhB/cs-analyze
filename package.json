@@ -22,6 +22,8 @@
     "db:down": "docker compose down",
     "db:migrate": "uv run --directory apps/api alembic upgrade head",
     "db:migration": "uv run --directory apps/api alembic revision --autogenerate -m",
+    "workspace:create": "uv run --directory apps/api python -m app.cli create-workspace",
+    "workspace:team": "uv run --directory apps/api python -m app.cli add-my-team",
     "user:create": "uv run --directory apps/api python -m app.cli create-user",
     "user:deactivate": "uv run --directory apps/api python -m app.cli deactivate-user",
     "user:activate": "uv run --directory apps/api python -m app.cli activate-user",

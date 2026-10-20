@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app.deps import CurrentUser, DbSession
 from app.models import User
+from app.models.base import utcnow
 from app.schemas import Token, UserRead
 from app.security import create_access_token, verify_password
 from app.services import ratelimit
@@ -51,9 +52,11 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     ratelimit.clear(keys[0][0])
+    user.last_login_at = utcnow()
+    db.commit()
     return Token(access_token=create_access_token(user.id))
 
 
 @router.get("/me")
 def me(user: CurrentUser) -> UserRead:
-    return UserRead.model_validate(user)
+    return UserRead.of(user)

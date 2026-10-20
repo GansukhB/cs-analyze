@@ -19,11 +19,45 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class MyTeamRef(BaseModel):
+    """One of the Workspace's my teams (CONTEXT.md)."""
+
+    id: int
+    name: str
+    label: str
+
+
+class WorkspaceRead(BaseModel):
+    id: int
+    name: str
+    my_teams: list[MyTeamRef]
+
+
 class UserRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    """Who is signed in, and for which club: the pages read "we" from ``my_teams``."""
 
     id: int
     username: str
+    role: str
+    player_id: int | None
+    workspace: WorkspaceRead
+
+    @classmethod
+    def of(cls, user) -> "UserRead":
+        ws = user.workspace
+        return cls(
+            id=user.id,
+            username=user.username,
+            role=user.role,
+            player_id=user.player_id,
+            workspace=WorkspaceRead(
+                id=ws.id,
+                name=ws.name,
+                my_teams=[
+                    MyTeamRef(id=wt.team_id, name=wt.team.name, label=wt.label) for wt in ws.teams
+                ],
+            ),
+        )
 
 
 # -- scout jobs ------------------------------------------------------------------

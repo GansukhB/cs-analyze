@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from sqlalchemy import func, select
 
 from app.config import get_settings
-from app.deps import CurrentUser, DbSession
+from app.deps import DbSession, StaffUser
 from app.models import AnalysisJob, JobStatus
 from app.schemas import HostStats, JobCycle, ScoutNow, SystemState
 from app.services import jobs as job_service
@@ -14,7 +14,7 @@ router = APIRouter(tags=["system"])
 
 
 @router.get("/system")
-def system_state(db: DbSession, _: CurrentUser) -> SystemState:
+def system_state(db: DbSession, _: StaffUser) -> SystemState:
     # Single-flight (jobs.enqueue): at most one runs, the rest wait QUEUED.
     running = db.scalar(
         select(AnalysisJob)

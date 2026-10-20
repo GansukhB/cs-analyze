@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 from app import db as database  # noqa: E402
 from app.db import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import User  # noqa: E402
+from app.models import User, Workspace  # noqa: E402
 from app.security import create_access_token, hash_password  # noqa: E402
 from app.services import live, pool_cache, ratelimit, review_pool  # noqa: E402
 
@@ -138,8 +138,16 @@ def client(db: Session, engine, monkeypatch) -> TestClient:
 
 
 @pytest.fixture
-def user(db: Session) -> User:
-    user = User(username="Bat", password_hash=hash_password("correct-horse"))
+def workspace(db: Session) -> Workspace:
+    workspace = Workspace(name="The Huns")
+    db.add(workspace)
+    db.commit()
+    return workspace
+
+
+@pytest.fixture
+def user(db: Session, workspace: Workspace) -> User:
+    user = User(username="Bat", password_hash=hash_password("correct-horse"), workspace=workspace)
     db.add(user)
     db.commit()
     return user

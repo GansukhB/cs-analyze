@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { $api } from '../api/client'
+import { useMyTeams } from '../auth/useMe'
 import type { components } from '../api/schema'
 import '../gameplan/gameplan.css'
 import { lineupSearch } from '../gameplan/lineup'
@@ -15,7 +16,11 @@ type Team = components['schemas']['GameplanTeam']
 export default function GameplanPickPage() {
   const navigate = useNavigate()
   const pick = $api.useQuery('get', '/gameplan/teams')
-  const [mine, setMine] = useState<Team | null>(null)
+  const myTeamIds = useMyTeams().map((t) => t.id)
+  const [picked, setMine] = useState<Team | null>(null)
+  // My team starts as the Workspace's first my team that has parsed demos.
+  const usual = pick.data?.teams.find((t) => myTeamIds.includes(t.id)) ?? null
+  const mine = picked ?? usual
   const [theirs, setTheirs] = useState<Team | null>(null)
   const [myFive, setMyFive] = useState<string[] | null>(null)
   const [theirFive, setTheirFive] = useState<string[] | null>(null)
@@ -47,6 +52,7 @@ export default function GameplanPickPage() {
           <form onSubmit={submit} className="mt-6 rounded-xl border border-line bg-surface p-6">
             <div className="vs">
               <TeamCombo
+                key={usual?.id ?? 'none'}
                 label="My team"
                 teams={teams}
                 value={mine}

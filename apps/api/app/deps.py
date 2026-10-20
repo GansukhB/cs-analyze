@@ -40,3 +40,14 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSessio
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_staff_user(user: CurrentUser) -> User:
+    """Staff only (CONTEXT.md). A Player login sees their own numbers and what Staff
+    shared, through the endpoints made for it; everything else is Staff's."""
+    if not user.is_staff:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Staff only")
+    return user
+
+
+StaffUser = Annotated[User, Depends(get_staff_user)]

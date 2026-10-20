@@ -1,8 +1,10 @@
-"""User management, and Tick Data upkeep.
+"""Workspaces and Users, and Tick Data upkeep.
 
-Users can only be created here; there is no sign-up endpoint.
+A Workspace and its first Staff are created here; there is no sign-up endpoint.
 
-python -m app.cli create-user [username]
+python -m app.cli create-workspace <name>
+python -m app.cli add-my-team <workspace> <team> [--label main]
+python -m app.cli create-user [username] [--workspace NAME] [--role staff|player] [--player STEAMID]
 python -m app.cli deactivate-user [username]
 python -m app.cli activate-user [username]
 python -m app.cli import-tickdata [folder]   # parquet bundles on disk -> MySQL
@@ -24,26 +26,102 @@ from sqlalchemy.orm import joinedload
 
 from app.config import REPO_ROOT, get_settings
 from app.db import SessionLocal
-from app.models import Demo, MatchMap, TickDataset, User
+from app.models import (
+    Demo,
+    MatchMap,
+    Player,
+    Team,
+    TickDataset,
+    User,
+    UserRole,
+    Workspace,
+    WorkspaceTeam,
+)
 from app.security import hash_password
 
 MIN_PASSWORD_LENGTH = 8
 
 
-def create_user(username: str) -> None:
+def _workspace(db, name: str | None) -> Workspace:
+    """The named Workspace, or the only one there is."""
+    if name:
+        found = db.scalar(select(Workspace).where(Workspace.name == name))
+        if found is None:
+            sys.exit(f"No Workspace {name!r}. Create it with create-workspace.")
+        return found
+    every = db.scalars(select(Workspace)).all()
+    if len(every) != 1:
+        sys.exit(
+            "Name the Workspace with --workspace."
+            if every
+            else "No Workspace yet. Create one with create-workspace first."
+        )
+    return every[0]
+
+
+def create_workspace(name: str) -> None:
+    name = name.strip()
+    if not name or len(name) > 120:
+        sys.exit("A Workspace name is 1-120 characters.")
+    with SessionLocal() as db:
+        if db.scalar(select(Workspace).where(Workspace.name == name)):
+            sys.exit(f"Workspace {name!r} already exists.")
+        db.add(Workspace(name=name))
+        db.commit()
+    print(f"Created Workspace {name!r}. Add its my team with add-my-team, then its first Staff.")
+
+
+def add_my_team(workspace: str, team: str, label: str) -> None:
+    with SessionLocal() as db:
+        ws = _workspace(db, workspace)
+        found = db.scalars(select(Team).where(Team.name == team)).all()
+        if len(found) != 1:
+            sys.exit(
+                f"{len(found)} Teams are named {team!r}; run a Scout for it first."
+                if not found
+                else f"{len(found)} Teams are named {team!r}; pick one by id in the database."
+            )
+        if any(wt.team_id == found[0].id for wt in ws.teams):
+            sys.exit(f"{team!r} is already a my team of {ws.name!r}.")
+        ws.teams.append(WorkspaceTeam(team=found[0], label=label))
+        db.commit()
+    print(f"{team!r} is now a my team of {ws.name!r}.")
+
+
+def create_user(
+    username: str, workspace: str | None = None, role: str = "staff", steamid: int | None = None
+) -> None:
     if not username or username != username.strip() or len(username) > 64:
         sys.exit("Username must be 1-64 characters with no leading or trailing spaces.")
+    if role not in tuple(UserRole):
+        sys.exit(f"A role is one of: {', '.join(UserRole)}.")
     with SessionLocal() as db:
         if db.scalar(select(User).where(User.username == username)):
             sys.exit(f"User {username!r} already exists.")
+        ws = _workspace(db, workspace)
+        player = None
+        if steamid is not None:
+            player = db.scalar(select(Player).where(Player.steamid == steamid))
+            if player is None:
+                sys.exit(f"No Player with Steam id {steamid}: parse one of their Match Maps first.")
+        if role == UserRole.PLAYER and player is None:
+            sys.exit("A Player login needs --player <steamid>.")
         password = getpass.getpass("Password: ")
         if len(password) < MIN_PASSWORD_LENGTH:
             sys.exit(f"Password must be at least {MIN_PASSWORD_LENGTH} characters.")
         if password != getpass.getpass("Repeat password: "):
             sys.exit("Passwords do not match.")
-        db.add(User(username=username, password_hash=hash_password(password)))
+        db.add(
+            User(
+                username=username,
+                password_hash=hash_password(password),
+                workspace=ws,
+                role=role,
+                player=player,
+            )
+        )
         db.commit()
-    print(f"Created user {username!r}.")
+    print(f"Created {role} {username!r} in {ws.name!r}.")
 
 
 def set_active(username: str, active: bool) -> None:
@@ -188,8 +266,20 @@ def import_cstat(
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("create-workspace").add_argument("name")
+    team = sub.add_parser("add-my-team")
+    team.add_argument("workspace")
+    team.add_argument("team", help="The Team's name, as stored.")
+    team.add_argument("--label", default="main", help="main, academy, ...")
     for name in ("create-user", "deactivate-user", "activate-user"):
-        sub.add_parser(name).add_argument("username", nargs="?", help="Prompted for if omitted.")
+        command = sub.add_parser(name)
+        command.add_argument("username", nargs="?", help="Prompted for if omitted.")
+        if name == "create-user":
+            command.add_argument("--workspace", help="Needed when there is more than one.")
+            command.add_argument("--role", default="staff", choices=[r.value for r in UserRole])
+            command.add_argument(
+                "--player", type=int, help="The Player's Steam id (a Player login)."
+            )
     sub.add_parser("import-tickdata").add_argument(
         "folder", nargs="?", help="Defaults to <HLTV_DATA_DIR>/parquet."
     )
@@ -202,6 +292,12 @@ def main() -> None:
     cstat.add_argument("--match", type=int, help="Parse only this HLTV match id.")
     cstat.add_argument("--map", help="Parse only this map of it (inferno or de_inferno).")
     args = parser.parse_args()
+    if args.command == "create-workspace":
+        create_workspace(args.name)
+        return
+    if args.command == "add-my-team":
+        add_my_team(args.workspace, args.team, args.label)
+        return
     if args.command == "import-cstat":
         import_cstat(
             Path(args.root) if args.root else REPO_ROOT.parent / "cstat",
@@ -227,7 +323,7 @@ def main() -> None:
     username = args.username if args.username is not None else input("Username: ")
 
     if args.command == "create-user":
-        create_user(username)
+        create_user(username, args.workspace, args.role, args.player)
     else:
         set_active(username, active=args.command == "activate-user")
 

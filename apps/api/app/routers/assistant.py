@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.deps import CurrentUser, DbSession
+from app.deps import DbSession, StaffUser
 from app.schemas import AssistantChat, AssistantConfig, AssistantTranscript
 from app.services import assistant, mn, voice
 
@@ -28,7 +28,7 @@ MAX_AUDIO_BYTES = 10 * 1024 * 1024
 
 
 @router.get("/config")
-def config(_: CurrentUser) -> AssistantConfig:
+def config(_: StaffUser) -> AssistantConfig:
     """Which halves are set up, so the page can hide what wouldn't work."""
     return AssistantConfig(configured=assistant.is_configured(), voice=voice.is_configured())
 
@@ -59,7 +59,7 @@ def _frames(db: Session, body: AssistantChat, context) -> Iterator[str]:
         }
     },
 )
-def chat(body: AssistantChat, db: DbSession, _: CurrentUser) -> StreamingResponse:
+def chat(body: AssistantChat, db: DbSession, _: StaffUser) -> StreamingResponse:
     """One question, answered paragraph by paragraph as Claude writes it."""
     if not body.message.strip():
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Empty message")
@@ -74,7 +74,7 @@ def chat(body: AssistantChat, db: DbSession, _: CurrentUser) -> StreamingRespons
 
 
 @router.post("/transcribe")
-def transcribe(audio: UploadFile, db: DbSession, _: CurrentUser) -> AssistantTranscript:
+def transcribe(audio: UploadFile, db: DbSession, _: StaffUser) -> AssistantTranscript:
     """A recorded question as text (ElevenLabs Scribe, Mongolian, primed with team names)."""
     if not voice.is_configured():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Voice is not configured")

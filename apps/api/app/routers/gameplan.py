@@ -22,7 +22,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from redis.exceptions import RedisError
 
 from app.cache import get_cache
-from app.deps import CurrentUser, DbSession
+from app.deps import DbSession, StaffUser
 from app.models import Player, Team
 from app.schemas import (
     GameplanHeader,
@@ -128,14 +128,14 @@ def _lineup_out(team: Team) -> GameplanLineup:
 
 
 @router.get("/teams")
-def pick(db: DbSession, _: CurrentUser) -> GameplanPick:
+def pick(db: DbSession, _: StaffUser) -> GameplanPick:
     """Every team with parsed maps, and how many: the picker's list."""
     with dbctx.using(db):
         return GameplanPick(**gameplan_view.pick())
 
 
 @router.get("/teams/{team_id}/players")
-def team_players(team_id: int, db: DbSession, _: CurrentUser) -> LineupPlayers:
+def team_players(team_id: int, db: DbSession, _: StaffUser) -> LineupPlayers:
     """Who has played for this team, most recent first: a Lineup's candidates."""
     team = db.get(Team, team_id)
     if team is None:
@@ -146,7 +146,7 @@ def team_players(team_id: int, db: DbSession, _: CurrentUser) -> LineupPlayers:
 
 @router.get("/players")
 def search_players(
-    db: DbSession, _: CurrentUser, q: str = Query(min_length=2, max_length=64)
+    db: DbSession, _: StaffUser, q: str = Query(min_length=2, max_length=64)
 ) -> LineupPlayers:
     """Any player by a name they played under: a stand-in or a new signing."""
     with dbctx.using(db):
@@ -158,7 +158,7 @@ def header(
     mine: int,
     theirs: int,
     db: DbSession,
-    _: CurrentUser,
+    _: StaffUser,
     my_lineup: str = _lineup_query(),
     their_lineup: str = _lineup_query(),
 ) -> GameplanHeader:
@@ -202,7 +202,7 @@ def panel(
     theirs: int,
     tab: str,
     db: DbSession,
-    _: CurrentUser,
+    _: StaffUser,
     my_lineup: str = _lineup_query(),
     their_lineup: str = _lineup_query(),
 ) -> GameplanPanel:
@@ -243,7 +243,7 @@ def playbook(
     theirs: int,
     map_name: str,
     db: DbSession,
-    _: CurrentUser,
+    _: StaffUser,
     my_lineup: str = _lineup_query(),
     their_lineup: str = _lineup_query(),
 ) -> GameplanPanel:
@@ -286,7 +286,7 @@ def heatmap(
     mine: int,
     theirs: int,
     db: DbSession,
-    _: CurrentUser,
+    _: StaffUser,
     team: int,
     map: str = Query(""),
     player: str = heatmap_groups.ALL_PLAYERS,
@@ -314,7 +314,7 @@ def movement_map(
     mine: int,
     theirs: int,
     db: DbSession,
-    _: CurrentUser,
+    _: StaffUser,
     team: int,
     map: str = Query(""),
     player: str = heatmap_groups.ALL_PLAYERS,
@@ -340,7 +340,7 @@ def tracks(
     mine: int,
     theirs: int,
     db: DbSession,
-    _: CurrentUser,
+    _: StaffUser,
     team: int,
     map: str = Query(""),
     player: str = heatmap_groups.ALL_PLAYERS,

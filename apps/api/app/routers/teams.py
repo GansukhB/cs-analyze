@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.deps import CurrentUser, DbSession
+from app.deps import DbSession, StaffUser
 from app.models import MapRoster, Match, MatchMap, Player, Round, Team
 from app.schemas import (
     DemoState,
@@ -68,7 +68,7 @@ def _row(team: Team, matches: int, maps: int, last) -> TeamRow:
 
 
 @router.get("")
-def list_teams(db: DbSession, _: CurrentUser) -> TeamList:
+def list_teams(db: DbSession, _: StaffUser) -> TeamList:
     """Every team, sorted by parsed maps: the name is what a reader scans for, but
     the sample size says whether the page behind it has anything on it."""
     parsed = parsed_maps_by_team(db)
@@ -98,7 +98,7 @@ def list_teams(db: DbSession, _: CurrentUser) -> TeamList:
 
 
 @router.get("/{team_id}")
-def get_team(team_id: int, db: DbSession, _: CurrentUser) -> TeamDetail:
+def get_team(team_id: int, db: DbSession, _: StaffUser) -> TeamDetail:
     team = db.get(Team, team_id)
     if team is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such team")

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { $api } from '../api/client'
 import type { components } from '../api/schema'
+import { useMyTeams } from '../auth/useMe'
 import JobTable from '../jobs/JobTable'
 
 type Defaults = components['schemas']['ScoutDefaults']
@@ -9,6 +10,7 @@ type ValidationError = components['schemas']['HTTPValidationError']
 
 export default function HomePage() {
   const home = $api.useQuery('get', '/home')
+  const mine = useMyTeams()[0]?.name ?? ''
   if (!home.data) return <p className="text-ink-3">Уншиж байна…</p>
   const { known_teams, parsed_maps, recent_jobs, defaults } = home.data
 
@@ -22,7 +24,8 @@ export default function HomePage() {
         </p>
       </div>
 
-      <ScoutForm defaults={defaults} knownTeams={known_teams} parsedMaps={parsed_maps} />
+      {/* Keyed by my team so the form starts from it once /auth/me has answered. */}
+      <ScoutForm key={mine} myTeamName={mine} defaults={defaults} knownTeams={known_teams} parsedMaps={parsed_maps} />
 
       {known_teams.length > 0 && (
         <section className="space-y-2">
@@ -58,9 +61,19 @@ const WINDOWS = [
 
 type WindowKey = (typeof WINDOWS)[number]['key']
 
-function ScoutForm({ defaults, knownTeams, parsedMaps }: { defaults: Defaults; knownTeams: string[]; parsedMaps: number }) {
+function ScoutForm({
+  myTeamName,
+  defaults,
+  knownTeams,
+  parsedMaps,
+}: {
+  myTeamName: string
+  defaults: Defaults
+  knownTeams: string[]
+  parsedMaps: number
+}) {
   const navigate = useNavigate()
-  const [myTeam, setMyTeam] = useState('')
+  const [myTeam, setMyTeam] = useState(myTeamName)
   const [opponent, setOpponent] = useState('')
   const [counts, setCounts] = useState<Record<WindowKey, number>>({
     n_my_matches: defaults.matches,
@@ -82,9 +95,9 @@ function ScoutForm({ defaults, knownTeams, parsedMaps }: { defaults: Defaults; k
   return (
     <form onSubmit={submit} className="space-y-6 rounded-xl border border-line bg-surface p-6">
       <div className="grid items-end gap-4 sm:grid-cols-[1fr_auto_1fr]">
-        <TeamInput label="My team" value={myTeam} onChange={setMyTeam} placeholder="Vitality" autoFocus />
+        <TeamInput label="My team" value={myTeam} onChange={setMyTeam} placeholder="Vitality" autoFocus={!myTeamName} />
         <span className="hidden pb-2 font-mono text-xs tracking-widest text-ink-3 sm:block">VS</span>
-        <TeamInput label="Opponent" value={opponent} onChange={setOpponent} placeholder="Inner Circle" />
+        <TeamInput label="Opponent" value={opponent} onChange={setOpponent} placeholder="Inner Circle" autoFocus={!!myTeamName} />
       </div>
       <datalist id="teams">
         {knownTeams.map((name) => (

@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.deps import CurrentUser, DbSession
+from app.deps import DbSession, StaffUser
 from app.models import Match, MatchMap, PlayerMap, Round
 from app.routers.teams import map_label
 from app.schemas import (
@@ -74,7 +74,7 @@ def _map(db: Session, match_id: int, map_number: int) -> MatchMap:
 
 
 @router.get("/{match_id}")
-def get_match(match_id: int, db: DbSession, _: CurrentUser) -> MatchInfo:
+def get_match(match_id: int, db: DbSession, _: StaffUser) -> MatchInfo:
     """The match and its maps. ``default_map`` is where a bare match link lands:
     the first replayable map, else the first parsed one (whose page can then say
     its bundle is gone), else none."""
@@ -106,7 +106,7 @@ def get_match(match_id: int, db: DbSession, _: CurrentUser) -> MatchInfo:
 
 
 @router.get("/{match_id}/maps/{map_number}")
-def get_match_map(match_id: int, map_number: int, db: DbSession, _: CurrentUser) -> MatchMapDetail:
+def get_match_map(match_id: int, map_number: int, db: DbSession, _: StaffUser) -> MatchMapDetail:
     """One map: its scene (the floor plan the replay draws on), round list and
     scoreboard. The Replay itself was cut from the Tick Data at ingest."""
     match_map = _map(db, match_id, map_number)
@@ -140,7 +140,7 @@ def get_match_map(match_id: int, map_number: int, db: DbSession, _: CurrentUser)
     },
 )
 def get_round(
-    match_id: int, map_number: int, number: int, request: Request, db: DbSession, _: CurrentUser
+    match_id: int, map_number: int, number: int, request: Request, db: DbSession, _: StaffUser
 ):
     """One round's replay payload, sent exactly as stored: gzip JSON, which the
     browser decodes on its own (``Content-Encoding: gzip``).
@@ -171,7 +171,7 @@ def get_round(
 
 
 @router.get("/{match_id}/summary")
-def get_summary(match_id: int, db: DbSession, _: CurrentUser) -> MatchReviewSummary:
+def get_summary(match_id: int, db: DbSession, _: StaffUser) -> MatchReviewSummary:
     """Each Team's Summary of the Match, from its Maps' Reviews (built first
     where missing or stale). A Map with no Tick Data shows its score only."""
     match = _match(db, match_id)
@@ -186,7 +186,7 @@ def get_summary(match_id: int, db: DbSession, _: CurrentUser) -> MatchReviewSumm
 
 
 @router.get("/{match_id}/maps/{map_number}/review")
-def get_review(match_id: int, map_number: int, db: DbSession, _: CurrentUser) -> Review:
+def get_review(match_id: int, map_number: int, db: DbSession, _: StaffUser) -> Review:
     """The map's Review (CONTEXT.md): every Round's Win probability, Swing and
     Findings, worded. Built from the Tick Data on first read after a parse or a
     model change, then read back."""

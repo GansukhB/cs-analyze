@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session, joinedload
 from app import db as database
 from app.celery_app import celery_app
 from app.config import get_settings
-from app.deps import CurrentUser, DbSession, user_from_token
+from app.deps import DbSession, StaffUser, user_from_token
 from app.models import AnalysisEvent, AnalysisJob, JobStatus, MatchMap, Team
 from app.schemas import (
     BrokerState,
@@ -67,7 +67,7 @@ def _events(db: Session, job: AnalysisJob, after: int | None, limit: int) -> lis
 
 
 @router.get("/home")
-def home(db: DbSession, _: CurrentUser) -> HomeInfo:
+def home(db: DbSession, _: StaffUser) -> HomeInfo:
     """What the scout form shows around itself."""
     settings = get_settings()
     recent = db.scalars(_jobs_query().order_by(AnalysisJob.created_at.desc()).limit(8))
@@ -88,7 +88,7 @@ def home(db: DbSession, _: CurrentUser) -> HomeInfo:
 
 
 @router.post("/jobs", status_code=status.HTTP_201_CREATED)
-def create_job(body: JobCreate, db: DbSession, user: CurrentUser) -> JobRow:
+def create_job(body: JobCreate, db: DbSession, user: StaffUser) -> JobRow:
     job = AnalysisJob(
         my_team_name=body.my_team,
         opponent_name=body.opponent,
@@ -105,7 +105,7 @@ def create_job(body: JobCreate, db: DbSession, user: CurrentUser) -> JobRow:
 
 
 @router.get("/jobs")
-def list_jobs(db: DbSession, _: CurrentUser) -> JobList:
+def list_jobs(db: DbSession, _: StaffUser) -> JobList:
     """The process viewer: every run, newest first."""
     rows = db.scalars(_jobs_query().order_by(AnalysisJob.created_at.desc()).limit(100))
     counts = dict(
@@ -121,7 +121,7 @@ def list_jobs(db: DbSession, _: CurrentUser) -> JobList:
 def get_job(
     public_id: uuid.UUID,
     db: DbSession,
-    _: CurrentUser,
+    _: StaffUser,
     after: Annotated[int | None, Query(description="Only events after this id")] = None,
 ) -> JobDetail:
     """One job: also the polling fallback when the WebSocket is unavailable."""
@@ -136,7 +136,7 @@ def get_job(
 
 
 @router.post("/jobs/{public_id}/cancel")
-def cancel_job(public_id: uuid.UUID, db: DbSession, _: CurrentUser) -> JobStatusPayload:
+def cancel_job(public_id: uuid.UUID, db: DbSession, _: StaffUser) -> JobStatusPayload:
     """STOP. A running job is asked to stop itself between items (the threads
     pool cannot kill it); a job still queued is revoked and finalised here,
     since nothing would ever poll the flag for a task that never runs."""
@@ -180,7 +180,7 @@ def _active_tasks() -> dict:
 
 
 @router.get("/workers")
-def workers(_: CurrentUser) -> BrokerState:
+def workers(_: StaffUser) -> BrokerState:
     """What Redis and the workers say about themselves right now."""
     settings = get_settings()
     state = BrokerState(
@@ -220,7 +220,8 @@ def workers(_: CurrentUser) -> BrokerState:
 # instead of holding one (and a pooled connection) for the socket's lifetime.
 def _authenticated(token: str | None) -> bool:
     with database.SessionLocal() as db:
-        return user_from_token(db, token) is not None
+        user = user_from_token(db, token)
+        return user is not None and user.is_staff
 
 
 def _snapshot(public_id: uuid.UUID) -> dict | None:

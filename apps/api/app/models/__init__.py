@@ -3,6 +3,7 @@
 ``source``   what HLTV said and which files are on disk (scraped, downloaded).
 ``analysis`` what parsing a demo produced (rounds, events, rollups).
 ``jobs``     background analysis runs, their story and their pictures.
+``workspace`` one club's private space, its Users and its my teams.
 
 Everything is re-exported here, so ``from app.models import Match, KillEvent``
 works regardless of which module a model lives in. Importing this package also
@@ -54,10 +55,14 @@ from app.models.jobs import (
 )
 from app.models.source import Demo, Match, Team, Tournament
 from app.models.user import User
+from app.models.workspace import UserRole, Workspace, WorkspaceTeam
 
 __all__ = [
     "TimestampMixin",
     "User",
+    "UserRole",
+    "Workspace",
+    "WorkspaceTeam",
     # source
     "Team",
     "Tournament",

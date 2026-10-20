@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { NavLink, Outlet, useMatch } from 'react-router'
-import { $api } from './api/client'
 import Assistant from './assistant/Assistant'
 import { tokenStore } from './auth/token'
+import { useMe } from './auth/useMe'
 import SystemFooter from './system/SystemFooter'
 
 const link = ({ isActive }: { isActive: boolean }) =>
@@ -10,7 +10,9 @@ const link = ({ isActive }: { isActive: boolean }) =>
 
 export default function Layout() {
   const queryClient = useQueryClient()
-  const me = $api.useQuery('get', '/auth/me')
+  const me = useMe()
+  // Staff run Scouts and plans; a Player login gets its own pages (docs/plans WS-4).
+  const staff = me.data?.role === 'staff'
   // A match page holds a Replay beside its Round panel: it gets the screen's width.
   const width = useMatch('/matches/*') ? 'max-w-[1680px]' : 'max-w-5xl'
 
@@ -25,22 +27,28 @@ export default function Layout() {
       <header className="border-b border-line bg-surface">
         <div className={`mx-auto flex ${width} flex-wrap items-center gap-6 px-4 py-3 text-sm`}>
           <span className="font-semibold text-ink">cs-analyze</span>
-          <nav className="flex gap-4">
-            <NavLink to="/" end className={link}>
-              New analysis
-            </NavLink>
-            <NavLink to="/jobs" className={link}>
-              Jobs
-            </NavLink>
-            <NavLink to="/teams" className={link}>
-              Teams
-            </NavLink>
-            <NavLink to="/gameplan" className={link}>
-              Game plan
-            </NavLink>
-          </nav>
+          {staff && (
+            <nav className="flex gap-4">
+              <NavLink to="/" end className={link}>
+                New analysis
+              </NavLink>
+              <NavLink to="/jobs" className={link}>
+                Jobs
+              </NavLink>
+              <NavLink to="/teams" className={link}>
+                Teams
+              </NavLink>
+              <NavLink to="/gameplan" className={link}>
+                Game plan
+              </NavLink>
+            </nav>
+          )}
           <div className="ml-auto flex items-center gap-4">
-            {me.data && <span className="text-ink-3">{me.data.username}</span>}
+            {me.data && (
+              <span className="text-ink-3">
+                {me.data.workspace.name} · {me.data.username}
+              </span>
+            )}
             <button onClick={logout} className="text-ink-3 underline hover:text-ink">
               Log out
             </button>
@@ -50,8 +58,8 @@ export default function Layout() {
       <main className={`mx-auto w-full ${width} flex-1 px-4 py-8`}>
         <Outlet />
       </main>
-      <SystemFooter width={width} />
-      <Assistant />
+      {staff && <SystemFooter width={width} />}
+      {staff && <Assistant />}
     </div>
   )
 }

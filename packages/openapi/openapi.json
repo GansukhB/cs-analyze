@@ -3503,6 +3503,30 @@
         ],
         "title": "MatchTeamSummary"
       },
+      "MyTeamRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "label"
+        ],
+        "title": "MyTeamRef",
+        "description": "One of the Workspace's my teams (CONTEXT.md)."
+      },
       "Plate": {
         "properties": {
           "url": {
@@ -5330,14 +5354,36 @@
           "username": {
             "type": "string",
             "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "player_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Id"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/WorkspaceRead"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "username"
+          "username",
+          "role",
+          "player_id",
+          "workspace"
         ],
-        "title": "UserRead"
+        "title": "UserRead",
+        "description": "Who is signed in, and for which club: the pages read \"we\" from ``my_teams``."
       },
       "ValidationError": {
         "properties": {
@@ -5378,6 +5424,32 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WorkspaceRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "my_teams": {
+            "items": {
+              "$ref": "#/components/schemas/MyTeamRef"
+            },
+            "type": "array",
+            "title": "My Teams"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "my_teams"
+        ],
+        "title": "WorkspaceRead"
       }
     },
     "securitySchemes": {
