@@ -399,3 +399,12 @@ def test_a_defuse_with_no_time_to_finish_is_still_a_ct_loss():
     planted = winprob.State(1, 0, 4000.0, 0.0, True, 8.0, 0, "de_inferno")
     assert winprob.ct_win(planted) == 0.0
     assert winprob.ct_win(winprob.State(**{**planted.__dict__, "defusing": True})) > 0.5
+
+
+def test_kills_move_swing_between_players_and_create_none(db, inferno):
+    # Every kill hands the killer's side what it takes from the victim's (RV-3):
+    # in a Round with no plant or defuse, the Players' Swing adds up to zero.
+    rnd = _review(db, inferno)["rounds"][0]
+    assert sum(rnd["swing"].values()) == pytest.approx(0.0, abs=1e-6)
+    kills = [e for e in rnd["events"] if e["kind"] == "kill"]
+    assert len(kills) == 3
