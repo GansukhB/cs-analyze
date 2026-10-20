@@ -1,10 +1,11 @@
-import { Navigate, Route, Routes } from 'react-router'
+import { Navigate, Route, Routes, useMatch } from 'react-router'
 import { useToken } from './auth/token'
 import Layout from './Layout'
 import ForecastsPage from './pages/ForecastsPage'
 import GameplanPage from './pages/GameplanPage'
 import GameplanPickPage from './pages/GameplanPickPage'
 import HomePage from './pages/HomePage'
+import InvitePage from './pages/InvitePage'
 import JobPage from './pages/JobPage'
 import JobsPage from './pages/JobsPage'
 import LoginPage from './pages/LoginPage'
@@ -13,9 +14,13 @@ import PlayerPage from './pages/PlayerPage'
 import TeamPage from './pages/TeamPage'
 import TeamsPage from './pages/TeamsPage'
 import UploadsPage from './pages/UploadsPage'
+import WorkspacePage from './pages/WorkspacePage'
 
 export default function App() {
   const token = useToken()
+  // An invite link opens before anyone signs in (docs/plans WS-3).
+  const invite = useMatch('/invite/:token')
+  if (invite?.params.token) return <InvitePage token={invite.params.token} />
   // Signed out, every URL shows the login form; signing in lands on the same URL.
   if (!token) return <LoginPage />
 
@@ -33,6 +38,7 @@ export default function App() {
         <Route path="gameplan" element={<GameplanPickPage />} />
         <Route path="forecasts" element={<ForecastsPage />} />
         <Route path="uploads" element={<UploadsPage />} />
+        <Route path="workspace" element={<WorkspacePage />} />
         <Route path="gameplan/:mine/vs/:theirs" element={<GameplanPage />} />
         <Route path="gameplan/:mine/vs/:theirs/s/:tab" element={<GameplanPage />} />
         <Route path="gameplan/:mine/vs/:theirs/s/:tab/m/:map" element={<GameplanPage />} />

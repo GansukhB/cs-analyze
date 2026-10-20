@@ -602,6 +602,75 @@ class GameplanPanel(BaseModel):
     data: dict[str, Any]
 
 
+# -- Workspace members and invites (docs/plans/01 WS-3) -----------------------------
+class MemberPlayer(BaseModel):
+    steamid: str
+    name: str
+
+
+class MemberRead(BaseModel):
+    id: int
+    username: str
+    role: str
+    player: MemberPlayer | None
+    is_active: bool
+    created_at: dt.datetime | None
+    last_login_at: dt.datetime | None
+
+    @field_validator("created_at", "last_login_at")
+    @classmethod
+    def stamped_utc(cls, value: dt.datetime | None) -> dt.datetime | None:
+        return _utc(value)
+
+
+class MemberPatch(BaseModel):
+    is_active: bool | None = None
+    role: Literal["staff", "player"] | None = None
+    player_steamid: str | None = Field(default=None, pattern=r"^(\d{1,20})?$")
+
+
+class InviteCreate(BaseModel):
+    role: Literal["staff", "player"] = "staff"
+    player_steamid: str | None = Field(default=None, pattern=r"^\d{1,20}$")
+    # A password reset for this member instead of a new one.
+    user_id: int | None = None
+
+
+class InviteRead(BaseModel):
+    id: int
+    role: str
+    player: MemberPlayer | None
+    username: str  # the member a reset is for, else ""
+    created_at: dt.datetime
+    expires_at: dt.datetime
+    used_at: dt.datetime | None
+    token: str = ""  # only in the answer to the POST that made it
+
+    @field_validator("created_at", "expires_at", "used_at")
+    @classmethod
+    def stamped_utc(cls, value: dt.datetime | None) -> dt.datetime | None:
+        return _utc(value)
+
+
+class InvitePublic(BaseModel):
+    """What the invite page shows before anyone signs in."""
+
+    workspace: str
+    role: str
+    player: str
+    username: str  # set for a password reset: the name stays
+
+
+class InviteAccept(BaseModel):
+    username: str = Field(default="", max_length=32)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class WorkspaceMembers(BaseModel):
+    members: list[MemberRead]
+    invites: list[InviteRead]
+
+
 # -- Uploads (docs/plans/02 DATA-1) -------------------------------------------------
 class UploadCreate(BaseModel):
     """Describe the file first; its bytes follow in parts."""

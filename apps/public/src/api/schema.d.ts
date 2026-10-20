@@ -624,6 +624,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/workspace/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Members
+         * @description Everyone in the Workspace, and the invites still open.
+         */
+        get: operations["list_members_workspace_members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workspace/members/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Member */
+        patch: operations["change_member_workspace_members__member_id__patch"];
+        trace?: never;
+    };
+    "/workspace/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Invite
+         * @description A one-time link. Its token is in this answer only: the page builds the URL.
+         */
+        post: operations["create_invite_workspace_invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workspace/invites/{invite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Invite */
+        delete: operations["revoke_invite_workspace_invites__invite_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invites/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open Invite */
+        get: operations["open_invite_invites__token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invites/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Invite
+         * @description Make the User (or set the reset password) and sign them in.
+         */
+        post: operations["accept_invite_invites__token__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assistant/config": {
         parameters: {
             query?: never;
@@ -1165,6 +1276,70 @@ export interface components {
              */
             uptime: number;
         };
+        /** InviteAccept */
+        InviteAccept: {
+            /**
+             * Username
+             * @default
+             */
+            username: string;
+            /** Password */
+            password: string;
+        };
+        /** InviteCreate */
+        InviteCreate: {
+            /**
+             * Role
+             * @default staff
+             * @enum {string}
+             */
+            role: "staff" | "player";
+            /** Player Steamid */
+            player_steamid?: string | null;
+            /** User Id */
+            user_id?: number | null;
+        };
+        /**
+         * InvitePublic
+         * @description What the invite page shows before anyone signs in.
+         */
+        InvitePublic: {
+            /** Workspace */
+            workspace: string;
+            /** Role */
+            role: string;
+            /** Player */
+            player: string;
+            /** Username */
+            username: string;
+        };
+        /** InviteRead */
+        InviteRead: {
+            /** Id */
+            id: number;
+            /** Role */
+            role: string;
+            player: components["schemas"]["MemberPlayer"] | null;
+            /** Username */
+            username: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Used At */
+            used_at: string | null;
+            /**
+             * Token
+             * @default
+             */
+            token: string;
+        };
         /**
          * JobCreate
          * @description The scout form: two team names, and how much to pull.
@@ -1613,6 +1788,38 @@ export interface components {
             focus: components["schemas"]["SummaryItem"][];
             /** Players */
             players: components["schemas"]["MatchReviewSummaryPlayer"][];
+        };
+        /** MemberPatch */
+        MemberPatch: {
+            /** Is Active */
+            is_active?: boolean | null;
+            /** Role */
+            role?: ("staff" | "player") | null;
+            /** Player Steamid */
+            player_steamid?: string | null;
+        };
+        /** MemberPlayer */
+        MemberPlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+        };
+        /** MemberRead */
+        MemberRead: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /** Role */
+            role: string;
+            player: components["schemas"]["MemberPlayer"] | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Created At */
+            created_at: string | null;
+            /** Last Login At */
+            last_login_at: string | null;
         };
         /**
          * MyTeamRef
@@ -2628,6 +2835,13 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WorkspaceMembers */
+        WorkspaceMembers: {
+            /** Members */
+            members: components["schemas"]["MemberRead"][];
+            /** Invites */
+            invites: components["schemas"]["InviteRead"][];
         };
         /** WorkspaceRead */
         WorkspaceRead: {
@@ -3673,6 +3887,189 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UploadRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_members_workspace_members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceMembers"];
+                };
+            };
+        };
+    };
+    change_member_workspace_members__member_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_invite_workspace_invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_invite_workspace_invites__invite_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_invite_invites__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_invite_invites__token__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteAccept"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Token"];
                 };
             };
             /** @description Validation Error */

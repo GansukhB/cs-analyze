@@ -16,6 +16,7 @@ from app.routers import (
     system,
     teams,
     uploads,
+    workspace,
 )
 
 _docs = get_settings().api_docs
@@ -42,6 +43,7 @@ app.include_router(players.router)
 app.include_router(gameplan.router)
 app.include_router(forecasts.router)
 app.include_router(uploads.router)
+app.include_router(workspace.router)
 app.include_router(assistant.router)
 app.include_router(system.router)
 

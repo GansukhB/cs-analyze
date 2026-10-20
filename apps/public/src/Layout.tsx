@@ -52,7 +52,14 @@ export default function Layout() {
           <div className="ml-auto flex items-center gap-4">
             {me.data && (
               <span className="text-ink-3">
-                {me.data.workspace.name} · {me.data.username}
+                {staff ? (
+                  <NavLink to="/workspace" className={link}>
+                    {me.data.workspace.name}
+                  </NavLink>
+                ) : (
+                  me.data.workspace.name
+                )}{' '}
+                · {me.data.username}
               </span>
             )}
             <button onClick={logout} className="text-ink-3 underline hover:text-ink">

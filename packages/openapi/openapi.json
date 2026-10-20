@@ -1860,6 +1860,272 @@
         }
       }
     },
+    "/workspace/members": {
+      "get": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "List Members",
+        "description": "Everyone in the Workspace, and the invites still open.",
+        "operationId": "list_members_workspace_members_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceMembers"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/workspace/members/{member_id}": {
+      "patch": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Change Member",
+        "operationId": "change_member_workspace_members__member_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Member Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace/invites": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Create Invite",
+        "description": "A one-time link. Its token is in this answer only: the page builds the URL.",
+        "operationId": "create_invite_workspace_invites_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/workspace/invites/{invite_id}": {
+      "delete": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Revoke Invite",
+        "operationId": "revoke_invite_workspace_invites__invite_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invite_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Invite Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invites/{token}": {
+      "get": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Open Invite",
+        "operationId": "open_invite_invites__token__get",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invites/{token}/accept": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Accept Invite",
+        "description": "Make the User (or set the reset password) and sign them in.",
+        "operationId": "accept_invite_invites__token__accept_post",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteAccept"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/assistant/config": {
       "get": {
         "tags": [
@@ -3175,6 +3441,158 @@
         "title": "HostStats",
         "description": "The whole host's load right now (app/services/system.py)."
       },
+      "InviteAccept": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Username",
+            "default": ""
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "InviteAccept"
+      },
+      "InviteCreate": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "staff",
+              "player"
+            ],
+            "title": "Role",
+            "default": "staff"
+          },
+          "player_steamid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,20}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Steamid"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "title": "InviteCreate"
+      },
+      "InvitePublic": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "player": {
+            "type": "string",
+            "title": "Player"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "role",
+          "player",
+          "username"
+        ],
+        "title": "InvitePublic",
+        "description": "What the invite page shows before anyone signs in."
+      },
+      "InviteRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "player": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberPlayer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used At"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "player",
+          "username",
+          "created_at",
+          "expires_at",
+          "used_at"
+        ],
+        "title": "InviteRead"
+      },
       "JobCreate": {
         "properties": {
           "my_team": {
@@ -4383,6 +4801,133 @@
           "players"
         ],
         "title": "MatchTeamSummary"
+      },
+      "MemberPatch": {
+        "properties": {
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "staff",
+                  "player"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "player_steamid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(\\d{1,20})?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Steamid"
+          }
+        },
+        "type": "object",
+        "title": "MemberPatch"
+      },
+      "MemberPlayer": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name"
+        ],
+        "title": "MemberPlayer"
+      },
+      "MemberRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "player": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberPlayer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "role",
+          "player",
+          "is_active",
+          "created_at",
+          "last_login_at"
+        ],
+        "title": "MemberRead"
       },
       "MyTeamRef": {
         "properties": {
@@ -7264,6 +7809,30 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WorkspaceMembers": {
+        "properties": {
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MemberRead"
+            },
+            "type": "array",
+            "title": "Members"
+          },
+          "invites": {
+            "items": {
+              "$ref": "#/components/schemas/InviteRead"
+            },
+            "type": "array",
+            "title": "Invites"
+          }
+        },
+        "type": "object",
+        "required": [
+          "members",
+          "invites"
+        ],
+        "title": "WorkspaceMembers"
       },
       "WorkspaceRead": {
         "properties": {

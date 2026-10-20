@@ -8,6 +8,7 @@ to one of its Players.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -15,7 +16,7 @@ from sqlalchemy import ForeignKey, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
-from app.models.base import BigId, TimestampMixin
+from app.models.base import BigId, DateTime6, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.source import Team
@@ -55,3 +56,26 @@ class WorkspaceTeam(TimestampMixin, Base):
 
     workspace: Mapped[Workspace] = relationship(back_populates="teams")
     team: Mapped[Team] = relationship()
+
+
+class Invite(TimestampMixin, Base):
+    """A one-time link that makes a User in a Workspace (docs/plans WS-3), or, with
+    ``user_id``, sets a forgotten password. Only the token's SHA-256 is kept."""
+
+    __tablename__ = "invites"
+
+    id: Mapped[int] = mapped_column(BigId, primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        BigId, ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    role: Mapped[str] = mapped_column(String(12), default=UserRole.STAFF)
+    player_id: Mapped[int | None] = mapped_column(
+        BigId, ForeignKey("players.id", ondelete="SET NULL")
+    )
+    # A password reset for this User instead of a new one.
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    expires_at: Mapped[datetime] = mapped_column(DateTime6)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime6)
+    used_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
