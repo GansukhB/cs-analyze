@@ -179,15 +179,19 @@ def import_tickdata(folder: Path) -> None:
 
 def rebuild_tickdata() -> None:
     """Cut Replays, walks and geometry again from every stored bundle."""
-    from app.services import tickdata
+    from app.services import heavy, tickdata
+
+    def waiting(holder: str) -> None:
+        print(f"  … waiting for {holder or 'another parse'} to finish (one heavy job at a time)")
 
     with SessionLocal() as db:
         datasets = list(db.scalars(select(TickDataset).order_by(TickDataset.match_map_id)))
         for dataset in datasets:
             match_map = db.get(MatchMap, dataset.match_map_id)
             started = time.monotonic()
-            tickdata.rebuild(db, match_map, dataset)
-            db.commit()
+            with heavy.permit("cli:data:rebuild", on_wait=waiting):
+                tickdata.rebuild(db, match_map, dataset)
+                db.commit()
             print(f"  ✓ map {match_map.id}: {time.monotonic() - started:.1f}s")
     print(f"Rebuilt {len(datasets)} maps (version {tickdata.derived_version()}).")
 

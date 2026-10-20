@@ -19,8 +19,11 @@ class Settings(BaseSettings):
     # Celery's default queue, a plain Redis list on the broker DB: the Scouts.
     celery_queue: str = "celery"
     # Short work that must not wait behind a Scout (the Review refresh, docs/adr/0008).
-    # The worker consumes both, with a thread for each.
     celery_light_queue: str = "light"
+    # Parsing that isn't a Scout's (uploads): it shares the host's one heavy
+    # permit with the Scouts' parse step (app/services/heavy.py, OPS-6). The worker
+    # consumes all three queues, with a thread for each.
+    celery_parse_queue: str = "parse"
 
     jwt_secret: SecretStr
     jwt_algorithm: str = "HS256"

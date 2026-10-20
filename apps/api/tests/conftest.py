@@ -13,7 +13,7 @@ from app.db import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import User, Workspace  # noqa: E402
 from app.security import create_access_token, hash_password  # noqa: E402
-from app.services import live, pool_cache, ratelimit, review_pool  # noqa: E402
+from app.services import heavy, live, pool_cache, ratelimit, review_pool  # noqa: E402
 
 
 @pytest.fixture
@@ -85,6 +85,14 @@ def pool_redis(monkeypatch) -> FakeRedis:
     """The Pool's Redis as a dict, empty for every test."""
     fake = FakeRedis()
     monkeypatch.setattr(pool_cache, "get_cache", lambda: fake)
+    return fake
+
+
+@pytest.fixture(autouse=True)
+def heavy_redis(monkeypatch) -> FakeRedis:
+    """The heavy permit's Redis as a dict, empty for every test."""
+    fake = FakeRedis()
+    monkeypatch.setattr(heavy, "get_cache", lambda: fake)
     return fake
 
 

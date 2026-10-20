@@ -61,6 +61,7 @@ from app.services import (
     analysis_store,
     dbctx,
     gameplan,
+    heavy,
     jobs,
     mn,
     review,
@@ -150,6 +151,8 @@ def _recover(**_) -> None:
     drop whatever the broker still holds and let `jobs.recover` re-dispatch.
     The purge also drops a queued Review refresh, so one is sent again."""
     celery_app.control.purge()
+    # Nothing runs yet, so a held heavy permit is a dead worker's (OPS-6).
+    heavy.clear()
     with SessionLocal() as db:
         jobs.recover(db)
     review_pool.request_refresh(force=True)
@@ -1005,6 +1008,23 @@ def _unpack_reporter(job_db: Session, job: AnalysisJob, archive: Path):
 
 # -- parsing -----------------------------------------------------------------
 def _parse_one(job_db, db, job, demo: Demo, scratch: Path | None, totals: dict, step) -> None:
+    """Parse and ingest one Match Map while holding the host's heavy permit (OPS-6)."""
+
+    def waiting(holder: str) -> None:
+        jobs.activity(
+            job_db, job, key="parse:waiting", stage=STAGE.PARSING,
+            text=mn.HEAVY_WAIT.format(holder=holder or "өөр ажил"),
+        )  # fmt: skip
+
+    def cancelled() -> bool:
+        jobs.check_cancelled(job_db, job)  # raises JobCancelled
+        return False
+
+    with heavy.permit(f"job:{job.public_id}", on_wait=waiting, cancelled=cancelled):
+        _parse_one_now(job_db, db, job, demo, scratch, totals, step)
+
+
+def _parse_one_now(job_db, db, job, demo: Demo, scratch: Path | None, totals: dict, step) -> None:
     """Parse one map and store it with its Tick Data; delete its ``.dem`` after.
 
     The Demo is the source when it is on disk (just unpacked); otherwise the

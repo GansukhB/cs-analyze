@@ -18,7 +18,7 @@ Environment=PYTHONUNBUFFERED=1
 # would die, and the job would stay RUNNING with the queue blocked.
 # %%h is a literal %h for Celery (the hostname), not systemd's home directory.
 ExecStart={{ api_path }}/.venv/bin/celery -A app.celery_app worker \
-    --pool=threads --concurrency=2 -Q celery,light --loglevel=info \
+    --pool=threads --concurrency=3 -Q celery,parse,light --loglevel=info \
     --hostname={{ worker_service }}@%%h
 Restart=always
 RestartSec=10

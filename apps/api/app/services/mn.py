@@ -3122,3 +3122,7 @@ def forecast_limit(item: dict) -> str:
 def forecast_line(fmt: str, p: float, mine: str, theirs: str) -> str:
     word, _tone = forecast_scale(p)
     return f"{FORMAT.get(fmt, fmt)}: {mine} {theirs}-ийг хожих магадлал ~{round5(p)}% ({word})."
+
+
+# The host's one heavy permit (OPS-6): a parse waits for another to finish.
+HEAVY_WAIT = "Өөр parse ({holder}) дуусахыг хүлээж байна: хоёр зэрэг явбал санах ой хүрэхгүй."
