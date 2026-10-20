@@ -146,6 +146,8 @@ Detector өөрчлөх бүрт тестээр баталгаажуулна (OP
 
 #### RV-6. Scrim-ийн log ба хөгжлийн KPI (P1, M; DATA-1-ийн дараа)
 
+> **Төлөв:** ✅ `5580fec` (improvement-01). /scrims log ба тоглогчийн форм дахь Scrim (дундажид орохгүй).
+
 - **My team-ийн Scrim-ийн жагсаалт:** огноо, түнш, Map, оноо, Summary, Focus point.
 - **Тоглогч бүрийн KPI-ийн цагийн шугам** (PL-2):
   - official ба Scrim тусдаа шугамаар
@@ -154,6 +156,8 @@ Detector өөрчлөх бүрт тестээр баталгаажуулна (OP
 - **ADR 0010:** Scrim-ийн KPI Pool-д, өрсөлдөгчийн habit-д хэзээ ч орохгүй. Зөвхөн манай багийн хөгжлийн дэлгэц дээр харагдана.
 
 #### RV-7. Тэмдэглэл, bookmark, playlist, Finding-ийг маргах (P1, M)
+
+> **Төлөв:** 🟡 `db48695` (improvement-01). Note, Dispute, Playlist. Ghost горим VIZ-5-ыг хүлээнэ; Dispute-ийн давтамж /system биш Workspace хуудсанд (Workspace-ийнх тул).
 
 - **Note:**
   - Staff-ын тэмдэглэл. Round, агшин, Finding, тоглогчид хавсарна. Workspace-д хадгалагдана, tag-тай.
@@ -177,6 +181,8 @@ Detector өөрчлөх бүрт тестээр баталгаажуулна (OP
 
 #### RV-9. Development plan (P1, M; CONTEXT.md-ийн нэр томъёо)
 
+> **Төлөв:** ✅ `2128635` (improvement-01). Зорилгын санал Pool-оос тодорхой давсан Mistake-ээр, явц нь 80%-ийн интервалтай.
+
 - **Тоглогч бүрт блок бүрд (4 долоо хоног) 2–3 зорилго.** Зорилго бүр:
   - KPI: PL-ийн хэмжүүрээс, жишээ нь 24 Round тутмын untraded үхэл, opening-ийн хожил, crosshair-ийн алдаа
   - суурь утга, зорилтот утга, хугацаа
@@ -187,6 +193,8 @@ Detector өөрчлөх бүрт тестээр баталгаажуулна (OP
 - **`development_goals`:** `player_id`, `workspace_id`, `kpi`, `baseline`, `target`, `start_on`, `due_on`, `status`, `notes`.
 
 #### RV-10. Review-ийн хуралдааны agenda (P1, M)
+
+> **Төлөв:** ✅ `3fde5b4` (improvement-01). /matches/:id/agenda, хэвлэгдэнэ.
 
 Match-ийн Summary ба Focus point-оос 45–60 минутын хуралдааны цагтай agenda (R3-ийн загвар):
 
