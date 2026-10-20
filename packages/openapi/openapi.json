@@ -2447,6 +2447,60 @@
         }
       }
     },
+    "/scrims": {
+      "get": {
+        "tags": [
+          "scrims"
+        ],
+        "summary": "Scrim Log",
+        "operationId": "scrim_log_scrims_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScrimLog"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/workspace/members": {
       "get": {
         "tags": [
@@ -6682,6 +6736,11 @@
               }
             ],
             "title": "Swing Per Round"
+          },
+          "scrim": {
+            "type": "boolean",
+            "title": "Scrim",
+            "default": false
           }
         },
         "type": "object",
@@ -8180,6 +8239,139 @@
         ],
         "title": "ScoutNow",
         "description": "The Analysis Job the worker is on."
+      },
+      "ScrimLine": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "advice": {
+            "type": "string",
+            "title": "Advice",
+            "default": ""
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ScrimLine"
+      },
+      "ScrimLog": {
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "scrims": {
+            "items": {
+              "$ref": "#/components/schemas/ScrimRow"
+            },
+            "type": "array",
+            "title": "Scrims"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "scrims"
+        ],
+        "title": "ScrimLog"
+      },
+      "ScrimMap": {
+        "properties": {
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "scoreline": {
+            "type": "string",
+            "title": "Scoreline"
+          },
+          "won": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Won"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_number",
+          "label",
+          "scoreline",
+          "won"
+        ],
+        "title": "ScrimMap"
+      },
+      "ScrimRow": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "partner": {
+            "type": "string",
+            "title": "Partner"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/ScrimMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "focus": {
+            "items": {
+              "$ref": "#/components/schemas/ScrimLine"
+            },
+            "type": "array",
+            "title": "Focus"
+          },
+          "strengths": {
+            "items": {
+              "$ref": "#/components/schemas/ScrimLine"
+            },
+            "type": "array",
+            "title": "Strengths"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "played_at",
+          "partner",
+          "maps",
+          "focus",
+          "strengths"
+        ],
+        "title": "ScrimRow"
       },
       "SpotLabel": {
         "properties": {

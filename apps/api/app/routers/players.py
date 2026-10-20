@@ -1,5 +1,6 @@
 """A Player's page (docs/plans/04-player-analytics.md PL-2), by Steam id."""
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, status
@@ -26,6 +27,14 @@ def player(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such player")
     with dbctx.using(db):
         built = player_page.build(int(steamid))
+        if built is not None:
+            # His Scrims for our teams join his form, marked, and nothing else (RV-6).
+            mine = {t.team_id for t in user.workspace.teams}
+            scrims = player_page.scrim_form(int(steamid), mine)
+            built["form"] = sorted(
+                built["form"] + scrims,
+                key=lambda r: (r["played_at"] or datetime.min, r["map_number"]),
+            )
     if built is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such player")
     return PlayerPage(**built)

@@ -16,6 +16,7 @@ import LoginPage from './pages/LoginPage'
 import MatchPage from './pages/MatchPage'
 import MePage from './pages/MePage'
 import PlayerPage from './pages/PlayerPage'
+import ScrimsPage from './pages/ScrimsPage'
 import TeamPage from './pages/TeamPage'
 import TeamsPage from './pages/TeamsPage'
 import UploadsPage from './pages/UploadsPage'
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="briefings/:id" element={<BriefingPage />} />
         <Route path="gameplan/:mine/vs/:theirs/briefing" element={<BriefingNewPage />} />
         <Route path="uploads" element={<UploadsPage />} />
+        <Route path="scrims" element={<ScrimsPage />} />
         <Route path="workspace" element={<WorkspacePage />} />
         <Route path="gameplan/:mine/vs/:theirs" element={<GameplanPage />} />
         <Route path="gameplan/:mine/vs/:theirs/s/:tab" element={<GameplanPage />} />

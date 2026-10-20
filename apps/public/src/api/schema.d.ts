@@ -789,6 +789,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scrims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scrim Log */
+        get: operations["scrim_log_scrims_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workspace/members": {
         parameters: {
             query?: never;
@@ -2403,6 +2420,11 @@ export interface components {
             kast_pct: number | null;
             /** Swing Per Round */
             swing_per_round: number | null;
+            /**
+             * Scrim
+             * @default false
+             */
+            scrim: boolean;
         };
         /** PlayerLine */
         PlayerLine: {
@@ -2895,6 +2917,53 @@ export interface components {
             /** Stage Label */
             stage_label: string;
             cycle: components["schemas"]["JobCycle"] | null;
+        };
+        /** ScrimLine */
+        ScrimLine: {
+            /** Text */
+            text: string;
+            /**
+             * Advice
+             * @default
+             */
+            advice: string;
+            /**
+             * Weight
+             * @default 0
+             */
+            weight: number;
+        };
+        /** ScrimLog */
+        ScrimLog: {
+            team: components["schemas"]["TeamRef"];
+            /** Scrims */
+            scrims: components["schemas"]["ScrimRow"][];
+        };
+        /** ScrimMap */
+        ScrimMap: {
+            /** Map Number */
+            map_number: number;
+            /** Label */
+            label: string;
+            /** Scoreline */
+            scoreline: string;
+            /** Won */
+            won: boolean | null;
+        };
+        /** ScrimRow */
+        ScrimRow: {
+            /** Match Id */
+            match_id: number;
+            /** Played At */
+            played_at: string | null;
+            /** Partner */
+            partner: string;
+            /** Maps */
+            maps: components["schemas"]["ScrimMap"][];
+            /** Focus */
+            focus: components["schemas"]["ScrimLine"][];
+            /** Strengths */
+            strengths: components["schemas"]["ScrimLine"][];
         };
         /**
          * SpotLabel
@@ -4842,6 +4911,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UploadRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scrim_log_scrims_get: {
+        parameters: {
+            query?: {
+                team_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScrimLog"];
                 };
             };
             /** @description Validation Error */

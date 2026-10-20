@@ -110,10 +110,13 @@ function Form({ rows }: { rows: FormRow[] }) {
       </section>
     )
   }
-  const rolling = known.map((r, k) => {
-    const window = known.slice(Math.max(0, k - ROLLING + 1), k + 1)
+  // The rolling mean is the official Match Maps' only: Scrims show as outlines.
+  const official = known.filter((r) => !r.scrim)
+  const rolling = official.map((r, k) => {
+    const window = official.slice(Math.max(0, k - ROLLING + 1), k + 1)
     return { i: r.i, v: window.reduce((s, w) => s + w.v, 0) / window.length }
   })
+  const hasScrims = known.some((r) => r.scrim)
   const W = 720
   const H = 200
   const pad = { l: 44, r: 12, t: 12, b: 24 }
@@ -135,6 +138,12 @@ function Form({ rows }: { rows: FormRow[] }) {
           <span className="inline-block h-0.5 w-4" style={{ background: 'var(--ink)' }} />
           Сүүлийн {ROLLING} map-ын дундаж
         </span>
+        {hasScrims && (
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-2 rounded-sm border" style={{ borderColor: 'var(--mark-mine)' }} />
+            Scrim (дундажид орохгүй)
+          </span>
+        )}
       </div>
       <div className="relative rounded-xl border border-line bg-surface p-2">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Map бүрийн Swing / раунд">
@@ -156,7 +165,9 @@ function Form({ rows }: { rows: FormRow[] }) {
                 width={bar}
                 height={Math.max(1, Math.abs(y(r.v) - y(0)))}
                 rx={2}
-                fill="var(--mark-mine)"
+                fill={r.scrim ? 'transparent' : 'var(--mark-mine)'}
+                stroke={r.scrim ? 'var(--mark-mine)' : undefined}
+                strokeWidth={r.scrim ? 1.5 : undefined}
                 opacity={hover == null || hover === r.i ? 1 : 0.45}
               />
             )
@@ -179,6 +190,7 @@ function Form({ rows }: { rows: FormRow[] }) {
           <div className="pointer-events-none absolute top-2 right-2 rounded-md border border-line bg-raised px-3 py-2 text-xs text-ink-2">
             <b className="text-ink">
               {mapName(shown.map)} · {shown.opponent}
+              {shown.scrim ? ' · scrim' : ''}
             </b>
             <div>{shown.played_at ? day(shown.played_at) : ''}</div>
             <div>

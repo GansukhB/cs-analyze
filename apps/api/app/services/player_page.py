@@ -244,3 +244,81 @@ def build(steamid: int) -> dict | None:
         "spots": spots,
         "weapons": weapons,
     }
+
+
+def scrim_form(steamid: int, my_team_ids: set[int]) -> list[dict]:
+    """His Scrims for the Workspace's my teams, as form rows (RV-6). Only those:
+    a scrim partner's Players are never shown their Scrims (docs/adr/0010)."""
+    import gzip
+    import json
+
+    from app.models import Match, MatchKind, MatchMapReview
+    from app.services import scope
+
+    if not my_team_ids:
+        return []
+    session = db()
+    player = session.scalar(select(Player).where(Player.steamid == steamid))
+    if player is None:
+        return []
+    scope.allow_scrims(session)
+    rows = session.execute(
+        select(MatchMap, MapRoster.team_id, Match, GameMap.name)
+        .join(MapRoster, MapRoster.match_map_id == MatchMap.id)
+        .join(Match, Match.id == MatchMap.match_id)
+        .outerjoin(GameMap, GameMap.id == MatchMap.game_map_id)
+        .where(
+            MapRoster.player_id == player.id,
+            MapRoster.team_id.in_(my_team_ids),
+            Match.kind == MatchKind.SCRIM,
+            MatchMap.parsed_at.is_not(None),
+        )
+        .order_by(Match.played_at, MatchMap.map_number)
+    ).all()
+    ids = [mm.id for mm, *_ in rows]
+    stats = {
+        r.match_map_id: r
+        for r in session.scalars(
+            select(PlayerMap).where(
+                PlayerMap.player_id == player.id, PlayerMap.match_map_id.in_(ids)
+            )
+        )
+    }
+    sid = str(player.steamid)
+    swings: dict[int, list[float]] = {}
+    for mm_id, payload in session.execute(
+        select(MatchMapReview.match_map_id, MatchMapReview.payload).where(
+            MatchMapReview.match_map_id.in_(ids), MatchMapReview.version == review.version()
+        )
+    ):
+        stored = json.loads(gzip.decompress(payload))
+        swings[mm_id] = [
+            float((r.get("swing") or {}).get(sid, 0.0))
+            for r in stored.get("rounds") or []
+            if sid in (r.get("sides") or {})
+        ]
+    names = dict(session.execute(select(Team.id, Team.name)).all())
+    out = []
+    for mm, team_id, match, map_name in rows:
+        other = mm.team2_id if mm.team1_id == team_id else mm.team1_id
+        st = stats.get(mm.id)
+        sw = swings.get(mm.id) or []
+        out.append(
+            {
+                "match_id": mm.match_id,
+                "map_number": mm.map_number,
+                "map": map_name or "?",
+                "played_at": match.played_at,
+                "team": names.get(team_id, ""),
+                "opponent": names.get(other, "") or match.opponent_label,
+                "won": mm.winner_id == team_id if mm.winner_id else None,
+                "rounds": st.rounds_played if st else 0,
+                "kills": st.kills if st else 0,
+                "deaths": st.deaths if st else 0,
+                "adr": round(st.adr, 1) if st and st.adr is not None else None,
+                "kast_pct": round(st.kast_pct, 1) if st and st.kast_pct is not None else None,
+                "swing_per_round": round(sum(sw) / len(sw), 4) if sw else None,
+                "scrim": True,
+            }
+        )
+    return out

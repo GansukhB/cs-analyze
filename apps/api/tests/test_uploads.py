@@ -305,3 +305,30 @@ def test_a_scrims_page_is_its_workspaces_alone(client, db, auth, league, workspa
     # Scrims never reach the Team's page, even the Workspace's own.
     results = client.get(f"/teams/{a.id}", headers=auth).json()["results"]
     assert ours.id not in {r.get("match_id") for r in results}
+
+
+def test_the_scrim_log_lists_my_teams_scrims_only(client, db, auth, staffed, workspace):
+    a, b, p = staffed["a"], staffed["b"], staffed["players"]
+    ours = _private(db, workspace, MatchKind.SCRIM, a, b, p)
+    other = Workspace(name="Other club")
+    db.add(other)
+    db.commit()
+    _private(db, other, MatchKind.SCRIM, a, b, p, day=5)
+    _unscoped(db)
+    log = client.get("/scrims", headers=auth).json()
+    assert log["team"]["id"] == a.id and [s["match_id"] for s in log["scrims"]] == [ours.id]
+    assert log["scrims"][0]["partner"] == "Bravo" and log["scrims"][0]["maps"][0]["label"]
+    assert client.get(f"/scrims?team_id={b.id}", headers=auth).status_code == 404
+
+
+def test_a_players_scrims_show_in_his_form_and_not_his_partners(
+    client, db, auth, staffed, workspace
+):
+    a, b, p = staffed["a"], staffed["b"], staffed["players"]
+    _private(db, workspace, MatchKind.SCRIM, a, b, p, day=7)
+    _unscoped(db)
+    ours, theirs = p[a.id][0], p[b.id][0]
+    form = client.get(f"/players/{ours.steamid}", headers=auth).json()["form"]
+    assert [r["scrim"] for r in form].count(True) == 1 and len(form) == 3
+    partner = client.get(f"/players/{theirs.steamid}", headers=auth).json()["form"]
+    assert not any(r["scrim"] for r in partner)

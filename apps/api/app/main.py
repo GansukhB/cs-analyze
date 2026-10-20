@@ -16,6 +16,7 @@ from app.routers import (
     matches,
     me,
     players,
+    scrims,
     system,
     teams,
     uploads,
@@ -49,6 +50,7 @@ app.include_router(forecasts.router)
 app.include_router(briefings.router)
 app.include_router(development.router)
 app.include_router(uploads.router)
+app.include_router(scrims.router)
 app.include_router(workspace.router)
 app.include_router(assistant.router)
 app.include_router(system.router)

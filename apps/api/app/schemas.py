@@ -834,6 +834,39 @@ class GoalPatch(BaseModel):
     notes: str | None = Field(default=None, max_length=4000)
 
 
+# -- Scrim log (docs/plans/07 RV-6) -------------------------------------------------
+class ScrimMap(BaseModel):
+    map_number: int
+    label: str
+    scoreline: str
+    won: bool | None
+
+
+class ScrimLine(BaseModel):
+    text: str
+    advice: str = ""
+    weight: float = 0.0
+
+
+class ScrimRow(BaseModel):
+    match_id: int
+    played_at: dt.datetime | None
+    partner: str
+    maps: list[ScrimMap]
+    focus: list[ScrimLine]
+    strengths: list[ScrimLine]
+
+    @field_validator("played_at")
+    @classmethod
+    def played_utc(cls, value: dt.datetime | None) -> dt.datetime | None:
+        return _utc(value)
+
+
+class ScrimLog(BaseModel):
+    team: TeamRef
+    scrims: list[ScrimRow]
+
+
 # -- Briefings (docs/plans/01 WS-5) ------------------------------------------------
 class BriefingMapPick(BaseModel):
     map: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")
@@ -1337,6 +1370,9 @@ class PlayerFormRow(BaseModel):
     adr: float | None
     kast_pct: float | None
     swing_per_round: float | None
+    # A Scrim for one of the Workspace's my teams (RV-6): his own development,
+    # shown in his form, counted in none of the page's totals.
+    scrim: bool = False
 
 
 class PlayerFindingRate(BaseModel):
