@@ -663,6 +663,70 @@
         }
       }
     },
+    "/matches/{match_id}/agenda": {
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Get Agenda",
+        "description": "A Review meeting's agenda for one of the Match's Teams (RV-10): ours when\none of them is a my team, else the first.",
+        "operationId": "get_agenda_matches__match_id__agenda_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Match Id"
+            }
+          },
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agenda"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/players/{steamid}": {
       "get": {
         "tags": [
@@ -3086,6 +3150,153 @@
         "type": "object",
         "title": "Activity",
         "description": "What the current step is doing right now; empty when nothing is."
+      },
+      "Agenda": {
+        "properties": {
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "opponent": {
+            "type": "string",
+            "title": "Opponent"
+          },
+          "minutes": {
+            "type": "integer",
+            "title": "Minutes"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/AgendaSection"
+            },
+            "type": "array",
+            "title": "Sections"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/AgendaPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "opponent",
+          "minutes",
+          "sections",
+          "players"
+        ],
+        "title": "Agenda"
+      },
+      "AgendaItem": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "advice": {
+            "type": "string",
+            "title": "Advice",
+            "default": ""
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/AgendaRef"
+            },
+            "type": "array",
+            "title": "Refs",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "AgendaItem"
+      },
+      "AgendaPlayer": {
+        "properties": {
+          "player": {
+            "type": "string",
+            "title": "Player"
+          },
+          "swing": {
+            "type": "number",
+            "title": "Swing"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/AgendaItem"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "player",
+          "swing",
+          "lines"
+        ],
+        "title": "AgendaPlayer"
+      },
+      "AgendaRef": {
+        "properties": {
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "round": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_number",
+          "round"
+        ],
+        "title": "AgendaRef"
+      },
+      "AgendaSection": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "minutes": {
+            "type": "integer",
+            "title": "Minutes"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgendaItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "minutes",
+          "items"
+        ],
+        "title": "AgendaSection"
       },
       "AssistantChat": {
         "properties": {

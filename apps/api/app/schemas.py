@@ -867,6 +867,39 @@ class ScrimLog(BaseModel):
     scrims: list[ScrimRow]
 
 
+# -- Review meeting agenda (docs/plans/07 RV-10) ------------------------------------
+class AgendaRef(BaseModel):
+    map_number: int
+    round: int | None
+
+
+class AgendaItem(BaseModel):
+    text: str
+    advice: str = ""
+    refs: list[AgendaRef] = []
+
+
+class AgendaSection(BaseModel):
+    key: str
+    title: str
+    minutes: int
+    items: list[AgendaItem]
+
+
+class AgendaPlayer(BaseModel):
+    player: str
+    swing: float
+    lines: list[AgendaItem]
+
+
+class Agenda(BaseModel):
+    team: str
+    opponent: str
+    minutes: int
+    sections: list[AgendaSection]
+    players: list[AgendaPlayer]
+
+
 # -- Briefings (docs/plans/01 WS-5) ------------------------------------------------
 class BriefingMapPick(BaseModel):
     map: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")

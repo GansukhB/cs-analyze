@@ -18,6 +18,7 @@ from app.deps import CurrentUser, DbSession, can_see_match
 from app.models import Match, MatchMap, PlayerMap, Round, User
 from app.routers.teams import map_label
 from app.schemas import (
+    Agenda,
     MatchInfo,
     MatchMapDetail,
     MatchMapTab,
@@ -29,7 +30,7 @@ from app.schemas import (
     ScoreboardSide,
     TeamRef,
 )
-from app.services import replay, review_view, scope
+from app.services import agenda, replay, review_view, scope
 
 logger = logging.getLogger(__name__)
 
@@ -288,3 +289,22 @@ def _scoreboard(db: Session, match_map: MatchMap) -> list[ScoreboardSide]:
             )
         )
     return board
+
+
+@router.get("/{match_id}/agenda")
+def get_agenda(
+    match_id: int, db: DbSession, user: CurrentUser, team_id: int | None = None
+) -> Agenda:
+    """A Review meeting's agenda for one of the Match's Teams (RV-10): ours when
+    one of them is a my team, else the first."""
+    match = _match(db, match_id, user)
+    if not user.is_staff:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Staff only")
+    sides = [t for t in (match.team1_id, match.team2_id) if t]
+    if not sides:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "This match has no teams")
+    mine = {t.team_id for t in user.workspace.teams}
+    team_id = team_id or next((t for t in sides if t in mine), sides[0])
+    if team_id not in sides:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "That team did not play this match")
+    return Agenda(**agenda.build(db, match, team_id))

@@ -290,6 +290,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/matches/{match_id}/agenda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Agenda
+         * @description A Review meeting's agenda for one of the Match's Teams (RV-10): ours when
+         *     one of them is a my team, else the first.
+         */
+        get: operations["get_agenda_matches__match_id__agenda_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/{steamid}": {
         parameters: {
             query?: never;
@@ -1065,6 +1086,61 @@ export interface components {
             at?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** Agenda */
+        Agenda: {
+            /** Team */
+            team: string;
+            /** Opponent */
+            opponent: string;
+            /** Minutes */
+            minutes: number;
+            /** Sections */
+            sections: components["schemas"]["AgendaSection"][];
+            /** Players */
+            players: components["schemas"]["AgendaPlayer"][];
+        };
+        /** AgendaItem */
+        AgendaItem: {
+            /** Text */
+            text: string;
+            /**
+             * Advice
+             * @default
+             */
+            advice: string;
+            /**
+             * Refs
+             * @default []
+             */
+            refs: components["schemas"]["AgendaRef"][];
+        };
+        /** AgendaPlayer */
+        AgendaPlayer: {
+            /** Player */
+            player: string;
+            /** Swing */
+            swing: number;
+            /** Lines */
+            lines: components["schemas"]["AgendaItem"][];
+        };
+        /** AgendaRef */
+        AgendaRef: {
+            /** Map Number */
+            map_number: number;
+            /** Round */
+            round: number | null;
+        };
+        /** AgendaSection */
+        AgendaSection: {
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /** Minutes */
+            minutes: number;
+            /** Items */
+            items: components["schemas"]["AgendaItem"][];
         };
         /** AssistantChat */
         AssistantChat: {
@@ -3900,6 +3976,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Review"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_agenda_matches__match_id__agenda_get: {
+        parameters: {
+            query?: {
+                team_id?: number | null;
+            };
+            header?: never;
+            path: {
+                match_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Agenda"];
                 };
             };
             /** @description Validation Error */

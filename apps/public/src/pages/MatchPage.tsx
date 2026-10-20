@@ -75,6 +75,14 @@ function Header({ info }: { info: MatchInfo }) {
         ) : (
           <> · uploaded</>
         )}
+        {staff && (
+          <>
+            {' · '}
+            <Link to={`/matches/${info.id}/agenda`} className="text-ct hover:underline">
+              Review agenda
+            </Link>
+          </>
+        )}
         {info.kind === 'scrim' && (
           <span
             title="Scrim: reviewed like a Match, counted in no Own form, habit or Pool"

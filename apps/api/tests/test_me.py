@@ -87,3 +87,14 @@ def test_a_player_opens_only_their_own(client, db, league, player_login):
 
 def test_staff_without_a_player_has_no_own_page(client, auth):
     assert client.get("/me/overview", headers=auth).status_code == 404
+
+
+def test_a_staff_agenda_and_no_agenda_for_a_player(client, db, auth, league, player_login):
+    them, _me = player_login
+    match_id = next(iter(league["a"].matches_as_team1)).id
+    out = client.get(f"/matches/{match_id}/agenda", headers=auth)
+    assert out.status_code == 200, out.text
+    body = out.json()
+    assert body["team"] == "Alpha" and [s["key"] for s in body["sections"]][0] == "flow"
+    assert body["minutes"] >= 45
+    assert client.get(f"/matches/{match_id}/agenda", headers=them).status_code == 403
