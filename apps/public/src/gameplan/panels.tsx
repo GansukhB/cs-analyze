@@ -4,7 +4,9 @@
 // words rather than leaving a blank panel.
 import { Fragment, useState } from 'react'
 import { Link } from 'react-router'
+import { $api } from '../api/client'
 import type {
+  DecisionForecast,
   DecisionPanel,
   DuelsPanel,
   EdgePanel,
@@ -55,6 +57,7 @@ export function Decision({ data, fixture }: { data: DecisionPanel; fixture: Fixt
           <p className="dec-call">{d.label}</p>
           <p className="dec-lead">{d.lead}</p>
         </div>
+        <ForecastBlock forecast={d.forecast} fixture={fixture} />
         {d.cards.length > 0 && (
           <div className="dec-cards">
             {d.cards.map((c, i) => (
@@ -107,6 +110,92 @@ export function Decision({ data, fixture }: { data: DecisionPanel; fixture: Fixt
         </div>
       </div>
     </section>
+  )
+}
+
+// The Forecast (docs/plans/03): each format's chance, rounded to 5 like the model
+// deserves, how often such forecasts came true, the Maps both Teams play, its
+// limits, and a button that keeps it to be graded once the series is played.
+function ForecastBlock({ forecast, fixture }: { forecast: DecisionForecast; fixture: Fixture }) {
+  const [format, setFormat] = useState('bo3')
+  const save = $api.useMutation('post', '/forecasts')
+  if (!forecast.series.length) {
+    return forecast.limits.length ? <p className="fc-limit">{forecast.limits.join(' ')}</p> : null
+  }
+  const bo3 = forecast.series.find((s) => s.format === 'Bo3')
+  const ids = (raw?: string) => (raw ? raw.split(',').filter(Boolean) : [])
+  function keep() {
+    save.mutate({
+      body: {
+        my_team_id: fixture.mine.id,
+        opponent_id: fixture.theirs.id,
+        my_lineup: ids(fixture.query.my_lineup),
+        their_lineup: ids(fixture.query.their_lineup),
+        format: format as 'bo1' | 'bo3' | 'bo5',
+      },
+    })
+  }
+  return (
+    <div className="fc">
+      <div className="fc-series">
+        {forecast.series.map((s) => (
+          <div key={s.format} className={`fc-tile ${s.tone}`}>
+            <b>~{s.pct}%</b>
+            <span className="fmt">
+              {s.format} · {s.word}
+            </span>
+            <span className="of">{s.often}</span>
+          </div>
+        ))}
+      </div>
+      <p className="fc-note">
+        {forecast.ratings
+          .map((r) => `${r.team} ${r.rating ?? '—'}${r.region ? ` (${r.region}, ${r.series} цуврал)` : ''}`)
+          .join(' · ')}
+        {bo3?.trust ? ` ${bo3.trust}` : ''}
+      </p>
+      {forecast.maps.length > 0 && (
+        <table className="setup fc-maps">
+          <thead>
+            <tr>
+              <th>Map</th>
+              {forecast.maps_used && <th className="num">Бидний хожих</th>}
+              <th className="num">Бид тоглосон</th>
+              <th className="num">Тэд тоглосон</th>
+            </tr>
+          </thead>
+          <tbody>
+            {forecast.maps.map((m) => (
+              <tr key={m.map}>
+                <td>{m.map}</td>
+                {forecast.maps_used && <td className="num">~{m.pct}%</td>}
+                <td className="num">{m.played_mine}</td>
+                <td className={`num ${m.played_theirs === 0 ? 'warn' : ''}`}>{m.played_theirs}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <p className="fc-note">Тоглосон: сүүлийн 180 хоногт хадгалагдсан Match Map. Тэдний тоглоогүй Map нь ихэвчлэн ban-д ордог.</p>
+      {forecast.limits.map((l, i) => (
+        <p key={i} className="fc-limit">
+          {l}
+        </p>
+      ))}
+      <div className="fc-save">
+        <select value={format} onChange={(e) => setFormat(e.target.value)} aria-label="Формат">
+          <option value="bo1">Bo1</option>
+          <option value="bo3">Bo3</option>
+          <option value="bo5">Bo5</option>
+        </select>
+        <button type="button" onClick={keep} disabled={save.isPending}>
+          Forecast хадгалах
+        </button>
+        {save.isSuccess && <span>Хадгаллаа: тоглолтын дараа дүгнэгдэнэ.</span>}
+        {save.isError && <span className="crit-text">Хадгалж чадсангүй.</span>}
+        <Link to="/forecasts">Бүх Forecast →</Link>
+      </div>
+    </div>
   )
 }
 

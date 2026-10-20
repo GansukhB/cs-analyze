@@ -494,6 +494,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/forecasts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Index
+         * @description The Workspace's Forecasts, newest first, graded first, and how they did.
+         */
+        get: operations["index_forecasts_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_forecasts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/forecasts/{public_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detail */
+        get: operations["detail_forecasts__public_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assistant/config": {
         parameters: {
             query?: never;
@@ -819,6 +857,90 @@ export interface components {
             cls: string;
             /** Why */
             why: string;
+        };
+        /**
+         * ForecastCreate
+         * @description Make the Fixture's Forecast now and keep it. Lineups are Steam ids.
+         */
+        ForecastCreate: {
+            /** My Team Id */
+            my_team_id: number;
+            /** Opponent Id */
+            opponent_id: number;
+            /** My Lineup */
+            my_lineup?: string[];
+            /** Their Lineup */
+            their_lineup?: string[];
+            /**
+             * Format
+             * @default bo3
+             * @enum {string}
+             */
+            format: "bo1" | "bo3" | "bo5";
+        };
+        /** ForecastList */
+        ForecastList: {
+            /** Items */
+            items: components["schemas"]["ForecastRead"][];
+            summary: components["schemas"]["ForecastSummary"];
+        };
+        /** ForecastRead */
+        ForecastRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            my_team: components["schemas"]["TeamRef"];
+            opponent: components["schemas"]["TeamRef"];
+            /** Format */
+            format: string;
+            /** P Series */
+            p_series: number;
+            /** Text */
+            text: string;
+            /** Model Version */
+            model_version: string;
+            /** Outputs */
+            outputs: {
+                [key: string]: unknown;
+            };
+            /** Graded At */
+            graded_at: string | null;
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Log Loss */
+            log_loss: number | null;
+            /** Brier */
+            brier: number | null;
+        };
+        /** ForecastSummary */
+        ForecastSummary: {
+            /** Made */
+            made: number;
+            /** Graded */
+            graded: number;
+            /** Expired */
+            expired: number;
+            /** Coin Log Loss */
+            coin_log_loss: number;
+            /** Log Loss */
+            log_loss: number | null;
+            /** Brier */
+            brier: number | null;
+            /** Favourites Won */
+            favourites_won: number | null;
+            /** Maps */
+            maps: number;
+            /** Map Log Loss */
+            map_log_loss: number | null;
         };
         /** GameplanHeader */
         GameplanHeader: {
@@ -3049,6 +3171,90 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    index_forecasts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForecastList"];
+                };
+            };
+        };
+    };
+    create_forecasts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForecastCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForecastRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detail_forecasts__public_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                public_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForecastRead"];
                 };
             };
             /** @description Validation Error */

@@ -4,11 +4,11 @@
 эзэн, IGL хоёр **шийдвэр** гаргана. Тэдний асуулт гурав л байдаг: хожиж чадах
 уу, аль газрын зургийг сонгох вэ, юу өөрчлөх вэ.
 
-:mod:`app.services.gameplan` бүх тоог аль хэдийн бодсон байдаг. Энэ модуль
-шинэ тоо бодохгүй -- зөвхөн тэдгээрээс *хамгийн шийдвэрлэх* дөрвийг ялгаж
-аваад, нэг дэлгэцэнд багтаах хэлбэрт оруулна. Тиймээс энд гарч ирсэн тоо бүр
-хуудасны доод хэсэгт өөрийн нотолгоотойгоо давхар байх ёстой: дүгнэлт нь
-нотолгооноосоо салж чадахгүй.
+Хожих магадлалыг Forecast (:mod:`app.services.forecast`) хэлнэ. Бусад тоог
+:mod:`app.services.gameplan` аль хэдийн бодсон байдаг: энэ модуль тэдгээрээс
+*хамгийн шийдвэрлэх* дөрвийг ялгаж аваад, нэг дэлгэцэнд багтаах хэлбэрт
+оруулна. Тиймээс энд гарч ирсэн тоо бүр хуудасны доод хэсэгт өөрийн
+нотолгоотойгоо давхар байх ёстой: дүгнэлт нь нотолгооноосоо салж чадахгүй.
 
 Нэг картад нэг тоо. Хоёр тоо тавьсан мөчид карт хүснэгт болж, хүн уншихаа
 болино -- энэ нь дизайны дүрэм биш, ажиглалт.
@@ -18,59 +18,101 @@ cstat-ийн ``hltv/services/decision.py``-аас шилжүүлсэн.
 
 from __future__ import annotations
 
-from app.services import mn
+from app.services import forecast, lineup, mn
 
-# Хожих боломжийг үнэлэх босгууд. Арван хоёр үзүүлэлтээс хэдэн дээр нь бид
-# урд байна вэ гэдгээр хэмжинэ -- хоёр багийг өөр хоорондоо биш, ижил
-# аргачлалаар өөрсдийн тоглолт дээр нь.
-EVEN_METRICS = 5
-STRONG_METRICS = 7
 # Энэ хэмжээнээс дээш савлалт бол "хөшүүрэг" -- өөрчилж чадах зүйл.
 LEVER_SWING = 20.0
 LEVER_COLLAPSE = 8.0
+# The call is made on the format most series are played in.
+CALL_FORMAT = "bo3"
 
 
 def build(report: dict, my_team, opponent) -> dict:
-    """Эзний шийдвэрийн дэлгэц. ``gameplan.build`` -ийн үр дүнг л уншина."""
-    ahead, total, per_metric = _form_balance(report)
+    """Эзний шийдвэрийн дэлгэц: Forecast (docs/plans/03), карт, гурван үйлдэл.
+
+    Хожиж чадах уу гэдгийг хоёр багийн Rating хэлнэ: өрсөлдөгчдийнх нь хүчийг
+    тооцсон, шалгагдсан тоо. Өмнө нь 12 үзүүлэлтээс хэд дээр нь урд байгааг
+    тоолдог байсан ч энэ нь өрсөлдөгчдийн хүчийг тооцдоггүй байсан (GP-2)."""
     stale = bool((report.get("continuity") or {}).get("stale"))
     levers = _levers(report)
-    # Only their weak points move the call; our own collapses and the players we
-    # must protect are risks, and more of them must not turn "close" into "winnable".
-    theirs = [lever for lever in levers if lever["kind"] == "linchpin"]
-    call, label, tone = _call(ahead, total, stale, theirs)
-
+    fc = forecast.build(
+        my_team,
+        opponent,
+        my_lineup=_picked(my_team),
+        their_lineup=_picked(opponent),
+    )
+    call, label, tone = _call(fc)
     return {
         "call": call,
         "label": label,
         "tone": tone,
-        "lead": _lead(call, report, my_team, opponent, ahead, total, stale),
+        "lead": _lead(fc, report, my_team, opponent, stale),
+        "forecast": _forecast(fc, my_team, opponent),
         "cards": _cards(report, opponent),
         "moves": _moves(report, levers, my_team, opponent),
-        "balance": {"ahead": ahead, "total": total, "metrics": per_metric},
         "confidence": _confidence(report),
     }
 
 
-# ----------------------------------------------------------- хүчний тэнцвэр
-def _form_balance(report: dict):
-    """Хэдэн үзүүлэлт дээр бид урд байна вэ -- өөрсдийн тоглолт дээр хэмжсэн.
+def _picked(team) -> list[str] | None:
+    chosen = lineup.chosen(team)
+    return [p.name for p in chosen] if chosen else None
 
-    Хоёр багийг шууд харьцуулах нь зөв: энд аль аль нь ижил pool-той
-    z-score-оор биш, өөрсдийн формоороо зэрэгцэж байна. Толгойн тоо (1-6)
-    биш, чадварын зэрэгцүүлэлт.
-    """
-    mine = (report.get("my_team") or {}).get("metrics") or {}
-    theirs = (report.get("opponent") or {}).get("metrics") or {}
-    rows, ahead = [], 0
-    for key in mn.METRICS:
-        a, b = mine.get(key), theirs.get(key)
-        if a is None or b is None:
-            continue
-        win = float(a) >= float(b)
-        ahead += 1 if win else 0
-        rows.append({"key": key, "label": mn.metric(key), "mine": a, "theirs": b, "ahead": win})
-    return ahead, len(rows), rows
+
+# --------------------------------------------------------------- Forecast
+def _call(fc: dict):
+    """Хожиж чадах уу гэдэгт өгөх ганц үг: Bo3-ын Forecast-аар."""
+    series = (fc.get("series") or {}).get(CALL_FORMAT)
+    if not series:
+        return "unknown", "RATING АЛГА", "warn"
+    word, tone = mn.forecast_scale(series["expected"])
+    call = {"good": "winnable", "warn": "close", "crit": "hard"}[tone]
+    return call, f"{word.upper()} · ~{mn.round5(series['expected'])}%", tone
+
+
+def _forecast(fc: dict, my_team, opponent) -> dict:
+    """The Forecast as the page shows it: worded, rounded to 5, with its limits."""
+    series = []
+    for fmt, s in (fc.get("series") or {}).items():
+        word, tone = mn.forecast_scale(s["expected"])
+        series.append(
+            {
+                "format": mn.FORMAT[fmt],
+                "pct": mn.round5(s["expected"]),
+                "p": s["expected"],
+                "word": word,
+                "tone": tone,
+                "often": mn.forecast_often(s["expected"]),
+                "trust": mn.forecast_trust(s.get("reliability")),
+            }
+        )
+    ratings = []
+    for team, r in ((my_team, fc["ratings"]["mine"]), (opponent, fc["ratings"]["theirs"])):
+        ratings.append(
+            {
+                "team": team.name,
+                "rating": round(r["rating"]) if r else None,
+                "series": r["series"] if r else 0,
+                "region": (r or {}).get("region") or "",
+                "last": str(r["last"]) if r and r["last"] else "",
+            }
+        )
+    return {
+        "series": series,
+        "ratings": ratings,
+        "maps": [
+            {
+                "map": mn.game_map(m["map"]),
+                "pct": mn.round5(m["p"]),
+                "played_mine": m["played_mine"],
+                "played_theirs": m["played_theirs"],
+            }
+            for m in fc.get("maps") or []
+        ],
+        "maps_used": bool(fc.get("offsets_used")),
+        "limits": [mn.forecast_limit(item) for item in fc.get("limits") or []],
+        "model": fc.get("model") or "",
+    }
 
 
 def _levers(report: dict) -> list[dict]:
@@ -93,36 +135,8 @@ def _levers(report: dict) -> list[dict]:
     return out
 
 
-def _call(ahead: int, total: int, stale: bool, levers: list[dict]):
-    """Хожиж чадах уу гэдэгт өгөх ганц үг.
-
-    Гурван хүчин зүйл: хүчний тэнцвэр, толгойн тооны хамаарал, өөрчилж чадах
-    хөшүүргийн тоо. Хөшүүрэггүй тэнцүү баг бол тэнцүү; хөшүүрэгтэй бага зэрэг
-    дутуу баг бол боломжтой -- ялгаа нь тоглолтын өмнө юу хийж чадахад байна.
-    """
-    if not total:
-        return "unknown", "ӨГӨГДӨЛ ХҮРЭЛЦЭХГҮЙ", "warn"
-    # Хүчний зөрүү нь шийднэ. Толгойн тооны хуучирсан байдал (``stale``) нь
-    # *тэр тоог* тайлбарлана, чадварын зөрүүг арилгахгүй -- 12-оос 2 дээр урд
-    # байгаа багийг "тэнцүү" гэж нэрлэвэл хуудас итгэл алдана. Хөшүүрэг нь
-    # ойрхон тохиолдолд л шийдвэрлэнэ, хол зөрүүг нөхөхгүй.
-    if ahead >= STRONG_METRICS:
-        return "winnable", "ХОЖИХ БОЛОМЖТОЙ", "good"
-    if ahead >= EVEN_METRICS:
-        return (
-            ("winnable", "ХОЖИХ БОЛОМЖТОЙ", "good")
-            if len(levers) >= 2
-            else ("close", "ТЭНЦҮҮ — БЭЛТГЭЛЭЭС ХАМААРНА", "warn")
-        )
-    if ahead >= EVEN_METRICS - 2:
-        return "close", "ДУТУУ — ХӨШҮҮРЭГ ДЭЭР ТОГЛОНО", "warn"
-    if levers:
-        return "hard", "ХҮНД — ГЭХДЭЭ ХӨШҮҮРЭГ БАЙНА", "crit"
-    return "hard", "ХҮНД", "crit"
-
-
-def _lead(call, report, my_team, opponent, ahead, total, stale) -> str:
-    """Хоёр өгүүлбэр. Эхнийх нь дүгнэлт, хоёр дахь нь яагаад."""
+def _lead(fc, report, my_team, opponent, stale) -> str:
+    """Дүгнэлт, яагаад, хэр итгэх вэ."""
     h2h = (report.get("head_to_head") or {}).get("totals") or {}
     won, lost = h2h.get("maps_won") or 0, h2h.get("maps_lost") or 0
     cont = report.get("continuity") or {}
@@ -130,9 +144,20 @@ def _lead(call, report, my_team, opponent, ahead, total, stale) -> str:
     mine_c = sides.get("mine") or {}
 
     bits = []
+    series = (fc.get("series") or {}).get(CALL_FORMAT)
+    r_mine, r_theirs = fc["ratings"]["mine"], fc["ratings"]["theirs"]
+    if series and r_mine and r_theirs:
+        bits.append(
+            f"Rating: {my_team.name} {round(r_mine['rating'])}, "
+            f"{opponent.name} {round(r_theirs['rating'])}."
+        )
+        bits.append(
+            mn.forecast_line(CALL_FORMAT, series["expected"], my_team.name, opponent.name)[:-1]
+            + f": {mn.forecast_often(series['expected'])}."
+        )
     if stale and mine_c:
         bits.append(
-            f"{won}-{lost} гэдэг тоо хуучирсан: одоогийн {mine_c.get('of', 5)}-аас "
+            f"Хоорондын {won}-{lost} гэдэг тоо хуучирсан: одоогийн {mine_c.get('of', 5)}-аас "
             f"зөвхөн {mine_c.get('n', 0)} нь тэр тоглолтуудад байсан"
             + (
                 f", {mn.plural_players(mine_c.get('unseen'))} тэдэнтэй огт тоглож үзээгүй"
@@ -143,18 +168,6 @@ def _lead(call, report, my_team, opponent, ahead, total, stale) -> str:
         )
     elif won or lost:
         bits.append(f"H2H {won}-{lost}.")
-
-    if total:
-        if ahead >= STRONG_METRICS:
-            verdict = " — цаасан дээр бид давуу."
-        elif ahead >= EVEN_METRICS:
-            verdict = " — цаасан дээр тэнцүү."
-        else:
-            verdict = " — цаасан дээр тэд давуу."
-        bits.append(f"Өөрсдийн формоор {total} үзүүлэлтийн {ahead} дээр нь бид урд байна{verdict}")
-        # Each side's numbers come from its own opponents: until the Forecast
-        # weighs them (docs/plans 03), say that the comparison doesn't.
-        bits.append("Хоёр багийн тоглосон өрсөлдөгчдийн хүчийг энэ харьцуулалт тооцоогүй.")
     return " ".join(bits)
 
 

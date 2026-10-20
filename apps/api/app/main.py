@@ -5,7 +5,17 @@ from sqlalchemy import text
 from app.cache import get_cache
 from app.config import get_settings
 from app.deps import DbSession
-from app.routers import assistant, auth, gameplan, jobs, matches, players, system, teams
+from app.routers import (
+    assistant,
+    auth,
+    forecasts,
+    gameplan,
+    jobs,
+    matches,
+    players,
+    system,
+    teams,
+)
 
 _docs = get_settings().api_docs
 app = FastAPI(
@@ -29,6 +39,7 @@ app.include_router(teams.router)
 app.include_router(matches.router)
 app.include_router(players.router)
 app.include_router(gameplan.router)
+app.include_router(forecasts.router)
 app.include_router(assistant.router)
 app.include_router(system.router)
 

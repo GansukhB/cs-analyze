@@ -30,7 +30,7 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.models import SeriesResult, VrsStanding
 from app.services import stats
@@ -93,16 +93,30 @@ class Snapshot:
     history: dict[str, list[tuple[date, float]]]
     predictions: list[tuple[date, float, int]]  # (date, p for team_a, a won) before each series
     as_of: date | None
+    players: dict[str, float] = field(default_factory=dict)  # casefold name -> his Team's Rating
+    regions: dict[str, str] = field(default_factory=dict)  # casefold Team name -> VRS region
+
+    def before(self, name: str, on: date) -> float | None:
+        """A Team's Rating going into ``on``: after its last series before that day."""
+        rows = self.history.get(_key(name)) or []
+        i = bisect_right(rows, (on, -math.inf)) - 1
+        return rows[i][1] if i >= 0 else None
 
 
 class _Vrs:
     """VRS points by name, as of any date: the latest snapshot on or before it."""
 
-    def __init__(self, rows: Iterable[tuple[date, str, float]]):
+    def __init__(self, rows: Iterable[tuple]):
         by_name: dict[str, list[tuple[date, float]]] = defaultdict(list)
-        for snap, name, points in rows:
+        self.regions: dict[str, str] = {}
+        for snap, name, points, *region in sorted(rows, key=lambda r: r[0]):
             by_name[_key(name)].append((snap, points))
+            if region and region[0]:
+                self.regions[_key(name)] = region[0]  # the latest snapshot's
         self.by_name = {k: sorted(v) for k, v in by_name.items()}
+
+    def region(self, name: str) -> str | None:
+        return self.regions.get(_key(name))
 
     def points(self, name: str, on: date) -> float | None:
         rows = self.by_name.get(_key(name))
@@ -168,7 +182,7 @@ def replay(
             for pl in roster:
                 players[pl.casefold()] = t.rating
         as_of = played
-    return Snapshot(teams, dict(history), predictions, as_of)
+    return Snapshot(teams, dict(history), predictions, as_of, players, vrs.regions)
 
 
 def load_series(session=None) -> list[tuple]:
@@ -189,13 +203,42 @@ def load_series(session=None) -> list[tuple]:
 def load_vrs(session=None) -> _Vrs:
     session = session or db()
     return _Vrs(
-        session.execute(select(VrsStanding.snapshot, VrsStanding.team_name, VrsStanding.points))
+        session.execute(
+            select(
+                VrsStanding.snapshot,
+                VrsStanding.team_name,
+                VrsStanding.points,
+                VrsStanding.region,
+            )
+        )
     )
 
 
+_LATEST: dict = {}
+
+
+def stamp(session=None) -> tuple:
+    """Moves whenever a result or a standing is added or changed."""
+    session = session or db()
+    series = session.execute(
+        select(func.count(SeriesResult.id), func.max(SeriesResult.updated_at))
+    ).one()
+    standings = session.execute(
+        select(func.count(VrsStanding.id), func.max(VrsStanding.updated_at))
+    ).one()
+    return (*series, *standings, params().version)
+
+
 def current() -> Snapshot:
-    """The Ratings as of the newest result, once per request."""
-    return memo(("ratings",), lambda: replay(load_series(), load_vrs(), params()))
+    """The Ratings as of the newest result: replayed once per change, kept in the process."""
+
+    def build() -> Snapshot:
+        now = stamp()
+        if _LATEST.get("stamp") != now:
+            _LATEST.update(stamp=now, snap=replay(load_series(), load_vrs(), params()))
+        return _LATEST["snap"]
+
+    return memo(("ratings",), build)
 
 
 def of(name: str) -> dict | None:
@@ -232,6 +275,79 @@ def score(predictions: Iterable[tuple[date, float, int]]) -> dict:
         "brier": round(brier, 4),
         "accuracy": round(acc, 4),
     }
+
+
+def fit_regions(rows: list[tuple[float, int, str | None, str | None]]) -> dict[str, float]:
+    """A logit offset per region, centred on zero, that best explains the series
+    between regions: ``(p, won, region a, region b)``. Gradient descent on log loss."""
+    names = sorted({r for row in rows for r in row[2:] if r})
+    delta = dict.fromkeys(names, 0.0)
+    cross = [(math.log(q / (1 - q)), y, a, b) for q, y, a, b in rows if a and b and a != b]
+    if not cross:
+        return {}
+    for _ in range(300):
+        grad = dict.fromkeys(names, 0.0)
+        for z, y, a, b in cross:
+            e = 1 / (1 + math.exp(-(z + delta[a] - delta[b]))) - y
+            grad[a] += e
+            grad[b] -= e
+        for r in names:
+            delta[r] -= 0.5 * grad[r] / len(cross)
+        mean = sum(delta.values()) / len(delta)
+        for r in names:
+            delta[r] -= mean
+    return {r: round(v, 4) for r, v in delta.items()}
+
+
+def with_regions(q: float, a: str | None, b: str | None, regions: dict[str, float]) -> float:
+    """``q`` moved by the two regions' offsets (none when either is unknown)."""
+    if not (a and b) or a == b or not (0 < q < 1):
+        return q
+    z = math.log(q / (1 - q)) + regions.get(a, 0.0) - regions.get(b, 0.0)
+    return 1 / (1 + math.exp(-z))
+
+
+def regions() -> dict[str, float]:
+    """The committed region offsets (logit, on a series)."""
+    return _region_offsets()
+
+
+@lru_cache(maxsize=1)
+def _region_offsets() -> dict[str, float]:
+    if not PARAMS_PATH.exists():
+        return {}
+    return json.loads(PARAMS_PATH.read_text()).get("regions") or {}
+
+
+BAND = 0.05
+WILSON_Z = 1.2816  # an 80% interval
+
+
+def bands(predictions: Iterable[tuple[date, float, int]]) -> list[dict]:
+    """How often the favourite won, in 5-point bands of its chance (FC-2's
+    reliability table): each band's count, rate and 80% Wilson interval."""
+    groups: dict[int, list[int]] = defaultdict(list)
+    for _d, q, y in predictions:
+        fav, won = (q, y) if q >= 0.5 else (1 - q, 1 - y)
+        groups[min(int((fav - 0.5) / BAND), int(0.5 / BAND) - 1)].append(won)
+    out = []
+    for i in sorted(groups):
+        won = groups[i]
+        n, rate = len(won), sum(won) / len(won)
+        z = WILSON_Z
+        mid = (rate + z * z / (2 * n)) / (1 + z * z / n)
+        half = z * math.sqrt(rate * (1 - rate) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+        out.append(
+            {
+                "lo": round(0.5 + i * BAND, 2),
+                "hi": round(0.5 + (i + 1) * BAND, 2),
+                "n": n,
+                "won": round(rate, 4),
+                "low": round(mid - half, 4),
+                "high": round(mid + half, 4),
+            }
+        )
+    return out
 
 
 def _loss(q: float, y: int) -> float:
@@ -306,7 +422,18 @@ def backtest(series: list[tuple], vrs: _Vrs, split: date, burn_in: date) -> dict
     calibration = _fit_calibration(tune, best)
     fitted = replace(best, calibration=calibration)
     preds = replay(series, vrs, fitted).predictions
-    test = [r for r in preds if r[0] >= split]
+    # FC-2's last layer: an offset per region, fitted on the tuning span's series
+    # between regions (Elo inside a region knows little about the others).
+    pairs = [(vrs.region(s[1]), vrs.region(s[2])) for s in series]
+    regions = fit_regions(
+        [(q, y, *pr) for (d, q, y), pr in zip(preds, pairs, strict=True) if burn_in <= d < split]
+    )
+    plain = [r for r in preds if r[0] >= split]
+    test = [
+        (d, with_regions(q, ra, rb, regions), y)
+        for (d, q, y), (ra, rb) in zip(preds, pairs, strict=True)
+        if d >= split
+    ]
 
     # Baselines on the same test series: a coin, and Valve's points alone (with
     # their own calibration fitted on the tuning span, so the comparison is fair).
@@ -329,8 +456,23 @@ def backtest(series: list[tuple], vrs: _Vrs, split: date, burn_in: date) -> dict
     ]
     return {
         "params": asdict(fitted),
+        "regions": regions,
+        "reliability": bands(test),
         "tune": score(tune),
         "test": score(test),
+        "test_without_regions": score(plain),
+        "between_regions": {
+            "without": score(
+                r
+                for r, (ra, rb) in zip(preds, pairs, strict=True)
+                if r[0] >= split and ra and rb and ra != rb
+            ),
+            "with": score(
+                (d, with_regions(q, ra, rb, regions), y)
+                for (d, q, y), (ra, rb) in zip(preds, pairs, strict=True)
+                if d >= split and ra and rb and ra != rb
+            ),
+        },
         "baselines": {"coin": score(coin), "vrs_points": score(vrs_only)},
         "vs_vrs_points": compare(test, vrs_only),
         "split": split.isoformat(),

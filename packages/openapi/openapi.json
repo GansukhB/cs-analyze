@@ -1448,6 +1448,125 @@
         }
       }
     },
+    "/forecasts": {
+      "get": {
+        "tags": [
+          "forecasts"
+        ],
+        "summary": "Index",
+        "description": "The Workspace's Forecasts, newest first, graded first, and how they did.",
+        "operationId": "index_forecasts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "forecasts"
+        ],
+        "summary": "Create",
+        "operationId": "create_forecasts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForecastCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/forecasts/{public_id}": {
+      "get": {
+        "tags": [
+          "forecasts"
+        ],
+        "summary": "Detail",
+        "operationId": "detail_forecasts__public_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/assistant/config": {
       "get": {
         "tags": [
@@ -2195,6 +2314,256 @@
           "why"
         ],
         "title": "DemoState"
+      },
+      "ForecastCreate": {
+        "properties": {
+          "my_team_id": {
+            "type": "integer",
+            "title": "My Team Id"
+          },
+          "opponent_id": {
+            "type": "integer",
+            "title": "Opponent Id"
+          },
+          "my_lineup": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "My Lineup"
+          },
+          "their_lineup": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Their Lineup"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "bo1",
+              "bo3",
+              "bo5"
+            ],
+            "title": "Format",
+            "default": "bo3"
+          }
+        },
+        "type": "object",
+        "required": [
+          "my_team_id",
+          "opponent_id"
+        ],
+        "title": "ForecastCreate",
+        "description": "Make the Fixture's Forecast now and keep it. Lineups are Steam ids."
+      },
+      "ForecastList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ForecastRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ForecastSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "summary"
+        ],
+        "title": "ForecastList"
+      },
+      "ForecastRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "my_team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "opponent": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format"
+          },
+          "p_series": {
+            "type": "number",
+            "title": "P Series"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "outputs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Outputs"
+          },
+          "graded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graded At"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "log_loss": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log Loss"
+          },
+          "brier": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "my_team",
+          "opponent",
+          "format",
+          "p_series",
+          "text",
+          "model_version",
+          "outputs",
+          "graded_at",
+          "result",
+          "log_loss",
+          "brier"
+        ],
+        "title": "ForecastRead"
+      },
+      "ForecastSummary": {
+        "properties": {
+          "made": {
+            "type": "integer",
+            "title": "Made"
+          },
+          "graded": {
+            "type": "integer",
+            "title": "Graded"
+          },
+          "expired": {
+            "type": "integer",
+            "title": "Expired"
+          },
+          "coin_log_loss": {
+            "type": "number",
+            "title": "Coin Log Loss"
+          },
+          "log_loss": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log Loss"
+          },
+          "brier": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brier"
+          },
+          "favourites_won": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Favourites Won"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "map_log_loss": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map Log Loss"
+          }
+        },
+        "type": "object",
+        "required": [
+          "made",
+          "graded",
+          "expired",
+          "coin_log_loss",
+          "log_loss",
+          "brier",
+          "favourites_won",
+          "maps",
+          "map_log_loss"
+        ],
+        "title": "ForecastSummary"
       },
       "GameplanHeader": {
         "properties": {

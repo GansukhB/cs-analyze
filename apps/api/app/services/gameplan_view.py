@@ -10,6 +10,7 @@ server already worded, so the wording stays in :mod:`app.services.mn` alone.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping
 
 from sqlalchemy import func, select
@@ -23,6 +24,7 @@ from app.services import (
     mn,
     playbook_view,
     pool_cache,
+    rating,
     review_pool,
 )
 from app.services.dbctx import db
@@ -96,7 +98,9 @@ def stamp() -> str:
     """
     # The Playbook's Levers and Cautions read the Reviews, which the worker
     # rebuilds after a parse (docs/adr/0008).
-    return f"{pool_cache.parse_stamp()}-{review_pool.stamp()}"
+    # The Decision tab's Forecast reads the Ratings, which move on new results.
+    ratings = hashlib.sha1(repr(rating.stamp()).encode()).hexdigest()[:8]
+    return f"{pool_cache.parse_stamp()}-{review_pool.stamp()}-{ratings}"
 
 
 # --------------------------------------------------------------- helpers ---

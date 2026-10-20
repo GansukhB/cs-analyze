@@ -1,6 +1,6 @@
 import datetime as dt
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -595,6 +595,55 @@ class GameplanPanel(BaseModel):
     cached: bool
     ms: float
     data: dict[str, Any]
+
+
+# -- Forecasts (docs/plans/03 FC-4) -------------------------------------------------
+class ForecastCreate(BaseModel):
+    """Make the Fixture's Forecast now and keep it. Lineups are Steam ids."""
+
+    my_team_id: int
+    opponent_id: int
+    my_lineup: list[str] = Field(default_factory=list, max_length=5)
+    their_lineup: list[str] = Field(default_factory=list, max_length=5)
+    format: Literal["bo1", "bo3", "bo5"] = "bo3"
+
+
+class ForecastRead(BaseModel):
+    id: uuid.UUID
+    created_at: dt.datetime
+    my_team: TeamRef
+    opponent: TeamRef
+    format: str
+    p_series: float
+    text: str
+    model_version: str
+    outputs: dict[str, Any]
+    graded_at: dt.datetime | None
+    result: dict[str, Any] | None
+    log_loss: float | None
+    brier: float | None
+
+    @field_validator("created_at", "graded_at")
+    @classmethod
+    def stamped_utc(cls, value: dt.datetime | None) -> dt.datetime | None:
+        return _utc(value)
+
+
+class ForecastSummary(BaseModel):
+    made: int
+    graded: int
+    expired: int
+    coin_log_loss: float
+    log_loss: float | None
+    brier: float | None
+    favourites_won: int | None
+    maps: int
+    map_log_loss: float | None
+
+
+class ForecastList(BaseModel):
+    items: list[ForecastRead]
+    summary: ForecastSummary
 
 
 # -- the Assistant -----------------------------------------------------------------

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { useToken } from './auth/token'
 import Layout from './Layout'
+import ForecastsPage from './pages/ForecastsPage'
 import GameplanPage from './pages/GameplanPage'
 import GameplanPickPage from './pages/GameplanPickPage'
 import HomePage from './pages/HomePage'
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="matches/:matchId/m/:mapNumber" element={<MatchPage />} />
         <Route path="players/:steamid" element={<PlayerPage />} />
         <Route path="gameplan" element={<GameplanPickPage />} />
+        <Route path="forecasts" element={<ForecastsPage />} />
         <Route path="gameplan/:mine/vs/:theirs" element={<GameplanPage />} />
         <Route path="gameplan/:mine/vs/:theirs/s/:tab" element={<GameplanPage />} />
         <Route path="gameplan/:mine/vs/:theirs/s/:tab/m/:map" element={<GameplanPage />} />

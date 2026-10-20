@@ -276,6 +276,10 @@ def import_vrs(root: Path | None) -> None:
         f"{out['standings']} standings lines; {out['series']} series read, "
         f"{out['added']} new, {out['total']} stored."
     )
+    from app.services import forecast_store
+
+    with SessionLocal() as db:
+        print(f"{forecast_store.grade(db)} Forecasts graded.")
 
 
 def forecast_backtest() -> None:
@@ -283,7 +287,7 @@ def forecast_backtest() -> None:
     import json
     from datetime import date
 
-    from app.services import rating
+    from app.services import dbctx, forecast, rating
 
     with SessionLocal() as db:
         series, vrs = rating.load_series(db), rating.load_vrs(db)
@@ -293,7 +297,14 @@ def forecast_backtest() -> None:
     out["params"]["version"] = date.today().strftime("%Y%m%d")
     out["series"] = len(series)
     rating.PARAMS_PATH.write_text(json.dumps(out, indent=2) + "\n")
-    keys = ("params", "tune", "test", "baselines", "vs_vrs_points")
+    # The Map model on every stored Match Map, with the parameters just fitted.
+    rating._params.cache_clear()
+    forecast._load_committed.cache_clear()
+    rating._region_offsets.cache_clear()
+    with SessionLocal() as db, dbctx.using(db):
+        out["maps"] = forecast.check_maps()
+    rating.PARAMS_PATH.write_text(json.dumps(out, indent=2) + "\n")
+    keys = ("params", "tune", "test", "baselines", "vs_vrs_points", "maps")
     print(json.dumps({k: out[k] for k in keys}, indent=2))
     print(f"Wrote {rating.PARAMS_PATH}; commit it.")
 

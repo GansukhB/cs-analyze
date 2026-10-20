@@ -51,15 +51,16 @@ RUSH_PLANT_SEC = 35.0
 # Plants needed from *other* teams before a map's tempo is worth comparing against.
 MIN_PLANTS_FOR_BASELINE = 8
 
+# Valve's Active Duty pool since 2026-07-08 (docs/plans/09 VIZ-11 will read it
+# from the data). The Forecast's veto needs exactly seven.
 ACTIVE_DUTY = (
     "de_ancient",
     "de_anubis",
+    "de_cache",
     "de_dust2",
     "de_inferno",
     "de_mirage",
     "de_nuke",
-    "de_overpass",
-    "de_train",
 )
 
 

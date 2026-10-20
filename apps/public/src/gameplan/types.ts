@@ -12,12 +12,30 @@ export interface DecisionCard {
   detail: string
   tone: string
 }
+export interface ForecastSeries {
+  format: string
+  pct: number
+  p: number
+  word: string
+  tone: string
+  often: string
+  trust: string
+}
+export interface DecisionForecast {
+  series: ForecastSeries[]
+  ratings: { team: string; rating: number | null; series: number; region: string; last: string }[]
+  maps: { map: string; pct: number; played_mine: number; played_theirs: number }[]
+  maps_used: boolean
+  limits: string[]
+  model: string
+}
 export interface DecisionPanel {
   decision: {
     call: string
     label: string
     tone: string
     lead: string
+    forecast: DecisionForecast
     cards: DecisionCard[]
     moves: { what: string; why: string; tone: string }[]
     confidence: string

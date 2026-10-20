@@ -41,6 +41,9 @@ export default function Layout() {
               <NavLink to="/gameplan" className={link}>
                 Game plan
               </NavLink>
+              <NavLink to="/forecasts" className={link}>
+                Forecast
+              </NavLink>
             </nav>
           )}
           <div className="ml-auto flex items-center gap-4">

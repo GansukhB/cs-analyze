@@ -3059,3 +3059,66 @@ def advice_action(entry: dict, map_label: str, team: str) -> dict:
     kind = "Ашиглах" if entry["role"] == "lever" else "Анхаарах"
     why = " ".join(worded["facts"]) + (f" {worded['counter']}" if worded["counter"] else "")
     return _act(f"{map_label} · {kind}: {worded['title']}", why)
+
+
+# -- Forecast (docs/plans/03 FC-6) ------------------------------------------------
+FORMAT = {"bo1": "Bo1", "bo3": "Bo3", "bo5": "Bo5"}
+
+
+def round5(p: float) -> int:
+    """A chance as a percent, to the nearest 5: the model is no finer than that."""
+    return int(round(p * 20) * 5)
+
+
+def forecast_scale(p: float) -> tuple[str, str]:
+    """``(word, tone)`` for our chance of a series."""
+    if p >= 0.65:
+        return "давуу", "good"
+    if p >= 0.55:
+        return "бага зэрэг давуу", "good"
+    if p > 0.45:
+        return "тэнцүү", "warn"
+    if p > 0.35:
+        return "бага зэрэг дутуу", "warn"
+    return "дутуу", "crit"
+
+
+def forecast_often(p: float) -> str:
+    return f"ийм 10 цувралаас ~{round(p * 10)}-д нь хожно"
+
+
+def forecast_trust(band: dict | None) -> str:
+    if not band:
+        return ""
+    return (
+        f"Өмнө нь энэ хүрээнд ({round(band['lo'] * 100)}–{round(band['hi'] * 100)}%) "
+        f"таамагласан {band['n']} цувралын {pct(band['won'] * 100, 0)} нь хожсон."
+    )
+
+
+FORECAST_LIMIT = {
+    "unrated": (
+        "{team}-ийн үр дүн Valve-ийн жагсаалтад алга: Rating байхгүй тул Forecast гарсангүй."
+    ),
+    "cold": "{team} ердөө {series} цуврал тоглосон: Rating тогтоогоогүй байж магадгүй.",
+    "stale": "{team}-ийн Rating-ийг {last}-аас хойш ямар ч цуврал хөдөлгөөгүй.",
+    "lineup": (
+        "{team}-ийн сонгосон Lineup-д үр дүнгийн тав дахь гурав нь алга: Rating-ийг "
+        "тоглогчдын өмнөх багуудаас тооцов."
+    ),
+    "maps_even": (
+        "Map бүрийн ялгааг тооцоогүй: хадгалсан {n} Match Map дээр шалгахад Map-ын "
+        "offset таамгийг сайжруулсангүй (log loss {with_offsets}, Rating дангаараа "
+        "{rating_only}). Map-аа Map-ын хүснэгт ба Playbook-оор сонго."
+    ),
+}
+
+
+def forecast_limit(item: dict) -> str:
+    text = FORECAST_LIMIT.get(item["code"], item["code"])
+    return text.format(**{k: ("" if v is None else v) for k, v in item.items()})
+
+
+def forecast_line(fmt: str, p: float, mine: str, theirs: str) -> str:
+    word, _tone = forecast_scale(p)
+    return f"{FORMAT.get(fmt, fmt)}: {mine} {theirs}-ийг хожих магадлал ~{round5(p)}% ({word})."
