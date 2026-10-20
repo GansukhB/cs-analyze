@@ -424,3 +424,7 @@
   .gp-page .gp { display: block !important; }
   .gp-page .gp-main { width: 100% !important; }
 }
+
+/* Both Teams' style on the Map (TM-5): a fold under the Playbook's header. */
+.pb details.pb-style { margin: 14px 0 6px; }
+.pb details.pb-style > summary { cursor: pointer; color: var(--ink-2); font-size: 13.5px; margin-bottom: 8px; }

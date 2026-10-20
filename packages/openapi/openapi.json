@@ -387,6 +387,70 @@
         }
       }
     },
+    "/teams/{team_id}/style": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Team Style",
+        "description": "The Team's style on one Map against every Team's (TM-5): its most played\nMap unless one is named.",
+        "operationId": "team_style_teams__team_id__style_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Map"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamStyleView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/matches/{match_id}": {
       "get": {
         "tags": [
@@ -1685,6 +1749,72 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GameplanPanel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gameplan/{mine}/vs/{theirs}/style/{map_name}": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Fixture Style",
+        "description": "Both Teams' style on one Map, each against every Team's (TM-5).",
+        "operationId": "fixture_style_gameplan__mine__vs__theirs__style__map_name__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          },
+          {
+            "name": "map_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Map Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixtureStyle"
                 }
               }
             }
@@ -5144,6 +5274,22 @@
           "reasons"
         ],
         "title": "DisputeRate"
+      },
+      "FixtureStyle": {
+        "properties": {
+          "mine": {
+            "$ref": "#/components/schemas/TeamStyle"
+          },
+          "theirs": {
+            "$ref": "#/components/schemas/TeamStyle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mine",
+          "theirs"
+        ],
+        "title": "FixtureStyle"
       },
       "ForecastCreate": {
         "properties": {
@@ -10516,6 +10662,92 @@
         ],
         "title": "StageRow"
       },
+      "StyleMetric": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "thin": {
+            "type": "boolean",
+            "title": "Thin"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          },
+          "teams": {
+            "type": "integer",
+            "title": "Teams"
+          },
+          "more": {
+            "type": "string",
+            "title": "More"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "value",
+          "unit",
+          "n",
+          "thin",
+          "pct",
+          "teams",
+          "more"
+        ],
+        "title": "StyleMetric"
+      },
+      "StyleSide": {
+        "properties": {
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/StyleMetric"
+            },
+            "type": "array",
+            "title": "Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "side",
+          "label",
+          "metrics"
+        ],
+        "title": "StyleSide"
+      },
       "SummaryCount": {
         "properties": {
           "sid": {
@@ -11217,6 +11449,59 @@
         ],
         "title": "TeamStrength",
         "description": "The Team's Rating and its results by the opponent's tier (TM-2, TM-10)."
+      },
+      "TeamStyle": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "sides": {
+            "items": {
+              "$ref": "#/components/schemas/StyleSide"
+            },
+            "type": "array",
+            "title": "Sides"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "label",
+          "sides"
+        ],
+        "title": "TeamStyle"
+      },
+      "TeamStyleView": {
+        "properties": {
+          "maps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "style": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamStyle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "style"
+        ],
+        "title": "TeamStyleView"
       },
       "TeamSummary": {
         "properties": {

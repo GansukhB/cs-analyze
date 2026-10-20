@@ -1040,6 +1040,41 @@ class MapAudit(BaseModel):
     pool: AuditPool
 
 
+# -- A Team's style (docs/plans/05 TM-5) --------------------------------------------
+class StyleMetric(BaseModel):
+    key: str
+    label: str
+    value: float
+    unit: str  # "s" a median in seconds, "%" a share
+    n: int
+    thin: bool
+    pct: int | None  # percentile among the Teams on the Map
+    teams: int
+    more: str  # what a high percentile means
+
+
+class StyleSide(BaseModel):
+    side: str
+    label: str
+    metrics: list[StyleMetric]
+
+
+class TeamStyle(BaseModel):
+    map: str
+    label: str
+    sides: list[StyleSide]
+
+
+class TeamStyleView(BaseModel):
+    maps: list[str]
+    style: TeamStyle | None
+
+
+class FixtureStyle(BaseModel):
+    mine: TeamStyle
+    theirs: TeamStyle
+
+
 # -- After the Match: the Briefing checked (docs/plans/06 GP-8) ---------------------
 class CheckRef(BaseModel):
     match: int

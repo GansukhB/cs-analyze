@@ -179,6 +179,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/teams/{team_id}/style": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Team Style
+         * @description The Team's style on one Map against every Team's (TM-5): its most played
+         *     Map unless one is named.
+         */
+        get: operations["team_style_teams__team_id__style_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/matches/{match_id}": {
         parameters: {
             query?: never;
@@ -605,6 +626,26 @@ export interface paths {
          * @description One panel's data, computed once per parse stamp and pair of Lineups.
          */
         get: operations["panel_gameplan__mine__vs__theirs__s__tab__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gameplan/{mine}/vs/{theirs}/style/{map_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fixture Style
+         * @description Both Teams' style on one Map, each against every Team's (TM-5).
+         */
+        get: operations["fixture_style_gameplan__mine__vs__theirs__style__map_name__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1786,6 +1827,11 @@ export interface components {
             reasons: {
                 [key: string]: number;
             };
+        };
+        /** FixtureStyle */
+        FixtureStyle: {
+            mine: components["schemas"]["TeamStyle"];
+            theirs: components["schemas"]["TeamStyle"];
         };
         /**
          * ForecastCreate
@@ -3660,6 +3706,36 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** StyleMetric */
+        StyleMetric: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: number;
+            /** Unit */
+            unit: string;
+            /** N */
+            n: number;
+            /** Thin */
+            thin: boolean;
+            /** Pct */
+            pct: number | null;
+            /** Teams */
+            teams: number;
+            /** More */
+            more: string;
+        };
+        /** StyleSide */
+        StyleSide: {
+            /** Side */
+            side: string;
+            /** Label */
+            label: string;
+            /** Metrics */
+            metrics: components["schemas"]["StyleMetric"][];
+        };
         /** SummaryCount */
         SummaryCount: {
             /** Sid */
@@ -3915,6 +3991,21 @@ export interface components {
             trend: components["schemas"]["TeamTrendPoint"][];
             /** Tiers */
             tiers: components["schemas"]["TeamTier"][];
+        };
+        /** TeamStyle */
+        TeamStyle: {
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** Sides */
+            sides: components["schemas"]["StyleSide"][];
+        };
+        /** TeamStyleView */
+        TeamStyleView: {
+            /** Maps */
+            maps: string[];
+            style: components["schemas"]["TeamStyle"] | null;
         };
         /** TeamSummary */
         TeamSummary: {
@@ -4402,6 +4493,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    team_style_teams__team_id__style_get: {
+        parameters: {
+            query?: {
+                map?: string | null;
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamStyleView"];
                 };
             };
             /** @description Validation Error */
@@ -5185,6 +5309,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GameplanPanel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fixture_style_gameplan__mine__vs__theirs__style__map_name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mine: number;
+                theirs: number;
+                map_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixtureStyle"];
                 };
             };
             /** @description Validation Error */

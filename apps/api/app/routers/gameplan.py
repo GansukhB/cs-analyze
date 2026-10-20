@@ -25,6 +25,7 @@ from app.cache import get_cache
 from app.deps import DbSession, StaffUser
 from app.models import Player, Team
 from app.schemas import (
+    FixtureStyle,
     GameplanHeader,
     GameplanLineup,
     GameplanLineups,
@@ -46,6 +47,7 @@ from app.services import (
     radar,
     review_pool,
     scope,
+    style,
 )
 
 logger = logging.getLogger(__name__)
@@ -236,6 +238,20 @@ def panel(
         ms=round((time.perf_counter() - started) * 1000, 1),
         data=data,
     )
+
+
+@router.get("/{mine}/vs/{theirs}/style/{map_name}")
+def fixture_style(
+    mine: int, theirs: int, map_name: str, db: DbSession, _: StaffUser
+) -> FixtureStyle:
+    """Both Teams' style on one Map, each against every Team's (TM-5)."""
+    if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
+    my_team, opponent = _fixture(db, mine, theirs)
+    with dbctx.using(db):
+        return FixtureStyle(
+            mine=style.team(my_team.id, map_name), theirs=style.team(opponent.id, map_name)
+        )
 
 
 @router.get("/{mine}/vs/{theirs}/playbook/{map_name}")

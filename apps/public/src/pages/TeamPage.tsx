@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router'
 import { $api } from '../api/client'
 import StrengthSection from '../team/Strength'
+import StyleSection from '../team/Style'
 import type { components } from '../api/schema'
 import Count from '../components/Count'
 import { day, PILL } from '../jobs/format'
@@ -51,6 +52,7 @@ export default function TeamPage() {
       </div>
 
       {strength && <StrengthSection s={strength} />}
+      {n_parsed_maps > 0 && <StyleSection teamId={info.id} name={info.name} />}
 
       {plannable.length > 0 && (
         <section className="space-y-2">

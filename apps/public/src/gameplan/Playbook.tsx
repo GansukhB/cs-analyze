@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { $api } from '../api/client'
+import { StyleTable } from '../team/Style'
 import { type Fixture, Todo } from './panels'
 import type { Advice, AdviceSide, Evidence, Habit, PlaybookPanel, RoundRef, Strength, TodoPanel } from './types'
 
@@ -53,6 +54,29 @@ export function TodoTab({ data, fixture, map }: { data: TodoPanel; fixture: Fixt
   )
 }
 
+/** Both Teams' style on the Map, each against every Team on it (TM-5). */
+function FixtureStyle(props: { fixture: Fixture; map: string; mine: string; theirs: string }) {
+  const { fixture, map } = props
+  const q = $api.useQuery(
+    'get',
+    '/gameplan/{mine}/vs/{theirs}/style/{map_name}',
+    { params: { path: { mine: fixture.mine.id, theirs: fixture.theirs.id, map_name: map } } },
+    { staleTime: STALE },
+  )
+  if (!q.data) return null
+  return (
+    <details className="pb-style">
+      <summary>Хэв маяг — хоёр баг энэ map-ыг тоглосон бүх багтай харьцуулахад (percentile)</summary>
+      <StyleTable
+        teams={[
+          { name: props.theirs, style: q.data.theirs, colour: 'var(--mark-theirs)' },
+          { name: props.mine, style: q.data.mine, colour: 'var(--mark-mine)' },
+        ]}
+      />
+    </details>
+  )
+}
+
 function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
   const query = $api.useQuery(
     'get',
@@ -94,6 +118,8 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
           {l}
         </p>
       ))}
+
+      <FixtureStyle fixture={fixture} map={map} mine={d.my_team} theirs={d.opponent} />
 
       {d.plan.length > 0 && (
         <>

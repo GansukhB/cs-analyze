@@ -26,8 +26,9 @@ from app.schemas import (
     TeamResultMap,
     TeamRow,
     TeamStrength,
+    TeamStyleView,
 )
-from app.services import dbctx, team_strength
+from app.services import dbctx, style, team_strength
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -273,3 +274,16 @@ def _players(db: Session, team: Team) -> list[TeamPlayer]:
         TeamPlayer(steamid=str(sid), name=name, maps=maps, rounds=int(rounds or 0), last=seen)
         for sid, name, maps, rounds, seen in rows
     ]
+
+
+@router.get("/{team_id}/style")
+def team_style(team_id: int, db: DbSession, _: StaffUser, map: str | None = None) -> TeamStyleView:
+    """The Team's style on one Map against every Team's (TM-5): its most played
+    Map unless one is named."""
+    team = db.get(Team, team_id)
+    if team is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such team")
+    with dbctx.using(db):
+        maps = style.maps_of(team_id)
+        chosen = map if map in maps else (maps[0] if maps else None)
+        return TeamStyleView(maps=maps, style=style.team(team_id, chosen) if chosen else None)
