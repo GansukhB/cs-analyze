@@ -404,3 +404,30 @@ def test_each_turn_is_costed_and_the_day_is_capped(client, auth, db, configured,
     monkeypatch.setattr(assistant, "_client", lambda: pytest.fail("asked Claude past the cap"))
     events = _events(client.post("/assistant/chat", json={"message": "hi"}, headers=auth))
     assert events[0]["text"] == assistant.mn.ASSISTANT_LIMIT and events[-1]["type"] == "done"
+
+
+def test_the_new_lookups_answer_from_the_same_rows(db, league):  # noqa: F811
+    a, b = league["a"], league["b"]
+    ctx = assistant.Context()
+
+    def run(name, tool_input):
+        return json.loads(assistant._execute_tool(db, ctx, name, tool_input))
+
+    matches = run("team_matches", {"team_id": a.id})
+    assert matches["team"] == "Alpha" and len(matches["matches"]) == 2
+    assert matches["matches"][0]["parsed_maps"][0]["map"] == "Mirage"
+    star = league["players"][a.id][0]
+    form = run("player_form", {"steamid": str(star.steamid)})
+    assert form["player"]["name"] == star.name and form["totals"]["maps"] == 2
+    assert run("player_form", {"name": star.name.upper()})["player"]["steamid"] == str(star.steamid)
+    # No series results here: the Forecast says it has no Rating, it doesn't guess.
+    fc = run("forecast", {"mine_id": a.id, "theirs_id": b.id})
+    assert fc["series"] == [] and fc["limits"]
+    assert run("rating", {"team_id": a.id})["rating"] is None
+    decided = run("gameplan_section", {"mine_id": a.id, "theirs_id": b.id, "section": "decision"})
+    assert decided["label"] and "forecast" in decided
+    book = run(
+        "gameplan_section",
+        {"mine_id": a.id, "theirs_id": b.id, "section": "playbook", "map": "de_mirage"},
+    )
+    assert book["label"] == "Mirage" and "sections" in book

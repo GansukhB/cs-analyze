@@ -47,10 +47,13 @@ from app.config import get_settings
 from app.models import MapRoster, Match, MatchMap, Player, Round, Team
 from app.services import (
     dbctx,
+    decision,
+    forecast,
     lineup,
     mapstrategy,
     mn,
     playbook_view,
+    player_page,
     review_view,
     roles,
     scouting,
@@ -158,7 +161,9 @@ question, team_overview/map_strategy/role_report for a single team, \
 scouting_report for head-to-head threats and tendencies. For "what should we \
 exploit / watch out for / how do we beat them on <map>", read \
 gameplan_section 'levers' first: it is the Playbook's own list of Levers and \
-Cautions, ranked, with the numbers behind each.
+Cautions, ranked, with the numbers behind each. For "can we win / what are our \
+chances" use forecast, and for one player player_form; team_matches finds a \
+team's latest Match ids.
 - Write the reply as short paragraphs (2-4 sentences each) separated by a \
 blank line. Each paragraph is read aloud as its own unit by a text-to-speech \
 voice, so keep one idea per paragraph and avoid bullet lists, headings, or \
@@ -298,7 +303,10 @@ TOOLS = [
             "and the Cautions -- what to watch out for, their strengths meeting my "
             "weaknesses first -- per side, each with its numbers, counter and evidence "
             "strength, plus the limits of the data; give 'map' such as 'de_inferno' for "
-            "one map, or leave it out for the top lines of every map the veto makes likely)."
+            "one map, or leave it out for the top lines of every map the veto makes likely), "
+            "'decision' (the call from the Forecast, its lead, the four cards and three "
+            "moves), 'playbook' (one map's Playbook: their habits with counters, our plan, "
+            "pistols, players; give 'map')."
         ),
         "input_schema": {
             "type": "object",
@@ -306,7 +314,10 @@ TOOLS = [
                 "mine_id": {"type": "integer"},
                 "theirs_id": {"type": "integer"},
                 "section": {"type": "string"},
-                "map": {"type": "string", "description": "Only for 'levers', e.g. de_inferno."},
+                "map": {
+                    "type": "string",
+                    "description": "For 'levers' and 'playbook', e.g. de_inferno.",
+                },
             },
             "required": ["mine_id", "theirs_id", "section"],
         },
@@ -359,6 +370,63 @@ TOOLS = [
                 },
             },
             "required": ["match_id"],
+        },
+    },
+    {
+        "name": "team_matches",
+        "description": (
+            "A team's latest Matches, newest first, with match_id, date, opponent, score "
+            "and which maps are parsed. Use it to find 'the last match' or a match to open "
+            "with match_summary or match_review."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "team_id": {"type": "integer"},
+                "limit": {"type": "integer", "description": "At most 20; 10 by default."},
+            },
+            "required": ["team_id"],
+        },
+    },
+    {
+        "name": "player_form",
+        "description": (
+            "One player's page: the teams he played for, his totals (rounds, ADR, KAST, "
+            "opening duels, Swing per round from the reviews), his numbers by map and "
+            "side, the Findings he gets most per 24 rounds against every player's rate, "
+            "and his latest maps' form. Give his Steam id as a string (from match_review "
+            "or the players section) or his name."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "steamid": {"type": "string"},
+                "name": {"type": "string", "description": "Case-insensitive, if no Steam id."},
+            },
+        },
+    },
+    {
+        "name": "forecast",
+        "description": (
+            "The Forecast for a fixture: both teams' Ratings (an Elo over every series "
+            "Valve's regional standings counted, with its sample and region), our chance "
+            "of winning a Bo1, Bo3 and Bo5 with how often such forecasts came true, the "
+            "maps each team played lately, and the limits of the model. Say chances "
+            "rounded to 5 points, as the page does."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"mine_id": {"type": "integer"}, "theirs_id": {"type": "integer"}},
+            "required": ["mine_id", "theirs_id"],
+        },
+    },
+    {
+        "name": "rating",
+        "description": "One team's Rating, how many series it rests on and when it last moved.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"team_id": {"type": "integer"}},
+            "required": ["team_id"],
         },
     },
 ]
@@ -564,7 +632,7 @@ def _tool_scouting_report(team_id: int, opponent_id: int) -> dict:
 GAMEPLAN_SECTIONS = {
     "verdict", "board", "map_plans", "roles", "players", "duels", "linchpins",
     "man_advantage", "continuity", "my_delta", "opponent_delta", "sample", "lede",
-    "levers",
+    "levers", "decision", "playbook",
 }  # fmt: skip
 
 
@@ -608,6 +676,19 @@ def _tool_gameplan_section(mine_id: int, theirs_id: int, section: str, map: str 
         return {"error": "mine_id and theirs_id must be different teams"}
 
     report = gameplan_service.build(my_team, opponent)
+    if section == "decision":
+        built = decision.build(report, my_team, opponent)
+        return {k: built[k] for k in ("label", "lead", "forecast", "cards", "moves", "confidence")}
+    if section == "playbook":
+        if not map:
+            # Which Maps have one, in veto order: ask again with one of them.
+            return {"maps": playbook_view.maps(report), "note": "give 'map' for its Playbook"}
+        if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map):
+            return {"error": f"unknown map {map!r}; maps look like 'de_inferno'"}
+        panel = playbook_view.panel(my_team, opponent, map)
+        return {
+            k: panel.get(k) for k in ("label", "plan", "advice", "sections", "pistols", "players")
+        }
     if section == "levers":
         if map:
             if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map):
@@ -822,6 +903,82 @@ def _tool_match_review(
     }
 
 
+TEAM_MATCHES_LIMIT = 20
+
+
+def _tool_team_matches(team_id: int, limit: int = 10) -> dict:
+    team = _team(team_id)
+    session = dbctx.db()
+    rows = session.scalars(
+        select(Match)
+        .where((Match.team1_id == team.id) | (Match.team2_id == team.id))
+        .options(selectinload(Match.map_results).joinedload(MatchMap.game_map))
+        .order_by(Match.played_at.desc())
+        .limit(max(1, min(int(limit or 10), TEAM_MATCHES_LIMIT)))
+    ).all()
+    out = []
+    for m in rows:
+        other_id = m.team2_id if m.team1_id == team.id else m.team1_id
+        other = session.get(Team, other_id) if other_id else None
+        out.append(
+            {
+                "match_id": m.id,
+                "date": m.played_at.date().isoformat() if m.played_at else None,
+                "opponent": other.name if other else m.opponent_label,
+                "score": m.score,
+                "parsed_maps": [
+                    {"map_number": mm.map_number, "map": mn.game_map(mm.game_map.name)}
+                    for mm in sorted(m.map_results, key=lambda x: x.map_number)
+                    if mm.is_parsed and mm.game_map
+                ],
+            }
+        )
+    return {"team": team.name, "matches": out}
+
+
+def _tool_player_form(steamid: str = "", name: str = "") -> dict:
+    session = dbctx.db()
+    if not steamid and name:
+        found = session.scalar(
+            select(Player.steamid).where(func.lower(Player.name) == name.strip().lower())
+        )
+        steamid = str(found) if found else ""
+    if not steamid.isdigit():
+        return {"error": "give the player's Steam id, or his exact name"}
+    built = player_page.build(int(steamid))
+    if built is None:
+        return {"error": f"no player with Steam id {steamid}"}
+    return {
+        "player": built["player"],
+        "teams": [{"name": t["name"], "maps": t["maps"]} for t in built["teams"]],
+        "totals": built["totals"],
+        "by_map_side": built["maps"],
+        "findings": built["findings"][:10],
+        "latest_maps": built["form"][-8:],
+    }
+
+
+def _tool_forecast(mine_id: int, theirs_id: int) -> dict:
+    my_team, opponent = _team(mine_id), _team(theirs_id)
+    if my_team.id == opponent.id:
+        return {"error": "mine_id and theirs_id must be different teams"}
+    built = forecast.build(
+        my_team,
+        opponent,
+        my_lineup=[p.name for p in lineup.chosen(my_team) or []] or None,
+        their_lineup=[p.name for p in lineup.chosen(opponent) or []] or None,
+    )
+    return decision._forecast(built, my_team, opponent)
+
+
+def _tool_rating(team_id: int) -> dict:
+    team = _team(team_id)
+    found = forecast.standing(team)
+    if found is None:
+        return {"team": team.name, "rating": None, "note": "no series of this team in the results"}
+    return {"team": team.name, **forecast._standing_json(found)}
+
+
 DISPATCH = {
     "list_teams": _tool_list_teams,
     "team_overview": _tool_team_overview,
@@ -831,6 +988,10 @@ DISPATCH = {
     "gameplan_section": _tool_gameplan_section,
     "match_summary": _tool_match_summary,
     "match_review": _tool_match_review,
+    "team_matches": _tool_team_matches,
+    "player_form": _tool_player_form,
+    "forecast": _tool_forecast,
+    "rating": _tool_rating,
 }
 
 
