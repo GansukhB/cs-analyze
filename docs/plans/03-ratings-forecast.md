@@ -80,6 +80,8 @@ Forecast бүр хадгалагдаж, тоглолтын дараа үр дү�
 
 ### FC-1. Rating v1 (P0, M; DATA-2-ийн үр дүнгийн сангаас хамаарна)
 
+> **Төлөв:** ✅ `5b26e5b` (improvement-01). v1 нь цувралын Rating: VRS-д Map ба Round-ын оноо байхгүй. Margin multiplier нь Map-ын үр дүн ирэхэд.
+
 **Дата:** HLTV-ийн Pool-тай холбогдсон бүх Team-ийн Match Map бүрийн үр дүн (Map, Round-ын оноо, огноо, LAN, Lineup). Grilling Q9-ийн дагуу дэлхий даяар цуглуулна. Rating нь Scout ямар Demo parse хийснээс хамаарах ёсгүй.
 
 **Model** (`app/services/rating.py`):
@@ -110,10 +112,14 @@ Forecast бүр хадгалагдаж, тоглолтын дараа үр дү�
 
 ### FC-2. Калибровк (P0, S–M)
 
+> **Төлөв:** ✅ `5d19413` (improvement-01). Slope, бүсийн offset, reliability-ийн band. LAN-ий гишүүнийг хойшлуулсан: VRS LAN ялагдлыг тэмдэглэдэггүй.
+
 - **Калибровкын давхарга:** logit P = (β + β_LAN·LAN)·Δ·ln10/400 + бүсийн хосын offset. Walk-forward-оор fit хийнэ. Rating-ийн scale-ийг таамаглалд дахин тааруулах ёстой (Szczecinski 2026).
 - **Reliability-ийн тайлан:** 5%-ийн bin, bin бүрт ≥20 Map.
 
 ### FC-3. Map → цуврал, veto-ийн симуляци (P0/P1, M)
+
+> **Төлөв:** 🟡 `5d19413` (improvement-01). Map → цуврал, veto-ийн яг тооцоо бэлэн. Map-ын offset нь 105 хадгалсан Map дээр таамгийг муутгасан тул шалгалт батлах хүртэл унтраалттай. Veto-ийн түүх (HLTV) үлдсэн.
 
 - **Map-ын Forecast:** калибровк хийсэн Rating-ийн зөрүү ба Map-ын offset-оос.
 - **Цуврал:** Bo3 P = p1p2 + p1(1−p2)p3 + (1−p1)p2p3. Bo5 нь эхний 3-ыг тоолох байдлаар.
@@ -130,6 +136,8 @@ Forecast бүр хадгалагдаж, тоглолтын дараа үр дү�
 - **Солих хэсгүүд:** `decision._call` (TM-2) ба `map_board`-ийн pick/ban дүрмийг эдгээрээр солино.
 
 ### FC-4. Forecast-ыг хадгалж дүгнэх (P0, M)
+
+> **Төлөв:** 🟡 `5d19413` (improvement-01). Хүсэлтээр хадгалж дүгнэх, `/forecasts`. Автомат Forecast (DATA-3), reliability диаграм үлдсэн.
 
 - **`forecasts` хүснэгт:**
   - `id`, `public_id`, `workspace_id`
@@ -151,6 +159,8 @@ Forecast бүр хадгалагдаж, тоглолтын дараа үр дү�
   - дэд бүлгүүд: cold-start, бүс хооронд, LAN, roster өөрчлөгдсөн
 
 ### FC-5. Backtest (P0, M; FC-1-тэй хамт)
+
+> **Төлөв:** ✅ `5b26e5b` (improvement-01). 2026 он: log loss 0.618, Brier 0.215, 65.2%. Diebold–Mariano-ийн оронд долоо хоногоор cluster хийсэн paired bootstrap.
 
 - **Walk-forward:** долоо хоног бүр зөвхөн тоглолтоос өмнөх датагаар refit хийж, дараагийн долоо хоногийг үнэлнэ. Эхний хугацаанд tune хийж, дараагийн хугацаагаар тайлагнана.
 - **Тусад нь үнэлэх:** veto мэдэгдсэн үеийн Map ба veto-оос өмнөх цуврал.

@@ -77,6 +77,8 @@
 
 #### RV-1. Defuse-ийн уналтыг засах (P0, S)
 
+> **Төлөв:** ✅ `85f0c9e` (improvement-01).
+
 - **Түр засвар:** амжилттай болсон defuse-ийг дуусахаас 5 s (kit) эсвэл 10 s (kit-гүй) өмнөөс "явагдаж байгаа" гэж үзэж, Swing-ийг тэр төлөвөөс тооцно.
 - **Бүрэн засвар:** DATA-5-ийн `bomb_begindefuse` ирэхэд яг эхэлсэн цагийг хэрэглэнэ.
 - `REVIEW_SCHEMA`-г ахиулж, Review-ийг rebuild хийнэ (`npm run review:rebuild`). Timeline-ийн тест нэмнэ.
@@ -105,6 +107,8 @@ HLTV Rating 3.0-ийн 2025–26 оны өөрчлөлт ба Leetify-ээс (`1
   - Invariant тест: credit-ийн нийлбэр нь ΔWP-тэй тэнцүү байх.
 
 #### RV-3. Тестийн хамрах хүрээ (P0/P1, M)
+
+> **Төлөв:** 🟡 `fbc0ffe` (improvement-01). Эхний хэсэг: Swing-ийн zero-sum invariant. Detector бүрийн тест үлдсэн.
 
 - 32 detector бүрт нэг fixture Round.
 - Defuse-ийн timeline, Swing-ийн нийлбэрийн invariant.

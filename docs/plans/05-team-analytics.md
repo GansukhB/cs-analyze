@@ -61,6 +61,8 @@
 
 ### TM-1. Нийтлэг статистикийн модуль `app/services/stats.py` (P0/P1, M)
 
+> **Төлөв:** ✅ `5e62cbd` (improvement-01).
+
 Одоо Pool-ийн хоёр өөр engine (`metric_pool`, `review_pool`), Playbook-ийн тогтмол босго, `roles`-ийн SD floor бие биеэсээ тусдаа ажилладаг. Тэдгээрийг нэг модульд нэгтгэнэ.
 
 - **Хувь:** beta-binomial empirical Bayes. Prior-ийг Pool-ийн Map, Side бүр дээр method of moments-оор тааруулна.
@@ -97,6 +99,8 @@
   - Head-to-head-д аль хэдийн "≤3 тоглогч давхцвал хуучирсан" дүрэм бий (`gameplan.py:1083`).
 
 ### TM-4. Habit-ийг base rate-тай шалгах (P1, M)
+
+> **Төлөв:** ✅ `5e62cbd` (improvement-01). Site ба retake-ийн habit.
 
 Playbook-ийн habit бүрийг тогтмол босгоор биш, тухайн Map ба Side-ийн Pool-ийн base rate-тай харьцуулна:
 

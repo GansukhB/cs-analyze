@@ -44,6 +44,8 @@ Default дүрэм. Staff үүнийг Briefing болон Development plan-аа
 
 ### WS-1. Workspace ба my team (P0, M)
 
+> **Төлөв:** ✅ `ac9d497` (improvement-01).
+
 **Хүснэгт** (нэг Alembic migration, `0010_workspaces`):
 
 - `workspaces`: `id` BIGINT, `public_id` CHAR(32), `name` VARCHAR(120), `created_at`.

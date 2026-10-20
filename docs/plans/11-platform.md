@@ -30,6 +30,8 @@
 
 ### OPS-1. Яаралтай засвар (P0, S)
 
+> **Төлөв:** ✅ `bcd3813` (improvement-01).
+
 Нэг PR-д багтах, эрсдэлгүй засварууд:
 
 1. **`/workers`-ийн нууц:** broker URL-аас нэр, нууц үгийг хасна (`redis://***@host:port/db`). Celery inspect-ийн оронд worker-ийн бичдэг `system:worker` heartbeat key-г уншина. Тэгвэл 4 s тутмын inspect хэрэггүй болно.
@@ -44,6 +46,8 @@
 
 ### OPS-2. Backup ба сэргээлт (P0, S–M)
 
+> **Төлөв:** ✅ `73d00eb` (improvement-01). Host-оос гадуурх хуулбар (rclone) нь тохиргоогоор асна.
+
 - **Өдөр бүр:** `tick_datasets`-аас бусад бүх хүснэгтийн `mysqldump --single-transaction --hex-blob | zstd` (жижиг, хэдэн зуун MB).
 - **Tick Data:** `tick_datasets` бараг зөвхөн нэмэгддэг (append-only). Тиймээс шинэ болон өөрчлөгдсөн мөрүүдийг (`id`/`updated_at`-аар) өдөр бүр тусдаа файлаар гаргаж, сард нэг удаа бүтэн dump хийнэ. Bundle аль хэдийн шахагдсан тул zstd бараг үр дүнгүй.
 - **Хадгалах газар:** host-оос гадуур, бага төсөвтэй object storage руу `rclone`-оор. Жишээ нь Cloudflare R2-ийн үнэгүй tier, Backblaze B2, Hetzner Storage Box.
@@ -52,6 +56,8 @@
 - **Сэргээлтийн дасгал:** сар бүр хуулбарыг түр DB-д сэргээж, `alembic check` болон `GET /health` шалгана. Хугацааг нь тэмдэглэнэ.
 
 ### OPS-3. CI ба deploy gate (P0, S–M)
+
+> **Төлөв:** ✅ `b9c4143` (improvement-01).
 
 GitHub Actions (`.github/workflows/ci.yml`):
 
@@ -90,6 +96,8 @@ Deploy:
 - **Uptime:** гаднаас ping хийх үнэгүй үйлчилгээ (UptimeRobot, Better Stack) `cs2.bizon.mn`, `cs2-api.bizon.mn/health` хоёрт.
 
 ### OPS-6. Queue ба нөөцийн хуваарилалт (P0, M; DATA-1 ба DATA-2-ийн өмнөх нөхцөл)
+
+> **Төлөв:** ✅ `21e244d` (improvement-01). `hltv` queue-г тусад нь салгаагүй: Scout-ууд `celery` queue-д single-flight хэвээр.
 
 Шинэ ажлууд нэмэгдэнэ: upload parse, үр дүн ба хуваарь унших, Rating-ийн тооцоо. Тэдгээр нэг slot дээр Scout-ийн ард хүлээж болохгүй. Гэхдээ 7.3 GB-ийн хуваалцсан host дээр хоёр parse зэрэг явбал OOM болно.
 
