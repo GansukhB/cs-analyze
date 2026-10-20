@@ -54,7 +54,7 @@ router = APIRouter(prefix="/gameplan", tags=["gameplan"])
 
 # Cached panels outlive a deploy: the stamp moves on a parse or a Review rebuilt,
 # not when the code that words a panel changes. Bump with any such change.
-CACHE_VERSION = 22
+CACHE_VERSION = 23
 
 CACHE_TTL = 7 * 24 * 3600
 LEVELS = {heatmap_groups.ALL_LEVELS, radar.UPPER, radar.LOWER}

@@ -3271,3 +3271,35 @@ def playbook_predictability(p: dict) -> list[dict]:
         if line["predictable"]:
             line["text"] += " Өрсөлдөгч үүнийг anti-strat хийж чадна: хувилбар нэмэх."
     return out
+
+
+# -- GP-6: what the Teams that beat them did ------------------------------------
+def playbook_beaten(b: dict, theirs: str) -> list[dict]:
+    """``[{side, text, evidence}]``: the answers that held them below their usual."""
+    out = []
+    for row in b.get("t") or []:
+        shape = " · ".join(f"{k} {v}" for k, v in row["answer"]["setup"].items() if v)
+        out.append(
+            {
+                "side": "t",
+                "text": (
+                    f"{theirs}-ийн T-г CT Setup ({shape}) зогсоосон: тэд {row['their_won']}/"
+                    f"{row['rounds']} хожсон, ердийн үед {round(row['usual_pct'])}%."
+                ),
+                "evidence": row["evidence"],
+            }
+        )
+    for row in b.get("ct") or []:
+        a = row["answer"]
+        out.append(
+            {
+                "side": "ct",
+                "text": (
+                    f"{theirs}-ийн CT-г {a['site']} site руу {a['tempo']} довтолгоо эвдсэн: тэд "
+                    f"{row['their_won']}/{row['rounds']} хожсон, plant хийгдсэн бусад "
+                    f"раундад {round(row['usual_pct'])}%."
+                ),
+                "evidence": row["evidence"],
+            }
+        )
+    return out

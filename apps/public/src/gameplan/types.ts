@@ -147,6 +147,8 @@ export interface PlaybookPanel {
   }
   players: { player: string; tags: string[]; lines: string[]; duels: string }[]
   self_scout: { side: 'ct' | 't'; label: string; habits: Habit[] }[]
+  /** GP-6: the answers that held them below their usual on this Map, with Replay refs. */
+  beaten_by: { side: 'ct' | 't'; text: string; evidence: Evidence }[]
   /** GP-11: how readable our first moves are, official Matches only. */
   predictability: { side: 'ct' | 't'; text: string; predictable: boolean }[]
 }

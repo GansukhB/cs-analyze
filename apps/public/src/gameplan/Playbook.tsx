@@ -130,6 +130,27 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
         </div>
       ))}
 
+      {d.beaten_by.length > 0 && (
+        <>
+          <h3 className="pb-section">Бусад баг тэднийг яаж хожсон</h3>
+          <ul className="pb-rows">
+            {d.beaten_by.map((b, i) => (
+              <li key={i}>
+                <span className={`tag ${b.side}`}>{b.side.toUpperCase()}</span> {b.text}{' '}
+                <small>
+                  {b.evidence.refs.map((r) => (
+                    <Link key={`${r.match}-${r.map}-${r.round}`} className="mono" to={replayHref(r)}>
+                      {' '}
+                      R{r.round}
+                    </Link>
+                  ))}
+                </small>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       <h3 className="pb-section">Pistol раунд</h3>
       {d.conversion.length > 0 && (
         <div className="tw">

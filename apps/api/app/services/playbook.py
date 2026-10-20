@@ -780,6 +780,65 @@ def pistols(team_id: int, rounds: list[_Round], detail: _Detail, sites) -> list[
     return out
 
 
+BEATEN_MIN_ROUNDS = 5  # Rounds against one answer before it is worth a line
+BEATEN_PRIOR = 10.0  # pseudo-Rounds of their usual rate an answer's record is pulled toward
+BEATEN_LINES = 3
+BEATEN_MIN_GAP = 0.05  # the pulled rate must sit this far below their usual one
+
+
+def beaten_by(team_id: int, rounds: list[_Round], detail: _Detail, sites) -> dict:
+    """GP-6: what the Teams that beat them on this Map did. Their T Rounds by the
+    CT Setup they ran into, their CT Rounds by where and how fast the bomb came;
+    each answer's record against them, pulled toward their usual rate, worst first."""
+
+    def judge(groups: dict, their_rounds: list[_Round], describe) -> list[dict]:
+        if not their_rounds:
+            return []
+        usual = sum(r.winner == team_id for r in their_rounds) / len(their_rounds)
+        out = []
+        for key, hit in groups.items():
+            if len(hit) < BEATEN_MIN_ROUNDS:
+                continue
+            won = sum(r.winner == team_id for r in hit)
+            pulled = (won + BEATEN_PRIOR * usual) / (len(hit) + BEATEN_PRIOR)
+            if pulled > usual - BEATEN_MIN_GAP:
+                continue
+            out.append(
+                {
+                    "answer": describe(key),
+                    "their_won": won,
+                    "rounds": len(hit),
+                    "their_pct": round(100 * won / len(hit), 1),
+                    "usual_pct": round(100 * usual, 1),
+                    "pulled_pct": round(100 * pulled, 1),
+                    "evidence": _evidence(hit, len(their_rounds)),
+                }
+            )
+        out.sort(key=lambda x: x["pulled_pct"])
+        return out[:BEATEN_LINES]
+
+    their_t = [r for r in rounds if r.side_of(team_id) == "t" and r.number not in PISTOL_ROUNDS]
+    their_ct = [r for r in rounds if r.side_of(team_id) == "ct" and r.number not in PISTOL_ROUNDS]
+    setups: dict[tuple, list[_Round]] = defaultdict(list)
+    if sites:
+        # The CT side's spots in their T Rounds are their opponents'.
+        found = _setups(team_id, their_t, "ct", detail, sites)
+        by_id = {r.id: r for r in their_t}
+        for rid, s in found.items():
+            if sum(s["count"].values()) >= 4:
+                setups[tuple(s["count"].get(lean_, 0) for lean_ in LEANS)].append(by_id[rid])
+    attacks: dict[tuple, list[_Round]] = defaultdict(list)
+    # Against the Rounds the bomb went down in: a plant is lost CT ground already.
+    planted = [r for r in their_ct if r.plant is not None]
+    for r in planted:
+        tempo = "rush" if r.secs(r.plant) <= mapstrategy.RUSH_PLANT_SEC else "default"
+        attacks[(r.site or "?", tempo)].append(r)
+    return {
+        "t": judge(setups, list(their_t), lambda k: {"setup": dict(zip(LEANS, k, strict=True))}),
+        "ct": judge(attacks, planted, lambda k: {"site": k[0], "tempo": k[1]}),
+    }
+
+
 PREDICTABLE_SHARE = 0.5  # one first move in half the Rounds is something to anti-strat
 PREDICTABLE_ROUNDS = 10
 
@@ -1198,4 +1257,5 @@ def build(my_team: Team, opponent: Team, map_name: str) -> dict:
             for side in ("t", "ct")
         },
         "predictability": predictability(my_team.id, mine, detail, sites, map_name),
+        "beaten_by": beaten_by(opponent.id, theirs, detail, sites),
     }
