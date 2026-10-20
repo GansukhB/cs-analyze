@@ -1064,6 +1064,7 @@ export function Edge({ data }: { data: EdgePanel }) {
                       <th>Тэр раундын хожил</th>
                       <th>Бусад раунд</th>
                       <th>Ялгаа</th>
+                      <th>Багийнхнаас</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1075,8 +1076,10 @@ export function Edge({ data }: { data: EdgePanel }) {
                         <td className="mono">
                           {p.other_pct}% ({p.other_rounds})
                         </td>
-                        <td className="mono" style={{ color: p.swing >= 20 ? 'var(--crit)' : undefined }}>
-                          {p.swing}
+                        <td className="mono">{p.swing}</td>
+                        <td className="mono" style={{ color: p.significant ? 'var(--crit)' : undefined }}>
+                          {p.vs_teammates > 0 ? '+' : ''}
+                          {p.vs_teammates} ({p.first_deaths}){p.significant ? ' ✓' : ''}
                         </td>
                       </tr>
                     ))}
@@ -1085,7 +1088,10 @@ export function Edge({ data }: { data: EdgePanel }) {
               </div>
               <p className="cap">
                 "Эрт" гэдэг нь фризийн дараах 30 секунд — задлан шинжилсэн түүврийн нээлтийн тулааны дундажаас (29.5с)
-                хойно. Ялгаа нь тэр тоглогч эрт унасан раундад багийн хожил хэдэн пунктээр унадаг нь.
+                хойно. Ялгаа нь тэр тоглогч эрт унасан раундад багийн хожил хэдэн пунктээр унадаг нь. Багийнхнаас: баг
+                эхний хүнээ эрт алдсан раундуудад тэр нь энэ тоглогч байхад хожил хэдэн пунктээр илүү унадаг нь (хаалтанд тийм
+                раундын тоо), Side ба buy-аар тэнцүүлсэн; ✓ нь санамсаргүй тохиолдлоос давсан (permutation test, тоглогч олон тул FDR 10%). Зөвхөн
+                ✓-тэй нь Шийдвэрийн хөшүүрэг болно.
               </p>
             </>
           ) : (

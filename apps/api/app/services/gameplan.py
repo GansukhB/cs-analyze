@@ -50,6 +50,7 @@ from app.services import (
     roles,
     scope,
     scouting,
+    stats,
 )
 from app.services.dbctx import count_if, db, memo, total
 
@@ -1010,12 +1011,12 @@ def verdict(report: Mapping, my_team: Team, opponent: Team) -> dict:
                 points.append({"kind": "holds", **row})
 
     pins_theirs = (report.get("linchpins") or {}).get("opponent") or []
-    if pins_theirs and pins_theirs[0]["swing"] >= 20:
+    if pins_theirs and pins_theirs[0].get("significant") and pins_theirs[0]["swing"] >= 20:
         pin = pins_theirs[0]
         points.append({"kind": "linchpin_theirs", **pin})
         actions.append({"kind": "kill_first", **pin})
     pins_mine = (report.get("linchpins") or {}).get("mine") or []
-    if pins_mine and pins_mine[0]["swing"] >= 20:
+    if pins_mine and pins_mine[0].get("significant") and pins_mine[0]["swing"] >= 20:
         actions.append({"kind": "protect", **pins_mine[0]})
 
     ma = report.get("man_advantage") or {}
@@ -1194,6 +1195,8 @@ def linchpins(team: Team, match_maps: Iterable[MatchMap]) -> list[dict]:
                 Round.winner_team_id,
                 Round.ct_team_id,
                 Round.t_team_id,
+                Round.ct_buy,
+                Round.t_buy,
             ).where(Round.match_map_id.in_(map_ids))
         )
     }
@@ -1214,12 +1217,36 @@ def linchpins(team: Team, match_maps: Iterable[MatchMap]) -> list[dict]:
         names[victim_id] = victim_name
 
     played: dict[int, set] = defaultdict(set)
+    roster_of: dict[int, set] = defaultdict(set)
     for pid, map_id in session.execute(
         select(MapRoster.player_id, MapRoster.match_map_id).where(
             MapRoster.match_map_id.in_(map_ids), MapRoster.team_id == team.id
         )
     ):
         played[pid].add(map_id)
+        roster_of[map_id].add(pid)
+
+    deaths_in: dict[int, list[tuple[int, int]]] = defaultdict(list)
+    for (r_id, victim), tick in first_death.items():
+        deaths_in[r_id].append((tick, victim))
+    # Each round's first death of ours inside the window: (stratum, victim, won, map).
+    openers = []
+    for rid in ours:
+        rnd = rounds[rid]
+        rate = tickrates.get(rnd.match_map_id) or 64
+        firsts = [
+            (tick, victim)
+            for tick, victim in deaths_in.get(rid, ())
+            if victim in roster_of.get(rnd.match_map_id, ())
+        ]
+        if not firsts:
+            continue
+        tick, victim = min(firsts)
+        if not 0 <= (tick - rnd.freeze_end_tick) / rate <= EARLY_DEATH_SEC:
+            continue
+        side = "ct" if rnd.ct_team_id == team.id else "t"
+        buy = rnd.ct_buy if side == "ct" else rnd.t_buy
+        openers.append(((side, buy or ""), victim, rnd.winner_team_id == team.id, rnd.match_map_id))
 
     out = []
     for pid in played:
@@ -1240,6 +1267,13 @@ def linchpins(team: Team, match_maps: Iterable[MatchMap]) -> list[dict]:
         if early_n < MIN_EARLY_DEATHS:
             continue
         early_pct, rest_pct = _pct(early_w, early_n), _pct(rest_w, rest_n)
+        # Against his teammates, not against rounds nobody died in: of the rounds the
+        # team lost its first man inside the window, how much worse it does when that
+        # man is him, Side by Side and buy by buy (docs/plans PL-8).
+        gap, p, firsts = stats.stratified_gap(
+            [(stratum, victim == pid, won) for stratum, victim, won, maps_id in openers
+             if maps_id in played[pid]]
+        )  # fmt: skip
         out.append(
             {
                 "name": names.get(pid, str(pid)),
@@ -1251,9 +1285,16 @@ def linchpins(team: Team, match_maps: Iterable[MatchMap]) -> list[dict]:
                 "other_won": rest_w,
                 "other_pct": rest_pct,
                 "swing": round(rest_pct - early_pct, 1),
+                "first_deaths": firsts,
+                "vs_teammates": round(100 * gap, 1),
+                "p": round(p, 4),
             }
         )
-    out.sort(key=lambda r: -r["swing"])
+    # Many players, one team: say a linchpin only past the false discovery rate.
+    keep = stats.bh([r["p"] for r in out], q=stats.LFSR)
+    for row, significant in zip(out, keep, strict=True):
+        row["significant"] = bool(significant and row["first_deaths"] >= MIN_EARLY_DEATHS)
+    out.sort(key=lambda r: (not r["significant"], -r["vs_teammates"], -r["swing"]))
     return out
 
 

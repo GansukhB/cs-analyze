@@ -50,3 +50,16 @@ def test_bootstrap_by_group():
     maps = [[1, 1, 0], [1, 0, 0], [1, 1, 1], [0, 0, 1]]
     low, high = stats.bootstrap(maps, lambda gs: sum(sum(g) for g in gs) / sum(len(g) for g in gs))
     assert 0.2 < low < 0.6 < high < 0.95
+
+
+def test_a_stratified_gap_beats_chance_only_when_it_is_there():
+    # Within each stratum the flagged rows lose far more often: a real gap.
+    rows = [(s, i % 4 == 0, (i % 4 != 0) or i % 8 == 0) for s in ("ct", "t") for i in range(80)]
+    gap, p, n = stats.stratified_gap(rows, draws=500)
+    assert n == 40 and gap == pytest.approx(0.5) and p < 0.01
+    # Same success rate for both: no gap, and chance explains it.
+    flat = [(s, i % 2 == 0, i % 3 == 0) for s in ("ct", "t") for i in range(60)]
+    gap, p, _n = stats.stratified_gap(flat, draws=500)
+    assert abs(gap) < 0.1 and p > 0.2
+    # A stratum with only flagged rows says nothing.
+    assert stats.stratified_gap([("x", True, False)] * 5)[2] == 0

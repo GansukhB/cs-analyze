@@ -356,6 +356,12 @@ export interface Linchpin {
   other_won: number
   other_pct: number
   swing: number
+  // Against his teammates: of the rounds the team lost its first man early, how much
+  // worse it did when that was him, by Side and buy, and whether that beats chance (PL-8).
+  first_deaths: number
+  vs_teammates: number
+  p: number
+  significant: boolean
 }
 export interface EdgePanel {
   teams: {

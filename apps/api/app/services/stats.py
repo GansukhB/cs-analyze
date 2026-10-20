@@ -160,3 +160,47 @@ def bootstrap(
     values = sorted(statistic(rng.choices(groups, k=len(groups))) for _ in range(draws))
     tail = (1 - INTERVAL) / 2
     return values[int(tail * (draws - 1))], values[int((1 - tail) * (draws - 1))]
+
+
+def stratified_gap(
+    rows: Sequence[tuple[object, bool, bool]], draws: int = 1000, seed: int = 0
+) -> tuple[float, float, int]:
+    """How much worse the outcome is when ``flag`` holds, within strata, and how
+    often chance alone would make a gap that large: ``(gap, p, n flagged)``.
+
+    ``rows`` are ``(stratum, flag, success)``. The gap is the flagged rows' success
+    rate below the others' in the same stratum, weighted by the flagged rows; the
+    one-sided p comes from shuffling ``flag`` within each stratum (a permutation
+    test, so no distribution is assumed). Strata with no flagged or no other row
+    say nothing and are left out.
+    """
+    import numpy as np
+
+    by: dict[object, list[tuple[bool, bool]]] = {}
+    for stratum, flag, ok in rows:
+        by.setdefault(stratum, []).append((bool(flag), bool(ok)))
+    groups = []
+    for pairs in by.values():
+        flags = np.array([f for f, _ in pairs], dtype=bool)
+        if flags.all() or not flags.any():
+            continue
+        groups.append((flags, np.array([o for _, o in pairs], dtype=float)))
+    n_flagged = int(sum(f.sum() for f, _ in groups))
+    if not n_flagged:
+        return 0.0, 1.0, 0
+
+    def gap(flag_sets) -> np.ndarray:
+        total = 0.0
+        for (flags, ok), perm in zip(groups, flag_sets, strict=True):
+            k = flags.sum()
+            mine = (perm * ok).sum(axis=-1) / k
+            rest = ((~perm) * ok).sum(axis=-1) / (len(ok) - k)
+            total = total + k * (rest - mine)
+        return total / n_flagged
+
+    observed = float(gap([f for f, _ in groups]))
+    rng = np.random.default_rng(seed)
+    shuffled = [rng.permuted(np.tile(f, (draws, 1)), axis=1) for f, _ in groups]
+    null = gap(shuffled)
+    p = (1 + int((null >= observed - 1e-12).sum())) / (1 + draws)
+    return observed, p, n_flagged

@@ -122,14 +122,15 @@ def _levers(report: dict) -> list[dict]:
     Тэдний тулгуур тоглогчийг эрт алах нь хөшүүрэг; ADR бага байх нь биш.
     """
     out = []
+    # A linchpin counts only past the permutation test against his teammates (PL-8).
     for pin in (report.get("linchpins") or {}).get("opponent") or []:
-        if pin["swing"] >= LEVER_SWING:
+        if pin["swing"] >= LEVER_SWING and pin.get("significant"):
             out.append({"kind": "linchpin", "swing": pin["swing"], "data": pin})
     for row in (report.get("my_delta") or {}).get("collapses") or []:
         if abs(row["delta"]) >= LEVER_COLLAPSE:
             out.append({"kind": "collapse", "swing": abs(row["delta"]), "data": row})
     for pin in (report.get("linchpins") or {}).get("mine") or []:
-        if pin["swing"] >= LEVER_SWING:
+        if pin["swing"] >= LEVER_SWING and pin.get("significant"):
             out.append({"kind": "protect", "swing": pin["swing"], "data": pin})
     out.sort(key=lambda r: -r["swing"])
     return out
@@ -181,7 +182,9 @@ def _cards(report: dict, opponent) -> list[dict]:
     """
     cards: list[dict] = []
 
-    pins = (report.get("linchpins") or {}).get("opponent") or []
+    pins = [
+        p for p in (report.get("linchpins") or {}).get("opponent") or [] if p.get("significant")
+    ]
     if pins:
         p = pins[0]
         cards.append(
