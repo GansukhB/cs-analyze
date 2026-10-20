@@ -57,7 +57,7 @@ class FakeBrowser:
         FakeBrowser.recovered += 1
         return True
 
-    def download(self, url, dest, on_progress=None):
+    def download(self, url, dest, timeout_ms=0, on_progress=None, stall_seconds=None):
         """Write an archive holding one map demo, the way HLTV names them."""
         dest.parent.mkdir(parents=True, exist_ok=True)
         with tarfile.open(dest, "w") as archive:
@@ -359,7 +359,7 @@ def test_stop_before_start(pipeline, db, monkeypatch):
 def _archive_of(*names):
     """FakeBrowser.download, writing an archive with these map demos."""
 
-    def download(self, url, dest, on_progress=None):
+    def download(self, url, dest, timeout_ms=0, on_progress=None, stall_seconds=None):
         dest.parent.mkdir(parents=True, exist_ok=True)
         slug = dest.stem.split("-", 1)[1]
         with tarfile.open(dest, "w") as archive:

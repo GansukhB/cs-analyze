@@ -16,8 +16,11 @@ class Settings(BaseSettings):
     redis_broker_url: str = "redis://redis:6379/0"
     redis_result_url: str = "redis://redis:6379/1"
     redis_cache_url: str = "redis://redis:6379/2"
-    # Celery's default queue, a plain Redis list on the broker DB.
+    # Celery's default queue, a plain Redis list on the broker DB: the Scouts.
     celery_queue: str = "celery"
+    # Short work that must not wait behind a Scout (the Review refresh, docs/adr/0008).
+    # The worker consumes both, with a thread for each.
+    celery_light_queue: str = "light"
 
     jwt_secret: SecretStr
     jwt_algorithm: str = "HS256"
@@ -25,6 +28,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24
 
     cors_origins: list[str] = ["http://localhost:5173"]
+    # Swagger and the raw schema. Off in production (ansible/templates/api.env.j2):
+    # they map every endpoint for anyone who finds the host.
+    api_docs: bool = True
 
     # HLTV pipeline scratch. A job downloads, unpacks and parses one match at a time
     # under tmp/<job>/ and deletes it after (~1-2 GB at most); nothing here outlives
@@ -37,6 +43,11 @@ class Settings(BaseSettings):
     hltv_request_delay_ms: int = 1500
     hltv_timeout_ms: int = 60_000
     hltv_challenge_retries: int = 4
+    # A demo download must begin within this (Cloudflare can serve a page instead
+    # of the file, and then none ever starts) and abort once no byte has arrived
+    # for the stall limit. The transfer itself is unbounded: archives run 350-900 MB.
+    hltv_download_start_timeout_ms: int = 120_000
+    hltv_download_stall_seconds: int = 120
     hltv_user_agent: str = (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"

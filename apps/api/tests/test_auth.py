@@ -52,3 +52,24 @@ def test_job_endpoints_require_token(client):
     assert client.get(f"/jobs/{job}").status_code == 401
     assert client.post(f"/jobs/{job}/cancel").status_code == 401
     assert client.get("/workers").status_code == 401
+
+
+def test_failed_sign_ins_are_limited_per_username(client, user):
+    from app.routers.auth import FAILURES_PER_USERNAME
+
+    for _ in range(FAILURES_PER_USERNAME):
+        assert login(client, "Bat", "wrong").status_code == 401
+    # Even the right password waits out the window now.
+    blocked = login(client, "Bat", "correct-horse")
+    assert blocked.status_code == 429
+    assert blocked.headers["Retry-After"]
+
+
+def test_a_good_sign_in_clears_the_count(client, user):
+    from app.routers.auth import FAILURES_PER_USERNAME
+
+    for _ in range(FAILURES_PER_USERNAME - 1):
+        login(client, "Bat", "wrong")
+    assert login(client, "Bat", "correct-horse").status_code == 200
+    for _ in range(FAILURES_PER_USERNAME - 1):
+        assert login(client, "Bat", "wrong").status_code == 401

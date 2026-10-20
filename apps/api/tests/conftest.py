@@ -8,11 +8,12 @@ from sqlalchemy import create_engine, event  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
+from app import db as database  # noqa: E402
 from app.db import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import User  # noqa: E402
 from app.security import create_access_token, hash_password  # noqa: E402
-from app.services import live, pool_cache, review_pool  # noqa: E402
+from app.services import live, pool_cache, ratelimit, review_pool  # noqa: E402
 
 
 @pytest.fixture
@@ -71,12 +72,27 @@ class FakeRedis:
     def delete(self, key):
         self.store.pop(key, None)
 
+    def incr(self, key):
+        self.store[key] = int(self.store.get(key) or 0) + 1
+        return self.store[key]
+
+    def expire(self, key, seconds):
+        return key in self.store
+
 
 @pytest.fixture(autouse=True)
 def pool_redis(monkeypatch) -> FakeRedis:
     """The Pool's Redis as a dict, empty for every test."""
     fake = FakeRedis()
     monkeypatch.setattr(pool_cache, "get_cache", lambda: fake)
+    return fake
+
+
+@pytest.fixture(autouse=True)
+def limits_redis(monkeypatch) -> FakeRedis:
+    """The rate limits' Redis as a dict, empty for every test."""
+    fake = FakeRedis()
+    monkeypatch.setattr(ratelimit, "get_cache", lambda: fake)
     return fake
 
 
@@ -113,8 +129,10 @@ def dispatched(monkeypatch) -> list:
 
 
 @pytest.fixture
-def client(db: Session) -> TestClient:
+def client(db: Session, engine, monkeypatch) -> TestClient:
     app.dependency_overrides[get_db] = lambda: db
+    # Code that opens its own short sessions (the job socket) gets the test database too.
+    monkeypatch.setattr(database, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
     yield TestClient(app)
     app.dependency_overrides.clear()
 

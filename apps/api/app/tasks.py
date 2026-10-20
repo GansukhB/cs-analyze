@@ -797,8 +797,13 @@ def _fetch_one(job_db, db, job, client, browser, match, scratch: Path, totals: d
     target.parent.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
     try:
+        settings = get_settings()
         browser.download(
-            link, target, on_progress=_download_reporter(job_db, job, step, match, target)
+            link,
+            target,
+            timeout_ms=settings.hltv_download_start_timeout_ms,
+            on_progress=_download_reporter(job_db, job, step, match, target),
+            stall_seconds=settings.hltv_download_stall_seconds,
         )
     except HltvBlocked as exc:
         target.unlink(missing_ok=True)

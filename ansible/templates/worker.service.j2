@@ -10,13 +10,15 @@ StartLimitBurst=5
 Type=simple
 WorkingDirectory={{ api_path }}
 Environment=PYTHONUNBUFFERED=1
-# Threads, one slot: jobs are single-flight anyway (app/services/jobs.py), and
-# in one process an OOM kill takes the whole worker down, so systemd restarts it
-# and `tasks._recover` fails the job it was running. Under prefork only the
-# child would die, and the job would stay RUNNING with the queue blocked.
+# Threads, two slots: Scouts are single-flight anyway (app/services/jobs.py),
+# so one slot is the Scout's and the other serves the `light` queue (the Review
+# refresh), which must not wait an hour behind a Scout (docs/adr/0008). In one
+# process an OOM kill takes the whole worker down, so systemd restarts it and
+# `tasks._recover` fails the job it was running. Under prefork only the child
+# would die, and the job would stay RUNNING with the queue blocked.
 # %%h is a literal %h for Celery (the hostname), not systemd's home directory.
 ExecStart={{ api_path }}/.venv/bin/celery -A app.celery_app worker \
-    --pool=threads --concurrency=1 --loglevel=info \
+    --pool=threads --concurrency=2 -Q celery,light --loglevel=info \
     --hostname={{ worker_service }}@%%h
 Restart=always
 RestartSec=10

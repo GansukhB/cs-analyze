@@ -113,3 +113,17 @@ def test_a_crashed_tab_is_replaced(browser):
     assert browser.page is not first and not browser.page.is_closed()
     assert browser.open("/").title() == "ok"
     assert browser.recover_page() is False
+
+
+def test_a_long_stall_aborts_the_download(browser, tmp_path):
+    # The server goes quiet for STALL_SEC halfway through; a shorter stall limit
+    # gives up instead of holding the only Scout slot.
+    with pytest.raises(HltvBlocked, match="stalled"):
+        browser.download("/stall.rar", tmp_path / "stall.rar", stall_seconds=STALL_SEC / 3)
+    # The tab is still usable for the next item.
+    assert browser.open("/").title() == "ok"
+
+
+def test_a_stall_shorter_than_the_limit_completes(browser, tmp_path):
+    dest = browser.download("/stall.rar", tmp_path / "stall.rar", stall_seconds=STALL_SEC * 4)
+    assert dest.stat().st_size == SIZE

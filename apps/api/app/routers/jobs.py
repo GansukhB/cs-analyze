@@ -8,8 +8,11 @@ job, only the token it authenticates with.
 
 import asyncio
 import contextlib
+import threading
+import time
 import uuid
 from typing import Annotated
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from fastapi.concurrency import run_in_threadpool
@@ -17,6 +20,7 @@ from redis import Redis
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
+from app import db as database
 from app.celery_app import celery_app
 from app.config import get_settings
 from app.deps import CurrentUser, DbSession, user_from_token
@@ -34,7 +38,7 @@ from app.schemas import (
     ScoutDefaults,
 )
 from app.services import jobs as job_service
-from app.services import live, mn
+from app.services import live, mn, system
 
 router = APIRouter(tags=["jobs"])
 
@@ -148,12 +152,39 @@ def cancel_job(public_id: uuid.UUID, db: DbSession, _: CurrentUser) -> JobStatus
     return JobStatusPayload(**job_service.status_payload(job))
 
 
+def redact_url(url: str) -> str:
+    """The broker URL without its credentials: in production it carries the Redis
+    ACL user and password, and every User can open the Jobs page."""
+    parts = urlsplit(url)
+    if not parts.hostname:
+        return parts.scheme + "://"
+    host = parts.hostname + (f":{parts.port}" if parts.port else "")
+    if parts.username or parts.password:
+        host = "***@" + host
+    return urlunsplit((parts.scheme, host, parts.path, "", ""))
+
+
+# `inspect` is a broadcast that waits out its whole timeout when nobody answers,
+# and the Jobs page polls every 4 s; one answer serves the polls of the next 15 s.
+INSPECT_TTL_SECONDS = 15.0
+_inspect_lock = threading.Lock()
+_inspected: dict = {"at": 0.0, "active": {}}
+
+
+def _active_tasks() -> dict:
+    with _inspect_lock:
+        if time.monotonic() - _inspected["at"] >= INSPECT_TTL_SECONDS:
+            _inspected["active"] = celery_app.control.inspect(timeout=1).active() or {}
+            _inspected["at"] = time.monotonic()
+        return _inspected["active"]
+
+
 @router.get("/workers")
 def workers(_: CurrentUser) -> BrokerState:
     """What Redis and the workers say about themselves right now."""
     settings = get_settings()
     state = BrokerState(
-        redis_url=settings.redis_broker_url,
+        redis_url=redact_url(settings.redis_broker_url),
         connected=False,
         queued=None,
         workers=[],
@@ -166,10 +197,13 @@ def workers(_: CurrentUser) -> BrokerState:
         state.connected = True
         state.queued = client.llen(settings.celery_queue)
     except Exception as exc:
-        state.error = f"Redis unreachable: {exc}"
+        state.error = f"Redis unreachable: {type(exc).__name__}"
+        return state
+    if not system.worker_alive():
+        # No heartbeat: no worker to ask, so don't wait out a broadcast nobody answers.
         return state
     try:
-        active = celery_app.control.inspect(timeout=1).active() or {}
+        active = _active_tasks()
         state.workers = sorted(active)
         state.active = [
             {"worker": worker, "task": task.get("name"), "id": task.get("id")}
@@ -177,22 +211,30 @@ def workers(_: CurrentUser) -> BrokerState:
             for task in tasks
         ]
     except Exception as exc:  # inspection is best-effort; the queue length is the fact
-        state.error = f"No worker responded: {exc}"
+        state.error = f"No worker responded: {type(exc).__name__}"
     return state
 
 
 # -- live ----------------------------------------------------------------------
-def _snapshot(db: Session, public_id: uuid.UUID) -> dict | None:
-    job = db.scalar(select(AnalysisJob).where(AnalysisJob.public_id == public_id))
-    if job is None:
-        return None
-    payload = job_service.status_payload(job)
-    payload["events"] = _events(db, job, None, SNAPSHOT_EVENTS)
-    return payload
+# The socket can stay open for hours; each read opens its own short session
+# instead of holding one (and a pooled connection) for the socket's lifetime.
+def _authenticated(token: str | None) -> bool:
+    with database.SessionLocal() as db:
+        return user_from_token(db, token) is not None
+
+
+def _snapshot(public_id: uuid.UUID) -> dict | None:
+    with database.SessionLocal() as db:
+        job = db.scalar(select(AnalysisJob).where(AnalysisJob.public_id == public_id))
+        if job is None:
+            return None
+        payload = job_service.status_payload(job)
+        payload["events"] = _events(db, job, None, SNAPSHOT_EVENTS)
+        return payload
 
 
 @router.websocket("/ws/jobs/{public_id}")
-async def job_socket(ws: WebSocket, public_id: uuid.UUID, db: DbSession) -> None:
+async def job_socket(ws: WebSocket, public_id: uuid.UUID) -> None:
     """Snapshot on connect, then every message the worker publishes for this job.
 
     The first client message must be ``{"token": "<jwt>"}`` (browsers cannot set
@@ -206,14 +248,14 @@ async def job_socket(ws: WebSocket, public_id: uuid.UUID, db: DbSession) -> None
     except (TimeoutError, WebSocketDisconnect, ValueError):
         await ws.close(code=4401)
         return
-    if await run_in_threadpool(user_from_token, db, token) is None:
+    if not await run_in_threadpool(_authenticated, token):
         await ws.close(code=4401)
         return
 
     # Subscribe before reading the snapshot, so nothing published in between is
     # lost; the browser drops events it already has by id.
     async with live.subscribe(public_id) as messages:
-        snapshot = await run_in_threadpool(_snapshot, db, public_id)
+        snapshot = await run_in_threadpool(_snapshot, public_id)
         if snapshot is None:
             await ws.close(code=4404)
             return

@@ -16,4 +16,7 @@ celery_app.conf.update(
     accept_content=["json"],
     result_expires=60 * 60 * 24,
     broker_connection_retry_on_startup=True,
+    # A Scout holds its slot for up to an hour; the Review refresh gets the other
+    # thread instead of waiting behind it (the worker runs `-Q celery,light`).
+    task_routes={"cs_analyze.refresh_reviews": {"queue": settings.celery_light_queue}},
 )

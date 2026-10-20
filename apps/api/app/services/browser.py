@@ -257,12 +257,22 @@ class HltvBrowser:
 
     # -- downloading -------------------------------------------------------
     def download(
-        self, url: str, dest: Path, timeout_ms: int = 0, on_progress: Callable | None = None
+        self,
+        url: str,
+        dest: Path,
+        timeout_ms: int = 120_000,
+        on_progress: Callable | None = None,
+        stall_seconds: float | None = None,
     ) -> Path:
         """Download ``url`` to ``dest`` using the browser itself.
 
-        Returns the written path. ``timeout_ms=0`` waits indefinitely, which is
-        what large demo archives need.
+        Returns the written path. ``timeout_ms`` bounds how long the download
+        may take to *begin* (0 waits forever): when Cloudflare serves a page
+        instead of the file, no download ever starts, and the only Scout slot
+        must not wait on it. The transfer itself has no deadline, since a large
+        archive takes minutes; ``stall_seconds`` instead aborts it once no byte
+        has arrived for that long. The stall watch needs Chromium's progress
+        events; without them the transfer runs unwatched, as it always did.
 
         ``on_progress(received, total, elapsed)`` is called perhaps once a second
         while the bytes arrive -- ``received``/``total`` are None when Chromium
@@ -273,7 +283,7 @@ class HltvBrowser:
         dest.parent.mkdir(parents=True, exist_ok=True)
         full = url if url.startswith("http") else f"{BASE_URL}{url}"
 
-        watch = _DownloadWatch(self.page, on_progress) if on_progress else None
+        watch = _DownloadWatch(self.page, on_progress) if on_progress or stall_seconds else None
         download = None
         try:
             with self.page.expect_download(timeout=timeout_ms) as info:
@@ -281,6 +291,18 @@ class HltvBrowser:
                 # location lets Chromium hand it to the download manager instead.
                 self.page.evaluate("(u) => { window.location.href = u; }", full)
             download = info.value
+
+            if stall_seconds and watch is not None and watch.attached:
+                # save_as() and failure() block until the last byte, so the stall
+                # is watched here instead: waiting on the page pumps the CDP
+                # progress events the watch counts.
+                while not watch.finished:
+                    self.page.wait_for_timeout(500)
+                    if watch.stalled_for() > stall_seconds:
+                        download.cancel()
+                        raise HltvBlocked(
+                            f"Download of {full} stalled: no data for {stall_seconds:.0f} s"
+                        )
 
             failure = download.failure()
             if failure:
@@ -342,12 +364,16 @@ class _DownloadWatch:
     QUIET_BEFORE_HEARTBEAT_SEC = 4.0
     HEARTBEAT_SEC = 5.0
 
-    def __init__(self, page, on_progress: Callable):
+    def __init__(self, page, on_progress: Callable | None = None):
         self.on_progress = on_progress
         self.started = time.monotonic()
         self.guid: str | None = None
         self.received = self.total = 0
         self.saw_bytes = False
+        # When the byte count last grew, and whether Chromium called it done
+        # (completed or cancelled): what the stall watch in download() reads.
+        self.grew_at = self.started
+        self.finished = False
         self._last_at = 0.0
         self._last_pct = -100.0
         self._closed = threading.Event()
@@ -378,13 +404,28 @@ class _DownloadWatch:
     def _progress(self, event) -> None:
         if self.guid is not None and event.get("guid") != self.guid:
             return
-        self.received = int(event.get("receivedBytes") or 0)
+        received = int(event.get("receivedBytes") or 0)
+        if received > self.received:
+            self.grew_at = time.monotonic()
+        self.received = received
         self.total = int(event.get("totalBytes") or 0)
         self.saw_bytes = True
-        if event.get("state") == "completed":
+        state = event.get("state")
+        if state in ("completed", "canceled"):
+            self.finished = True
+        if state == "completed":
             self._emit(force=True)
             return
         self._emit()
+
+    @property
+    def attached(self) -> bool:
+        """Whether Chromium's progress events reach us at all."""
+        return self._session is not None
+
+    def stalled_for(self) -> float:
+        """Seconds since the byte count last grew (or since the start, before any)."""
+        return time.monotonic() - self.grew_at
 
     # -- the clock, for when the events say nothing ------------------------
     def _tick(self) -> None:
@@ -410,7 +451,7 @@ class _DownloadWatch:
 
     def _call(self, received, total) -> None:
         with self._lock:
-            if self._closed.is_set():
+            if self._closed.is_set() or self.on_progress is None:
                 return
             try:
                 self.on_progress(received, total, time.monotonic() - self.started)

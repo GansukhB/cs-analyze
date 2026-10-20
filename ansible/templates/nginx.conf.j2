@@ -8,6 +8,18 @@ map $http_upgrade $cs2_connection_upgrade {
     ''      close;
 }
 
+# Behind Cloudflare the peer is one of its edges; it passes the visitor's address
+# in CF-Connecting-IP. Limits per visitor: sign-in attempts (each costs an argon2
+# hash) and Assistant turns (each costs Claude and ElevenLabs credit). The API
+# also counts failed sign-ins per Username (app/routers/auth.py).
+map $http_cf_connecting_ip $cs2_client {
+    default $http_cf_connecting_ip;
+    ''      $remote_addr;
+}
+limit_req_zone $cs2_client zone=cs2_auth:10m rate=10r/m;
+limit_req_zone $cs2_client zone=cs2_assistant:10m rate=20r/m;
+limit_req_status 429;
+
 {% macro head(domain) %}
 server {
     listen 80;
@@ -63,16 +75,29 @@ server {
     # A spoken question for the Assistant is uploaded whole (the API caps it at 10 MB).
     client_max_body_size 10m;
 
-    location / {
+{% macro proxy() %}
         proxy_pass http://127.0.0.1:{{ api_port }};
         proxy_http_version 1.1;
         # WS /ws/jobs/{id} shares the location with plain HTTP.
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $cs2_connection_upgrade;
         proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Real-IP $cs2_client;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 300s;
+{% endmacro %}
+    location = /auth/token {
+        limit_req zone=cs2_auth burst=5 nodelay;
+{{ proxy() }}
+    }
+
+    location /assistant/ {
+        limit_req zone=cs2_assistant burst=10 nodelay;
+{{ proxy() }}
+    }
+
+    location / {
+{{ proxy() }}
     }
 }

@@ -64,6 +64,11 @@ _BO1_NAME = re.compile(r"-([A-Za-z0-9_]+?)(?:-p(\d+))?\.dem$", re.IGNORECASE)
 # demos.map is VARCHAR(40).
 MAP_NAME_MAX = 40
 
+# A listing reads only the archive's headers; an extraction writes a few GB at
+# most (a median one took 23 s). Past these, bsdtar is wedged, not working.
+LIST_TIMEOUT_SEC = 120.0
+EXTRACT_TIMEOUT_SEC = 600.0
+
 
 class ArchiveError(RuntimeError):
     """The archive could not be read or unpacked."""
@@ -111,7 +116,7 @@ def _normalise_map(value: str) -> str:
     return (value[3:] if value.startswith("de_") else value)[:MAP_NAME_MAX]
 
 
-def _run(args: list[str]) -> str:
+def _run(args: list[str], timeout: float | None = None) -> str:
     if not TAR:
         raise ArchiveError(
             "bsdtar (libarchive) not found; it is needed to read the RAR5 archives "
@@ -119,7 +124,9 @@ def _run(args: list[str]) -> str:
             "`apt install libarchive-tools` on Ubuntu, or it ships with macOS as the stock `tar`."
         )
     try:
-        done = subprocess.run(args, capture_output=True, text=True, check=False)
+        done = subprocess.run(args, capture_output=True, text=True, check=False, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        raise ArchiveError(f"{Path(args[0]).name} took longer than {timeout:.0f} s") from exc
     except OSError as exc:  # pragma: no cover - depends on the platform
         raise ArchiveError(f"could not run {args[0]}: {exc}") from exc
     if done.returncode != 0:
@@ -127,8 +134,13 @@ def _run(args: list[str]) -> str:
     return done.stdout
 
 
-def _run_watched(args: list[str], watch: Callable, every: float = 1.0) -> None:
-    """Run ``args`` and call ``watch`` while it works. Same errors as :func:`_run`."""
+def _run_watched(
+    args: list[str], watch: Callable, every: float = 1.0, timeout: float | None = None
+) -> None:
+    """Run ``args`` and call ``watch`` while it works. Same errors as :func:`_run`.
+
+    ``timeout`` (seconds) kills a run that takes longer: a wedged bsdtar must not
+    hold the only Scout slot for hours, as one did locally (7 h "unpacking")."""
     if not TAR:
         raise ArchiveError(
             "bsdtar (libarchive) not found; it is needed to read the RAR5 archives "
@@ -143,7 +155,12 @@ def _run_watched(args: list[str], watch: Callable, every: float = 1.0) -> None:
         except OSError as exc:  # pragma: no cover - depends on the platform
             raise ArchiveError(f"could not run {args[0]}: {exc}") from exc
 
+        started = time.monotonic()
         while proc.poll() is None:
+            if timeout is not None and time.monotonic() - started > timeout:
+                proc.kill()
+                proc.wait()
+                raise ArchiveError(f"{Path(args[0]).name} took longer than {timeout:.0f} s")
             try:
                 watch()
             except Exception:  # a progress report must never fail an extraction
@@ -159,12 +176,16 @@ def list_demos(archive: Path) -> list[DemoEntry]:
     """The ``.dem`` members of ``archive``, in archive order."""
     if not archive.exists():
         raise ArchiveError(f"archive is not on disk: {archive}")
-    names = _run([TAR, "-tf", str(archive)]).splitlines()
+    names = _run([TAR, "-tf", str(archive)], timeout=LIST_TIMEOUT_SEC).splitlines()
     return [parse_demo_name(n) for n in (n.strip() for n in names) if n.lower().endswith(".dem")]
 
 
 def extract(
-    archive: Path, dest_dir: Path, entries: list[DemoEntry], on_progress: Callable | None = None
+    archive: Path,
+    dest_dir: Path,
+    entries: list[DemoEntry],
+    on_progress: Callable | None = None,
+    timeout: float | None = EXTRACT_TIMEOUT_SEC,
 ) -> list[Path]:
     """Unpack ``entries`` into ``dest_dir``; returns the paths actually written.
 
@@ -186,9 +207,9 @@ def extract(
     wanted = [dest_dir / Path(e.name).name for e in entries]
 
     if on_progress is None:
-        _run(args)
+        _run(args, timeout=timeout)
     else:
-        _run_watched(args, lambda: on_progress(*_written_so_far(wanted)))
+        _run_watched(args, lambda: on_progress(*_written_so_far(wanted)), timeout=timeout)
 
     missing = [p.name for p in wanted if not p.exists()]
     if missing:
