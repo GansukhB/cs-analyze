@@ -75,6 +75,8 @@ ADR 0011-ийн дагуу upload хийсэн official Match тухайн Works
 
 ### WS-3. Урилга ба гишүүдийн удирдлага (P1, M)
 
+> **Төлөв:** ✅ `5e037c3` (improvement-01). Урилгын линкийг frontend нь `window.location.origin`-оор угсарна, тохиргоо шаардлагагүй.
+
 - `invites`: `id`, `workspace_id`, `token_hash` (SHA-256), `role`, `player_id` (nullable), `created_by_id`, `expires_at` (7 хоног), `used_at`, `used_by_id`.
 - `POST /workspace/invites` (Staff): урилга үүсгээд `https://cs2.bizon.mn/invite/<token>` линк буцаана. `POST /invites/{token}/accept` нь Username, нууц үг авч User үүсгэнэ. Нэг удаагийн, хугацаатай.
 - `GET /workspace/members`, `PATCH /workspace/members/{id}` (идэвхгүй болгох, Player холбох, role солих). Staff өөрийгөө идэвхгүй болгож чадахгүй, сүүлийн Staff-ыг ч мөн адил.
@@ -83,6 +85,8 @@ ADR 0011-ийн дагуу upload хийсэн official Match тухайн Works
 - Frontend: `/workspace` хуудас (Staff): my team-үүд, гишүүд, урилгууд.
 
 ### WS-4. Тоглогчийн нүүр хуудас (P1, M, RV-9-тэй хамт)
+
+> **Төлөв:** ✅ `98eaa23` (improvement-01). Development plan-ийн KPI (RV-9) хийгдсэний дараа энэ хуудсанд нэмэгдэнэ.
 
 Player User нэвтрэхэд `/me` руу орно:
 
@@ -93,6 +97,8 @@ Player User нэвтрэхэд `/me` руу орно:
 
 ### WS-5. Briefing: Game Plan-аас тогтвортой хуваалцах хувилбар (P1, M)
 
+> **Төлөв:** ✅ `14e460f` (improvement-01). PDF (GP-7) ба «Төлөвлөгөө ажилласан уу» (GP-8) үлдсэн; хэвлэх CSS бэлэн.
+
 Game Plan амьд: Match Map нэмэгдэх бүрт тоо нь өөрчлөгдөнө. Тоглогчдод "мягмар гарагт тохиролцсон төлөвлөгөө" хэрэгтэй.
 
 - `briefings`: `id`, `public_id`, `workspace_id`, `fixture` (`my_team_id`, `opponent_id`, lineup-ууд), `match_id` (nullable, хуваарьт тоглолттой холбоно), `title`, `payload` (gzip JSON: сонгосон panel-ууд, Map бүрийн Playbook-ийн мөрүүд, Staff-ын тэмдэглэл), `include_forecast` BOOL, `created_by_id`, `created_at`, `shared_at`.
@@ -101,6 +107,8 @@ Game Plan амьд: Match Map нэмэгдэх бүрт тоо нь өөрчлө
 - Тоглолтын дараа Briefing → "Төлөвлөгөө ажилласан уу" харьцуулалт (GP-8).
 
 ### WS-6. Нэвтрэлтийг бэхжүүлэх (P1, S)
+
+> **Төлөв:** ✅ `1e67e76` (improvement-01). Rate limit нь OPS-1-д хийгдсэн.
 
 Тоглогчид нэвтрэх болсноор account-ын тоо, төхөөрөмж нэмэгдэнэ. ADR 0001-ийн эрсдэл (XSS-ээр token хулгайлагдах) өснө.
 
