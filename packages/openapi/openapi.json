@@ -669,7 +669,7 @@
           "players"
         ],
         "summary": "Player",
-        "description": "Form, numbers by Map and Side, Findings against every Player's, spots, guns.\n\nThe Steam id is a string in the path, as everywhere the browser holds one:\nas a JavaScript number it would lose its last digits.",
+        "description": "Form, numbers by Map and Side, Findings against every Player's, spots, guns.\n\nThe Steam id is a string in the path, as everywhere the browser holds one:\nas a JavaScript number it would lose its last digits. A Player login sees\nonly their own (docs/plans WS-4).",
         "operationId": "player_players__steamid__get",
         "security": [
           {
@@ -710,6 +710,33 @@
             }
           }
         }
+      }
+    },
+    "/me/overview": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Overview",
+        "description": "My latest Match Maps and Scrims, and my Focus points from the last five.",
+        "operationId": "overview_me_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOverview"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/gameplan/teams": {
@@ -4801,6 +4828,236 @@
           "players"
         ],
         "title": "MatchTeamSummary"
+      },
+      "MeFinding": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "round": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round"
+          },
+          "t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "swing": {
+            "type": "number",
+            "title": "Swing"
+          },
+          "scrim": {
+            "type": "boolean",
+            "title": "Scrim"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "map_number",
+          "map",
+          "round",
+          "t",
+          "code",
+          "kind",
+          "label",
+          "title",
+          "text",
+          "swing",
+          "scrim"
+        ],
+        "title": "MeFinding"
+      },
+      "MeMap": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "opponent": {
+            "type": "string",
+            "title": "Opponent"
+          },
+          "scrim": {
+            "type": "boolean",
+            "title": "Scrim"
+          },
+          "won": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Won"
+          },
+          "score": {
+            "type": "string",
+            "title": "Score"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "deaths": {
+            "type": "integer",
+            "title": "Deaths"
+          },
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "swing_per_round": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swing Per Round"
+          },
+          "reviewed": {
+            "type": "boolean",
+            "title": "Reviewed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "map_number",
+          "map",
+          "played_at",
+          "team",
+          "opponent",
+          "scrim",
+          "won",
+          "score",
+          "kills",
+          "deaths",
+          "adr",
+          "swing_per_round",
+          "reviewed"
+        ],
+        "title": "MeMap"
+      },
+      "MeOverview": {
+        "properties": {
+          "player": {
+            "$ref": "#/components/schemas/MemberPlayer"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/MeMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "focus": {
+            "items": {
+              "$ref": "#/components/schemas/MeFinding"
+            },
+            "type": "array",
+            "title": "Focus"
+          },
+          "keep": {
+            "items": {
+              "$ref": "#/components/schemas/MeFinding"
+            },
+            "type": "array",
+            "title": "Keep"
+          },
+          "focus_maps": {
+            "type": "integer",
+            "title": "Focus Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "player",
+          "maps",
+          "focus",
+          "keep",
+          "focus_maps"
+        ],
+        "title": "MeOverview"
       },
       "MemberPatch": {
         "properties": {

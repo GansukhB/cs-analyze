@@ -14,8 +14,8 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.deps import DbSession, StaffUser
-from app.models import Match, MatchMap, PlayerMap, Round
+from app.deps import CurrentUser, DbSession, can_see_match
+from app.models import Match, MatchMap, PlayerMap, Round, User
 from app.routers.teams import map_label
 from app.schemas import (
     MatchInfo,
@@ -44,7 +44,13 @@ def _playable(match_map: MatchMap) -> bool:
     return match_map.is_parsed and replay.is_playable(match_map)
 
 
-def _match(db: Session, match_id: int) -> Match:
+def _allowed(db: Session, user: User, match_id: int) -> None:
+    if not can_see_match(db, user, match_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such match")
+
+
+def _match(db: Session, match_id: int, user: User) -> Match:
+    _allowed(db, user, match_id)
     # A Match's own pages show the Workspace's Scrims too (docs/adr/0010).
     scope.allow_scrims(db)
     match = db.scalar(
@@ -62,7 +68,8 @@ def _match(db: Session, match_id: int) -> Match:
     return match
 
 
-def _map(db: Session, match_id: int, map_number: int) -> MatchMap:
+def _map(db: Session, match_id: int, map_number: int, user: User) -> MatchMap:
+    _allowed(db, user, match_id)
     scope.allow_scrims(db)
     match_map = db.scalar(
         select(MatchMap)
@@ -77,11 +84,11 @@ def _map(db: Session, match_id: int, map_number: int) -> MatchMap:
 
 
 @router.get("/{match_id}")
-def get_match(match_id: int, db: DbSession, _: StaffUser) -> MatchInfo:
+def get_match(match_id: int, db: DbSession, user: CurrentUser) -> MatchInfo:
     """The match and its maps. ``default_map`` is where a bare match link lands:
     the first replayable map, else the first parsed one (whose page can then say
     its bundle is gone), else none."""
-    match = _match(db, match_id)
+    match = _match(db, match_id, user)
     maps = sorted(match.map_results, key=lambda m: m.map_number)
     playable = [m for m in maps if _playable(m)]
     target = playable[0] if playable else next((m for m in maps if m.is_parsed), None)
@@ -111,10 +118,12 @@ def get_match(match_id: int, db: DbSession, _: StaffUser) -> MatchInfo:
 
 
 @router.get("/{match_id}/maps/{map_number}")
-def get_match_map(match_id: int, map_number: int, db: DbSession, _: StaffUser) -> MatchMapDetail:
+def get_match_map(
+    match_id: int, map_number: int, db: DbSession, user: CurrentUser
+) -> MatchMapDetail:
     """One map: its scene (the floor plan the replay draws on), round list and
     scoreboard. The Replay itself was cut from the Tick Data at ingest."""
-    match_map = _map(db, match_id, map_number)
+    match_map = _map(db, match_id, map_number, user)
     scene = None
     if _playable(match_map):
         try:
@@ -145,7 +154,7 @@ def get_match_map(match_id: int, map_number: int, db: DbSession, _: StaffUser) -
     },
 )
 def get_round(
-    match_id: int, map_number: int, number: int, request: Request, db: DbSession, _: StaffUser
+    match_id: int, map_number: int, number: int, request: Request, db: DbSession, user: CurrentUser
 ):
     """One round's replay payload, sent exactly as stored: gzip JSON, which the
     browser decodes on its own (``Content-Encoding: gzip``).
@@ -154,7 +163,7 @@ def get_round(
     browser revalidates every time against an ETag of the stored bytes instead
     of trusting a max-age: an unchanged round costs a 304, a changed one is new.
     """
-    match_map = _map(db, match_id, map_number)
+    match_map = _map(db, match_id, map_number, user)
     try:
         payload = replay.round_payload(db, match_map, number)
     except Exception as exc:  # a replay must never take the page down with it
@@ -176,10 +185,10 @@ def get_round(
 
 
 @router.get("/{match_id}/summary")
-def get_summary(match_id: int, db: DbSession, _: StaffUser) -> MatchReviewSummary:
+def get_summary(match_id: int, db: DbSession, user: CurrentUser) -> MatchReviewSummary:
     """Each Team's Summary of the Match, from its Maps' Reviews (built first
     where missing or stale). A Map with no Tick Data shows its score only."""
-    match = _match(db, match_id)
+    match = _match(db, match_id, user)
     try:
         built = review_view.match_panel(db, match)
     except Exception as exc:  # like the Review: never take the page down with it
@@ -191,11 +200,11 @@ def get_summary(match_id: int, db: DbSession, _: StaffUser) -> MatchReviewSummar
 
 
 @router.get("/{match_id}/maps/{map_number}/review")
-def get_review(match_id: int, map_number: int, db: DbSession, _: StaffUser) -> Review:
+def get_review(match_id: int, map_number: int, db: DbSession, user: CurrentUser) -> Review:
     """The map's Review (CONTEXT.md): every Round's Win probability, Swing and
     Findings, worded. Built from the Tick Data on first read after a parse or a
     model change, then read back."""
-    match_map = _map(db, match_id, map_number)
+    match_map = _map(db, match_id, map_number, user)
     try:
         built = review_view.panel(db, match_map)
     except Exception as exc:  # a Review must never take the page down with it

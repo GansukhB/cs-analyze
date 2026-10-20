@@ -27,6 +27,13 @@ export default function Layout() {
       <header className="border-b border-line bg-surface">
         <div className={`mx-auto flex ${width} flex-wrap items-center gap-6 px-4 py-3 text-sm`}>
           <span className="font-semibold text-ink">cs-analyze</span>
+          {me.data && !staff && (
+            <nav className="flex gap-4">
+              <NavLink to="/me" className={link}>
+                Миний хуудас
+              </NavLink>
+            </nav>
+          )}
           {staff && (
             <nav className="flex gap-4">
               <NavLink to="/" end className={link}>

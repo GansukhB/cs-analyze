@@ -671,6 +671,52 @@ class WorkspaceMembers(BaseModel):
     invites: list[InviteRead]
 
 
+# -- A Player's own page (docs/plans/01 WS-4) --------------------------------------
+class MeMap(BaseModel):
+    match_id: int
+    map_number: int
+    map: str
+    played_at: dt.datetime | None
+    team: str
+    opponent: str
+    scrim: bool
+    won: bool | None
+    score: str
+    kills: int
+    deaths: int
+    adr: float | None
+    swing_per_round: float | None
+    reviewed: bool
+
+    @field_validator("played_at")
+    @classmethod
+    def played_utc(cls, value: dt.datetime | None) -> dt.datetime | None:
+        return _utc(value)
+
+
+class MeFinding(BaseModel):
+    match_id: int
+    map_number: int
+    map: str
+    round: int | None
+    t: float | None
+    code: str
+    kind: str
+    label: str
+    title: str
+    text: str
+    swing: float
+    scrim: bool
+
+
+class MeOverview(BaseModel):
+    player: MemberPlayer
+    maps: list[MeMap]
+    focus: list[MeFinding]
+    keep: list[MeFinding]
+    focus_maps: int
+
+
 # -- Uploads (docs/plans/02 DATA-1) -------------------------------------------------
 class UploadCreate(BaseModel):
     """Describe the file first; its bytes follow in parts."""

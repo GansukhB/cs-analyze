@@ -302,9 +302,30 @@ export interface paths {
          * @description Form, numbers by Map and Side, Findings against every Player's, spots, guns.
          *
          *     The Steam id is a string in the path, as everywhere the browser holds one:
-         *     as a JavaScript number it would lose its last digits.
+         *     as a JavaScript number it would lose its last digits. A Player login sees
+         *     only their own (docs/plans WS-4).
          */
         get: operations["player_players__steamid__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overview
+         * @description My latest Match Maps and Scrims, and my Focus points from the last five.
+         */
+        get: operations["overview_me_overview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1788,6 +1809,76 @@ export interface components {
             focus: components["schemas"]["SummaryItem"][];
             /** Players */
             players: components["schemas"]["MatchReviewSummaryPlayer"][];
+        };
+        /** MeFinding */
+        MeFinding: {
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Map */
+            map: string;
+            /** Round */
+            round: number | null;
+            /** T */
+            t: number | null;
+            /** Code */
+            code: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /** Swing */
+            swing: number;
+            /** Scrim */
+            scrim: boolean;
+        };
+        /** MeMap */
+        MeMap: {
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Map */
+            map: string;
+            /** Played At */
+            played_at: string | null;
+            /** Team */
+            team: string;
+            /** Opponent */
+            opponent: string;
+            /** Scrim */
+            scrim: boolean;
+            /** Won */
+            won: boolean | null;
+            /** Score */
+            score: string;
+            /** Kills */
+            kills: number;
+            /** Deaths */
+            deaths: number;
+            /** Adr */
+            adr: number | null;
+            /** Swing Per Round */
+            swing_per_round: number | null;
+            /** Reviewed */
+            reviewed: boolean;
+        };
+        /** MeOverview */
+        MeOverview: {
+            player: components["schemas"]["MemberPlayer"];
+            /** Maps */
+            maps: components["schemas"]["MeMap"][];
+            /** Focus */
+            focus: components["schemas"]["MeFinding"][];
+            /** Keep */
+            keep: components["schemas"]["MeFinding"][];
+            /** Focus Maps */
+            focus_maps: number;
         };
         /** MemberPatch */
         MemberPatch: {
@@ -3309,6 +3400,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_me_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOverview"];
                 };
             };
         };

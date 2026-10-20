@@ -1,5 +1,6 @@
 import { Link, NavLink, useParams } from 'react-router'
 import { $api } from '../api/client'
+import { useMe } from '../auth/useMe'
 import type { components } from '../api/schema'
 import MapReview from '../review/MapReview'
 import MatchOverview from '../review/MatchOverview'
@@ -40,12 +41,22 @@ export default function MatchPage() {
 }
 
 function Header({ info }: { info: MatchInfo }) {
+  // A Player login opens its own Matches only; the Team pages are Staff's (docs/plans WS-4).
+  const staff = useMe().data?.role === 'staff'
+  const team = (t: { id: number; name: string }) =>
+    staff ? (
+      <Link to={`/teams/${t.id}`} className="hover:underline">
+        {t.name}
+      </Link>
+    ) : (
+      t.name
+    )
   return (
     <div className="space-y-1">
       <p className="font-mono text-xs text-ink-3">
-        {info.team1 && <Link to={`/teams/${info.team1.id}`} className="hover:underline">{info.team1.name}</Link>}
+        {info.team1 && team(info.team1)}
         {info.team1 && info.team2 && ' / '}
-        {info.team2 && <Link to={`/teams/${info.team2.id}`} className="hover:underline">{info.team2.name}</Link>}
+        {info.team2 && team(info.team2)}
       </p>
       <h1 className="text-2xl font-semibold text-ink">
         {info.team1?.name ?? '?'} <span className="font-mono">{info.score || '–'}</span>{' '}

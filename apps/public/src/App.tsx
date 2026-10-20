@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useMatch } from 'react-router'
 import { useToken } from './auth/token'
+import { useMe } from './auth/useMe'
 import Layout from './Layout'
 import ForecastsPage from './pages/ForecastsPage'
 import GameplanPage from './pages/GameplanPage'
@@ -10,6 +11,7 @@ import JobPage from './pages/JobPage'
 import JobsPage from './pages/JobsPage'
 import LoginPage from './pages/LoginPage'
 import MatchPage from './pages/MatchPage'
+import MePage from './pages/MePage'
 import PlayerPage from './pages/PlayerPage'
 import TeamPage from './pages/TeamPage'
 import TeamsPage from './pages/TeamsPage'
@@ -27,7 +29,8 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<HomePage />} />
+        <Route index element={<Home />} />
+        <Route path="me" element={<MePage />} />
         <Route path="jobs" element={<JobsPage />} />
         <Route path="jobs/:publicId" element={<JobPage />} />
         <Route path="teams" element={<TeamsPage />} />
@@ -46,4 +49,11 @@ export default function App() {
       </Route>
     </Routes>
   )
+}
+
+// Staff land on the Scout form; a Player login on its own page (docs/plans WS-4).
+function Home() {
+  const me = useMe()
+  if (!me.data) return null
+  return me.data.role === 'player' ? <Navigate to="/me" replace /> : <HomePage />
 }
