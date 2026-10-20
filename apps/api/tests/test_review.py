@@ -363,3 +363,39 @@ def test_the_assistant_reads_it(db, inferno):
     assert out["map"] == "Inferno" and out["parsed_maps"] == [1]
     assert [f["what"] for f in out["findings"]] == ["Clutch"]
     assert "error" in missing and missing["parsed_maps"] == [1]
+
+
+# ----------------------------------------------------------------- a defuse ---
+PLANT, DEFUSED = 1500, 3500  # 8.75 s left on the bomb when a2 finishes, with no kit
+
+
+@pytest.fixture
+def defused(db, inferno):
+    """The same Round, but b1 plants first and a2 defuses after clearing the site."""
+    from app.models import BombEvent
+
+    rnd = db.scalar(select(Round))
+    rnd.bomb_plant_tick = PLANT
+    rnd.end_reason = "bomb_defused"
+    players = {p.steamid: p for p in db.scalars(select(Player))}
+    for tick, event, sid in ((PLANT, "plant", 21), (DEFUSED, "defuse", 12)):
+        db.add(BombEvent(round=rnd, tick=tick, event=event, player=players[sid], x=0, y=0, z=0))
+    db.commit()
+    return inferno
+
+
+def test_a_defuse_under_way_is_not_a_lost_round(db, defused):
+    rnd = _review(db, defused)["rounds"][0]
+    # Before: the clock read under 10 s while a2 was defusing, the CT's chance fell
+    # to 0, and the defuse was worth the whole Round (+1.0) to a2.
+    began = (DEFUSED - 10 * 64 - START) / 64
+    during = [p for t, p in rnd["wp"] if began <= t < (DEFUSED - START) / 64]
+    assert during and min(during) > 0.5
+    defuse = next(e for e in rnd["events"] if e["kind"] == "defuse")
+    assert 0 < defuse["d_ct"] < 0.5
+
+
+def test_a_defuse_with_no_time_to_finish_is_still_a_ct_loss():
+    planted = winprob.State(1, 0, 4000.0, 0.0, True, 8.0, 0, "de_inferno")
+    assert winprob.ct_win(planted) == 0.0
+    assert winprob.ct_win(winprob.State(**{**planted.__dict__, "defusing": True})) > 0.5

@@ -56,7 +56,7 @@ from app.services import spots, winprob
 logger = logging.getLogger(__name__)
 
 # Bump when the stored payload's shape or a detector changes.
-REVIEW_SCHEMA = 2
+REVIEW_SCHEMA = 3
 
 # CONTEXT.md: a Trade is killing the killer within 5 seconds.
 TRADE_SECONDS = 5.0
@@ -618,6 +618,18 @@ class _RoundReview:
         self.plant = rnd.bomb_plant_tick
         self.defuse = next((b for b in self.bomb if b["event"] == "defuse"), None)
         self.planter = next((b["sid"] for b in self.bomb if b["event"] == "plant"), None)
+        # When the defuse that finished began: 5 s before with a kit, 10 without.
+        # From then on the bomb clock is read where it stood as the defuse began,
+        # so the clock running down under a defuse that will finish is not a CT
+        # loss (it read 0 there, and the defuser got the whole Round as Swing).
+        self.defuse_from: int | None = None
+        if self.defuse is not None and self.plant is not None:
+            took = (
+                winprob.DEFUSE_KIT_SECONDS
+                if self.defuse.get("sid") in self.kit
+                else winprob.DEFUSE_SECONDS
+            )
+            self.defuse_from = max(self.plant, self.defuse["tick"] - int(took * self.rate))
         self.bomb_pos = next((b["pos"] for b in self.bomb if b["event"] == "plant"), None)
         self.findings: list[dict] = []
         self.swing: dict[str, float] = defaultdict(float)
@@ -667,8 +679,14 @@ class _RoundReview:
 
     def state(self, alive: set[str], tick: int) -> winprob.State:
         planted = self.plant is not None and tick >= self.plant
+        defusing = (
+            planted
+            and self.defuse_from is not None
+            and self.defuse_from <= tick <= self.defuse["tick"]
+        )
         if planted:
-            left = winprob.BOMB_SECONDS - (tick - self.plant) / self.rate
+            at = self.defuse_from if defusing else tick
+            left = winprob.BOMB_SECONDS - (at - self.plant) / self.rate
         else:
             left = winprob.ROUND_SECONDS - (tick - self.start) / self.rate
         ct = [s for s in alive if self.side.get(s) == "ct"]
@@ -682,6 +700,7 @@ class _RoundReview:
             seconds_left=left,
             ct_kits=sum(1 for s in ct if s in self.kit),
             map_name=self.i.map_name,
+            defusing=defusing,
         )
 
     def wp_ct(self, alive: set[str], tick: int) -> float:

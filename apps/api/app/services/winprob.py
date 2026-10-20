@@ -58,6 +58,9 @@ class State:
     seconds_left: float  # on the round clock, or the bomb's once planted
     ct_kits: int = 0  # living CTs with a defuse kit
     map_name: str = ""
+    # A defuse already under way (the Review knows the ones that finished): the
+    # clock no longer has to fit a whole defuse, only what is left of this one.
+    defusing: bool = False
 
 
 def _cells() -> list[tuple[int, int]]:
@@ -115,8 +118,11 @@ def terminal(state: State) -> float | None:
     if not state.planted:
         if state.t_alive <= 0 or state.seconds_left <= 0:
             return 1.0
-    # A defuse takes 10 s, 5 with a kit: less than that left and nobody can.
-    elif state.seconds_left < (DEFUSE_KIT_SECONDS if state.ct_kits > 0 else DEFUSE_SECONDS):
+    # A defuse takes 10 s, 5 with a kit: less than that left and nobody can,
+    # unless one is already running.
+    elif not state.defusing and state.seconds_left < (
+        DEFUSE_KIT_SECONDS if state.ct_kits > 0 else DEFUSE_SECONDS
+    ):
         return 0.0
     return None
 
