@@ -139,6 +139,45 @@ KNIVES = ("knife", "bayonet", "karambit", "dagger")
 
 # The Findings that need Sightings (schema 13).
 SIGHT_CODES = ("crosshair", "unscoped_awp", "saw_no_shot", "saw_first_lost")
+# Which kind of Finding each code is (CONTEXT.md), for readers that hold only codes.
+CODE_KIND = {
+    **dict.fromkeys(
+        ("entry", "big_frag", "multikill", "clutch", "plant", "defuse", "retake"), "key_play"
+    ),
+    **dict.fromkeys(
+        (
+            "untraded",
+            "died_in_advantage",
+            "team_flashed_death",
+            "no_gun_in_hand",
+            "unused_utility",
+            "lost_weapon_save",
+            "bomb_lost",
+            "awp_miss",
+            "moving_shots",
+            "crosshair",
+            "unscoped_awp",
+            "time_out",
+            "kitless",
+        ),
+        "mistake",
+    ),  # fmt: skip
+    **dict.fromkeys(
+        (
+            "no_trade",
+            "unfinished",
+            "blind_unpunished",
+            "advantage_lost",
+            "defuse_chance",
+            "saw_no_shot",
+            "saw_first_lost",
+        ),
+        "missed_chance",
+    ),  # fmt: skip
+    **dict.fromkeys(
+        ("flash_kill", "nade_damage_kill", "fire_delay", "team_flash", "empty_utility"), "utility"
+    ),
+}
 
 
 def version() -> str:

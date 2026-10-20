@@ -146,12 +146,16 @@ export default function TeamPage() {
           <h2 className="font-medium text-ink">Players seen</h2>
           <div className="flex flex-wrap gap-2">
             {players.map((p) => (
-              <div key={p.name} className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink">
+              <Link
+                key={p.steamid}
+                to={`/players/${p.steamid}`}
+                className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink hover:border-ct"
+              >
                 {p.name}
                 <span className="ml-2 font-mono text-xs text-ink-3">
                   {plural(p.maps, 'map')} · {p.rounds} rd
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
           <p className="text-xs text-ink-3">

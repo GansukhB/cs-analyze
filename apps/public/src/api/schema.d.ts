@@ -290,6 +290,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/players/{steamid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Player
+         * @description Form, numbers by Map and Side, Findings against every Player's, spots, guns.
+         *
+         *     The Steam id is a string in the path, as everywhere the browser holds one:
+         *     as a JavaScript number it would lose its last digits.
+         */
+        get: operations["player_players__steamid__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gameplan/teams": {
         parameters: {
             query?: never;
@@ -1381,6 +1404,191 @@ export interface components {
             /** Extent */
             extent: number[];
         };
+        /** PlayerFindingRate */
+        PlayerFindingRate: {
+            /** Code */
+            code: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Count */
+            count: number;
+            /**
+             * Per24
+             * @description This Player's, per 24 reviewed Rounds.
+             */
+            per24: number | null;
+            /**
+             * Pool Per24
+             * @description Every reviewed Player's, per 24 Rounds.
+             */
+            pool_per24: number | null;
+        };
+        /** PlayerFormRow */
+        PlayerFormRow: {
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Map */
+            map: string;
+            /** Played At */
+            played_at: string | null;
+            /** Team */
+            team: string;
+            /** Opponent */
+            opponent: string;
+            /** Won */
+            won: boolean | null;
+            /** Rounds */
+            rounds: number;
+            /** Kills */
+            kills: number;
+            /** Deaths */
+            deaths: number;
+            /** Adr */
+            adr: number | null;
+            /** Kast Pct */
+            kast_pct: number | null;
+            /** Swing Per Round */
+            swing_per_round: number | null;
+        };
+        /** PlayerLine */
+        PlayerLine: {
+            /** Rounds */
+            rounds: number;
+            /** Kills */
+            kills: number;
+            /** Deaths */
+            deaths: number;
+            /** Adr */
+            adr: number | null;
+            /** Kast Pct */
+            kast_pct: number | null;
+            /** Opening Attempts */
+            opening_attempts: number;
+            /** Opening Win Pct */
+            opening_win_pct: number | null;
+            /** Traded Death Pct */
+            traded_death_pct: number | null;
+        };
+        /** PlayerMapLine */
+        PlayerMapLine: {
+            /** Rounds */
+            rounds: number;
+            /** Kills */
+            kills: number;
+            /** Deaths */
+            deaths: number;
+            /** Adr */
+            adr: number | null;
+            /** Kast Pct */
+            kast_pct: number | null;
+            /** Opening Attempts */
+            opening_attempts: number;
+            /** Opening Win Pct */
+            opening_win_pct: number | null;
+            /** Traded Death Pct */
+            traded_death_pct: number | null;
+            /** Map */
+            map: string;
+            /** Side */
+            side: string;
+        };
+        /** PlayerPage */
+        PlayerPage: {
+            player: components["schemas"]["PlayerRef"];
+            /** Teams */
+            teams: components["schemas"]["PlayerTeamSpan"][];
+            totals: components["schemas"]["PlayerTotals"];
+            /** Sides */
+            sides: {
+                [key: string]: components["schemas"]["PlayerLine"];
+            };
+            /** Maps */
+            maps: components["schemas"]["PlayerMapLine"][];
+            /** Form */
+            form: components["schemas"]["PlayerFormRow"][];
+            /** Findings */
+            findings: components["schemas"]["PlayerFindingRate"][];
+            /** Rounds Reviewed */
+            rounds_reviewed: number;
+            /** Spots */
+            spots: components["schemas"]["PlayerSpot"][];
+            /** Weapons */
+            weapons: components["schemas"]["PlayerWeapon"][];
+        };
+        /** PlayerRef */
+        PlayerRef: {
+            /**
+             * Steamid
+             * @description As a string: Steam ids exceed JavaScript's safe integers.
+             */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Aliases */
+            aliases: string[];
+        };
+        /** PlayerSpot */
+        PlayerSpot: {
+            /** Map */
+            map: string;
+            /** Side */
+            side: string;
+            /** Place */
+            place: string;
+            /** Rounds */
+            rounds: number;
+            /** Share */
+            share: number | null;
+        };
+        /** PlayerTeamSpan */
+        PlayerTeamSpan: {
+            /** Team Id */
+            team_id: number;
+            /** Name */
+            name: string;
+            /** Maps */
+            maps: number;
+            /** First */
+            first: string | null;
+            /** Last */
+            last: string | null;
+        };
+        /** PlayerTotals */
+        PlayerTotals: {
+            /** Rounds */
+            rounds: number;
+            /** Kills */
+            kills: number;
+            /** Deaths */
+            deaths: number;
+            /** Adr */
+            adr: number | null;
+            /** Kast Pct */
+            kast_pct: number | null;
+            /** Opening Attempts */
+            opening_attempts: number;
+            /** Opening Win Pct */
+            opening_win_pct: number | null;
+            /** Traded Death Pct */
+            traded_death_pct: number | null;
+            /** Swing Per Round */
+            swing_per_round: number | null;
+            /** Maps */
+            maps: number;
+        };
+        /** PlayerWeapon */
+        PlayerWeapon: {
+            /** Weapon */
+            weapon: string;
+            /** Kills */
+            kills: number;
+            /** Share */
+            share: number | null;
+        };
         /** Review */
         Review: {
             /** Version */
@@ -1921,6 +2129,11 @@ export interface components {
         };
         /** TeamPlayer */
         TeamPlayer: {
+            /**
+             * Steamid
+             * @description As a string: Steam ids exceed JavaScript's safe integers.
+             */
+            steamid: string;
             /** Name */
             name: string;
             /** Maps */
@@ -2488,6 +2701,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Review"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    player_players__steamid__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                steamid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerPage"];
                 };
             };
             /** @description Validation Error */

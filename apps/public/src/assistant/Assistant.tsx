@@ -239,7 +239,7 @@ export default function Assistant() {
         if (!openRef.current) setUnread(true)
       }
     },
-    [configured, voiceAvailable, page.context, patch, speaker],
+    [configured, voiceAvailable, page.context, page.label, patch, speaker],
   )
 
   const stop = useCallback(() => {

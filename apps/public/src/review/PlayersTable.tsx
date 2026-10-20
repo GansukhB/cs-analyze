@@ -171,6 +171,9 @@ export function PlayerFocus(props: {
         <span className={`size-2.5 self-center rounded-full ${dot}`} />
         <h3 className="text-lg font-medium text-ink">{p.name}</h3>
         <span className="text-sm text-ink-3">{p.team}</span>
+        <Link to={`/players/${p.sid}`} className="text-sm text-ct hover:underline">
+          Тоглогчийн хуудас →
+        </Link>
       </div>
       <dl className="flex flex-wrap gap-2 text-sm">
         <Stat label="Нийт Swing" value={`${p.swing >= 0 ? '+' : '−'}${Math.abs(p.swing).toFixed(2)} раунд`} />

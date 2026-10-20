@@ -385,6 +385,7 @@ class MapRecordRow(BaseModel):
 
 
 class TeamPlayer(BaseModel):
+    steamid: str = Field(description="As a string: Steam ids exceed JavaScript's safe integers.")
     name: str
     maps: int
     rounds: int
@@ -872,3 +873,91 @@ class MatchReviewSummary(BaseModel):
     maps: list[MatchReviewSummaryMap]
     summaries: list[MatchTeamSummary]
     names: dict[str, str] = Field(description="Steam id to name, for the Players a line names.")
+
+
+# -- players (docs/plans PL-2) ------------------------------------------------------
+class PlayerRef(BaseModel):
+    steamid: str = Field(description="As a string: Steam ids exceed JavaScript's safe integers.")
+    name: str
+    aliases: list[str]
+
+
+class PlayerTeamSpan(BaseModel):
+    team_id: int
+    name: str
+    maps: int
+    first: dt.datetime | None
+    last: dt.datetime | None
+
+
+class PlayerLine(BaseModel):
+    rounds: int
+    kills: int
+    deaths: int
+    adr: float | None
+    kast_pct: float | None
+    opening_attempts: int
+    opening_win_pct: float | None
+    traded_death_pct: float | None
+
+
+class PlayerTotals(PlayerLine):
+    swing_per_round: float | None
+    maps: int
+
+
+class PlayerMapLine(PlayerLine):
+    map: str
+    side: str
+
+
+class PlayerFormRow(BaseModel):
+    match_id: int
+    map_number: int
+    map: str
+    played_at: dt.datetime | None
+    team: str
+    opponent: str
+    won: bool | None
+    rounds: int
+    kills: int
+    deaths: int
+    adr: float | None
+    kast_pct: float | None
+    swing_per_round: float | None
+
+
+class PlayerFindingRate(BaseModel):
+    code: str
+    kind: str
+    label: str
+    count: int
+    per24: float | None = Field(description="This Player's, per 24 reviewed Rounds.")
+    pool_per24: float | None = Field(description="Every reviewed Player's, per 24 Rounds.")
+
+
+class PlayerSpot(BaseModel):
+    map: str
+    side: str
+    place: str
+    rounds: int
+    share: float | None
+
+
+class PlayerWeapon(BaseModel):
+    weapon: str
+    kills: int
+    share: float | None
+
+
+class PlayerPage(BaseModel):
+    player: PlayerRef
+    teams: list[PlayerTeamSpan]
+    totals: PlayerTotals
+    sides: dict[str, PlayerLine]
+    maps: list[PlayerMapLine]
+    form: list[PlayerFormRow]
+    findings: list[PlayerFindingRate]
+    rounds_reviewed: int
+    spots: list[PlayerSpot]
+    weapons: list[PlayerWeapon]

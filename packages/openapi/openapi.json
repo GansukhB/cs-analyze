@@ -663,6 +663,55 @@
         }
       }
     },
+    "/players/{steamid}": {
+      "get": {
+        "tags": [
+          "players"
+        ],
+        "summary": "Player",
+        "description": "Form, numbers by Map and Side, Findings against every Player's, spots, guns.\n\nThe Steam id is a string in the path, as everywhere the browser holds one:\nas a JavaScript number it would lose its last digits.",
+        "operationId": "player_players__steamid__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "steamid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$",
+              "title": "Steamid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/gameplan/teams": {
       "get": {
         "tags": [
@@ -3681,6 +3730,647 @@
         ],
         "title": "Plate"
       },
+      "PlayerFindingRate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "per24": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per24",
+            "description": "This Player's, per 24 reviewed Rounds."
+          },
+          "pool_per24": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Per24",
+            "description": "Every reviewed Player's, per 24 Rounds."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "kind",
+          "label",
+          "count",
+          "per24",
+          "pool_per24"
+        ],
+        "title": "PlayerFindingRate"
+      },
+      "PlayerFormRow": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "opponent": {
+            "type": "string",
+            "title": "Opponent"
+          },
+          "won": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Won"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "deaths": {
+            "type": "integer",
+            "title": "Deaths"
+          },
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "kast_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kast Pct"
+          },
+          "swing_per_round": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swing Per Round"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "map_number",
+          "map",
+          "played_at",
+          "team",
+          "opponent",
+          "won",
+          "rounds",
+          "kills",
+          "deaths",
+          "adr",
+          "kast_pct",
+          "swing_per_round"
+        ],
+        "title": "PlayerFormRow"
+      },
+      "PlayerLine": {
+        "properties": {
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "deaths": {
+            "type": "integer",
+            "title": "Deaths"
+          },
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "kast_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kast Pct"
+          },
+          "opening_attempts": {
+            "type": "integer",
+            "title": "Opening Attempts"
+          },
+          "opening_win_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opening Win Pct"
+          },
+          "traded_death_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traded Death Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rounds",
+          "kills",
+          "deaths",
+          "adr",
+          "kast_pct",
+          "opening_attempts",
+          "opening_win_pct",
+          "traded_death_pct"
+        ],
+        "title": "PlayerLine"
+      },
+      "PlayerMapLine": {
+        "properties": {
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "deaths": {
+            "type": "integer",
+            "title": "Deaths"
+          },
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "kast_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kast Pct"
+          },
+          "opening_attempts": {
+            "type": "integer",
+            "title": "Opening Attempts"
+          },
+          "opening_win_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opening Win Pct"
+          },
+          "traded_death_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traded Death Pct"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rounds",
+          "kills",
+          "deaths",
+          "adr",
+          "kast_pct",
+          "opening_attempts",
+          "opening_win_pct",
+          "traded_death_pct",
+          "map",
+          "side"
+        ],
+        "title": "PlayerMapLine"
+      },
+      "PlayerPage": {
+        "properties": {
+          "player": {
+            "$ref": "#/components/schemas/PlayerRef"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerTeamSpan"
+            },
+            "type": "array",
+            "title": "Teams"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/PlayerTotals"
+          },
+          "sides": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PlayerLine"
+            },
+            "type": "object",
+            "title": "Sides"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerMapLine"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "form": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerFormRow"
+            },
+            "type": "array",
+            "title": "Form"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerFindingRate"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "rounds_reviewed": {
+            "type": "integer",
+            "title": "Rounds Reviewed"
+          },
+          "spots": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerSpot"
+            },
+            "type": "array",
+            "title": "Spots"
+          },
+          "weapons": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerWeapon"
+            },
+            "type": "array",
+            "title": "Weapons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "player",
+          "teams",
+          "totals",
+          "sides",
+          "maps",
+          "form",
+          "findings",
+          "rounds_reviewed",
+          "spots",
+          "weapons"
+        ],
+        "title": "PlayerPage"
+      },
+      "PlayerRef": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid",
+            "description": "As a string: Steam ids exceed JavaScript's safe integers."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "aliases"
+        ],
+        "title": "PlayerRef"
+      },
+      "PlayerSpot": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "place": {
+            "type": "string",
+            "title": "Place"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "side",
+          "place",
+          "rounds",
+          "share"
+        ],
+        "title": "PlayerSpot"
+      },
+      "PlayerTeamSpan": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "first": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "name",
+          "maps",
+          "first",
+          "last"
+        ],
+        "title": "PlayerTeamSpan"
+      },
+      "PlayerTotals": {
+        "properties": {
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "deaths": {
+            "type": "integer",
+            "title": "Deaths"
+          },
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "kast_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kast Pct"
+          },
+          "opening_attempts": {
+            "type": "integer",
+            "title": "Opening Attempts"
+          },
+          "opening_win_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opening Win Pct"
+          },
+          "traded_death_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traded Death Pct"
+          },
+          "swing_per_round": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swing Per Round"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rounds",
+          "kills",
+          "deaths",
+          "adr",
+          "kast_pct",
+          "opening_attempts",
+          "opening_win_pct",
+          "traded_death_pct",
+          "swing_per_round",
+          "maps"
+        ],
+        "title": "PlayerTotals"
+      },
+      "PlayerWeapon": {
+        "properties": {
+          "weapon": {
+            "type": "string",
+            "title": "Weapon"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weapon",
+          "kills",
+          "share"
+        ],
+        "title": "PlayerWeapon"
+      },
       "Review": {
         "properties": {
           "version": {
@@ -5108,6 +5798,11 @@
       },
       "TeamPlayer": {
         "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid",
+            "description": "As a string: Steam ids exceed JavaScript's safe integers."
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -5135,6 +5830,7 @@
         },
         "type": "object",
         "required": [
+          "steamid",
           "name",
           "maps",
           "rounds",

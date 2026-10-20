@@ -14,6 +14,14 @@ export function swingText(v: number | null | undefined): string {
   return '0%'
 }
 
+/** A per-Round average Swing, which is small, with one decimal: 0.0026 → '+0.3%'. */
+export function swingRateText(v: number | null | undefined): string {
+  const points = Math.round((v ?? 0) * 1000) / 10
+  if (points > 0) return `+${points.toFixed(1)}%`
+  if (points < 0) return `−${Math.abs(points).toFixed(1)}%`
+  return '0.0%'
+}
+
 export const KIND_TONE: Record<string, { bar: string; text: string; chip: string }> = {
   key_play: { bar: 'bg-good', text: 'text-good', chip: 'border-good/40 text-good' },
   mistake: { bar: 'bg-crit', text: 'text-crit', chip: 'border-crit/40 text-crit' },

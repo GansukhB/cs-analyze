@@ -8,6 +8,7 @@ import JobPage from './pages/JobPage'
 import JobsPage from './pages/JobsPage'
 import LoginPage from './pages/LoginPage'
 import MatchPage from './pages/MatchPage'
+import PlayerPage from './pages/PlayerPage'
 import TeamPage from './pages/TeamPage'
 import TeamsPage from './pages/TeamsPage'
 
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="teams/:teamId" element={<TeamPage />} />
         <Route path="matches/:matchId" element={<MatchPage />} />
         <Route path="matches/:matchId/m/:mapNumber" element={<MatchPage />} />
+        <Route path="players/:steamid" element={<PlayerPage />} />
         <Route path="gameplan" element={<GameplanPickPage />} />
         <Route path="gameplan/:mine/vs/:theirs" element={<GameplanPage />} />
         <Route path="gameplan/:mine/vs/:theirs/s/:tab" element={<GameplanPage />} />

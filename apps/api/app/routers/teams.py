@@ -247,6 +247,7 @@ def _players(db: Session, team: Team) -> list[TeamPlayer]:
     last = func.max(Match.played_at)
     rows = db.execute(
         select(
+            Player.steamid,
             Player.name,
             func.count(func.distinct(MapRoster.match_map_id)),
             func.sum(MapRoster.rounds_total),
@@ -256,10 +257,10 @@ def _players(db: Session, team: Team) -> list[TeamPlayer]:
         .join(MatchMap, MatchMap.id == MapRoster.match_map_id)
         .join(Match, Match.id == MatchMap.match_id)
         .where(MapRoster.team_id == team.id)
-        .group_by(MapRoster.player_id, Player.name)
+        .group_by(MapRoster.player_id, Player.steamid, Player.name)
         .order_by(last.desc(), func.count(func.distinct(MapRoster.match_map_id)).desc())
     )
     return [
-        TeamPlayer(name=name, maps=maps, rounds=int(rounds or 0), last=seen)
-        for name, maps, rounds, seen in rows
+        TeamPlayer(steamid=str(sid), name=name, maps=maps, rounds=int(rounds or 0), last=seen)
+        for sid, name, maps, rounds, seen in rows
     ]

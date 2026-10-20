@@ -408,3 +408,9 @@ def test_kills_move_swing_between_players_and_create_none(db, inferno):
     assert sum(rnd["swing"].values()) == pytest.approx(0.0, abs=1e-6)
     kills = [e for e in rnd["events"] if e["kind"] == "kill"]
     assert len(kills) == 3
+
+
+def test_every_finding_code_has_its_kind(db, inferno):
+    for f in _review(db, inferno, sightings=True)["findings"]:
+        assert review.CODE_KIND[f["code"]] == f["kind"], f["code"]
+    assert set(review.CODE_KIND) == set(mn.REVIEW_CODE)
