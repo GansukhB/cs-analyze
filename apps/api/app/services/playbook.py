@@ -39,7 +39,7 @@ from app.models import (
     SnapshotMoment,
     Team,
 )
-from app.services import lineup, mapstrategy
+from app.services import lineup, mapstrategy, stats
 from app.services.analysis_store import PISTOL_ROUNDS
 from app.services.dbctx import db, memo
 
@@ -65,9 +65,22 @@ STACK_FROM = 3
 LEAN_RATIO = 0.6
 # How much closer to one site, in players, a Setup must be before the other is soft.
 SOFT_SITE_GAP = 0.8
-# Retakes: called weak at or under, strong at or over (percent won).
+# Retakes: called weak at or under, strong at or over (percent won). Only when
+# the Map's Pool is too small to judge against (see `_pool_judged`).
 RETAKE_WEAK_PCT = 35
 RETAKE_STRONG_PCT = 60
+# The Pool a site or retake habit is judged against: the other Teams on this
+# Map with at least this many plants, and at least this many of those Teams.
+POOL_MIN_EVENTS = 4
+POOL_MIN_TEAMS = 3
+# The least true spread between Teams assumed for each (stats.MIN_SPREAD): which
+# site a Team goes to differs more from Team to Team than how often it retakes.
+SITE_MIN_SPREAD = 0.12
+RETAKE_MIN_SPREAD = 0.08
+# A habit is said when the chance it points the wrong way is under the first;
+# under the second it is shown as a lean, a weaker line worth a look.
+HABIT_LFSR = stats.LFSR
+LEAN_LFSR = 0.20
 # The Set play window and how far apart in time the same grenade may land.
 SET_PLAY_WINDOW = 40.0
 SET_PLAY_SPREAD = 5.0
@@ -418,14 +431,102 @@ def setup_habits(team_id, rounds, side, detail, sites) -> list[dict]:
     return out
 
 
-def plant_habits(team_id, rounds) -> list[dict]:
+def map_pools(map_name: str | None) -> dict:
+    """Every Team's plant sites (as T) and retakes (as CT) on this Map: what a
+    site or retake habit is judged against (docs/plans TM-4).
+
+    ``{"sites": {team: (A plants, plants, maps)}, "retakes": {team: (won, faced, maps)}}``.
+    """
+
+    def compute():
+        if not map_name:
+            return {"sites": {}, "retakes": {}}
+        rows = (
+            db()
+            .execute(
+                select(
+                    Round.ct_team_id,
+                    Round.t_team_id,
+                    Round.winner_team_id,
+                    Round.bomb_site,
+                    Round.match_map_id,
+                )  # fmt: skip
+                .join(MatchMap, MatchMap.id == Round.match_map_id)
+                .join(GameMap, GameMap.id == MatchMap.game_map_id)
+                .where(GameMap.name == map_name, Round.bomb_plant_tick.is_not(None))
+            )
+            .all()
+        )
+        sites: dict[int, list] = defaultdict(lambda: [0, 0, set()])
+        retakes: dict[int, list] = defaultdict(lambda: [0, 0, set()])
+        for ct, t, winner, site, match_map_id in rows:
+            if t is not None and site in ("A", "B"):
+                sites[t][0] += site == "A"
+                sites[t][1] += 1
+                sites[t][2].add(match_map_id)
+            if ct is not None:
+                retakes[ct][0] += winner == ct
+                retakes[ct][1] += 1
+                retakes[ct][2].add(match_map_id)
+        freeze = lambda d: {k: (x, n, len(m)) for k, (x, n, m) in d.items()}  # noqa: E731
+        return {"sites": freeze(sites), "retakes": freeze(retakes)}
+
+    return memo(("playbook_pools", map_name), compute)
+
+
+def _effective(x: float, n: float, maps: int) -> tuple[float, float]:
+    """``x`` of ``n`` events over ``maps`` Match Maps, counted as independent ones."""
+    n_eff = stats.effective_n(n, n / max(maps, 1))
+    return (x * n_eff / n if n else 0.0), n_eff
+
+
+def _pool_judged(
+    pool: dict, team_id: int, x: int, n: int, maps: int, min_spread: float
+) -> stats.Shrunk | None:
+    """This Team's rate pulled toward the other Teams' on the Map, or None when
+    too few of them have enough plants to say what the Pool does."""
+    others = [
+        _effective(px, pn, pm)
+        for team, (px, pn, pm) in pool.items()
+        if team != team_id and pn >= POOL_MIN_EVENTS
+    ]
+    prior = stats.beta_prior(others, min_spread) if len(others) >= POOL_MIN_TEAMS else None
+    if prior is None:
+        return None
+    return stats.shrink(*_effective(x, n, maps), prior)
+
+
+def plant_habits(team_id, rounds, pools: dict | None = None) -> list[dict]:
     """Their T side: where the bomb goes, how fast, and how often it is a rush."""
     out = []
     planted = [r for r in rounds if r.plant]
     if not planted:
         return out
     sites = Counter(r.site for r in planted if r.site)
-    if sites:
+    on_sites = [r for r in planted if r.site in ("A", "B")]
+    judged = None
+    if pools is not None and len(on_sites) >= MIN_HABIT_ROUNDS:
+        maps = len({r.match_map_id for r in on_sites})
+        a = sum(1 for r in on_sites if r.site == "A")
+        judged = _pool_judged(pools["sites"], team_id, a, len(on_sites), maps, SITE_MIN_SPREAD)
+    if judged is not None:
+        # Against the Pool: a site is theirs only when they go there clearly
+        # more than Teams on this Map do (eight plants 6-2 is often chance).
+        if judged.clear(LEAN_LFSR):
+            site = "A" if judged.above else "B"
+            pool_share = judged.pool if site == "A" else 1 - judged.pool
+            out.append(
+                {
+                    "kind": "site",
+                    "side": "t",
+                    "site": site,
+                    "rounds": len(rounds),
+                    "pool_pct": round(100 * pool_share),
+                    "lean": not judged.clear(HABIT_LFSR),
+                    "evidence": _evidence([r for r in planted if r.site == site], len(planted)),
+                }
+            )
+    elif sites:
         site, n = sites.most_common(1)[0]
         if n >= MIN_HABIT_ROUNDS and n / len(planted) >= SITE_SHARE:
             out.append(
@@ -460,24 +561,39 @@ def plant_habits(team_id, rounds) -> list[dict]:
     return out
 
 
-def defence_habits(team_id, rounds, detail, sites) -> list[dict]:
+def defence_habits(team_id, rounds, detail, sites, pools: dict | None = None) -> list[dict]:
     """Their CT side once the bomb is down: who is there, and do they get it back."""
     out = []
     faced = [r for r in rounds if r.plant]
     if len(faced) >= MIN_HABIT_ROUNDS:
         won = [r for r in faced if r.winner == team_id]
         pct = round(100 * len(won) / len(faced))
-        if pct <= RETAKE_WEAK_PCT or pct >= RETAKE_STRONG_PCT:
-            out.append(
-                {
-                    "kind": "retake",
-                    "side": "ct",
-                    "won": len(won),
-                    "faced": len(faced),
-                    "pct": pct,
-                    "evidence": _evidence(faced, len(rounds)),
-                }
-            )
+        maps = len({r.match_map_id for r in faced})
+        judged = (
+            _pool_judged(pools["retakes"], team_id, len(won), len(faced), maps, RETAKE_MIN_SPREAD)
+            if pools is not None
+            else None
+        )
+        # Most Teams lose most retakes; weak or strong is said against the Pool
+        # on this Map, and only past chance. With no Pool, the fixed bars.
+        if judged is not None:
+            says = judged.clear(LEAN_LFSR)
+        else:
+            says = pct <= RETAKE_WEAK_PCT or pct >= RETAKE_STRONG_PCT
+        if says:
+            habit = {
+                "kind": "retake",
+                "side": "ct",
+                "won": len(won),
+                "faced": len(faced),
+                "pct": pct,
+                "evidence": _evidence(faced, len(rounds)),
+            }
+            if judged is not None:
+                habit["pool_pct"] = round(100 * judged.pool)
+                habit["weak"] = not judged.above
+                habit["lean"] = not judged.clear(HABIT_LFSR)
+            out.append(habit)
     if sites:
         for site in ("A", "B"):
             at = [r for r in faced if r.site == site]
@@ -619,14 +735,16 @@ def set_plays(team_id, rounds, side, detail) -> list[dict]:
     return out
 
 
-def side_habits(team_id: int, rounds: list[_Round], side: str, detail: _Detail, sites) -> list:
+def side_habits(
+    team_id: int, rounds: list[_Round], side: str, detail: _Detail, sites, pools=None
+) -> list:
     """Every habit of one Team on one Side of a Map."""
     mine = _side_rounds(team_id, rounds, side)
     out = setup_habits(team_id, mine, side, detail, sites)
     if side == "t":
-        out += plant_habits(team_id, mine)
+        out += plant_habits(team_id, mine, pools)
     else:
-        out += defence_habits(team_id, mine, detail, sites)
+        out += defence_habits(team_id, mine, detail, sites, pools)
     out += set_plays(team_id, mine, side, detail)
     out += opening_habits(team_id, mine, side, detail)
     return out
@@ -879,6 +997,7 @@ def build(my_team: Team, opponent: Team, map_name: str) -> dict:
     sites = site_centroids(map_name)
     detail = _detail(list({r.id: r for r in (*theirs, *mine)}.values()))
     all_theirs = _team_rounds(opponent, my_team, None)
+    pools = map_pools(map_name)
 
     def sample(team: Team, rounds: list[_Round]) -> dict:
         return {
@@ -893,13 +1012,17 @@ def build(my_team: Team, opponent: Team, map_name: str) -> dict:
         "sites_known": "A" in sites and "B" in sites,
         "sample": {"theirs": sample(opponent, theirs), "mine": sample(my_team, mine)},
         # Their T side is what my CT plan answers, and their CT side my T plan.
-        "their_t": _fielded_only(opponent, side_habits(opponent.id, theirs, "t", detail, sites)),
-        "their_ct": _fielded_only(opponent, side_habits(opponent.id, theirs, "ct", detail, sites)),
+        "their_t": _fielded_only(
+            opponent, side_habits(opponent.id, theirs, "t", detail, sites, pools)
+        ),
+        "their_ct": _fielded_only(
+            opponent, side_habits(opponent.id, theirs, "ct", detail, sites, pools)
+        ),
         "pistols": pistols(opponent.id, theirs, detail, sites),
         "economy": economy(opponent.id, all_theirs),
         "matchups": matchups(opponent, my_team, theirs, detail),
         "self_scout": {
-            side: _fielded_only(my_team, side_habits(my_team.id, mine, side, detail, sites))
+            side: _fielded_only(my_team, side_habits(my_team.id, mine, side, detail, sites, pools))
             for side in ("t", "ct")
         },
     }

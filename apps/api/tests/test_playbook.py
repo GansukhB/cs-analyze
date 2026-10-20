@@ -132,3 +132,23 @@ def test_todo_lists_maps_and_each_map_has_a_playbook(client, auth, league):  # n
     again = client.get(f"/gameplan/{a}/vs/{b}/playbook/de_mirage", headers=auth).json()
     assert again["cached"] is True
     assert client.get(f"/gameplan/{a}/vs/{b}/playbook/mirage", headers=auth).status_code == 404
+
+
+def test_site_and_retake_habits_are_judged_against_the_map_pool():
+    from app.services import playbook
+
+    # Eight Teams on a Map plant A about half the time, three Match Maps each.
+    sites = {team: (n // 2 + (team % 3) - 1, n, 3) for team, n in enumerate([18] * 8, start=10)}
+    # 6 of 8 to A over two Match Maps is chance against that Pool...
+    judged = playbook._pool_judged(sites, 1, 6, 8, 2, playbook.SITE_MIN_SPREAD)
+    assert judged is not None and not judged.clear(playbook.LEAN_LFSR)
+    # ...17 of 18 over four is a habit, said as such.
+    judged = playbook._pool_judged(sites, 1, 17, 18, 4, playbook.SITE_MIN_SPREAD)
+    assert judged.clear(playbook.HABIT_LFSR) and judged.above
+    # The judged Team is left out of its own Pool, and too small a Pool says nothing.
+    assert playbook._pool_judged({1: (9, 18, 3), 2: (9, 18, 3)}, 1, 17, 18, 4, 0.12) is None
+
+    # Retakes: everyone loses most, so 2 of 9 is not called weak.
+    retakes = {team: (2 + team % 2, 10, 3) for team in range(10, 20)}
+    judged = playbook._pool_judged(retakes, 1, 2, 9, 3, playbook.RETAKE_MIN_SPREAD)
+    assert not judged.clear(playbook.LEAN_LFSR)

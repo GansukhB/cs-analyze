@@ -1599,8 +1599,14 @@ def playbook_habit(h: dict, *, whose: str) -> dict:
         return _pb(title, detail, counter, h)
     if k == "site":
         site, other = h["site"], _other_site(h["site"])
-        title = f"Bomb-ийг ихэвчлэн {site} цэгт тавьдаг"
+        title = (
+            f"Bomb-ийг {site} цэгт тавих хандлагатай"
+            if h.get("lean")
+            else f"Bomb-ийг ихэвчлэн {site} цэгт тавьдаг"
+        )
         detail = f"Тавьсан {e['of']}-ийн {e['n']} нь {site} цэгт ({h['rounds']} T раундаас)."
+        if h.get("pool_pct") is not None:
+            detail += f" Энэ map дээр бусад баг {site} цэгт {h['pool_pct']}% тавьдаг."
         counter = (
             f"{site} цэгт жин өг, {other} цэгийг цөөн хүнээр барь; retake-ийг {site} руу "
             "урьдчилан төлөвлө."
@@ -1672,13 +1678,19 @@ def playbook_habit(h: dict, *, whose: str) -> dict:
             counter = "Энд эхний дуэлийг ав — тэд энд ихэвчлэн унадаг."
         return _pb(title, detail, counter, h)
     if k == "retake":
-        weak = h["pct"] <= 50
-        title = f"Retake {'сул' if weak else 'хүчтэй'}: {h['pct']}%"
+        weak = h["weak"] if "weak" in h else h["pct"] <= 50
+        title = (
+            f"Retake {'сул' if weak else 'хүчтэй'} байх хандлагатай: {h['pct']}%"
+            if h.get("lean")
+            else f"Retake {'сул' if weak else 'хүчтэй'}: {h['pct']}%"
+        )
         if not h["won"]:
             detail = f"Bomb тавигдсан {h['faced']} раундаас нэгийг ч буцааж хожоогүй."
         else:
             only = " л" if weak else ""
             detail = f"Bomb тавигдсан {h['faced']} раундаас {h['won']}-ийг нь{only} буцааж хожсон."
+        if h.get("pool_pct") is not None:
+            detail += f" Энэ map дээр бусад баг дунджаар {h['pool_pct']}% буцааж хождог."
         if ours:
             counter = "Тэд үүнийг мэдвэл bomb тавихыг л зорино."
         elif weak:
