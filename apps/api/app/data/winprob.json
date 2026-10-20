@@ -1,5 +1,13 @@
 {
- "fitted_at": "2026-10-09T17:03:08+00:00",
+ "buys": [
+  "forcevfull",
+  "fullveco",
+  "fullvforce",
+  "fullvfull",
+  "pistolvpistol"
+ ],
+ "features": 2,
+ "fitted_at": "2026-10-20T23:18:18+00:00",
  "maps": [
   "ancient",
   "anubis",
@@ -9,76 +17,385 @@
   "mirage",
   "nuke"
  ],
- "match_maps": 113,
+ "match_maps": 78,
  "metrics": {
   "post": {
-   "cv_logloss": 0.2444,
-   "cv_logloss_man_count_only": 0.2671,
-   "samples": 18409
+   "auc": 0.9534,
+   "brier": 0.072,
+   "by_clock": {
+    "early": {
+     "brier": 0.0827,
+     "ece": 0.0125,
+     "logloss": 0.2679,
+     "samples": 6994
+    },
+    "late": {
+     "brier": 0.0523,
+     "ece": 0.0333,
+     "logloss": 0.174,
+     "samples": 1202
+    },
+    "middle": {
+     "brier": 0.061,
+     "ece": 0.0201,
+     "logloss": 0.2023,
+     "samples": 4938
+    }
+   },
+   "by_map": {
+    "ancient": {
+     "brier": 0.0884,
+     "ece": 0.034,
+     "logloss": 0.2711,
+     "samples": 1578
+    },
+    "anubis": {
+     "brier": 0.0959,
+     "ece": 0.0793,
+     "logloss": 0.2855,
+     "samples": 771
+    },
+    "cache": {
+     "brier": 0.0797,
+     "ece": 0.0427,
+     "logloss": 0.2647,
+     "samples": 919
+    },
+    "dust2": {
+     "brier": 0.0764,
+     "ece": 0.0264,
+     "logloss": 0.2458,
+     "samples": 3889
+    },
+    "inferno": {
+     "brier": 0.0589,
+     "ece": 0.0295,
+     "logloss": 0.1926,
+     "samples": 1795
+    },
+    "mirage": {
+     "brier": 0.0573,
+     "ece": 0.0187,
+     "logloss": 0.2135,
+     "samples": 2146
+    },
+    "nuke": {
+     "brier": 0.0629,
+     "ece": 0.0372,
+     "logloss": 0.2072,
+     "samples": 1929
+    }
+   },
+   "cv_logloss": 0.2355,
+   "cv_logloss_man_count_only": 0.2732,
+   "ece": 0.0111,
+   "reliability": [
+    [
+     0.019,
+     0.02,
+     0.5868
+    ],
+    [
+     0.146,
+     0.177,
+     0.0651
+    ],
+    [
+     0.25,
+     0.287,
+     0.05
+    ],
+    [
+     0.348,
+     0.291,
+     0.0382
+    ],
+    [
+     0.449,
+     0.4,
+     0.0269
+    ],
+    [
+     0.548,
+     0.56,
+     0.0272
+    ],
+    [
+     0.649,
+     0.679,
+     0.0241
+    ],
+    [
+     0.754,
+     0.749,
+     0.0282
+    ],
+    [
+     0.857,
+     0.834,
+     0.0406
+    ],
+    [
+     0.97,
+     0.963,
+     0.1131
+    ]
+   ],
+   "samples": 13134
   },
   "pre": {
-   "cv_logloss": 0.4731,
-   "cv_logloss_man_count_only": 0.536,
-   "samples": 98111
+   "auc": 0.8229,
+   "brier": 0.1568,
+   "by_buys": {
+    "ecovforce": {
+     "brier": 0.0039,
+     "ece": 0.0516,
+     "logloss": 0.0537,
+     "samples": 355
+    },
+    "ecovfull": {
+     "brier": 0.0463,
+     "ece": 0.0142,
+     "logloss": 0.1672,
+     "samples": 1932
+    },
+    "forceveco": {
+     "brier": 0.0031,
+     "ece": 0.047,
+     "logloss": 0.0487,
+     "samples": 203
+    },
+    "forcevforce": {
+     "brier": 0.1389,
+     "ece": 0.1406,
+     "logloss": 0.4388,
+     "samples": 1985
+    },
+    "forcevfull": {
+     "brier": 0.1501,
+     "ece": 0.0326,
+     "logloss": 0.4609,
+     "samples": 7951
+    },
+    "fullveco": {
+     "brier": 0.0516,
+     "ece": 0.0153,
+     "logloss": 0.1903,
+     "samples": 3756
+    },
+    "fullvforce": {
+     "brier": 0.1415,
+     "ece": 0.0146,
+     "logloss": 0.4339,
+     "samples": 9970
+    },
+    "fullvfull": {
+     "brier": 0.182,
+     "ece": 0.0108,
+     "logloss": 0.5305,
+     "samples": 37428
+    },
+    "pistolvpistol": {
+     "brier": 0.2037,
+     "ece": 0.0489,
+     "logloss": 0.5855,
+     "samples": 4986
+    }
+   },
+   "by_clock": {
+    "early": {
+     "brier": 0.1703,
+     "ece": 0.0124,
+     "logloss": 0.5017,
+     "samples": 35580
+    },
+    "late": {
+     "brier": 0.1171,
+     "ece": 0.0178,
+     "logloss": 0.3673,
+     "samples": 9202
+    },
+    "middle": {
+     "brier": 0.1452,
+     "ece": 0.0191,
+     "logloss": 0.4381,
+     "samples": 23784
+    }
+   },
+   "by_map": {
+    "ancient": {
+     "brier": 0.1337,
+     "ece": 0.0405,
+     "logloss": 0.4089,
+     "samples": 7403
+    },
+    "anubis": {
+     "brier": 0.1561,
+     "ece": 0.068,
+     "logloss": 0.4609,
+     "samples": 3026
+    },
+    "cache": {
+     "brier": 0.1494,
+     "ece": 0.0582,
+     "logloss": 0.4456,
+     "samples": 4321
+    },
+    "dust2": {
+     "brier": 0.175,
+     "ece": 0.0354,
+     "logloss": 0.5159,
+     "samples": 19907
+    },
+    "inferno": {
+     "brier": 0.1503,
+     "ece": 0.0329,
+     "logloss": 0.447,
+     "samples": 9172
+    },
+    "mirage": {
+     "brier": 0.1495,
+     "ece": 0.0228,
+     "logloss": 0.4453,
+     "samples": 11778
+    },
+    "nuke": {
+     "brier": 0.1575,
+     "ece": 0.035,
+     "logloss": 0.47,
+     "samples": 11651
+    },
+    "overpass": {
+     "brier": 0.1722,
+     "ece": 0.1754,
+     "logloss": 0.5482,
+     "samples": 1308
+    }
+   },
+   "cv_logloss": 0.4677,
+   "cv_logloss_man_count_only": 0.544,
+   "ece": 0.0102,
+   "reliability": [
+    [
+     0.041,
+     0.051,
+     0.1049
+    ],
+    [
+     0.148,
+     0.142,
+     0.0533
+    ],
+    [
+     0.253,
+     0.245,
+     0.0581
+    ],
+    [
+     0.348,
+     0.329,
+     0.0565
+    ],
+    [
+     0.459,
+     0.479,
+     0.0761
+    ],
+    [
+     0.552,
+     0.57,
+     0.1714
+    ],
+    [
+     0.644,
+     0.641,
+     0.1189
+    ],
+    [
+     0.75,
+     0.74,
+     0.079
+    ],
+    [
+     0.85,
+     0.832,
+     0.0841
+    ],
+    [
+     0.964,
+     0.963,
+     0.1976
+    ]
+   ],
+   "samples": 68566
   }
  },
  "post": {
-  "bias": -0.57448,
+  "bias": -0.56195,
   "cell:0v0": 0.0,
   "cell:0v1": 0.0,
   "cell:0v2": 0.0,
   "cell:0v3": 0.0,
   "cell:0v4": 0.0,
   "cell:0v5": 0.0,
-  "cell:1v0": 0.11257,
-  "cell:1v1": -0.06242,
-  "cell:1v2": -0.10581,
-  "cell:1v3": -0.00024,
-  "cell:1v4": -0.01088,
-  "cell:1v5": -0.00084,
-  "cell:2v0": 0.04165,
-  "cell:2v1": 0.0192,
-  "cell:2v2": 0.02221,
-  "cell:2v3": -0.00365,
-  "cell:2v4": -0.05808,
-  "cell:2v5": -0.00486,
-  "cell:3v0": 0.00764,
-  "cell:3v1": 0.02533,
-  "cell:3v2": -0.06424,
-  "cell:3v3": 0.11442,
-  "cell:3v4": 0.02877,
-  "cell:3v5": 0.08219,
-  "cell:4v0": 0.00042,
-  "cell:4v1": -0.03725,
-  "cell:4v2": -0.03079,
-  "cell:4v3": -0.09812,
-  "cell:4v4": -0.04526,
-  "cell:4v5": 0.0362,
-  "cell:5v0": 0.00016,
-  "cell:5v1": 0.00129,
-  "cell:5v2": 0.01069,
-  "cell:5v3": 0.00368,
-  "cell:5v4": -0.0443,
-  "cell:5v5": 0.0589,
-  "clock": 0.87582,
-  "clock_ct": -0.32948,
-  "clock_t": 0.80078,
-  "ct": 0.19206,
-  "diff": 1.22579,
-  "equip": 0.89304,
-  "kit": 0.14057,
-  "kit_clock": -0.37116,
-  "map:ancient": 0.06063,
-  "map:anubis": 0.06782,
-  "map:cache": 0.00179,
-  "map:dust2": 0.02234,
-  "map:inferno": -0.05548,
-  "map:mirage": 0.01365,
-  "map:nuke": -0.08302,
-  "t": -1.03373
+  "cell:1v0": 0.10816,
+  "cell:1v1": -0.10132,
+  "cell:1v2": -0.07492,
+  "cell:1v3": 0.02007,
+  "cell:1v4": -0.00437,
+  "cell:1v5": -0.00023,
+  "cell:2v0": 0.03568,
+  "cell:2v1": 0.03297,
+  "cell:2v2": 0.01988,
+  "cell:2v3": 0.00457,
+  "cell:2v4": -0.02976,
+  "cell:2v5": -0.00182,
+  "cell:3v0": 0.0041,
+  "cell:3v1": 0.02428,
+  "cell:3v2": -0.03934,
+  "cell:3v3": 0.04383,
+  "cell:3v4": -0.02071,
+  "cell:3v5": 0.06775,
+  "cell:4v0": 0.00028,
+  "cell:4v1": -0.00289,
+  "cell:4v2": -0.04393,
+  "cell:4v3": -0.09546,
+  "cell:4v4": -0.02417,
+  "cell:4v5": 0.02466,
+  "cell:5v0": 1e-05,
+  "cell:5v1": 0.0001,
+  "cell:5v2": 0.00422,
+  "cell:5v3": -0.01417,
+  "cell:5v4": 0.00565,
+  "cell:5v5": 0.05547,
+  "clock": -0.12646,
+  "clock_ct": -0.19865,
+  "clock_t": 0.76226,
+  "ct": 0.21619,
+  "diff": 1.33381,
+  "equip": 0.81301,
+  "hp": 2.37476,
+  "kit": 0.11579,
+  "kit_clock": -0.50189,
+  "last": -0.2053,
+  "map:ancient": 0.09847,
+  "map:anubis": 0.10239,
+  "map:cache": -0.03651,
+  "map:dust2": -0.00104,
+  "map:inferno": -0.02873,
+  "map:mirage": -0.00506,
+  "map:nuke": -0.1037,
+  "race": 0.32336,
+  "t": -1.11762,
+  "util": 0.2679
  },
  "pre": {
-  "bias": 0.92515,
+  "bias": 0.17766,
+  "buy:forcevfull": -0.08212,
+  "buy:fullveco": -0.15764,
+  "buy:fullvforce": 0.07572,
+  "buy:fullvfull": 0.24565,
+  "buy:pistolvpistol": 0.35458,
   "cell:0v0": 0.0,
   "cell:0v1": 0.0,
   "cell:0v2": 0.0,
@@ -86,49 +403,52 @@
   "cell:0v4": 0.0,
   "cell:0v5": 0.0,
   "cell:1v0": 0.0,
-  "cell:1v1": 0.08762,
-  "cell:1v2": -0.16181,
-  "cell:1v3": -0.1027,
-  "cell:1v4": -0.0247,
-  "cell:1v5": -0.00699,
+  "cell:1v1": 0.0146,
+  "cell:1v2": -0.17034,
+  "cell:1v3": -0.04048,
+  "cell:1v4": -0.00179,
+  "cell:1v5": -0.00378,
   "cell:2v0": 0.0,
-  "cell:2v1": 0.22072,
-  "cell:2v2": -0.03308,
-  "cell:2v3": -0.00276,
-  "cell:2v4": -0.11332,
-  "cell:2v5": -0.07997,
+  "cell:2v1": 0.23225,
+  "cell:2v2": -0.01804,
+  "cell:2v3": 0.0297,
+  "cell:2v4": -0.08268,
+  "cell:2v5": -0.05612,
   "cell:3v0": 0.0,
-  "cell:3v1": 0.13936,
-  "cell:3v2": -0.0399,
-  "cell:3v3": -0.07552,
-  "cell:3v4": 0.06147,
-  "cell:3v5": 0.17996,
+  "cell:3v1": 0.0572,
+  "cell:3v2": 0.06889,
+  "cell:3v3": -0.12484,
+  "cell:3v4": 0.0121,
+  "cell:3v5": 0.11522,
   "cell:4v0": 0.0,
-  "cell:4v1": 0.07012,
-  "cell:4v2": 0.0307,
-  "cell:4v3": -0.14293,
-  "cell:4v4": 0.04629,
-  "cell:4v5": 0.33561,
+  "cell:4v1": 0.05889,
+  "cell:4v2": 0.06756,
+  "cell:4v3": -0.15616,
+  "cell:4v4": 0.02758,
+  "cell:4v5": 0.23826,
   "cell:5v0": 0.0,
-  "cell:5v1": 0.01872,
-  "cell:5v2": 0.01369,
-  "cell:5v3": -0.29537,
-  "cell:5v4": -0.29345,
-  "cell:5v5": 0.17057,
-  "clock": -1.06602,
-  "clock_ct": 0.15046,
-  "clock_t": 0.05768,
-  "ct": 0.2365,
-  "diff": 0.66145,
-  "equip": 1.30997,
-  "map:ancient": 0.02203,
-  "map:anubis": -0.07177,
-  "map:cache": 0.13465,
-  "map:dust2": -0.12551,
-  "map:inferno": -0.26816,
-  "map:mirage": -0.02746,
-  "map:nuke": 0.01791,
-  "t": -0.42495
+  "cell:5v1": 0.01097,
+  "cell:5v2": 0.00157,
+  "cell:5v3": -0.26969,
+  "cell:5v4": -0.1737,
+  "cell:5v5": 0.16328,
+  "clock": -1.35721,
+  "clock_ct": 0.10076,
+  "clock_t": 0.13557,
+  "ct": 0.31941,
+  "diff": 0.68846,
+  "equip": 1.29426,
+  "hp": 2.2832,
+  "last": -0.09984,
+  "map:ancient": 0.12783,
+  "map:anubis": -0.13809,
+  "map:cache": 0.06567,
+  "map:dust2": -0.12696,
+  "map:inferno": -0.28717,
+  "map:mirage": -0.03273,
+  "map:nuke": 0.10704,
+  "t": -0.36905,
+  "util": 0.02142
  },
- "version": "20261009.1fa09218"
+ "version": "20261020.17930299"
 }

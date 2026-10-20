@@ -90,10 +90,11 @@ FLASH_REACH = 600.0
 KEY_SWING = 0.12  # a plant, defuse or clutch
 # An entry is the Round's first kill, for the side that won it, worth this much:
 # at 0.0 one Team in three had one every Round (7.5 per 24 over 113 Reviews,
-# a tenth of them under 0.04, an opening kill in an eco).
-ENTRY_SWING = 0.15
+# a tenth of them under 0.04, an opening kill in an eco). With Win probability
+# v2, 0.12 leaves about 4 per 24 Rounds a Team.
+ENTRY_SWING = 0.12
 # Measured the same way, 0.20 and 0.33 made 8.9 big frags per 24 Rounds a Team:
-# a Key play should stand out.
+# a Key play should stand out. With v2 these leave about 4.
 BIG_FRAG_SWING = 0.28  # a kill on its own, by the side that won the Round
 BIG_FRAG_HUGE = 0.40  # a kill on its own, whoever won
 MISTAKE_SWING = 0.06
@@ -800,7 +801,66 @@ class _RoundReview:
             ct_kits=sum(1 for s in ct if s in self.kit),
             map_name=self.i.map_name,
             defusing=defusing,
+            ct_hp=sum(self._hp(s, tick) for s in ct),
+            t_hp=sum(self._hp(s, tick) for s in t),
+            ct_util=sum(self._util(s, tick) for s in ct),
+            t_util=sum(self._util(s, tick) for s in t),
+            last=self._last_kill(alive, tick),
+            race=self._race(ct, tick, left) if planted and not defusing else None,
+            ct_buy=self.rnd.ct_buy or "",
+            t_buy=self.rnd.t_buy or "",
         )
+
+    # -- Win probability v2's reads (RV-4) -------------------------------
+    def _hp(self, sid: str, tick: int) -> float:
+        """Health just before ``tick``: at a kill's own tick the victim already
+        reads 0, which would hand the killer the duel before he won it."""
+        track = self.tracks.get(sid)
+        if track is None or not len(track.ticks):
+            return 100.0
+        return float(track.hp[track.at(tick - 1)])
+
+    def _util(self, sid: str, tick: int) -> int:
+        _held, inv = self.loadout_at(sid, tick)
+        return sum(1 for x in inv if x in GRENADES)
+
+    def _last_kill(self, alive: set[str], tick: int) -> int:
+        """+1 if the CTs made the last kill already counted in ``alive``, -1 the Ts."""
+        for k in reversed(self.kills):
+            if k["tick"] > tick or k["victim"] in alive:
+                continue
+            side = self.side.get(k["attacker"]) if k["attacker"] else None
+            if side and side != self.side.get(k["victim"]):
+                return 1 if side == "ct" else -1
+        return 0
+
+    def _race(self, cts: list[str], tick: int, left: float) -> float | None:
+        """The bomb's clock less the quickest defuse a living CT can reach: his run
+        to the bomb and his defuse, kit or not."""
+        if self.bomb_pos is None or None in self.bomb_pos or not cts:
+            return None
+        best = None
+        for sid in cts:
+            pos = self.pos(sid, tick)
+            if None in pos or any(v != v for v in pos):
+                continue
+            far = math.dist(pos, self.bomb_pos)
+            need = far / winprob.RUN_SPEED + (
+                winprob.DEFUSE_KIT_SECONDS if sid in self.kit else winprob.DEFUSE_SECONDS
+            )
+            best = need if best is None else min(best, need)
+        return None if best is None else left - best
+
+    def sample_states(self) -> list[winprob.State]:
+        """The states the Win probability model is fitted on: as the Round went
+        live, after each kill and the plant, and every SAMPLE_EVERY_SECONDS."""
+        moments = {self.start}
+        moments |= {k["tick"] for k in self.kills if self.start <= k["tick"] <= self.end}
+        if self.plant is not None and self.start <= self.plant <= self.end:
+            moments.add(self.plant + 1)
+        step = max(1, int(winprob.SAMPLE_EVERY_SECONDS * self.rate))
+        moments |= set(range(self.start, self.end, step))
+        return [self.state(self.alive_at(t, inclusive=True), t) for t in sorted(moments)]
 
     def wp_ct(self, alive: set[str], tick: int) -> float:
         return winprob.ct_win(self.state(alive, tick))
@@ -2277,6 +2337,28 @@ class _RoundReview:
             ],
         }
         return summary, tally
+
+
+def states(db: Session, match_map: MatchMap, bundle=None) -> list[tuple[list, bool]]:
+    """Each decided Round's sampled states and whether the CTs won it, read the
+    way the Review reads them: what :func:`winprob.fit` is fitted on (RV-4)."""
+    from app.services import tickdata
+
+    if bundle is None:
+        dataset = db.scalar(select(TickDataset).where(TickDataset.match_map_id == match_map.id))
+        if dataset is None:
+            return []
+        bundle = tickdata.read(dataset.bundle)
+    inputs = _Inputs(db, match_map, bundle)
+    out = []
+    for rnd in inputs.rounds:
+        if rnd.winner_side not in ("ct", "t"):
+            continue
+        rr = _RoundReview(inputs, rnd)
+        if len(rr.side) < 2:
+            continue
+        out.append((rr.sample_states(), rnd.winner_side == "ct"))
+    return out
 
 
 def k_pos(k: dict):

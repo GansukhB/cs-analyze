@@ -39,14 +39,14 @@ COMEBACK_MIN = 2
 PATTERN_MIN = 3
 # Findings per 24 Rounds at the 75th percentile: a Pattern repeats at least this
 # often. A code missing here was too rare to measure: three of it are a Pattern.
-PATTERN_P75_FROM = "113 Reviews at REVIEW_SCHEMA 3, 2026-09"
+PATTERN_P75_FROM = "113 Reviews at REVIEW_SCHEMA 5, Win probability v2, 2026-10"
 PATTERN_P75 = {
-    "multikill": 4.4, "big_frag": 11.3, "entry": 9.6, "plant": 4.2, "clutch": 2.3,
-    "retake": 1.4, "no_trade": 11.3, "unfinished": 7.0, "advantage_lost": 3.0,
-    "blind_unpunished": 4.0, "untraded": 15.7, "team_flashed_death": 3.0,
-    "lost_weapon_save": 11.3, "moving_shots": 3.0, "awp_miss": 1.1, "bomb_lost": 1.1,
-    "time_out": 1.0, "died_in_advantage": 1.4, "flash_kill": 7.0, "team_flash": 9.4,
-    "nade_damage_kill": 6.5, "fire_delay": 1.4, "empty_utility": 4.2,
+    "advantage_lost": 2.8, "awp_miss": 1.0, "big_frag": 2.8, "blind_unpunished": 4.2,
+    "bomb_lost": 1.0, "clutch": 2.3, "crosshair": 1.4, "died_in_advantage": 1.3, "entry": 5.1,
+    "fire_delay": 1.3, "flash_kill": 7.1, "lost_weapon_save": 11.3, "moving_shots": 2.1,
+    "multikill": 4.2, "nade_damage_kill": 6.6, "no_gun_in_hand": 1.1, "plant": 4.2,
+    "retake": 1.4, "saw_first_lost": 4.8, "saw_no_shot": 1.4, "team_flash": 9.4,
+    "team_flashed_death": 2.8, "time_out": 1.0, "unfinished": 6.2, "unused_utility": 2.5,
 }  # fmt: skip
 GOOD_UTILITY = {"flash_kill", "nade_damage_kill", "fire_delay"}
 # The Rounds one event is worth when its Findings carry no Swing (or too little

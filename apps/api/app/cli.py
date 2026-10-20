@@ -209,10 +209,20 @@ def fit_winprob() -> None:
     from app.services import winprob
 
     with SessionLocal() as db:
-        samples = winprob.samples_from_db(db)
-    rounds = len({(s.group, s.state) for s in samples if s.state.seconds_left >= 114.9})
+        # The states as the Review reads them, from the Tick Data (RV-4).
+        samples = winprob.samples_from_reviews(
+            db, progress=lambda i, n: print(f"\r  reading {i}/{n} maps", end="", flush=True)
+        )
+    print()
+    rounds = sum(1 for s in samples if s.state.seconds_left >= winprob.ROUND_SECONDS - 0.1)
     print(f"{len(samples)} states from {len({s.group for s in samples})} maps ({rounds} rounds).")
+    before = winprob.fit(samples, version=1)
     spec = winprob.fit(samples)
+    for phase in ("pre", "post"):
+        old, new = before["metrics"][phase], spec["metrics"][phase]
+        print(f"  {phase}: " + ", ".join(
+            f"{k} {old.get(k)} -> {new.get(k)}" for k in ("cv_logloss", "brier", "auc", "ece")
+        ))  # fmt: skip
     stamp = datetime.now(UTC)
     digest = hashlib.sha1(
         json.dumps([spec["pre"], spec["post"]], sort_keys=True).encode(), usedforsecurity=False
@@ -226,7 +236,8 @@ def fit_winprob() -> None:
     winprob.MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     winprob.MODEL_PATH.write_text(json.dumps(spec, indent=1, sort_keys=True) + "\n")
     for phase, metrics in spec["metrics"].items():
-        print(f"  {phase}: {metrics}")
+        print(f"  {phase}: {metrics['samples']} states, man count alone "
+              f"{metrics['cv_logloss_man_count_only']}")  # fmt: skip
     print(f"Wrote {winprob.MODEL_PATH} (version {spec['version']}).")
 
 

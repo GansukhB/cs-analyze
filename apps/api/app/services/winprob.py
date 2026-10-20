@@ -15,6 +15,15 @@ base where the data says so, the equipment of the living, the clock, and a
 ridge-penalised offset per Map (Nuke and Inferno lean CT). States the game
 itself decides are not modelled: no CT alive is a T win, no T alive before a
 plant is a CT win, the clock running out decides by whether the bomb is down.
+
+Version 2 (RV-4) adds what the HUD shows beyond that: the living's average
+health, the grenades they still carry, which side made the last kill, after
+the plant the defuse race (the bomb's clock less the nearest CT's run to it and
+his defuse), and before it a ridge-penalised offset per pair of buys. It is
+fitted on the states the Review itself reads (:func:`app.services.review.states`),
+so the model and the Review can't drift apart, and :func:`fit` reports its
+calibration (Brier, AUC, ECE, reliability) by phase, Map, buys and clock.
+A version 1 model still reads: the features it lacks weigh nothing.
 """
 
 from __future__ import annotations
@@ -41,7 +50,15 @@ DEFUSE_KIT_SECONDS = 5.0
 SAMPLE_EVERY_SECONDS = 2.0
 CELL_RIDGE = 4.0
 MAP_RIDGE = 8.0
+BUY_RIDGE = 8.0
 BASE_RIDGE = 0.01
+# A buy pair gets its own offset with this many samples behind it.
+BUY_MIN_SAMPLES = 2000
+# Running speed with a knife out, for the defuse race (units/s).
+RUN_SPEED = 250.0
+RACE_SCALE = 10.0  # seconds
+RACE_CAP = 2.0
+RELIABILITY_BINS = 10
 # A probability is kept off 0 and 1 so a Swing is never a certainty's artefact.
 FLOOR = 0.005
 
@@ -61,13 +78,22 @@ class State:
     # A defuse already under way (the Review knows the ones that finished): the
     # clock no longer has to fit a whole defuse, only what is left of this one.
     defusing: bool = False
+    # Version 2 (RV-4); 0, None or "" where unknown, which weighs nothing.
+    ct_hp: float = 0.0  # summed health of the living CTs
+    t_hp: float = 0.0
+    ct_util: int = 0  # grenades the living carry
+    t_util: int = 0
+    last: int = 0  # +1 the CTs made the last kill, -1 the Ts, 0 none yet
+    race: float | None = None  # after the plant: the bomb's clock - the nearest defuse
+    ct_buy: str = ""
+    t_buy: str = ""
 
 
 def _cells() -> list[tuple[int, int]]:
     return [(c, t) for c in range(0, 6) for t in range(0, 6)]
 
 
-def features(state: State, maps: list[str]) -> dict[str, float]:
+def features(state: State, maps: list[str], buys: list[str] = ()) -> dict[str, float]:
     """The named features of ``state``; the model for its phase picks its own."""
     ct, t = state.ct_alive, state.t_alive
     clock = max(0.0, state.seconds_left) / (BOMB_SECONDS if state.planted else ROUND_SECONDS)
@@ -86,21 +112,43 @@ def features(state: State, maps: list[str]) -> dict[str, float]:
         kit = 1.0 if state.ct_kits > 0 else 0.0
         out["kit"] = kit
         out["kit_clock"] = kit * clock
+        if state.race is not None:
+            out["race"] = max(-RACE_CAP, min(RACE_CAP, state.race / RACE_SCALE))
+    if ct and t and (state.ct_hp or state.t_hp):
+        out["hp"] = (state.ct_hp / ct - state.t_hp / t) / 100.0
+    out["util"] = (state.ct_util - state.t_util) / 5.0
+    out["last"] = float(state.last)
+    pair = buy_key(state)
+    if not state.planted and pair in buys:
+        out[f"buy:{pair}"] = 1.0
     name = _map_key(state.map_name)
     if name in maps:
         out[f"map:{name}"] = 1.0
     return out
 
 
+def buy_key(state: State) -> str:
+    return f"{state.ct_buy}v{state.t_buy}" if state.ct_buy and state.t_buy else ""
+
+
 def _map_key(name: str) -> str:
     return (name or "").strip().lower().removeprefix("de_")
 
 
-def _names(planted: bool, maps: list[str]) -> list[str]:
-    base = ["bias", "diff", "ct", "t", "equip", "clock", "clock_ct", "clock_t"]
+V1 = ["bias", "diff", "ct", "t", "equip", "clock", "clock_ct", "clock_t"]
+V2 = ["hp", "util", "last"]
+
+
+def _names(planted: bool, maps: list[str], buys: list[str] = (), version: int = 2) -> list[str]:
+    base = list(V1)
     if planted:
         base += ["kit", "kit_clock"]
-    return base + [f"cell:{c}v{t}" for c, t in _cells()] + [f"map:{m}" for m in maps]
+    if version >= 2:
+        base += V2 + (["race"] if planted else [])
+    names = base + [f"cell:{c}v{t}" for c, t in _cells()] + [f"map:{m}" for m in maps]
+    if version >= 2 and not planted:
+        names += [f"buy:{b}" for b in buys]
+    return names
 
 
 def _ridge(name: str) -> float:
@@ -108,6 +156,8 @@ def _ridge(name: str) -> float:
         return CELL_RIDGE
     if name.startswith("map:"):
         return MAP_RIDGE
+    if name.startswith("buy:"):
+        return BUY_RIDGE
     return BASE_RIDGE
 
 
@@ -151,7 +201,8 @@ def ct_win(state: State) -> float:
     if not coef:  # no model: the man count alone, softly
         z = 0.8 * (state.ct_alive - state.t_alive) + (-1.0 if state.planted else 0.0)
     else:
-        z = sum(coef.get(k, 0.0) * v for k, v in features(state, spec.get("maps", [])).items())
+        found = features(state, spec.get("maps", []), spec.get("buys", []))
+        z = sum(coef.get(k, 0.0) * v for k, v in found.items())
     p = 1.0 / (1.0 + math.exp(-max(-30.0, min(30.0, z))))
     return min(1.0 - FLOOR, max(FLOOR, p))
 
@@ -170,109 +221,50 @@ class Sample:
     group: int  # the Match Map, for cross-validation
 
 
-def samples_from_db(db) -> list[Sample]:
-    """Every parsed Round's states: at freeze end, after each kill and the plant,
-    and every :data:`SAMPLE_EVERY_SECONDS` between. Each Round weighs the same."""
+def samples_from_reviews(db, progress=None) -> list[Sample]:
+    """Every Match Map's states as its Review reads them (version 2, RV-4):
+    health, utility and positions come from the Tick Data. Each Round weighs the
+    same. Only Tick Data with the economy and the Loadout counts: without them
+    the buys and the grenades read as nothing, which no live state is."""
     from sqlalchemy import select
 
-    from app.models import GameMap, KillEvent, MatchMap, PlayerRound, Round
+    from app.models import MatchMap, TickDataset
+    from app.services import review, tickdata
 
-    maps = dict(
-        db.execute(
-            select(MatchMap.id, GameMap.name).join(GameMap, GameMap.id == MatchMap.game_map_id)
-        ).all()
-    )
-    rates = dict(db.execute(select(MatchMap.id, MatchMap.tickrate)).all())
-    kills: dict[int, list] = defaultdict(list)
-    for row in db.execute(
-        select(KillEvent.round_id, KillEvent.tick, KillEvent.victim_id, KillEvent.victim_side)
-    ):
-        kills[row.round_id].append(row)
-    players: dict[int, list] = defaultdict(list)
-    for row in db.execute(
-        select(
-            PlayerRound.round_id,
-            PlayerRound.player_id,
-            PlayerRound.side,
-            PlayerRound.equip_value,
-            PlayerRound.defuser,
-        )
-    ):
-        players[row.round_id].append(row)
     out: list[Sample] = []
-    for rnd in db.scalars(select(Round).where(Round.winner_side.in_(("ct", "t")))):
-        rate = rates.get(rnd.match_map_id) or 64
-        roster = players.get(rnd.id) or []
-        if len(roster) < 2:
-            continue
-        timeline = round_states(
-            rnd, roster, kills.get(rnd.id) or [], rate, maps.get(rnd.match_map_id, "")
+    ids = [
+        d.match_map_id
+        for d in db.execute(
+            select(TickDataset.match_map_id, TickDataset.tables).order_by(TickDataset.match_map_id)
         )
-        if not timeline:
-            continue
-        weight = 1.0 / len(timeline)
-        out += [
-            Sample(state, rnd.winner_side == "ct", weight, rnd.match_map_id)
-            for _tick, state in timeline
-        ]
+        if tickdata.reparseable(d)
+    ]
+    for i, mid in enumerate(ids):
+        match_map = db.get(MatchMap, mid)
+        for timeline, ct_won in review.states(db, match_map):
+            if not timeline:
+                continue
+            weight = 1.0 / len(timeline)
+            out += [Sample(state, ct_won, weight, mid) for state in timeline]
+        db.expunge_all()  # a Match Map's rows are not needed again
+        if progress:
+            progress(i + 1, len(ids))
     return out
 
 
-def round_states(rnd, roster, kills, rate: int, map_name: str) -> list[tuple[int, State]]:
-    """``(tick, state)`` through one Round, live part only, as :func:`samples_from_db` fits."""
-    equip = {r.player_id: float(r.equip_value or 0) for r in roster}
-    side = {r.player_id: r.side for r in roster}
-    kit = {r.player_id for r in roster if r.defuser}
-    alive = {pid for pid in side}
-    start, end = rnd.freeze_end_tick, rnd.end_tick
-    plant = rnd.bomb_plant_tick
-    deaths = sorted((k.tick, k.victim_id) for k in kills if start <= k.tick <= end)
-    moments = {start, *(t for t, _ in deaths), *([plant] if plant else [])}
-    step = max(1, int(SAMPLE_EVERY_SECONDS * rate))
-    moments |= set(range(start, end, step))
-    out = []
-    di = 0
-    for tick in sorted(moments):
-        while di < len(deaths) and deaths[di][0] <= tick:
-            alive.discard(deaths[di][1])
-            di += 1
-        out.append((tick, state_at(tick, alive, side, equip, kit, start, plant, rate, map_name)))
-    return out
-
-
-def state_at(tick, alive, side, equip, kit, start, plant, rate, map_name) -> State:
-    planted = plant is not None and tick >= plant
-    if planted:
-        left = BOMB_SECONDS - (tick - plant) / rate
-    else:
-        left = ROUND_SECONDS - (tick - start) / rate
-    ct = [p for p in alive if side.get(p) == "ct"]
-    t = [p for p in alive if side.get(p) == "t"]
-    return State(
-        ct_alive=len(ct),
-        t_alive=len(t),
-        ct_equip=sum(equip.get(p, 0.0) for p in ct),
-        t_equip=sum(equip.get(p, 0.0) for p in t),
-        planted=planted,
-        seconds_left=left,
-        ct_kits=sum(1 for p in ct if p in kit),
-        map_name=map_name,
-    )
-
-
-def _design(samples: list[Sample], planted: bool, maps: list[str]):
-    names = _names(planted, maps)
+def _design(samples: list[Sample], planted: bool, maps: list[str], buys=(), version: int = 2):
+    names = _names(planted, maps, buys, version)
     index = {n: i for i, n in enumerate(names)}
     rows = [s for s in samples if s.state.planted == planted and terminal(s.state) is None]
     x = np.zeros((len(rows), len(names)))
     for r, s in enumerate(rows):
-        for k, v in features(s.state, maps).items():
+        for k, v in features(s.state, maps, buys).items():
             if k in index:
                 x[r, index[k]] = v
     y = np.array([1.0 if s.ct_won else 0.0 for s in rows])
     w = np.array([s.weight for s in rows])
     g = np.array([s.group for s in rows])
-    return names, x, y, w, g
+    return names, x, y, w, g, rows
 
 
 def _irls(x, y, w, ridge, iterations: int = 50) -> np.ndarray:
@@ -294,36 +286,106 @@ def _logloss(x, y, w, beta) -> float:
     return float(-(w * (y * np.log(p) + (1 - y) * np.log(1 - p))).sum() / w.sum())
 
 
-def fit(samples: list[Sample], folds: int = 5) -> dict:
-    """Both models on ``samples``, with a cross-validated log loss per phase."""
+def _predict(x, beta) -> np.ndarray:
+    return 1.0 / (1.0 + np.exp(-np.clip(x @ beta, -30, 30)))
+
+
+def _auc(p: np.ndarray, y: np.ndarray) -> float | None:
+    """Rank AUC: the chance a won state reads higher than a lost one."""
+    pos, neg = p[y == 1], p[y == 0]
+    if not len(pos) or not len(neg):
+        return None
+    order = np.argsort(np.concatenate([pos, neg]), kind="mergesort")
+    ranks = np.empty(len(order))
+    ranks[order] = np.arange(1, len(order) + 1)
+    return float((ranks[: len(pos)].sum() - len(pos) * (len(pos) + 1) / 2) / (len(pos) * len(neg)))
+
+
+def calibration(p: np.ndarray, y: np.ndarray, w: np.ndarray) -> dict:
+    """Log loss, Brier, AUC, ECE and the reliability bins of held-out predictions."""
+    if not len(p):
+        return {}
+    q = np.clip(p, 1e-6, 1 - 1e-6)
+    total = w.sum()
+    bins = np.minimum((p * RELIABILITY_BINS).astype(int), RELIABILITY_BINS - 1)
+    reliability, ece = [], 0.0
+    for b in range(RELIABILITY_BINS):
+        m = bins == b
+        if not m.any():
+            continue
+        mass = w[m].sum()
+        said, seen = float((w[m] * p[m]).sum() / mass), float((w[m] * y[m]).sum() / mass)
+        ece += mass / total * abs(said - seen)
+        reliability.append([round(said, 3), round(seen, 3), round(float(mass / total), 4)])
+    auc = _auc(p, y)
+    return {
+        "logloss": round(float(-(w * (y * np.log(q) + (1 - y) * np.log(1 - q))).sum() / total), 4),
+        "brier": round(float((w * (p - y) ** 2).sum() / total), 4),
+        "auc": round(auc, 4) if auc is not None else None,
+        "ece": round(float(ece), 4),
+        "reliability": reliability,
+    }
+
+
+def _clock_bucket(state: State) -> str:
+    limit = BOMB_SECONDS if state.planted else ROUND_SECONDS
+    used = 1.0 - max(0.0, state.seconds_left) / limit
+    return ("early", "middle", "late")[min(2, int(used * 3))]
+
+
+def fit(samples: list[Sample], folds: int = 5, version: int = 2) -> dict:
+    """Both models on ``samples``, with their cross-validated calibration: overall,
+    by Map, by pair of buys and by clock, against the man count alone."""
     counts: dict[str, int] = defaultdict(int)
+    pairs: dict[str, int] = defaultdict(int)
     for s in samples:
         counts[_map_key(s.state.map_name)] += 1
+        if not s.state.planted and buy_key(s.state):
+            pairs[buy_key(s.state)] += 1
     maps = sorted(m for m, n in counts.items() if m and n >= 2000)
-    spec: dict = {"maps": maps, "metrics": {}}
+    buys = sorted(b for b, n in pairs.items() if n >= BUY_MIN_SAMPLES) if version >= 2 else []
+    spec: dict = {"features": version, "maps": maps, "buys": buys, "metrics": {}}
     for phase, planted in (("pre", False), ("post", True)):
-        names, x, y, w, g = _design(samples, planted, maps)
+        names, x, y, w, g, rows = _design(samples, planted, maps, buys, version)
         ridge = np.array([_ridge(n) for n in names])
         beta = _irls(x, y, w, ridge)
         spec[phase] = {n: round(float(b), 5) for n, b in zip(names, beta, strict=True)}
         groups = np.unique(g)
         rng = np.random.default_rng(7)
         rng.shuffle(groups)
-        losses, base = [], []
+        held_p = np.full(len(y), np.nan)
+        base_p = np.full(len(y), np.nan)
+        cols = [names.index(c) for c in ("bias", "diff")]
         for k in range(folds):
             held = np.isin(g, groups[k::folds])
             if held.sum() == 0 or (~held).sum() == 0:
                 continue
             b = _irls(x[~held], y[~held], w[~held], ridge)
-            losses.append(_logloss(x[held], y[held], w[held], b))
+            held_p[held] = _predict(x[held], b)
             # The man count alone, for comparison.
-            simple = np.zeros(len(names))
-            cols = [names.index(c) for c in ("bias", "diff")]
-            simple[cols] = _irls(x[~held][:, cols], y[~held], w[~held], ridge[cols])
-            base.append(_logloss(x[held], y[held], w[held], simple))
-        spec["metrics"][phase] = {
+            simple = _irls(x[~held][:, cols], y[~held], w[~held], ridge[cols])
+            base_p[held] = _predict(x[held][:, cols], simple)
+        ok = ~np.isnan(held_p)
+        overall = calibration(held_p[ok], y[ok], w[ok])
+        metrics = {
             "samples": int(len(y)),
-            "cv_logloss": round(float(np.mean(losses)), 4) if losses else None,
-            "cv_logloss_man_count_only": round(float(np.mean(base)), 4) if base else None,
+            "cv_logloss": overall.get("logloss"),
+            "cv_logloss_man_count_only": calibration(base_p[ok], y[ok], w[ok]).get("logloss"),
+            **{k: v for k, v in overall.items() if k != "logloss"},
         }
+        for key, label in (("by_map", lambda s: _map_key(s.state.map_name) or "?"),
+                           ("by_clock", lambda s: _clock_bucket(s.state)),
+                           ("by_buys", lambda s: buy_key(s.state) or "?")):  # fmt: skip
+            if key == "by_buys" and planted:
+                continue
+            tags = np.array([label(s) for s in rows])
+            part = {}
+            for tag in sorted(set(tags)):
+                m = ok & (tags == tag)
+                if m.sum() >= 200:
+                    c = calibration(held_p[m], y[m], w[m])
+                    part[tag] = {"samples": int(m.sum()), "logloss": c["logloss"],
+                                 "brier": c["brier"], "ece": c["ece"]}  # fmt: skip
+            metrics[key] = part
+        spec["metrics"][phase] = metrics
     return spec
