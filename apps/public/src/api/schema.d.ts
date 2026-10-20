@@ -1813,6 +1813,8 @@ export interface components {
             scout: components["schemas"]["ScoutNow"] | null;
             /** Queued */
             queued: number;
+            /** Version */
+            version: string;
         };
         /** TeamDetail */
         TeamDetail: {

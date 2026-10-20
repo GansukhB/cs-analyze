@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 from sqlalchemy import func, select
 
+from app.config import get_settings
 from app.deps import CurrentUser, DbSession
 from app.models import AnalysisJob, JobStatus
 from app.schemas import HostStats, JobCycle, ScoutNow, SystemState
@@ -38,4 +39,5 @@ def system_state(db: DbSession, _: CurrentUser) -> SystemState:
         worker=system.worker_alive(),
         scout=scout,
         queued=queued or 0,
+        version=get_settings().deployed_commit,
     )

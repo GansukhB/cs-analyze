@@ -108,6 +108,8 @@ export default function SystemFooter({ width }: { width: string }) {
               )}
               {data.queued > 0 && <span className="ml-2">+{data.queued} queued</span>}
             </span>
+            <span>Build</span>
+            <span className="font-mono">{data.version || 'dev'}</span>
           </div>
         </section>
       </div>

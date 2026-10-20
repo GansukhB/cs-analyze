@@ -25,6 +25,51 @@
         quiet: true
       tags: [always]
 
+    # --- gates -------------------------------------------------------------------
+    # rsync ships the working tree as it is, so an uncommitted edit would run in
+    # production without being anywhere in git.
+    - name: Read the working tree's state
+      ansible.builtin.shell: git status --porcelain && echo "head=$(git rev-parse --short HEAD)"
+      args:
+        chdir: "{{ local_root }}"
+      delegate_to: localhost
+      run_once: true
+      register: git_state
+      changed_when: false
+      tags: [always]
+
+    - name: Refuse uncommitted changes (or pass -e allow_dirty=true)
+      ansible.builtin.assert:
+        that: git_state.stdout_lines | length == 1 or (allow_dirty | default(false) | bool)
+        fail_msg: >-
+          Uncommitted changes would be deployed: commit them, or pass -e allow_dirty=true.
+        quiet: true
+      tags: [always]
+
+    # A deploy restarts the worker, and a running Scout is killed 10 min later.
+    - name: Look for a running Scout
+      community.mysql.mysql_query:
+        login_db: "{{ mysql_database }}"
+        login_unix_socket: "{{ mysql_socket }}"
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+        query: "SELECT COUNT(*) AS n FROM analysis_jobs WHERE status = 'running'"
+      register: running_scouts
+      # The first deploy has no table yet.
+      failed_when: false
+      tags: [services, sync, deps, env]
+
+    - name: Wait for the Scout to end (or pass -e restart_under_scout=true)
+      ansible.builtin.assert:
+        that: >-
+          ((running_scouts.query_result | default([[{'n': 0}]]))[0][0].n | int) == 0
+          or (restart_under_scout | default(false) | bool)
+        fail_msg: >-
+          A Scout is running and restarting the worker would kill it. Wait for it
+          (cs2.bizon.mn/jobs), or pass -e restart_under_scout=true.
+        quiet: true
+      tags: [services, sync, deps, env]
+
     # --- public app, built here ----------------------------------------------
     - name: Build the public app against the production API
       ansible.builtin.shell: |
@@ -132,6 +177,10 @@
         mode: "0600"
       vars:
         jwt_secret: "{{ jwt_secret_raw.content | b64decode | trim }}"
+        # Shown in the footer, so a page tells which commit it runs.
+        deployed_commit: >-
+          {{ (git_state.stdout_lines | last | replace('head=', ''))
+             ~ ('-dirty' if git_state.stdout_lines | length > 1 else '') }}
       no_log: true
       tags: [env]
 

@@ -1,0 +1,92 @@
+# Every push and pull request: the checks `npm run lint` and `npm run test:api`
+# run locally, plus what only CI can see (docs/plans/11-platform.md OPS-3):
+# the migrations against a real MySQL 8.4, and a contract that matches the code.
+name: CI
+
+on:
+  push:
+    branches: [main, "improvement-*"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The settings refuse to load without one; tests set their own as well.
+  JWT_SECRET: ci-only-secret-that-is-at-least-32-bytes-long
+
+jobs:
+  api:
+    name: API (ruff, pytest)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --directory apps/api --frozen
+      - run: uv run --directory apps/api ruff check .
+      - run: uv run --directory apps/api ruff format --check .
+      # Chromium isn't installed here, so the real-browser download tests skip.
+      - run: uv run --directory apps/api pytest -q
+
+  migrations:
+    name: Migrations on MySQL 8.4
+    runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: cs_analyze
+          MYSQL_USER: cs
+          MYSQL_PASSWORD: cs
+          MYSQL_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DATABASE_URL: mysql+pymysql://cs:cs@127.0.0.1:3306/cs_analyze
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --directory apps/api --frozen
+      - run: uv run --directory apps/api alembic upgrade head
+      # The models and the migrations must agree, as CLAUDE.md asks after each one.
+      - run: uv run --directory apps/api alembic check
+      # And every downgrade must still run on MySQL (its DDL isn't transactional).
+      - run: uv run --directory apps/api alembic downgrade base
+
+  public:
+    name: Public app (oxlint, tsc, build)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:public
+      - run: npm run build:public
+
+  openapi:
+    name: Contract matches the code
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: uv sync --directory apps/api --frozen
+      - run: npm ci
+      - run: npm run openapi
+      - name: The committed schema and types are what the code exports
+        run: git diff --exit-code packages/openapi apps/public/src/api

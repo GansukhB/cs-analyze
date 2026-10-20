@@ -276,6 +276,8 @@ class SystemState(BaseModel):
     worker: bool
     scout: ScoutNow | None
     queued: int
+    # The commit this API runs ("" when it wasn't deployed, as in development).
+    version: str
 
 
 # -- teams -------------------------------------------------------------------------

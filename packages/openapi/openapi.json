@@ -4870,6 +4870,10 @@
           "queued": {
             "type": "integer",
             "title": "Queued"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
           }
         },
         "type": "object",
@@ -4877,7 +4881,8 @@
           "host",
           "worker",
           "scout",
-          "queued"
+          "queued",
+          "version"
         ],
         "title": "SystemState",
         "description": "What the footer shows: the host, the worker's pulse, and the Scouts."

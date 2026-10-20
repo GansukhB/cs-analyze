@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     # Swagger and the raw schema. Off in production (ansible/templates/api.env.j2):
     # they map every endpoint for anyone who finds the host.
     api_docs: bool = True
+    # The commit a deploy shipped (ansible/deploy.yml), shown in the footer.
+    deployed_commit: str = ""
 
     # HLTV pipeline scratch. A job downloads, unpacks and parses one match at a time
     # under tmp/<job>/ and deletes it after (~1-2 GB at most); nothing here outlives
