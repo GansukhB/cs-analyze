@@ -24,10 +24,8 @@ def _tier(rank: int | None) -> str:
     return TIERS[-1][1]
 
 
-def build(team: Team) -> dict | None:
-    me = forecast.standing(team)
-    if me is None:
-        return None
+def ranks() -> dict[str, int]:
+    """Every Team still playing, ranked by its Rating (keyed as ``rating._key``)."""
     snap = rating.current()
     as_of = snap.as_of
     active = sorted(
@@ -39,7 +37,19 @@ def build(team: Team) -> dict | None:
         ),
         reverse=True,
     )  # fmt: skip
-    rank_of = {key: i + 1 for i, (_r, key) in enumerate(active)}
+    return {key: i + 1 for i, (_r, key) in enumerate(active)}
+
+
+def tier_of(name: str, rank_of: dict[str, int]) -> str:
+    return _tier(rank_of.get(rating._key(name)))
+
+
+def build(team: Team) -> dict | None:
+    me = forecast.standing(team)
+    if me is None:
+        return None
+    snap = rating.current()
+    rank_of = ranks()
     history = snap.history.get(rating._key(me.name)) or []
     step = max(1, math.ceil(len(history) / TREND_POINTS))
     trend = history[::step]
@@ -76,7 +86,7 @@ def build(team: Team) -> dict | None:
     return {
         **forecast._standing_json(me),
         "rank": rank_of.get(rating._key(me.name)),
-        "ranked": len(active),
+        "ranked": len(rank_of),
         "trend": [{"date": d, "rating": r} for d, r in trend],
         "tiers": out_tiers,
     }

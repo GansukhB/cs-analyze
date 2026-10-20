@@ -1574,6 +1574,23 @@ class PlayerWeapon(BaseModel):
     share: float | None
 
 
+class PlayerDuels(BaseModel):
+    """Duels against what the guns on both sides expected (PL-6)."""
+
+    duels: int
+    won: int
+    won_pct: float
+    expected_pct: float
+    over_per_round: float
+
+
+class PlayerTierLine(BaseModel):
+    tier: str
+    maps: int
+    rounds: int
+    swing_per_round: float
+
+
 class PlayerPage(BaseModel):
     player: PlayerRef
     teams: list[PlayerTeamSpan]
@@ -1586,3 +1603,5 @@ class PlayerPage(BaseModel):
     spots: list[PlayerSpot]
     weapons: list[PlayerWeapon]
     openings: OpeningLine | None = None
+    duels: PlayerDuels | None = None
+    by_tier: list[PlayerTierLine] = []

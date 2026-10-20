@@ -2758,6 +2758,22 @@ export interface components {
             /** Extent */
             extent: number[];
         };
+        /**
+         * PlayerDuels
+         * @description Duels against what the guns on both sides expected (PL-6).
+         */
+        PlayerDuels: {
+            /** Duels */
+            duels: number;
+            /** Won */
+            won: number;
+            /** Won Pct */
+            won_pct: number;
+            /** Expected Pct */
+            expected_pct: number;
+            /** Over Per Round */
+            over_per_round: number;
+        };
         /** PlayerFindingRate */
         PlayerFindingRate: {
             /** Code */
@@ -2878,6 +2894,12 @@ export interface components {
             /** Weapons */
             weapons: components["schemas"]["PlayerWeapon"][];
             openings?: components["schemas"]["OpeningLine"] | null;
+            duels?: components["schemas"]["PlayerDuels"] | null;
+            /**
+             * By Tier
+             * @default []
+             */
+            by_tier: components["schemas"]["PlayerTierLine"][];
         };
         /** PlayerRef */
         PlayerRef: {
@@ -2916,6 +2938,17 @@ export interface components {
             first: string | null;
             /** Last */
             last: string | null;
+        };
+        /** PlayerTierLine */
+        PlayerTierLine: {
+            /** Tier */
+            tier: string;
+            /** Maps */
+            maps: number;
+            /** Rounds */
+            rounds: number;
+            /** Swing Per Round */
+            swing_per_round: number;
         };
         /** PlayerTotals */
         PlayerTotals: {

@@ -7807,6 +7807,40 @@
         ],
         "title": "Plate"
       },
+      "PlayerDuels": {
+        "properties": {
+          "duels": {
+            "type": "integer",
+            "title": "Duels"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "won_pct": {
+            "type": "number",
+            "title": "Won Pct"
+          },
+          "expected_pct": {
+            "type": "number",
+            "title": "Expected Pct"
+          },
+          "over_per_round": {
+            "type": "number",
+            "title": "Over Per Round"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duels",
+          "won",
+          "won_pct",
+          "expected_pct",
+          "over_per_round"
+        ],
+        "title": "PlayerDuels",
+        "description": "Duels against what the guns on both sides expected (PL-6)."
+      },
       "PlayerFindingRate": {
         "properties": {
           "code": {
@@ -8207,6 +8241,24 @@
                 "type": "null"
               }
             ]
+          },
+          "duels": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlayerDuels"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "by_tier": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerTierLine"
+            },
+            "type": "array",
+            "title": "By Tier",
+            "default": []
           }
         },
         "type": "object",
@@ -8339,6 +8391,34 @@
           "last"
         ],
         "title": "PlayerTeamSpan"
+      },
+      "PlayerTierLine": {
+        "properties": {
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "swing_per_round": {
+            "type": "number",
+            "title": "Swing Per Round"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tier",
+          "maps",
+          "rounds",
+          "swing_per_round"
+        ],
+        "title": "PlayerTierLine"
       },
       "PlayerTotals": {
         "properties": {

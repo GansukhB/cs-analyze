@@ -29,7 +29,7 @@ from app.models import (
     SnapshotMoment,
     Team,
 )
-from app.services import audit, mn, review, review_pool
+from app.services import audit, duels, mn, review, review_pool, team_strength
 from app.services.dbctx import count_if, db, total
 from app.services.stats import bootstrap
 
@@ -257,7 +257,37 @@ def build(steamid: int) -> dict | None:
         "weapons": weapons,
         # Opening duels over every Match Map he played (RV-8).
         "openings": next(iter(audit.openings([mm.id for mm, *_ in rows], player.id)), None),
+        # His duels against what the guns on both sides expected (PL-6).
+        "duels": duels.player(player.id, [mm.id for mm, *_ in rows]),
+        "by_tier": _by_tier(rows, swing_by_map, names),
     }
+
+
+def _by_tier(rows, swing_by_map: dict[int, list[float]], names: dict[int, str]) -> list[dict]:
+    """His Swing per Round against Teams of each Rating tier (PL-6), by the
+    opponent's rank now."""
+    rank_of = team_strength.ranks()
+    tiers: dict[str, list[float]] = defaultdict(list)
+    maps: Counter = Counter()
+    for mm, team_id, _played, _map in rows:
+        swings = swing_by_map.get(mm.id)
+        opponent = mm.team2_id if mm.team1_id == team_id else mm.team1_id
+        if not swings or not opponent or opponent not in names:
+            continue
+        tier = team_strength.tier_of(names[opponent], rank_of)
+        tiers[tier] += swings
+        maps[tier] += 1
+    order = [label for _top, label in team_strength.TIERS]
+    return [
+        {
+            "tier": tier,
+            "maps": maps[tier],
+            "rounds": len(tiers[tier]),
+            "swing_per_round": round(sum(tiers[tier]) / len(tiers[tier]), 4),
+        }
+        for tier in order
+        if tiers.get(tier)
+    ]
 
 
 def scrim_form(steamid: int, my_team_ids: set[int]) -> list[dict]:

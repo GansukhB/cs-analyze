@@ -79,16 +79,7 @@ function Tiles({ p }: { p: Page }) {
   const tiles: [string, string][] = [
     ['Map', String(t.maps)],
     ['Раунд', String(t.rounds)],
-    [
-      'Swing / раунд',
-      t.swing_per_round == null
-        ? '—'
-        : swingRateText(t.swing_per_round) +
-          // An 80% range over his Match Maps (RV-2).
-          (t.swing_low != null && t.swing_high != null
-            ? ` (${swingRateText(t.swing_low)}…${swingRateText(t.swing_high)})`
-            : ''),
-    ],
+    ['Swing / раунд', t.swing_per_round == null ? '—' : swingRateText(t.swing_per_round)],
     ['ADR', num(t.adr)],
     ['KAST', num(t.kast_pct, 1, '%')],
     ['Opening хожил', `${num(t.opening_win_pct, 0, '%')} · ${t.opening_attempts}`],
@@ -102,14 +93,52 @@ function Tiles({ p }: { p: Page }) {
           <div key={label} className="rounded-lg border border-line bg-surface px-3 py-2">
             <dt className="text-xs text-ink-3">{label}</dt>
             <dd className="font-mono text-lg text-ink">{value}</dd>
+            {label === 'Swing / раунд' && t.swing_low != null && t.swing_high != null && (
+              // An 80% range over his Match Maps (RV-2).
+              <dd className="font-mono text-xs text-ink-3" title="Match Map-аар дахин түүвэрлэсэн 80%-ийн муж">
+                {swingRateText(t.swing_low)} … {swingRateText(t.swing_high)}
+              </dd>
+            )}
           </div>
         ))}
       </dl>
+      <Duels p={p} />
       {o && o.attempts > 0 && (
         // What his Team made of his opening duels (RV-8).
         <p className="text-sm text-ink-2">
           Opening duel {o.attempts}: эхний kill-ийн дараа баг {num(o.after_kill_won_pct, 0, '%')} хожсон (5v4), эхний үхлийн дараа{' '}
           {num(o.after_death_won_pct, 0, '%')} (4v5); эхний үхлийнх нь {num(o.traded_pct, 0, '%')} trade хийгдсэн.
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** His duels against what the guns expected, and his Swing by opponent tier (PL-6). */
+function Duels({ p }: { p: Page }) {
+  const d = p.duels
+  if (!d && !p.by_tier.length) return null
+  return (
+    <div className="flex flex-wrap gap-x-8 gap-y-1 text-sm text-ink-2">
+      {d && (
+        <p title="Тоглогч бүрийн тухайн раундад худалдан авсан зэвсгийн ангиллаар Pool дээр тооцсон хүлээгдэх хожил">
+          Duel {d.duels}: {num(d.won_pct, 0, '%')} хожсон, зэвсгээр {num(d.expected_pct, 0, '%')} хүлээгдэж байсан ·{' '}
+          <span className={d.over_per_round >= 0 ? 'text-good' : 'text-crit'}>
+            {d.over_per_round >= 0 ? '+' : ''}
+            {d.over_per_round.toFixed(3)} duel / раунд
+          </span>
+        </p>
+      )}
+      {p.by_tier.length > 0 && (
+        <p>
+          Swing / раунд өрсөлдөгчөөр:{' '}
+          {p.by_tier.map((t, i) => (
+            <span key={t.tier}>
+              {i > 0 && ' · '}
+              {t.tier} <b className="font-mono text-ink">{swingRateText(t.swing_per_round)}</b>{' '}
+              <span className="text-ink-3">({t.maps} map)</span>
+            </span>
+          ))}
         </p>
       )}
     </div>
