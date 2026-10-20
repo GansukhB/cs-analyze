@@ -63,6 +63,8 @@
 
 ### DATA-1. Өөрийн demo upload: Scrim ба HLTV-д ороогүй official (P0, эхний хувилбар M, бүтэн L)
 
+> **Төлөв:** 🟡 `50da541` (improvement-01). Chunked upload (MySQL-д түр хадгална), parse queue, «хэн хэн бэ», Scrim/official scope. URL-аар import, scrim-ийн Round-ын дүрэм (бүх 24 Round), Scrim-ийн KPI жагсаалт (RV-6) үлдсэн.
+
 **Өгөгдлийн загвар** (migration, WS-1-ийн дараа):
 
 - `matches`:

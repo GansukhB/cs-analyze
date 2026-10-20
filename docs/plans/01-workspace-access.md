@@ -64,6 +64,8 @@ Default дүрэм. Staff үүнийг Briefing болон Development plan-аа
 
 ### WS-2. Pool ба cache-ийн Workspace хамаарал (P0, S, DATA-1-ийн дараа)
 
+> **Төлөв:** ✅ `50da541` (improvement-01). `scope.py` нь Match ба MatchMap-ийн бүх ORM query-д нэг шүүлтүүр нэмнэ. Cache-ийн түлхүүрт `scope.cache_part` нэмэгдэнэ.
+
 ADR 0011-ийн дагуу upload хийсэн official Match тухайн Workspace-ийн Pool-д л орно. Workspace-д upload байхгүй бол Pool нь өнөөдрийнх шиг нийтлэг байна, cache ч хуваалцагдана. Upload байгаа бол:
 
 - `pool_cache`-ийн түлхүүр: `pool:roles:v<POOL_SCHEMA>:<hash>`-ийн hash-д Workspace-ийн харагдах Match Map-ууд орно. Hash нь Match Map-ийн жагсаалтаас тооцогддог учраас загвар өөрчлөгдөхгүй, зөвхөн оролт нь өөр болно.
