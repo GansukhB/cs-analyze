@@ -6,10 +6,14 @@ read, so a threshold or a sentence can change with nothing rebuilt.
 
 A number says something only past its threshold and with enough Rounds behind
 it. The thresholds are the 25th and 75th percentiles of each number over the
-113 Match Maps reviewed when this was written (226 Team-maps). Everything a
-Summary lists is weighed in Rounds, so one list can rank a Pattern of Findings
-(the Swing they cost or won) against a number such as force buys (how far the
-Rounds came out from the Win probability they started with).
+113 Match Maps reviewed when this was written (226 Team-maps); the Patterns'
+(:data:`PATTERN_P75`) are measured again with :func:`pattern_percentiles`
+(``python -m app.cli summary-thresholds``) whenever a detector changes, and say
+when in :data:`PATTERN_P75_FROM`. Everything a Summary lists is weighed in
+Rounds, so one list can rank a Pattern of Findings (the Swing they cost or won,
+or :data:`ZERO_SWING_VALUE` for the ones that carry none) against a number such
+as force buys (how far the Rounds came out from the Win probability they started
+with).
 """
 
 from __future__ import annotations
@@ -35,6 +39,7 @@ COMEBACK_MIN = 2
 PATTERN_MIN = 3
 # Findings per 24 Rounds at the 75th percentile: a Pattern repeats at least this
 # often. A code missing here was too rare to measure: three of it are a Pattern.
+PATTERN_P75_FROM = "113 Reviews at REVIEW_SCHEMA 3, 2026-09"
 PATTERN_P75 = {
     "multikill": 4.4, "big_frag": 11.3, "entry": 9.6, "plant": 4.2, "clutch": 2.3,
     "retake": 1.4, "no_trade": 11.3, "unfinished": 7.0, "advantage_lost": 3.0,
@@ -44,6 +49,26 @@ PATTERN_P75 = {
     "nade_damage_kill": 6.5, "fire_delay": 1.4, "empty_utility": 4.2,
 }  # fmt: skip
 GOOD_UTILITY = {"flash_kill", "nade_damage_kill", "fire_delay"}
+# The Rounds one event is worth when its Findings carry no Swing (or too little
+# to rank it): a Round run out of time or a lost defuse is about half a Round; a
+# rifle thrown away costs the next buy, more when the Team then can't full-buy;
+# a wasted or team flash, a little.
+ZERO_SWING_VALUE = {
+    "time_out": 0.5, "kitless": 0.5, "defuse_chance": 0.5, "fire_delay": 0.2,
+    "lost_weapon_save": 0.15, "team_flash": 0.05, "blind_unpunished": 0.05,
+}  # fmt: skip
+LOST_SAVE_BY_NEXT_BUY = {"full": 0.05, "force": 0.25, "eco": 0.25}
+
+
+def value(f: dict) -> float:
+    """What one Finding is worth in Rounds: its Swing, or what a Finding of its
+    code is worth when it carries none."""
+    floor = ZERO_SWING_VALUE.get(f["code"], 0.0)
+    if f["code"] == "lost_weapon_save":
+        floor = LOST_SAVE_BY_NEXT_BUY.get((f.get("facts") or {}).get("next_buy") or "", floor)
+    return max(abs(f["swing"]), floor)
+
+
 # Dying untraded and not trading are one number (the trade rate), not Patterns.
 TRADE_CODES = {"untraded", "no_trade"}
 FOCUS_POINTS = 3
@@ -433,7 +458,7 @@ def team_summary(
         spots = Counter((f.get("facts") or {}).get("spot") or "" for f in found).most_common()
         spots = [(s, c) for s, c in spots if s and c >= 2]
         facts = {"count": len(found), "players": players, "spots": spots}
-        items.append(_item(code, "pattern", is_good(found[0]), sum(abs(f["swing"]) for f in found),
+        items.append(_item(code, "pattern", is_good(found[0]), sum(value(f) for f in found),
                            mn.summary_pattern(code, facts, who),
                            [_ref(map_number, f["round"], f["t"], (f.get("sids") or [None])[0])
                             for f in found if f["round"] is not None],
@@ -544,3 +569,37 @@ def _players(maps: list[dict], team_id) -> list[dict]:
         row["counts"] = dict(row["counts"])
         out.append(row)
     return sorted(out, key=lambda r: -r["swing"])
+
+
+def pattern_percentiles(payloads, q: float = 0.75, fewest_maps: int = 20) -> dict[str, float]:
+    """Each Finding code's rate per 24 Rounds at the ``q`` quantile over every
+    Team-map in ``payloads`` (stored Reviews), counting Team-maps where it is 0;
+    codes seen on fewer than ``fewest_maps`` Team-maps are left out (too rare to
+    measure: three are a Pattern)."""
+    rates: dict[str, list[float]] = defaultdict(list)
+    team_maps = 0
+    for stored in payloads:
+        rounds: Counter = Counter()
+        sides: dict[tuple, int] = {}
+        for r in stored["rounds"]:
+            for side in ("ct", "t"):
+                team = r.get(f"{side}_team_id")
+                if team is not None:
+                    rounds[team] += 1
+                    sides[(r["n"], side)] = team
+        found: dict[int, Counter] = defaultdict(Counter)
+        for f in stored["findings"]:
+            team = sides.get((f["round"], f["side"]))
+            if team is not None and f["code"] not in TRADE_CODES:
+                found[team][f["code"]] += 1
+        for team, n in rounds.items():
+            team_maps += 1
+            for code, k in found[team].items():
+                rates[code].append(24 * k / n)
+    out = {}
+    for code, seen in rates.items():
+        if len(seen) < fewest_maps:
+            continue
+        every = sorted(seen + [0.0] * (team_maps - len(seen)))
+        out[code] = round(every[min(len(every) - 1, int(q * len(every)))], 1)
+    return dict(sorted(out.items()))

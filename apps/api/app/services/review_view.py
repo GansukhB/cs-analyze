@@ -73,11 +73,22 @@ def panel(db: Session, match_map: MatchMap) -> dict | None:
         }
         for r in stored["rounds"]
     ]  # fmt: skip
+    # What this Map's Tick Data could not show (docs/adr/0006; RV-5).
+    lacking = [c for c in stored.get("needs_sightings") or []]
+    lacking += [c for c in stored.get("needs_loadout") or [] if c not in lacking]
     missing = ""
-    if not stored["sightings"]:
-        labels = ", ".join(mn.REVIEW_CODE[c] for c in stored["needs_sightings"])
+    if lacking:
+        labels = ", ".join(mn.REVIEW_CODE[c] for c in lacking)
+        what = " ба ".join(
+            w
+            for w, gone in (
+                ("Sighting", stored.get("needs_sightings")),
+                ("Loadout", stored.get("needs_loadout")),
+            )
+            if gone
+        )
         missing = (
-            "Энэ map хуучин schema-аар (Sighting-гүй) боловсруулагдсан тул дараах дүгнэлтүүд "
+            f"Энэ map хуучин schema-аар ({what}-гүй) боловсруулагдсан тул дараах дүгнэлтүүд "
             f"байхгүй: {labels}. Бусад нь бүрэн."
         )
     return {

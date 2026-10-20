@@ -11,6 +11,7 @@ python -m app.cli import-tickdata [folder]   # parquet bundles on disk -> MySQL
 python -m app.cli rebuild-tickdata           # Replays, walks, geometry from the stored bundles
 python -m app.cli fit-winprob                # refit the Review's Win probability model
 python -m app.cli rebuild-reviews [--map ID] # cut every Match Map's Review again
+python -m app.cli summary-thresholds         # the Patterns' 75th percentiles, measured again
 python -m app.cli import-vrs [checkout]       # Valve Regional Standings -> series results
 python -m app.cli forecast-backtest           # fit the Rating walk-forward (rating_params.json)
 python -m app.cli import-cstat [root] [--match HLTV_ID] [--map NAME]
@@ -248,6 +249,28 @@ def rebuild_reviews(match_map_id: int | None = None) -> None:
     print(f"Rebuilt {len(ids)} Reviews (version {review.version()}).")
 
 
+def summary_thresholds() -> None:
+    """Print each Finding code's 75th-percentile rate per 24 Rounds over every
+    current Review, to paste into ``review_summary.PATTERN_P75`` after a detector
+    changes (RV-5)."""
+    import gzip
+    import json
+
+    from app.models import MatchMapReview
+    from app.services import review, review_summary
+
+    with SessionLocal() as db:
+        payloads = [
+            json.loads(gzip.decompress(blob))
+            for blob in db.scalars(
+                select(MatchMapReview.payload).where(MatchMapReview.version == review.version())
+            )
+        ]
+    print(f"{len(payloads)} Reviews at {review.version()} (REVIEW_SCHEMA {review.REVIEW_SCHEMA}):")
+    for code, rate in review_summary.pattern_percentiles(payloads).items():
+        print(f'    "{code}": {rate},')
+
+
 def import_cstat(
     root: Path, parse: bool, match: int | None = None, map_name: str | None = None
 ) -> None:
@@ -339,6 +362,7 @@ def main() -> None:
     sub.add_parser("fit-winprob")
     sub.add_parser("forecast-backtest")
     sub.add_parser("rebuild-reviews").add_argument("--map", type=int, help="One Match Map id.")
+    sub.add_parser("summary-thresholds")
     cstat = sub.add_parser("import-cstat")
     cstat.add_argument("root", nargs="?", help="The cstat checkout; defaults to ../cstat.")
     cstat.add_argument("--no-parse", action="store_true", help="Import the rows only.")
@@ -377,6 +401,9 @@ def main() -> None:
         return
     if args.command == "rebuild-reviews":
         rebuild_reviews(args.map)
+        return
+    if args.command == "summary-thresholds":
+        summary_thresholds()
         return
     # `npm run user:create` without `-- <name>` passes no username; ask instead of failing.
     username = args.username if args.username is not None else input("Username: ")

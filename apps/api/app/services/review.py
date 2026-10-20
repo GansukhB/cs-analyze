@@ -25,7 +25,8 @@ with :data:`REVIEW_SCHEMA`, the Win probability model and the Spots, and
 
 A Match Map whose Tick Data has no Sightings (parsed before schema 13) gets
 every Finding that doesn't need them; the ones that do are marked ``sight`` and
-listed in the payload's ``needs_sightings`` (docs/adr/0006).
+listed in the payload's ``needs_sightings`` (docs/adr/0006). The same for the
+Loadout (schema 12): ``needs_loadout`` lists :data:`LOADOUT_CODES`.
 """
 
 from __future__ import annotations
@@ -56,7 +57,9 @@ from app.services import spots, winprob
 logger = logging.getLogger(__name__)
 
 # Bump when the stored payload's shape or a detector changes.
-REVIEW_SCHEMA = 3
+# 4: the Loadout's availability, entry/big_frag rarer, lost_weapon_save not at
+# a half's end, moving shots per weapon class, unscoped_awp held long enough.
+REVIEW_SCHEMA = 4
 
 # CONTEXT.md: a Trade is killing the killer within 5 seconds.
 TRADE_SECONDS = 5.0
@@ -75,8 +78,14 @@ FLASH_REACH = 600.0
 # Swing thresholds (fractions of a Round). A Key play needs a big positive
 # Swing; a death is only a Mistake when it cost this much and has a cause.
 KEY_SWING = 0.12  # a plant, defuse or clutch
-BIG_FRAG_SWING = 0.20  # a kill on its own, by the side that won the Round
-BIG_FRAG_HUGE = 0.33  # a kill on its own, whoever won
+# An entry is the Round's first kill, for the side that won it, worth this much:
+# at 0.0 one Team in three had one every Round (7.5 per 24 over 113 Reviews,
+# a tenth of them under 0.04, an opening kill in an eco).
+ENTRY_SWING = 0.15
+# Measured the same way, 0.20 and 0.33 made 8.9 big frags per 24 Rounds a Team:
+# a Key play should stand out.
+BIG_FRAG_SWING = 0.28  # a kill on its own, by the side that won the Round
+BIG_FRAG_HUGE = 0.40  # a kill on its own, whoever won
 MISTAKE_SWING = 0.06
 CHANCE_SWING = 0.05
 SAVE_WP = 0.10  # below this the Round is lost: guns should be saved
@@ -104,7 +113,11 @@ GRENADE_PRICE = {"Flashbang": 200, "Smoke Grenade": 300, "High Explosive Grenade
 UNFINISHED_DAMAGE = 50
 AWP_MISS_SECONDS = 2.0
 AWP_MISS_GAP = 0.2  # a shot fired as they died is a trade of shots, not a miss
-MOVING_SHARE = 0.40  # of the weapon's top speed: CS2 accuracy is gone above ~34%
+# Of the weapon's top speed, above which a shot was fired running: CS2's rifles
+# lose their accuracy above about a third of it, snipers sooner, SMGs, pistols
+# and shotguns are built to be shot on the move.
+MOVING_SHARE = {"rifle": 0.34, "sniper": 0.25, "scout": 0.34, "smg": 0.55, "pistol": 0.55,
+                "shotgun": 0.70, "mg": 0.50}  # fmt: skip
 CROSSHAIR_DEGREES = 15.0
 SIGHT_HOLD_SECONDS = 0.5
 SIGHT_FIRST_LEAD = 0.15
@@ -128,6 +141,29 @@ MAX_SPEED = {
     "glock": 240, "usp_silencer": 240, "hkp2000": 240, "p250": 240, "fiveseven": 240,
     "tec9": 240, "cz75a": 240, "deagle": 230, "elite": 240, "revolver": 220,
 }  # fmt: skip
+WEAPON_CLASS = {
+    **dict.fromkeys(("ak47", "m4a1", "m4a1_silencer", "galilar", "famas", "aug", "sg556"), "rifle"),
+    **dict.fromkeys(("awp", "g3sg1", "scar20"), "sniper"),
+    "ssg08": "scout",
+    **dict.fromkeys(("mac10", "mp9", "mp7", "mp5sd", "ump45", "p90", "bizon"), "smg"),
+    **dict.fromkeys(("nova", "xm1014", "mag7", "sawedoff"), "shotgun"),
+    **dict.fromkeys(("m249", "negev"), "mg"),
+    **dict.fromkeys(
+        (
+            "glock",
+            "usp_silencer",
+            "hkp2000",
+            "p250",
+            "fiveseven",
+            "tec9",
+            "cz75a",
+            "deagle",
+            "elite",
+            "revolver",
+        ),
+        "pistol",
+    ),  # fmt: skip
+}
 RIFLES = {"AK-47", "M4A4", "M4A1-S", "AWP", "AUG", "SG 553", "Galil AR", "FAMAS", "SSG 08",
           "G3SG1", "SCAR-20"}  # fmt: skip
 GRENADES = {"Flashbang", "Smoke Grenade", "High Explosive Grenade", "Molotov",
@@ -139,6 +175,13 @@ KNIVES = ("knife", "bayonet", "karambit", "dagger")
 
 # The Findings that need Sightings (schema 13).
 SIGHT_CODES = ("crosshair", "unscoped_awp", "saw_no_shot", "saw_first_lost")
+# The codes that read the Loadout (schema 12): without it they never fire.
+LOADOUT_CODES = ("no_gun_in_hand", "unused_utility", "unscoped_awp", "saw_no_shot")
+# An AWP is a mistake unscoped only when the enemy was in sight this long first.
+UNSCOPED_MIN_SECONDS = 0.5
+# Regulation halves end here; overtime halves every OT_HALF after.
+HALF_ENDS = (12, 24)
+OT_HALF = 3
 # Which kind of Finding each code is (CONTEXT.md), for readers that hold only codes.
 CODE_KIND = {
     **dict.fromkeys(
@@ -326,6 +369,7 @@ class _Inputs:
         self.sightings = all(
             name in frames and not frames[name].is_empty() for name in ("sightings", "aim")
         )
+        self.has_loadout = "loadout" in frames and not frames["loadout"].is_empty()
 
         roster = list(
             db.scalars(
@@ -1057,7 +1101,11 @@ class _RoundReview:
         if live and live[0]["attacker"] and id(live[0]) not in claimed:
             k = live[0]
             sid = k["attacker"]
-            if self.side.get(sid) == winner and self.side.get(k["victim"]) != winner:
+            if (
+                self.side.get(sid) == winner
+                and self.side.get(k["victim"]) != winner
+                and k["credits"].get(sid, 0.0) >= ENTRY_SWING
+            ):
                 claimed.add(id(k))
                 self.add(
                     "key_play",
@@ -1215,7 +1263,7 @@ class _RoundReview:
             gun = next((x for x in inv if x in RIFLES), "") or (
                 self.primary.get(victim) if self.primary.get(victim) in RIFLES else ""
             )
-            if gun and (k.get("post") or team_wp < SAVE_WP) and lost:
+            if gun and (k.get("post") or team_wp < SAVE_WP) and lost and not self._last_of_half():
                 self.add(
                     "mistake",
                     "lost_weapon_save",
@@ -1225,6 +1273,7 @@ class _RoundReview:
                     gun=gun,
                     team_wp=round(team_wp, 3),
                     post=bool(k.get("post")),
+                    next_buy=self._next_buy(v_side),
                     **facts,
                 )
                 continue
@@ -1330,7 +1379,7 @@ class _RoundReview:
             fired = [
                 s
                 for s in self.shots_between(victim, tick - 3 * self.rate, tick)
-                if s[1] in MAX_SPEED
+                if s[1] in MAX_SPEED and s[1] in WEAPON_CLASS
             ]
             track = self.tracks.get(victim)
             if (
@@ -1340,7 +1389,11 @@ class _RoundReview:
                 and self.damage(victim, killer, tick - 3 * self.rate, tick) < UNFINISHED_DAMAGE
             ):
                 speeds = [track.speed(s[0], self.rate) / MAX_SPEED[s[1]] for s in fired]
-                moving = sum(1 for v in speeds if v > MOVING_SHARE)
+                moving = sum(
+                    1
+                    for s, v in zip(fired, speeds, strict=True)
+                    if v > MOVING_SHARE[WEAPON_CLASS[s[1]]]
+                )
                 if moving * 2 > len(fired):
                     self.add(
                         "mistake",
@@ -1411,6 +1464,25 @@ class _RoundReview:
                             left=round(left, 1),
                             travel=round(travel, 1),
                         )
+
+    def _last_of_half(self) -> bool:
+        """A half's or the Map's last Round: nothing carries over, so nothing to save."""
+        n = self.n
+        last = self.i.rounds[-1].number if self.i.rounds else n
+        overtime = n > HALF_ENDS[-1] and (n - HALF_ENDS[-1]) % OT_HALF == 0
+        return n in HALF_ENDS or overtime or n == last
+
+    def _next_buy(self, side: str) -> str:
+        """What this side's Team bought the next Round (a BuyType value, or "")."""
+        team = self.team(side)
+        nxt = next((r for r in self.i.rounds if r.number == self.n + 1), None)
+        if nxt is None or team is None:
+            return ""
+        if nxt.ct_team_id == team:
+            return nxt.ct_buy or ""
+        if nxt.t_team_id == team:
+            return nxt.t_buy or ""
+        return ""
 
     def _no_gun_in_hand(self, k, victim, held, inv, loss, facts) -> bool:
         """A knife or grenade in hand, a gun in the Loadout, and no gun drawn
@@ -1517,7 +1589,7 @@ class _RoundReview:
         if held != "AWP":
             return False
         first = self.first_seen(victim, killer, tick - 2 * self.rate, tick)
-        if first is None:
+        if first is None or (tick - first) / self.rate < UNSCOPED_MIN_SECONDS:
             return False
         aims = [self.aim_at(victim, t) for t in range(first, tick, max(1, self.rate // 16))]
         aims = [a for a in aims if a is not None]
@@ -2194,6 +2266,8 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict:
         "version": version(),
         "sightings": inputs.sightings,
         "needs_sightings": [] if inputs.sightings else list(SIGHT_CODES),
+        "loadout": inputs.has_loadout,
+        "needs_loadout": [] if inputs.has_loadout else list(LOADOUT_CODES),
         "map": inputs.map_name,
         "tickrate": inputs.rate,
         "players": players,

@@ -15,6 +15,7 @@ fires.
 import io
 import json
 import zipfile
+from types import SimpleNamespace
 
 import polars as pl
 import pytest
@@ -32,7 +33,7 @@ from app.models import (
     Team,
 )
 from app.models.base import utcnow
-from app.services import mn, review, tickdata, winprob
+from app.services import mn, review, review_pool, review_summary, review_view, tickdata, winprob
 
 START, END, OFFICIAL = 1000, 3560, 3700
 FLASH, A1_DIES, B2_DIES, B1_DIES = 1640, 1700, 2200, 2500
@@ -78,7 +79,9 @@ def _held(steamid: int, tick: int, held: tuple[str, int] | None) -> str:
     return "AK-47"
 
 
-def _bundle(sightings: bool, held: tuple[str, int] | None = None) -> bytes:
+def _bundle(
+    sightings: bool, held: tuple[str, int] | None = None, with_loadout: bool = True
+) -> bytes:
     kills = pl.DataFrame(
         [
             _kill(A1_DIES, 22, 11, "t", "ct"),
@@ -156,7 +159,7 @@ def _bundle(sightings: bool, held: tuple[str, int] | None = None) -> bytes:
         "flashes": flashes,
         "he_grenades": pl.DataFrame(),
         "economy": pl.DataFrame(),
-        "loadout": loadout,
+        "loadout": loadout if with_loadout else pl.DataFrame(),
     }
     for empty in ("footsteps", "shots", "grenades", "infernos", "smokes", "bomb"):
         frames[empty] = pl.DataFrame()
@@ -215,8 +218,8 @@ def inferno(db):
     return {"map": match_map, "match": match}
 
 
-def _review(db, inferno, sightings=False, held=None) -> dict:
-    tickdata.store(db, inferno["map"], _bundle(sightings, held))
+def _review(db, inferno, sightings=False, held=None, loadout=True) -> dict:
+    tickdata.store(db, inferno["map"], _bundle(sightings, held, loadout))
     db.commit()
     return review.ensure(db, inferno["map"])
 
@@ -280,6 +283,7 @@ def test_findings_on_the_round(db, inferno):
     assert flash["sids"][:3] == ["21", "22", "11"] and not flash["facts"]["own"]
     assert payload["sightings"] is False
     assert set(payload["needs_sightings"]) == set(review.SIGHT_CODES)
+    assert payload["loadout"] is True and payload["needs_loadout"] == []
     assert not any(f["sight"] for f in payload["findings"])
     b1 = next(p for p in payload["players"] if p["sid"] == "21")
     assert b1["utility"]["flashes"] == 1 and b1["utility"]["team_flashes"] == 1
@@ -414,3 +418,50 @@ def test_every_finding_code_has_its_kind(db, inferno):
     for f in _review(db, inferno, sightings=True)["findings"]:
         assert review.CODE_KIND[f["code"]] == f["kind"], f["code"]
     assert set(review.CODE_KIND) == set(mn.REVIEW_CODE)
+
+
+# ---------------------------------------------------------------------- RV-5 ---
+def test_without_a_loadout_the_page_says_what_it_cannot_show(db, inferno):
+    payload = _review(db, inferno, loadout=False)
+    assert payload["loadout"] is False
+    assert payload["needs_loadout"] == list(review.LOADOUT_CODES)
+    assert not {"no_gun_in_hand", "unused_utility"} & set(_codes(payload))
+    worded = review_view.panel(db, inferno["map"])
+    assert "Sighting ба Loadout-гүй" in worded["missing"]
+
+
+def test_every_weapon_with_a_top_speed_has_a_class():
+    assert set(review.MAX_SPEED) == set(review.WEAPON_CLASS)
+    assert set(review.WEAPON_CLASS.values()) == set(review.MOVING_SHARE)
+
+
+@pytest.mark.parametrize(("n", "last"), [(11, False), (12, True), (24, True), (27, True),
+                                          (28, False), (30, True)])  # fmt: skip
+def test_a_halfs_last_round_has_nothing_to_save_for(n, last):
+    rr = SimpleNamespace(n=n, i=SimpleNamespace(rounds=[SimpleNamespace(number=30)]))
+    assert review._RoundReview._last_of_half(rr) is last
+
+
+def test_a_finding_without_swing_is_still_worth_something():
+    lost = {"code": "lost_weapon_save", "swing": -0.01, "facts": {}}
+    assert review_summary.value(lost) == 0.15
+    assert review_summary.value({**lost, "facts": {"next_buy": "eco"}}) == 0.25
+    assert review_summary.value({**lost, "facts": {"next_buy": "full"}}) == 0.05
+    assert review_summary.value({"code": "untraded", "swing": -0.3, "facts": {}}) == 0.3
+
+
+def test_pattern_thresholds_are_measured_from_the_reviews():
+    rounds = [{"n": n, "ct_team_id": 1, "t_team_id": 2} for n in range(1, 25)]
+    found = [{"code": "big_frag", "round": n, "side": "ct"} for n in range(1, 7)]
+    stored = {"rounds": rounds, "findings": found}
+    out = review_summary.pattern_percentiles([stored] * 3, fewest_maps=1)
+    # Team 1 gets 6 a map and team 2 none: the 75th percentile of [0, 0, 0, 6, 6, 6].
+    assert out == {"big_frag": 6.0}
+
+
+def test_a_pool_rate_counts_only_the_maps_that_could_show_it():
+    blind = review_pool.Tally(mm=1, match=1, num=1, map="x", team=1, side="ct", sight=False,
+                              loadout=False)  # fmt: skip
+    assert not review_pool.can_show(blind, "crosshair")
+    assert not review_pool.can_show(blind, "no_gun_in_hand")
+    assert review_pool.can_show(blind, "untraded")

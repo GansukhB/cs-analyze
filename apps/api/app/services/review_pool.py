@@ -58,13 +58,8 @@ PLAYER_ROUND_SWING = 0.15
 # A Finding's rate is counted per this many Rounds, the length of a regulation Map.
 PER_ROUNDS = 24
 HALF = 12
-# The Rounds one event is worth when its Findings carry no Swing (or too little
-# to rank it): a Round run out of time or a lost defuse is about half a Round; a
-# rifle thrown away costs the next buy; a wasted or team flash, a little.
-ZERO_SWING_VALUE = {
-    "time_out": 0.5, "kitless": 0.5, "defuse_chance": 0.5, "fire_delay": 0.2,
-    "lost_weapon_save": 0.15, "team_flash": 0.05, "blind_unpunished": 0.05,
-}  # fmt: skip
+# What a Finding without Swing is worth (review_summary.ZERO_SWING_VALUE).
+ZERO_SWING_VALUE = review_summary.ZERO_SWING_VALUE
 REFRESH_LOCK = "review-refresh"
 REFRESH_LOCK_SECONDS = 30 * 60
 # After a refresh some Review failed to build, wait this long before trying again.
@@ -165,6 +160,7 @@ class Tally:
     team: int
     side: str
     sight: bool
+    loadout: bool = True
     rounds: list[int] = field(default_factory=list)
     # rate key -> [(round, hit, sid, value)]; sid is who the event is about.
     events: dict[str, list[tuple]] = field(default_factory=lambda: defaultdict(list))
@@ -177,6 +173,13 @@ class Tally:
         return {"match": self.match, "map": self.num, "round": n}
 
 
+def can_show(t: Tally, code: str) -> bool:
+    """Whether this Team-map's Tick Data could have shown ``code`` at all."""
+    if code in review.SIGHT_CODES and not t.sight:
+        return False
+    return t.loadout or code not in review.LOADOUT_CODES
+
+
 def _cut(stored: dict, meta: dict) -> list[Tally]:
     """A Review's tallies, one per Team and Side it has Rounds for."""
     out: dict[tuple, Tally] = {}
@@ -184,7 +187,8 @@ def _cut(stored: dict, meta: dict) -> list[Tally]:
     def tally(team, side) -> Tally:
         key = (team, side)
         if key not in out:
-            out[key] = Tally(**meta, team=team, side=side, sight=bool(stored.get("sightings")))
+            out[key] = Tally(**meta, team=team, side=side, sight=bool(stored.get("sightings")),
+                             loadout=not stored.get("needs_loadout"))  # fmt: skip
         return out[key]
 
     for r in stored["rounds"]:
@@ -356,15 +360,13 @@ def read(m: Measure, tallies: list[Tally]) -> Read | None:
                     spots[(t.mm, n, sid)] = spot
             misses = [(t, n, sid, v, spots.get((t.mm, n, sid), "")) for t, n, sid, v, _ in misses]
         return Read(len(hits) / of, of, hits, misses, per_event)
-    sight = m.key in review.SIGHT_CODES
-    rounds = sum(len(t.rounds) for t in tallies if t.sight or not sight)
+    # Only the Team-maps whose Tick Data could show this code count (RV-5).
+    able = [t for t in tallies if can_show(t, m.key)]
+    rounds = sum(len(t.rounds) for t in able)
     if rounds < m.fewest:
         return None
     found = [
-        (t, n, sid, swing, spot)
-        for t in tallies
-        if t.sight or not sight
-        for n, _t, sid, swing, spot in t.codes.get(m.key, ())
+        (t, n, sid, swing, spot) for t in able for n, _t, sid, swing, spot in t.codes.get(m.key, ())
     ]
     if m.value is not None:
         per_event = m.value
