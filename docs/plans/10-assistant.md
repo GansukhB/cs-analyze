@@ -104,6 +104,8 @@ Coach монголоор, бичгээр эсвэл дуугаар асууна.
 
 ### AS-3. Tool-ийн хамрах хүрээ (P1, M; бүр нь холбогдох функц бэлэн болсны дараа)
 
+> **Төлөв:** 🟡 `3b41467` (improvement-01). `team_matches`, `player_form`, `forecast`, `rating`, `gameplan_section` decision/playbook нэмэгдсэн. `find_rounds`, Stratbook, Scrim, хуваарийн tool-ууд нь тэдгээр функц хийгдэх үед.
+
 | Tool | Хэзээ | Тайлбар |
 |---|---|---|
 | `team_matches(team_id, limit)` | Одоо (S) | Сүүлийн Match-ууд id-тай. "Сүүлийн тоглолт" асуултад |
@@ -139,6 +141,8 @@ Tool бүр `Viewer`-ийн scope-оор уншина (ADR 0011). Player User-д
 - Tool-ууд Replay-ийн ref-ийг аль хэдийн буцаадаг (Playbook-ийн evidence, Finding-ийн Round, агшин).
 
 ### AS-6. Briefing-ийн ноорог (P1, M; WS-5-тай хамт)
+
+> **Төлөв:** ✅ `640b640` (improvement-01). Ноорог нь тоог мөртэй тулгадаг; TTS хувилбар ба Opus-ийн харьцуулалт үлдсэн.
 
 - **Оролт:** Game Plan-аас Staff сонгосон мөрүүд. Assistant Map бүрт нэг хуудсанд багтах монгол текст бэлдэнэ:
   - тэдний 3 habit ба тус бүрийн эсрэг арга
