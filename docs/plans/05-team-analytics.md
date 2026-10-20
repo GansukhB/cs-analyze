@@ -116,6 +116,8 @@ Playbook-ийн habit бүрийг тогтмол босгоор биш, тух�
 
 ### TM-5. Хэв маягийн хурууны хээ (style fingerprint) (P1, M)
 
+> **Төлөв:** 🟡 `58b2e32` (improvement-01). T/CT/хоёр талын 13 хэмжүүр Pool-ын percentile-аар; Team page ба Playbook. Rotate-ийн хурд, lurk, mid control үлдсэн.
+
 Map, Side бүрээр хэмжигдэх хэмжүүрүүд. Бүгд Pool-тай percentile-аар харьцуулагдаж, Evidence-тэй байна.
 
 | Тал | Хэмжүүр | Хаанаас |
@@ -136,6 +138,8 @@ Map, Side бүрээр хэмжигдэх хэмжүүрүүд. Бүгд Pool-т
 **UI:** Team page болон Game Plan-д Map бүрийн "хэв маяг" хэсэг. Хоёр багийг зэрэгцүүлсэн percentile bar.
 
 ### TM-6. Map pool-ийн гүн ба veto-ийн оролт (P1, M; FC-2-тэй хамт)
+
+> **Төлөв:** 🟡 `36ec17f` (improvement-01). Map-ын хүч (shrink), гүн, Active Duty датанаас. Veto-ийн түүх HLTV match page-ийг (DATA-3) хүлээнэ.
 
 - **Map бүрийн хүч:** Map бүрийн Rating (`03`), shrink хийсэн Round-ын хожлын хувь (Beta prior), recency.
 - **Map pool-ийн гүн:** Rating нь багийн дунджаас X-ээс бага доогуур биш Map-уудын тоо.

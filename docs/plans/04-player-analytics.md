@@ -120,6 +120,8 @@ Coach-ийн хоёр асуултад тоо, жишиг, нотолгоото�
 
 ### PL-5. Aim ба механикийн үзүүлэлт (P1, M; Sighting-тай Map хэрэгтэй)
 
+> **Төлөв:** 🟡 `9d8ac98` (improvement-01). Engagement-ийн TTD, crosshair, counter-strafe, эхний сум; percentile. VisibilityChecker ба smoke шалгалт үлдсэн.
+
 Leetify-ийн тодорхойлолтыг өөрийн датанд тааруулна (`12-research-sources.md`):
 
 - **Time to damage:** анхны Sighting-аас анхны damage хүртэлх хугацааны median. 1 s-ээс урт тохиолдлыг хасна.
