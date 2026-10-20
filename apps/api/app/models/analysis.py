@@ -348,6 +348,11 @@ class Round(TimestampMixin, Base):
     t_equip_value: Mapped[int | None] = mapped_column(PositiveInt)
     ct_buy: Mapped[str] = mapped_column(String(8), default="", doc="A BuyType value, or ''.")
     t_buy: Mapped[str] = mapped_column(String(8), default="", doc="A BuyType value, or ''.")
+    # Schema 14 (DATA-5): which timeouts ran in this round's freeze time, called
+    # by the Side named; None where the Tick Data predates them.
+    ct_timeout: Mapped[bool | None] = mapped_column()
+    t_timeout: Mapped[bool | None] = mapped_column()
+    tech_timeout: Mapped[bool | None] = mapped_column()
 
     match_map: Mapped[MatchMap] = relationship(back_populates="rounds")
     winner_team: Mapped[Team | None] = relationship(foreign_keys=[winner_team_id])
@@ -563,6 +568,17 @@ class GrenadeThrow(TimestampMixin, Base):
     thrower_x: Mapped[float | None] = mapped_column(Float)
     thrower_y: Mapped[float | None] = mapped_column(Float)
     thrower_z: Mapped[float | None] = mapped_column(Float)
+    # The moment it left the hand, from where and with what aim (schema 14,
+    # DATA-5): the projectile's first point and the thrower's tick there. Unlike
+    # throw_tick and thrower_* (a flash's or HE's pop, and where the thrower
+    # stood then), these are the lineup. None before.
+    thrown_tick: Mapped[int | None] = mapped_column(PositiveInt)
+    thrown_x: Mapped[float | None] = mapped_column(Float)
+    thrown_y: Mapped[float | None] = mapped_column(Float)
+    thrown_z: Mapped[float | None] = mapped_column(Float)
+    thrown_pitch: Mapped[float | None] = mapped_column(Float)
+    thrown_yaw: Mapped[float | None] = mapped_column(Float)
+    thrown_place: Mapped[str] = mapped_column(String(24), default="")
     # Where it landed.
     x: Mapped[float | None] = mapped_column(Float)
     y: Mapped[float | None] = mapped_column(Float)
@@ -649,6 +665,11 @@ class PlayerRound(TimestampMixin, Base):
     armor: Mapped[int | None] = mapped_column(PositiveSmallInt)
     helmet: Mapped[bool | None] = mapped_column()
     defuser: Mapped[bool | None] = mapped_column()
+    # The scoreboard's own numbers for the round (schema 14, DATA-5); None before.
+    enemies_flashed: Mapped[int | None] = mapped_column(PositiveSmallInt)
+    utility_damage: Mapped[int | None] = mapped_column(PositiveSmallInt)
+    money_saved: Mapped[int | None] = mapped_column(PositiveSmallInt)
+    kill_reward: Mapped[int | None] = mapped_column(PositiveSmallInt)
     primary_weapon: Mapped[str] = mapped_column(
         String(16), default="", doc="'AK-47', 'AWP'... as the demo names it, or ''."
     )

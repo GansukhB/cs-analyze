@@ -28,7 +28,8 @@ can't give it back, so its map needs its Demo again too (docs/adr/0005).
 
 Sightings and aim (:data:`SIGHT_TABLES`, schema 13) are not: Tick Data without
 them still re-parses, and its Review leaves out what needs them (docs/adr/0006,
-:func:`has_sightings`).
+:func:`has_sightings`). Nor are schema 14's events (:data:`EVENT_TABLES`, DATA-5):
+without them the rows they fill stay unknown (:func:`has_events`).
 """
 
 from __future__ import annotations
@@ -62,7 +63,10 @@ LOADOUT_TABLE = "loadout"
 # A re-parse needs these; Sightings and aim it can do without (docs/adr/0006).
 REQUIRED_TABLES = (*DETONATION_TABLES, ECONOMY_TABLE, LOADOUT_TABLE)
 SIGHT_TABLES = ("sightings", "aim")
-EXTRA_TABLES = (*REQUIRED_TABLES, *SIGHT_TABLES)
+EVENT_TABLES = ("throws", "pickups", "pings", "timeouts", "round_stats")
+# Written only when the parse read them, and kept by a merge only when every part has them.
+OPTIONAL_TABLES = (*SIGHT_TABLES, *EVENT_TABLES)
+EXTRA_TABLES = (*REQUIRED_TABLES, *OPTIONAL_TABLES)
 
 # Callout labels: the busiest places, at their median, from a fixed sample.
 GEOMETRY_SAMPLE = 220_000
@@ -114,8 +118,8 @@ def pack(parsed, scratch: Path) -> bytes | None:
     """The bytes to store for a freshly parsed map: awpy's dump plus
     :data:`EXTRA_TABLES`. The zip is written in ``scratch`` and removed again.
 
-    A Sightings or aim table demoparser could not read is left out rather than
-    written empty, so :func:`has_sightings` never claims what isn't there."""
+    An optional table demoparser could not read is left out rather than written
+    empty, so :func:`has_sightings` and :func:`has_events` never claim what isn't there."""
     path = parsed.write_parquet(scratch)
     if path is None:
         return None
@@ -123,7 +127,7 @@ def pack(parsed, scratch: Path) -> bytes | None:
         with zipfile.ZipFile(path, "a", zipfile.ZIP_DEFLATED) as bundle:
             for name in EXTRA_TABLES:
                 frame = getattr(parsed, name, None)
-                if name in SIGHT_TABLES and (frame is None or frame.is_empty()):
+                if name in OPTIONAL_TABLES and (frame is None or frame.is_empty()):
                     continue
                 _write_table(bundle, name, frame if frame is not None else pl.DataFrame())
         return path.read_bytes()
@@ -224,9 +228,9 @@ def merge(parts: list[tuple[bytes, pl.DataFrame]]) -> tuple[bytes, list[int]]:
     :func:`app.services.demo_parser.round_numbers` gives them. Every Round takes
     its number as played, and the last part holding a Round plays it: a backup
     restored over Rounds already played means they were played again. Each part's
-    ticks follow the one before's, :data:`PART_GAP_TICKS` apart. A Sightings or aim
-    table counts only when every part has it, so :func:`has_sightings` never claims
-    what a part lacked."""
+    ticks follow the one before's, :data:`PART_GAP_TICKS` apart. An optional table
+    counts only when every part has it, so :func:`has_sightings` and
+    :func:`has_events` never claim what a part lacked."""
     owner: dict[int, tuple[int, int]] = {}
     for i, (_blob, numbers) in enumerate(parts):
         for round_num, number in numbers.iter_rows():
@@ -265,7 +269,7 @@ def merge(parts: list[tuple[bytes, pl.DataFrame]]) -> tuple[bytes, list[int]]:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as out:
         for name, frames in tables.items():
-            if name in SIGHT_TABLES and present[name] < len(parts):
+            if name in OPTIONAL_TABLES and present[name] < len(parts):
                 continue
             _write_table(out, name, pl.concat(frames, how="diagonal_relaxed"))
         out.writestr("header.json", json.dumps(header))
@@ -356,6 +360,11 @@ def has_sightings(dataset: TickDataset | None) -> bool:
     return dataset is not None and all(name in (dataset.tables or []) for name in SIGHT_TABLES)
 
 
+def has_events(dataset: TickDataset | None) -> bool:
+    """Whether this Tick Data carries schema 14's events (read from a Demo, DATA-5)."""
+    return dataset is not None and all(name in (dataset.tables or []) for name in EVENT_TABLES)
+
+
 def parsed_map(blob: bytes, label: str, awpy_version: str = ""):
     """The ingest's ``ParsedMap``, rebuilt from a stored bundle instead of a Demo.
 
@@ -412,6 +421,12 @@ def parsed_map(blob: bytes, label: str, awpy_version: str = ""):
         round_totals=AwpyDemo.player_round_totals.func(SimpleNamespace(ticks=ticks, rounds=rounds)),
         sightings=table("sightings"),
         aim=table("aim"),
+        grenades=table("grenades"),
+        throws=table("throws"),
+        pickups=table("pickups"),
+        pings=table("pings"),
+        timeouts=table("timeouts"),
+        round_stats=table("round_stats"),
     )
 
 

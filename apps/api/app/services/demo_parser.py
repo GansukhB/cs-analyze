@@ -79,8 +79,41 @@ SIGHT_HZ = 32
 # was fired: pitch (yaw is already a tick prop), scoped, crouched, walking. Speed
 # is not here: demoparser drops velocity on a sparse grid, and the every-tick
 # positions in ``ticks`` already give it.
-AIM_PROPS = ["pitch", "is_scoped", "ducking", "is_walking"]
+AIM_PROPS = ["pitch", "is_scoped", "ducking", "is_walking", "in_bomb_zone", "is_defusing"]
 AIM_HZ = 16
+
+# Schema 14 (docs/plans/02 DATA-5): what the game says that awpy drops or never
+# asks for. One pass over three events (0.3 s a map): grenades as they leave the
+# hand (with the exact aim; measured on a Nuke demo, only 64 of 112 smokes and 38
+# of 62 flashes have one, so the throw itself comes from the trajectory, see
+# projectile_starts), every item picked up (who hands the AWP to whom), every
+# ping. Recorded GOTV demos carry no bomb_beginplant/bomb_begindefuse; a defuse's
+# start is ``is_defusing`` on the aim grid. Like the Sightings, Tick Data without
+# these is never downloaded again.
+EVENT_NAMES = ["grenade_thrown", "item_pickup", "player_ping"]
+EVENT_PLAYER_PROPS = ["X", "Y", "Z", "pitch", "yaw"]
+# The game rules' timeout flags, read once a second over each freeze time (a
+# timeout runs in the freeze time after it is called). The flags follow the
+# Side, not the Team: the counts swap at half.
+TIMEOUT_PROPS = ["is_terrorist_timeout", "is_ct_timeout", "is_technical_timeout"]
+# awpy's projectile classes, as GrenadeType values, and the gap in ticks after
+# which an entity id that came back is a new grenade.
+PROJECTILE_KIND = {
+    "CSmokeGrenadeProjectile": "smoke",
+    "CMolotovProjectile": "inferno",
+    "CFlashbangProjectile": "flash",
+    "CHEGrenadeProjectile": "he",
+}
+PROJECTILE_GAP_TICKS = 16
+# The scoreboard's own per-round numbers, read as each round's post-round ends
+# (an exit frag's reward lands after the round's end; the next round resets them).
+ROUND_STAT_PROPS = {
+    "enemies_flashed_this_round": "enemies_flashed",
+    "utility_damage_this_round": "utility_damage",
+    "money_saved_this_round": "money_saved",
+    "kill_reward_this_round": "kill_reward",
+    "cash_earned_this_round": "cash_earned",
+}
 
 # Competitive CS2 freeze time, the ruler used to measure the real tickrate.
 FREEZE_SECONDS = 20
@@ -128,6 +161,20 @@ class ParsedMap:
         default_factory=pl.DataFrame
     )  # round_num, tick, steamid, spotter
     aim: pl.DataFrame = field(default_factory=pl.DataFrame)  # round_num, tick, steamid, AIM_PROPS
+    # awpy's per-tick projectile positions (its ``grenades``), in every bundle.
+    grenades: pl.DataFrame = field(default_factory=pl.DataFrame)
+    # Schema 14, empty the same way as the Sightings (DATA-5).
+    throws: pl.DataFrame = field(
+        default_factory=pl.DataFrame
+    )  # round_num, tick, steamid, weapon, X, Y, Z, pitch, yaw
+    pickups: pl.DataFrame = field(default_factory=pl.DataFrame)  # round_num, tick, steamid, item
+    pings: pl.DataFrame = field(
+        default_factory=pl.DataFrame
+    )  # round_num, tick, steamid, X, Y, Z, urgent
+    timeouts: pl.DataFrame = field(default_factory=pl.DataFrame)  # round_num, ct, t, technical
+    round_stats: pl.DataFrame = field(
+        default_factory=pl.DataFrame
+    )  # round_num, steamid, ROUND_STAT_PROPS
 
     _demo: object = None  # the awpy Demo, kept only for compress()
 
@@ -450,6 +497,169 @@ def _aim(dem, tickrate: int) -> pl.DataFrame:
             pl.col("is_scoped").alias("scoped"),
             "ducking",
             pl.col("is_walking").alias("walking"),
+            pl.col("in_bomb_zone").alias("in_site"),
+            pl.col("is_defusing").alias("defusing"),
+        )
+    )
+
+
+def _events(dem) -> dict[str, pl.DataFrame]:
+    """:data:`EVENT_NAMES` as the ``throws``, ``pickups`` and ``pings`` tables.
+
+    Missing ones, with a warning, when demoparser cannot read them.
+    """
+    import awpy.parsers.rounds
+
+    try:
+        found = dict(dem.parser.parse_events(EVENT_NAMES, player=EVENT_PLAYER_PROPS))
+    except Exception as exc:  # demoparser raises bare exceptions on odd demos
+        logger.warning("events unavailable (%s) -- writing none", exc)
+        return {}
+
+    def framed(name: str) -> pl.DataFrame | None:
+        frame = found.get(name)
+        if frame is None or len(frame) == 0:
+            return None
+        frame = pl.from_pandas(frame).with_columns(
+            pl.col("tick").cast(pl.Int64),
+            pl.col("user_steamid").cast(pl.UInt64, strict=False).alias("steamid"),
+        )
+        frame = awpy.parsers.rounds.apply_round_num(df=frame, rounds_df=dem.rounds, tick_col="tick")
+        return frame.filter(pl.col("round_num").is_not_null() & pl.col("steamid").is_not_null())
+
+    out = {}
+    if (throws := framed("grenade_thrown")) is not None:
+        out["throws"] = throws.select(
+            pl.col("round_num").cast(pl.Int64),
+            "tick",
+            "steamid",
+            "weapon",
+            pl.col("user_X").alias("X"),
+            pl.col("user_Y").alias("Y"),
+            pl.col("user_Z").alias("Z"),
+            pl.col("user_pitch").alias("pitch"),
+            pl.col("user_yaw").alias("yaw"),
+        )
+    if (pickups := framed("item_pickup")) is not None:
+        out["pickups"] = pickups.select(
+            pl.col("round_num").cast(pl.Int64), "tick", "steamid", "item", "silent"
+        )
+    if (pings := framed("player_ping")) is not None:
+        out["pings"] = pings.select(
+            pl.col("round_num").cast(pl.Int64),
+            "tick",
+            "steamid",
+            pl.col("x").alias("X"),
+            pl.col("y").alias("Y"),
+            pl.col("z").alias("Z"),
+            "urgent",
+        )
+    return out
+
+
+def projectile_starts(grenades: pl.DataFrame | None) -> pl.DataFrame:
+    """``(round_num, tick, steamid, kind, X, Y, Z)``: each grenade's first located
+    point, the moment it left the hand. Every throw has one, unlike grenade_thrown.
+
+    An entity id comes back within a round for another grenade, so a gap of more
+    than :data:`PROJECTILE_GAP_TICKS` starts a new one."""
+    schema = {"round_num": pl.Int64, "tick": pl.Int64, "steamid": pl.UInt64, "kind": pl.String,
+              "X": pl.Float64, "Y": pl.Float64, "Z": pl.Float64}  # fmt: skip
+    if grenades is None or grenades.is_empty():
+        return pl.DataFrame(schema=schema)
+    key = ["round_num", "entity_id", "grenade_type", "steamid"]
+    located = (
+        grenades.drop_nulls(["X", "thrower_steamid", "round_num"])
+        .select(
+            pl.col("round_num").cast(pl.Int64),
+            "entity_id",
+            "grenade_type",
+            pl.col("thrower_steamid").cast(pl.UInt64).alias("steamid"),
+            pl.col("tick").cast(pl.Int64),
+            pl.col("X").cast(pl.Float64),
+            pl.col("Y").cast(pl.Float64),
+            pl.col("Z").cast(pl.Float64),
+        )
+        .sort([*key, "tick"])
+    )
+    return (
+        located.filter(
+            pl.col("tick").diff().over(key).fill_null(PROJECTILE_GAP_TICKS + 1)
+            > PROJECTILE_GAP_TICKS
+        )
+        .with_columns(
+            pl.col("grenade_type").replace_strict(PROJECTILE_KIND, default=None).alias("kind")
+        )
+        .drop_nulls("kind")
+        .select(list(schema))
+        .sort("tick")
+    )
+
+
+def _timeouts(dem, tickrate: int) -> pl.DataFrame:
+    """``(round_num, ct, t, technical)``: which timeouts ran in each round's freeze time.
+
+    Empty, with a warning, when demoparser cannot read them.
+    """
+    grid = []
+    for row in dem.rounds.iter_rows(named=True):
+        start, end = row.get("start"), row.get("freeze_end")
+        if start is None or end is None or end <= start:
+            continue
+        grid += [(int(row["round_num"]), t) for t in range(int(start), int(end) + 1, tickrate)]
+    if not grid:
+        return pl.DataFrame()
+    at = pl.DataFrame(grid, schema={"round_num": pl.Int64, "tick": pl.Int64}, orient="row")
+    try:
+        frame = pl.from_pandas(dem.parser.parse_ticks(TIMEOUT_PROPS, ticks=at["tick"].to_list()))
+    except Exception as exc:  # demoparser raises bare exceptions on odd demos
+        logger.warning("timeouts unavailable (%s) -- writing empty", exc)
+        return pl.DataFrame()
+    if frame.is_empty():
+        return pl.DataFrame()
+    # The game rules are the same for every player row of a tick.
+    return (
+        frame.with_columns(pl.col("tick").cast(pl.Int64))
+        .join(at, on="tick")
+        .group_by("round_num")
+        .agg(
+            pl.col("is_ct_timeout").any().alias("ct"),
+            pl.col("is_terrorist_timeout").any().alias("t"),
+            pl.col("is_technical_timeout").any().alias("technical"),
+        )
+        .sort("round_num")
+    )
+
+
+def _round_stats(dem) -> pl.DataFrame:
+    """``(round_num, steamid, ...)``: :data:`ROUND_STAT_PROPS` as each round's post-round ends.
+
+    Empty, with a warning, when demoparser cannot read them.
+    """
+    at = []
+    for row in dem.rounds.iter_rows(named=True):
+        end = row.get("official_end") or row.get("end")
+        if end:
+            at.append((int(row["round_num"]), max(0, int(end) - 1)))
+    if not at:
+        return pl.DataFrame()
+    ticks = pl.DataFrame(at, schema={"round_num": pl.Int64, "tick": pl.Int64}, orient="row")
+    try:
+        frame = pl.from_pandas(
+            dem.parser.parse_ticks(list(ROUND_STAT_PROPS), ticks=ticks["tick"].to_list())
+        )
+    except Exception as exc:  # demoparser raises bare exceptions on odd demos
+        logger.warning("round stats unavailable (%s) -- writing empty", exc)
+        return pl.DataFrame()
+    if frame.is_empty():
+        return pl.DataFrame()
+    return (
+        frame.with_columns(pl.col("tick").cast(pl.Int64))
+        .join(ticks, on="tick")
+        .select(
+            "round_num",
+            pl.col("steamid").cast(pl.UInt64),
+            *(pl.col(prop).cast(pl.Int64).alias(name) for prop, name in ROUND_STAT_PROPS.items()),
         )
     )
 
@@ -541,6 +751,7 @@ def parse_map(path: Path) -> ParsedMap:
     ticks = dem.ticks
     roster, round_sides, player_sides = sides_from_ticks(ticks)
     tickrate = derive_tickrate(dem.rounds)
+    events = _events(dem)
 
     return ParsedMap(
         path=path,
@@ -564,5 +775,11 @@ def parse_map(path: Path) -> ParsedMap:
         round_totals=dem.player_round_totals,
         sightings=_sightings(dem, tickrate),
         aim=_aim(dem, tickrate),
+        grenades=_optional(dem, "grenades"),
+        throws=events.get("throws", pl.DataFrame()),
+        pickups=events.get("pickups", pl.DataFrame()),
+        pings=events.get("pings", pl.DataFrame()),
+        timeouts=_timeouts(dem, tickrate),
+        round_stats=_round_stats(dem),
         _demo=dem,
     )

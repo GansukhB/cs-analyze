@@ -66,8 +66,10 @@ logger = logging.getLogger(__name__)
 # (docs/adr/0003); 12 added the Replay's Loadout to the Tick Data, the same way
 # (docs/adr/0005). 13 added Sightings and aim to the Tick Data, which only a Demo
 # gives; unlike 11 and 12 a map without them is not downloaded again, so a map at
-# 13 re-parsed from older Tick Data still has none (docs/adr/0006).
-CURRENT_SCHEMA_VERSION = 13
+# 13 re-parsed from older Tick Data still has none (docs/adr/0006). 14 adds the
+# timeouts, the scoreboard's per-round numbers and each grenade's throw (DATA-5),
+# the same way: from older Tick Data they stay None.
+CURRENT_SCHEMA_VERSION = 14
 
 # A Setup (CONTEXT.md) is where everyone stands this long after freeze end.
 SETUP_SECONDS = 20
@@ -448,6 +450,12 @@ def _round_side_teams(parsed, player_teams: dict[int, Team | None]) -> dict[int,
     return out
 
 
+def _table(parsed, name: str) -> pl.DataFrame:
+    """One of the parse's optional tables, empty where it has none (schema 13+)."""
+    frame = getattr(parsed, name, None)
+    return frame if frame is not None else pl.DataFrame()
+
+
 def _id(team: Team | None) -> int | None:
     return team.id if team is not None else None
 
@@ -459,6 +467,8 @@ def _ingest_rounds(
     plant_sites = _plant_sites(parsed)
     side_teams = _round_side_teams(parsed, player_teams)
     equipment = _side_equipment(parsed)
+    timeouts = {int(r["round_num"]): r for r in _table(parsed, "timeouts").to_dicts()}
+    known = bool(timeouts)
     rows = []
     for row in parsed.rounds.to_dicts():
         number = int(row["round_num"])
@@ -488,6 +498,9 @@ def _ingest_rounds(
                 "t_equip_value": equipment.get((number, "t")),
                 "ct_buy": buy_type(number, equipment.get((number, "ct"))) if equipment else "",
                 "t_buy": buy_type(number, equipment.get((number, "t"))) if equipment else "",
+                "ct_timeout": bool(timeouts.get(number, {}).get("ct")) if known else None,
+                "t_timeout": bool(timeouts.get(number, {}).get("t")) if known else None,
+                "tech_timeout": bool(timeouts.get(number, {}).get("technical")) if known else None,
             }
         )
     if rows:
@@ -534,9 +547,106 @@ def _grenade_throw_rows(
                 "y": g.get("Y"),
                 "z": g.get("Z"),
                 "thrower_place": str(g.get("thrower_place") or "")[:24],
+                # Filled by _attach_throws where the throw is found (schema 14).
+                "thrown_tick": None,
+                "thrown_x": None,
+                "thrown_y": None,
+                "thrown_z": None,
+                "thrown_pitch": None,
+                "thrown_yaw": None,
+                "thrown_place": "",
+                "_steamid": _int(g.get("thrower_steamid")),
+                "_number": int(g["round_num"]),
             }
         )
     return rows
+
+
+# A grenade's throw is at most this long before it took effect.
+THROW_REACH_SECONDS = 15
+# How near a pitch sample must be to the throw: grenade_thrown's own, else aim's.
+PITCH_TICKS = {"throws": 2, "aim": 8}
+
+
+def _attach_throws(grenades: list[dict], parsed) -> list[dict]:
+    """Each grenade's throw (schema 14): the same player's latest unmatched
+    projectile of that kind in that round, no later than it took effect, and where
+    the thrower stood and looked then. Fills ``thrown_*``; returns the grenades
+    it found a throw for."""
+    from app.services import demo_parser
+
+    starts = demo_parser.projectile_starts(getattr(parsed, "grenades", None))
+    if starts.is_empty() or not grenades:
+        return []
+    pending: dict[tuple, list[dict]] = {}
+    for t in starts.to_dicts():
+        pending.setdefault((t["round_num"], int(t["steamid"]), t["kind"]), []).append(t)
+    reach = THROW_REACH_SECONDS * parsed.tickrate
+    matched = []
+    effect = sorted(
+        (g for g in grenades if g["_steamid"] is not None),
+        key=lambda g: g["start_tick"] or g["throw_tick"] or 0,
+    )
+    for g in effect:
+        at = g["start_tick"] or g["throw_tick"]
+        queue = pending.get((g["_number"], g["_steamid"], g["type"]))
+        if at is None or not queue:
+            continue
+        earlier = [t for t in queue if at - reach <= t["tick"] <= at]
+        if not earlier:
+            continue
+        throw = earlier[-1]
+        queue.remove(throw)
+        g["thrown_tick"] = int(throw["tick"])
+        matched.append(g)
+    if not matched:
+        return []
+
+    # Where each thrower stood and faced then, from the every-tick positions.
+    want = pl.DataFrame(
+        {"i": range(len(matched)), "steamid": [g["_steamid"] for g in matched],
+         "tick": [g["thrown_tick"] for g in matched]},
+        schema={"i": pl.Int64, "steamid": pl.UInt64, "tick": pl.Int64},
+    )  # fmt: skip
+    ticks = parsed.ticks.select(
+        pl.col("steamid").cast(pl.UInt64),
+        pl.col("tick").cast(pl.Int64),
+        pl.col("X").cast(pl.Float64),
+        pl.col("Y").cast(pl.Float64),
+        pl.col("Z").cast(pl.Float64),
+        (pl.col("yaw").cast(pl.Float64) if "yaw" in parsed.ticks.columns else pl.lit(None)).alias(
+            "yaw"
+        ),
+        # The thrower's own Callout there: the lineup's spot.
+        (pl.col("place") if "place" in parsed.ticks.columns else pl.lit("")).alias("place"),
+    )
+    stood = want.join(ticks, on=["steamid", "tick"], how="left").sort("i")
+    pitch = pl.Series("pitch", [None] * len(matched), dtype=pl.Float64)
+    for name, tolerance in PITCH_TICKS.items():
+        frame = getattr(parsed, name, None)
+        if frame is None or frame.is_empty() or "pitch" not in frame.columns:
+            continue
+        near = (
+            want.sort("tick")
+            .join_asof(
+                frame.select(
+                    pl.col("steamid").cast(pl.UInt64),
+                    pl.col("tick").cast(pl.Int64),
+                    pl.col("pitch").cast(pl.Float64),
+                ).sort("tick"),
+                on="tick",
+                by="steamid",
+                strategy="nearest",
+                tolerance=tolerance,
+                check_sortedness=False,  # sorted by tick; polars can't check within ``by``
+            )
+            .sort("i")["pitch"]
+        )
+        pitch = pitch.fill_null(near)
+    for g, row, p in zip(matched, stood.iter_rows(named=True), pitch, strict=True):
+        g.update(thrown_x=row["X"], thrown_y=row["Y"], thrown_z=row["Z"], thrown_yaw=row["yaw"],
+                 thrown_pitch=p, thrown_place=(row["place"] or "")[:24])  # fmt: skip
+    return matched
 
 
 def _ingest_events(db: Session, parsed, rounds: dict[int, Round], players: dict[int, Player]):
@@ -646,11 +756,15 @@ def _ingest_events(db: Session, parsed, rounds: dict[int, Round], players: dict[
     ):
         grenades += _grenade_throw_rows(frame, kind, rounds, player_for, seen)
     if grenades:
+        _attach_throws(grenades, parsed)
         cells = tickdata.callout_cells(parsed.ticks)
         places = tickdata.callouts_at(cells, [(g["x"], g["y"], g["z"]) for g in grenades])
         for grenade, place in zip(grenades, places, strict=True):
             grenade["place"] = place[:24]
-        db.execute(insert(GrenadeThrow), grenades)
+        db.execute(
+            insert(GrenadeThrow),
+            [{k: v for k, v in g.items() if not k.startswith("_")} for g in grenades],
+        )
 
 
 def _ingest_snapshots(db: Session, parsed, rounds: dict[int, Round], players: dict[int, Player]):
@@ -819,6 +933,17 @@ def _ingest_player_rounds(
     }
     team_of = {steamid: _id(team) for steamid, team in player_teams.items()}
     economy = _player_economy(parsed)
+    round_stats = {
+        (int(r["round_num"]), int(r["steamid"])): r
+        for r in _table(parsed, "round_stats").to_dicts()
+    }
+
+    def stat(key, name):
+        # Absent from the scoreboard (a player who left): 0 once the table exists.
+        if not round_stats:
+            return None
+        value = (round_stats.get(key) or {}).get(name)
+        return min(max(0, int(value or 0)), SMALL_MAX)
 
     rows = []
     for number, rnd in rounds.items():
@@ -851,6 +976,10 @@ def _ingest_player_rounds(
                     "helmet": bought.get("helmet"),
                     "defuser": bought.get("defuser"),
                     "primary_weapon": primary_weapon(bought.get("inventory")),
+                    "enemies_flashed": stat(key, "enemies_flashed"),
+                    "utility_damage": stat(key, "utility_damage"),
+                    "money_saved": stat(key, "money_saved"),
+                    "kill_reward": stat(key, "kill_reward"),
                     "_number": number,
                     "_steamid": steamid,
                 }

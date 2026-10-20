@@ -100,6 +100,14 @@ def test_parse_ingest_and_reparse_from_tick_data(db, tmp_path, parsed):
         db, GrenadeThrow, lingering
     )
     assert dataset.geometry["labels"] and tickdata.load_walks([dataset])
+    # Schema 14 (DATA-5): timeouts known for every round, the scoreboard's numbers
+    # for every player-round, and nearly every grenade's throw found.
+    assert tickdata.has_events(dataset)
+    assert count(db, Round, Round.match_map_id == match_map.id, Round.ct_timeout.is_(None)) == 0
+    assert count(db, PlayerRound, PlayerRound.enemies_flashed.is_(None)) == 0
+    thrown = count(db, GrenadeThrow, GrenadeThrow.thrown_tick.is_not(None))
+    assert thrown > 0.95 * count(db, GrenadeThrow)
+    assert count(db, GrenadeThrow, GrenadeThrow.thrown_tick > GrenadeThrow.start_tick) == 0
     assert count(db, ReplayRound, ReplayRound.match_map_id == match_map.id) == parsed.n_rounds
     before = snapshot(db, match_map.id)
 
