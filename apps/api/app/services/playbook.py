@@ -222,7 +222,7 @@ class _Detail:
     setup: dict[int, list]  # (player_id, side, place, x, y, z)
     plant: dict[int, list]
     grenades: dict[int, list]  # (type, side, start_tick, place)
-    first_kill: dict[int, tuple]  # (attacker_id, victim_id, attacker_side, places...)
+    first_kill: dict[int, tuple]  # (attacker_id, victim_id, attacker_side, places..., tick)
     names: dict[int, str]
 
 
@@ -275,6 +275,7 @@ def _detail(rounds: list[_Round]) -> _Detail:
             KillEvent.attacker_side,
             KillEvent.attacker_place,
             KillEvent.victim_place,
+            KillEvent.tick,
         ).join(first, (first.c.round_id == KillEvent.round_id) & (first.c.tick == KillEvent.tick))
     ):
         out.first_kill.setdefault(row.round_id, row)

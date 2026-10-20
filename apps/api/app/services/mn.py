@@ -3324,3 +3324,20 @@ DISPUTE_REASONS = {
     "misread": "Нөхцөлийг буруу уншсан",
     "other": "Бусад",
 }
+
+
+# -- GP-4: what the opponent changes when a Map goes against them ----------------
+# key -> (label, our answer when it rises, our answer when it falls)
+TIMEOUT_SIGNALS = {
+    "site_a": ("A цэг рүү plant", "A-г хүчирхэгжүүл: B-ээс нэгийг A руу ойртуул.",
+               "B-г хүчирхэгжүүл: A-гаас нэгийг B руу ойртуул."),
+    "rush": ("35 с дотор plant (rush)", "Эхний 30 с-д utility-гаа хадгалж, гарц дээр давхар бай.",
+             "Тэд удаашрах тул эхний мэдээллийг эрт ав, хожуу rotate хий."),
+    "force": ("Мөнгө дутахад force", "Force-д бэлэн бай: armor, ойрын өнцгөөс зайлсхий.",
+              "Тэд хэмнэнэ — мэдээлэл аваад зэвсгээ бүү алд."),
+    "stack": ("Setup-д 3+ нэг цэгт (stack)",
+              "Default-аар мэдээлэл ав, stack-ийг тойроод нөгөө цэг рүү.",
+              "Тэд тархана — нэг цэгт олуулаа хурдан ор."),
+    "early_pick": ("Эхний 20 с-д CT pick", "Эхний гарцуудаа flash-тай, хосоороо ав.",
+                   "Тэд хүлээнэ — map control-оо тайван ав."),
+}  # fmt: skip

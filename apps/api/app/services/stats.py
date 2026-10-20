@@ -204,3 +204,13 @@ def stratified_gap(
     null = gap(shuffled)
     p = (1 + int((null >= observed - 1e-12).sum())) / (1 + draws)
     return observed, p, n_flagged
+
+
+def chance_higher(k1: float, n1: float, k2: float, n2: float) -> float:
+    """The chance the first rate is above the second, each a Beta(1 + k, 1 + n - k):
+    a normal reading of their difference (fine past a handful of each)."""
+    a1, b1, a2, b2 = 1 + k1, 1 + n1 - k1, 1 + k2, 1 + n2 - k2
+    m1, m2 = a1 / (a1 + b1), a2 / (a2 + b2)
+    v1 = a1 * b1 / ((a1 + b1) ** 2 * (a1 + b1 + 1))
+    v2 = a2 * b2 / ((a2 + b2) ** 2 * (a2 + b2 + 1))
+    return 0.5 * (1 + math.erf((m1 - m2) / math.sqrt(2 * (v1 + v2))))

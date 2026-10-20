@@ -1156,6 +1156,30 @@ class PlanCheck(BaseModel):
     forecast: CheckForecast | None
 
 
+# -- The timeout card (docs/plans/06 GP-4) ------------------------------------------
+class TimeoutMove(BaseModel):
+    key: str
+    label: str
+    usual: int  # percent of their other Rounds
+    pressed: int  # percent of their Rounds under pressure
+    rounds: int
+    counter: str
+    refs: list[CheckRef]
+
+
+class TimeoutSide(BaseModel):
+    side: str
+    moves: list[TimeoutMove]
+
+
+class TimeoutCard(BaseModel):
+    map: str
+    rounds: int
+    pressure: int
+    sides: list[TimeoutSide]
+    pool: AuditPool
+
+
 # -- Briefings (docs/plans/01 WS-5) ------------------------------------------------
 class BriefingMapPick(BaseModel):
     map: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")

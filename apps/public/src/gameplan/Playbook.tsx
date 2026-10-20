@@ -54,6 +54,58 @@ export function TodoTab({ data, fixture, map }: { data: TodoPanel; fixture: Fixt
   )
 }
 
+/** The timeout card (GP-4): what they change when the Map goes against them, our answer. */
+function TimeoutCard(props: { fixture: Fixture; map: string; label: string; opponent: string }) {
+  const { fixture, map } = props
+  const q = $api.useQuery(
+    'get',
+    '/gameplan/{mine}/vs/{theirs}/timeout/{map_name}',
+    { params: { path: { mine: fixture.mine.id, theirs: fixture.theirs.id, map_name: map } } },
+    { staleTime: STALE },
+  )
+  if (!q.data || !q.data.rounds) return null
+  const c = q.data
+  const moves = c.sides.filter((s) => s.moves.length)
+  const pool = c.pool
+  return (
+    <details className="pb-style pb-timeout" open={moves.length > 0}>
+      <summary>
+        Timeout card — {props.label}: {props.opponent} дарамтанд юу өөрчилдөг вэ
+      </summary>
+      <p className="lede">
+        {props.opponent}-ийн {c.rounds} раундаас {c.pressure} нь 2+ дараалан алдсаны эсвэл өөрсдийн timeout-ын дараах.
+        Тэр раундуудад хэвшлээсээ илт өөрчлөгддөг зүйлс:
+      </p>
+      {moves.length === 0 ? (
+        <p className="none">Дарамтанд тогтвортой өөрчлөгддөг зүйл илрээгүй.</p>
+      ) : (
+        <ul className="pb-rows">
+          {moves.map((s) =>
+            s.moves.map((m) => (
+              <li key={`${s.side}-${m.key}`}>
+                <span className={`tag ${s.side}`}>Тэдний {s.side.toUpperCase()}</span> <b>{m.label}</b>: ердөө {m.usual}% →
+                дарамтанд {m.pressed}% ({m.rounds} раунд).{' '}
+                <span className="pb-counter">{m.counter}</span>{' '}
+                {m.refs.map((r) => (
+                  <Link key={`${r.map}-${r.round}`} to={replayHref(r)} className="mono">
+                    R{r.round}
+                  </Link>
+                ))}
+              </li>
+            )),
+          )}
+        </ul>
+      )}
+      {pool.maps > 0 && pool.after_timeout.rounds > 0 && (
+        <p className="lede">
+          Манай timeout: {pool.maps} map-д 3+ дараалан алдсаны дараах раундыг timeout авсан баг{' '}
+          {pool.after_timeout.pct}% ({pool.after_timeout.won}/{pool.after_timeout.rounds}), аваагүй нь {pool.without.pct}% хожсон.
+        </p>
+      )}
+    </details>
+  )
+}
+
 /** Both Teams' style on the Map, each against every Team on it (TM-5). */
 function FixtureStyle(props: { fixture: Fixture; map: string; mine: string; theirs: string }) {
   const { fixture, map } = props
@@ -120,6 +172,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
       ))}
 
       <FixtureStyle fixture={fixture} map={map} mine={d.my_team} theirs={d.opponent} />
+      <TimeoutCard fixture={fixture} map={map} label={d.label} opponent={d.opponent} />
 
       {d.plan.length > 0 && (
         <>

@@ -634,6 +634,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/gameplan/{mine}/vs/{theirs}/timeout/{map_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fixture Timeout
+         * @description What the opponent changes when this Map goes against them, and our answer;
+         *     with the Pool's next Round after a run of losses, with and without a timeout (GP-4).
+         */
+        get: operations["fixture_timeout_gameplan__mine__vs__theirs__timeout__map_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gameplan/{mine}/vs/{theirs}/style/{map_name}": {
         parameters: {
             query?: never;
@@ -4090,6 +4111,42 @@ export interface components {
             /** Rating */
             rating: number;
         };
+        /** TimeoutCard */
+        TimeoutCard: {
+            /** Map */
+            map: string;
+            /** Rounds */
+            rounds: number;
+            /** Pressure */
+            pressure: number;
+            /** Sides */
+            sides: components["schemas"]["TimeoutSide"][];
+            pool: components["schemas"]["AuditPool"];
+        };
+        /** TimeoutMove */
+        TimeoutMove: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Usual */
+            usual: number;
+            /** Pressed */
+            pressed: number;
+            /** Rounds */
+            rounds: number;
+            /** Counter */
+            counter: string;
+            /** Refs */
+            refs: components["schemas"]["CheckRef"][];
+        };
+        /** TimeoutSide */
+        TimeoutSide: {
+            /** Side */
+            side: string;
+            /** Moves */
+            moves: components["schemas"]["TimeoutMove"][];
+        };
         /** Token */
         Token: {
             /** Access Token */
@@ -5349,6 +5406,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GameplanPanel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fixture_timeout_gameplan__mine__vs__theirs__timeout__map_name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mine: number;
+                theirs: number;
+                map_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeoutCard"];
                 };
             };
             /** @description Validation Error */

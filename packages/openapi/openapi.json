@@ -1766,6 +1766,72 @@
         }
       }
     },
+    "/gameplan/{mine}/vs/{theirs}/timeout/{map_name}": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Fixture Timeout",
+        "description": "What the opponent changes when this Map goes against them, and our answer;\nwith the Pool's next Round after a run of losses, with and without a timeout (GP-4).",
+        "operationId": "fixture_timeout_gameplan__mine__vs__theirs__timeout__map_name__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          },
+          {
+            "name": "map_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Map Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeoutCard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/gameplan/{mine}/vs/{theirs}/style/{map_name}": {
       "get": {
         "tags": [
@@ -11746,6 +11812,108 @@
           "rating"
         ],
         "title": "TeamTrendPoint"
+      },
+      "TimeoutCard": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "pressure": {
+            "type": "integer",
+            "title": "Pressure"
+          },
+          "sides": {
+            "items": {
+              "$ref": "#/components/schemas/TimeoutSide"
+            },
+            "type": "array",
+            "title": "Sides"
+          },
+          "pool": {
+            "$ref": "#/components/schemas/AuditPool"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "rounds",
+          "pressure",
+          "sides",
+          "pool"
+        ],
+        "title": "TimeoutCard"
+      },
+      "TimeoutMove": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "usual": {
+            "type": "integer",
+            "title": "Usual"
+          },
+          "pressed": {
+            "type": "integer",
+            "title": "Pressed"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "counter": {
+            "type": "string",
+            "title": "Counter"
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/CheckRef"
+            },
+            "type": "array",
+            "title": "Refs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "usual",
+          "pressed",
+          "rounds",
+          "counter",
+          "refs"
+        ],
+        "title": "TimeoutMove"
+      },
+      "TimeoutSide": {
+        "properties": {
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/TimeoutMove"
+            },
+            "type": "array",
+            "title": "Moves"
+          }
+        },
+        "type": "object",
+        "required": [
+          "side",
+          "moves"
+        ],
+        "title": "TimeoutSide"
       },
       "Token": {
         "properties": {

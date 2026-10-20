@@ -35,8 +35,10 @@ from app.schemas import (
     LineupPlayer,
     LineupPlayers,
     TeamRef,
+    TimeoutCard,
 )
 from app.services import (
+    audit,
     dbctx,
     gameplan,
     gameplan_view,
@@ -48,6 +50,7 @@ from app.services import (
     review_pool,
     scope,
     style,
+    timeout_card,
 )
 
 logger = logging.getLogger(__name__)
@@ -238,6 +241,19 @@ def panel(
         ms=round((time.perf_counter() - started) * 1000, 1),
         data=data,
     )
+
+
+@router.get("/{mine}/vs/{theirs}/timeout/{map_name}")
+def fixture_timeout(
+    mine: int, theirs: int, map_name: str, db: DbSession, _: StaffUser
+) -> TimeoutCard:
+    """What the opponent changes when this Map goes against them, and our answer;
+    with the Pool's next Round after a run of losses, with and without a timeout (GP-4)."""
+    if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
+    my_team, opponent = _fixture(db, mine, theirs)
+    with dbctx.using(db):
+        return TimeoutCard(**timeout_card.card(opponent, my_team, map_name), pool=audit.pool())
 
 
 @router.get("/{mine}/vs/{theirs}/style/{map_name}")
