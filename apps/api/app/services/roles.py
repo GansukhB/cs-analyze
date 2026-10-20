@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import math
 import statistics
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
@@ -841,6 +842,16 @@ def classify_player(bucket: dict, side: str, baseline: dict[str, dict]) -> dict:
 
     scores.sort(key=lambda s: -s["score"])
     best, runner_up = scores[0], (scores[1] if len(scores) > 1 else None)
+    # A soft role (PL-4): each job's share of him, so a player who is half lurker
+    # and half trader reads as both rather than as whichever edged ahead.
+    top = max(s["score"] for s in scores)
+    weights = {s["role"]: math.exp((s["score"] - top) / SHARE_TEMPERATURE) for s in scores}
+    total_weight = sum(weights.values())
+    shares = sorted(
+        ({"role": r, "label": ROLES[r]["label"], "share": round(w / total_weight, 2)}
+         for r, w in weights.items()),
+        key=lambda x: -x["share"],
+    )[:3]  # fmt: skip
     gap = best["score"] - runner_up["score"] if runner_up else best["score"]
     rounds = bucket.get("rounds", 0)
 
@@ -859,6 +870,7 @@ def classify_player(bucket: dict, side: str, baseline: dict[str, dict]) -> dict:
         "role": best["role"],
         "label": best["label"],
         "score": best["score"],
+        "shares": shares,
         "confidence": confidence,
         "rounds": rounds,
         "gap": round(gap, 3),
@@ -874,6 +886,46 @@ def classify_player(bucket: dict, side: str, baseline: dict[str, dict]) -> dict:
     }
 
 
+SHARE_TEMPERATURE = 0.5  # role-score units: a 0.5 lead is e:1
+
+
+def declared() -> dict[tuple, str]:
+    """(player id, side, map) -> role Staff declared, for this session's Workspace."""
+
+    def load():
+        from app.models import DeclaredRole
+        from app.services import scope
+
+        found = scope.current(db())
+        if found is None or found.workspace_id is None:
+            return {}
+        return {
+            (r.player_id, r.side, r.map): r.role
+            for r in db().scalars(
+                select(DeclaredRole).where(DeclaredRole.workspace_id == found.workspace_id)
+            )
+        }
+
+    return memo(("declared_roles",), load)
+
+
+def assign(bucket: dict, side: str, baseline: dict, player_id=None, map_name: str = "") -> dict:
+    """The role verdict for one Player on one Side: the declared one when Staff
+    set it (the truth for their own Players, PL-4), else the inferred one."""
+    verdict = classify_player(bucket, side, baseline)
+    said = declared()
+    role = said.get((player_id, side, map_name)) or said.get((player_id, side, ""))
+    if role and role in ROLES and side in ROLES[role]["sides"]:
+        return {
+            **verdict,
+            "role": role,
+            "label": ROLES[role]["label"],
+            "confidence": "declared",
+            "inferred": {"role": verdict["role"], "label": verdict["label"]},
+        }
+    return verdict
+
+
 def team_roles(team: Team, match_maps: Iterable[MatchMap], baseline=None) -> dict:
     """The full role picture for one team: who does what, and what is missing."""
     match_maps = list(match_maps)
@@ -884,7 +936,7 @@ def team_roles(team: Team, match_maps: Iterable[MatchMap], baseline=None) -> dic
     players = []
     for player in signals.values():
         assigned = {
-            side: classify_player(bucket, side, baseline)
+            side: assign(bucket, side, baseline, player["player_id"])
             for side, bucket in player["sides"].items()
         }
         players.append(
@@ -919,6 +971,7 @@ def _role_summary(name: str, assigned: dict[str, dict]) -> str:
             "split": "arguably ",
             "thin": "on a thin sample, ",
             "none": "on almost no sample, ",
+            "declared": "by Staff's word, ",
         }[role["confidence"]]
         parts.append(f"{side.upper()}: {hedge}{role['label'].lower()}")
     return f"{name} — " + "; ".join(parts) if parts else f"{name} — not enough rounds to classify."
@@ -1050,7 +1103,7 @@ def role_cohorts(match_maps: Iterable[MatchMap], baseline=None, signals=None) ->
         for side, bucket in player["sides"].items():
             if bucket["rounds"] < MIN_ROUNDS_TO_REPORT:
                 continue
-            verdict = classify_player(bucket, side, baseline)
+            verdict = assign(bucket, side, baseline, player["player_id"])
             if not verdict["role"]:
                 continue
             key = (side, verdict["role"])
@@ -1617,7 +1670,7 @@ def player_dossier(
             "fit": {},
         }
         for side, bucket in signals["sides"].items():
-            verdict = classify_player(bucket, side, baseline)
+            verdict = assign(bucket, side, baseline, player_id)
             entry["sides"][side] = bucket
             entry["roles"][side] = verdict
             if verdict["role"]:

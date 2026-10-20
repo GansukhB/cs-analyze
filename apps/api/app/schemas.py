@@ -717,6 +717,27 @@ class MeOverview(BaseModel):
     focus_maps: int
 
 
+# -- Declared roles (docs/plans/04 PL-4) -------------------------------------------
+class DeclaredRoleRead(BaseModel):
+    side: str
+    map: str
+    role: str
+    label: str
+
+
+class DeclaredRolePut(BaseModel):
+    side: Literal["ct", "t"]
+    map: str = Field(default="", pattern=r"^(de_[a-z0-9_]{2,30})?$")
+    # "" clears it: the role is inferred again.
+    role: str = Field(default="", max_length=16)
+
+
+class DeclaredRoles(BaseModel):
+    roles: list[DeclaredRoleRead]
+    # Each Side's roles to choose from: [{"role", "label"}].
+    choices: dict[str, list[dict[str, str]]]
+
+
 # -- Briefings (docs/plans/01 WS-5) ------------------------------------------------
 class BriefingMapPick(BaseModel):
     map: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")

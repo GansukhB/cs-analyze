@@ -835,12 +835,22 @@ export function Players({ data }: { data: PlayersPanel }) {
               {card.name} <span className={`tag ${card.scope}`}>{card.team}</span>
               {card.elsewhere && <span className="tag">шинэ · {card.elsewhere}-аас</span>}
               {card.roles.map((r) => (
-                <span key={r.side} className={`tag ${r.side}`}>
+                <span key={r.side} className={`tag ${r.side}`} title={r.mix || undefined}>
                   {r.label} {r.role}
+                  {r.declared && ' · зарласан'}
                   {r.fit && ` · ${r.fit}`}
                 </span>
               ))}
             </h3>
+            {card.roles.some((r) => r.mix && !r.declared) && (
+              <p className="cap">
+                Үүргийн холимог:{' '}
+                {card.roles
+                  .filter((r) => r.mix && !r.declared)
+                  .map((r) => `${r.label} ${r.mix}`)
+                  .join(' — ')}
+              </p>
+            )}
             {card.own && (
               <p className="why">
                 {card.elsewhere ? `${card.elsewhere}-д тоглосон тоо` : 'Өөрсдийн тоглолт'}: {card.own.rounds} раунд · ADR {card.own.adr} · K/D {card.own.kd} · KAST{' '}

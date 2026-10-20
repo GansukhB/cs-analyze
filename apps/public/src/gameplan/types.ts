@@ -292,7 +292,7 @@ export interface PlayersPanel {
     name: string
     /** A new signing: the team their numbers come from. */
     elsewhere: string
-    roles: { side: string; label: string; role: string; fit: string }[]
+    roles: { side: string; label: string; role: string; fit: string; declared: boolean; mix: string }[]
     own: Form | null
     vs: Form | null
     instructions: { title: string; text: string; tone: string }[]

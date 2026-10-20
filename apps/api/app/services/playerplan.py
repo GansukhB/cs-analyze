@@ -527,6 +527,7 @@ def team_players(team: Team, opponent: Team, *, baseline=None, cohorts=None) -> 
                         "role": v["role"],
                         "label": v["label"],
                         "confidence": v["confidence"],
+                        "shares": v.get("shares") or [],
                         "fit": (fits.get(s) or {}).get("score"),
                         "fit_verdict": (fits.get(s) or {}).get("verdict"),
                     }

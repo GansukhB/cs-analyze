@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { $api } from '../api/client'
+import { useMe } from '../auth/useMe'
 import type { components } from '../api/schema'
 import { day } from '../jobs/format'
 import { swingRateText } from '../review/format'
@@ -26,12 +27,14 @@ const num = (v: number | null | undefined, digits = 1, unit = '') => (v == null 
 export default function PlayerPage() {
   const { steamid = '' } = useParams()
   const page = $api.useQuery('get', '/players/{steamid}', { params: { path: { steamid } } })
+  const staff = useMe().data?.role === 'staff'
   if (page.isPending) return <p className="text-ink-3">Уншиж байна…</p>
   if (page.error || !page.data) return <p className="text-ink-3">Тоглогч олдсонгүй.</p>
   const p = page.data
   return (
     <div className="space-y-8">
       <Header p={p} />
+      {staff && <DeclaredRoles steamid={steamid} />}
       <Tiles p={p} />
       <Form rows={p.form} />
       <Maps p={p} />
@@ -365,5 +368,38 @@ function Weapons({ p }: { p: Page }) {
         ))}
       </ul>
     </section>
+  )
+}
+
+// The role Staff say he plays on each Side (docs/plans PL-4): the truth for their
+// own Players, which also picks the cohort he is judged against. Empty: inferred.
+function DeclaredRoles({ steamid }: { steamid: string }) {
+  const roles = $api.useQuery('get', '/players/{steamid}/roles', { params: { path: { steamid } } })
+  const save = $api.useMutation('put', '/players/{steamid}/roles', { onSuccess: () => roles.refetch() })
+  if (!roles.data) return null
+  const current = (side: string) => roles.data.roles.find((r) => r.side === side && r.map === '')?.role ?? ''
+  return (
+    <div className="flex flex-wrap items-center gap-3 text-sm">
+      <span className="text-ink-3">Зарласан үүрэг:</span>
+      {(['ct', 't'] as const).map((side) => (
+        <label key={side} className="flex items-center gap-2 text-ink-2">
+          {side.toUpperCase()}
+          <select
+            value={current(side)}
+            onChange={(e) =>
+              save.mutate({ params: { path: { steamid } }, body: { side, role: e.target.value, map: '' } })
+            }
+            className="rounded-md border border-line bg-surface-2 px-2 py-1 text-ink"
+          >
+            <option value="">автомат</option>
+            {(roles.data.choices[side] ?? []).map((c) => (
+              <option key={c.role} value={c.role}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ))}
+    </div>
   )
 }

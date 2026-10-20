@@ -314,6 +314,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/players/{steamid}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Declared Roles
+         * @description The roles Staff declared for this Player (PL-4), and what can be declared.
+         */
+        get: operations["declared_roles_players__steamid__roles_get"];
+        /**
+         * Declare Role
+         * @description Set (or with role "" clear) the role this Player plays on a Side. It is the
+         *     truth for his role and his cohort; opponents keep inferred roles.
+         */
+        put: operations["declare_role_players__steamid__roles_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/overview": {
         parameters: {
             query?: never;
@@ -1236,6 +1261,46 @@ export interface components {
             x: number;
             /** Y */
             y: number;
+        };
+        /** DeclaredRolePut */
+        DeclaredRolePut: {
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "ct" | "t";
+            /**
+             * Map
+             * @default
+             */
+            map: string;
+            /**
+             * Role
+             * @default
+             */
+            role: string;
+        };
+        /** DeclaredRoleRead */
+        DeclaredRoleRead: {
+            /** Side */
+            side: string;
+            /** Map */
+            map: string;
+            /** Role */
+            role: string;
+            /** Label */
+            label: string;
+        };
+        /** DeclaredRoles */
+        DeclaredRoles: {
+            /** Roles */
+            roles: components["schemas"]["DeclaredRoleRead"][];
+            /** Choices */
+            choices: {
+                [key: string]: {
+                    [key: string]: string;
+                }[];
+            };
         };
         /** DemoState */
         DemoState: {
@@ -3550,6 +3615,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlayerPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    declared_roles_players__steamid__roles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                steamid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclaredRoles"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    declare_role_players__steamid__roles_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                steamid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclaredRolePut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclaredRoles"];
                 };
             };
             /** @description Validation Error */

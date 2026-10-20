@@ -712,6 +712,112 @@
         }
       }
     },
+    "/players/{steamid}/roles": {
+      "get": {
+        "tags": [
+          "players"
+        ],
+        "summary": "Declared Roles",
+        "description": "The roles Staff declared for this Player (PL-4), and what can be declared.",
+        "operationId": "declared_roles_players__steamid__roles_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "steamid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$",
+              "title": "Steamid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeclaredRoles"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "players"
+        ],
+        "summary": "Declare Role",
+        "description": "Set (or with role \"\" clear) the role this Player plays on a Side. It is the\ntruth for his role and his cohort; opponents keep inferred roles.",
+        "operationId": "declare_role_players__steamid__roles_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "steamid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$",
+              "title": "Steamid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclaredRolePut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeclaredRoles"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/overview": {
       "get": {
         "tags": [
@@ -3325,6 +3431,93 @@
           "y"
         ],
         "title": "CalloutLabel"
+      },
+      "DeclaredRolePut": {
+        "properties": {
+          "side": {
+            "type": "string",
+            "enum": [
+              "ct",
+              "t"
+            ],
+            "title": "Side"
+          },
+          "map": {
+            "type": "string",
+            "pattern": "^(de_[a-z0-9_]{2,30})?$",
+            "title": "Map",
+            "default": ""
+          },
+          "role": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Role",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "side"
+        ],
+        "title": "DeclaredRolePut"
+      },
+      "DeclaredRoleRead": {
+        "properties": {
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "side",
+          "map",
+          "role",
+          "label"
+        ],
+        "title": "DeclaredRoleRead"
+      },
+      "DeclaredRoles": {
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredRoleRead"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "choices": {
+            "additionalProperties": {
+              "items": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Choices"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roles",
+          "choices"
+        ],
+        "title": "DeclaredRoles"
       },
       "DemoState": {
         "properties": {

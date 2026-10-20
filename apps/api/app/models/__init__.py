@@ -60,7 +60,7 @@ from app.models.results import SeriesResult, VrsStanding
 from app.models.source import Demo, Match, MatchKind, MatchSource, Team, Tournament
 from app.models.upload import Upload, UploadPart, UploadStatus
 from app.models.user import User
-from app.models.workspace import Invite, UserRole, Workspace, WorkspaceTeam
+from app.models.workspace import DeclaredRole, Invite, UserRole, Workspace, WorkspaceTeam
 
 __all__ = [
     "TimestampMixin",
@@ -68,6 +68,7 @@ __all__ = [
     "UserRole",
     "AssistantUsage",
     "Briefing",
+    "DeclaredRole",
     "Forecast",
     "Invite",
     "SeriesResult",

@@ -27,6 +27,7 @@ from app.services import (
     pool_cache,
     rating,
     review_pool,
+    roles,
 )
 from app.services.dbctx import db
 
@@ -101,7 +102,10 @@ def stamp() -> str:
     # rebuilds after a parse (docs/adr/0008).
     # The Decision tab's Forecast reads the Ratings, which move on new results.
     ratings = hashlib.sha1(repr(rating.stamp()).encode()).hexdigest()[:8]
-    return f"{pool_cache.parse_stamp()}-{review_pool.stamp()}-{ratings}"
+    # Staff's declared roles decide their Players' cohorts (PL-4).
+    said = sorted(roles.declared().items())
+    declared = hashlib.sha1(repr(said).encode()).hexdigest()[:6] if said else "0"
+    return f"{pool_cache.parse_stamp()}-{review_pool.stamp()}-{ratings}-{declared}"
 
 
 # --------------------------------------------------------------- helpers ---
@@ -537,6 +541,13 @@ def _players(report, my_team, opponent) -> dict:
                             "fit": mn.FIT.get(r["fit_verdict"], r["fit_verdict"])
                             if r.get("fit_verdict")
                             else "",
+                            "declared": r.get("confidence") == "declared",
+                            # The soft role (PL-4): the jobs his numbers split between.
+                            "mix": " · ".join(
+                                f"{mn.role(x['role'])} {round(x['share'] * 100)}%"
+                                for x in r.get("shares") or []
+                                if x["share"] >= 0.15
+                            ),
                         }
                     )
             cards.append(

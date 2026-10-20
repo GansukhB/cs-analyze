@@ -79,3 +79,25 @@ class Invite(TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime6)
     used_at: Mapped[datetime | None] = mapped_column(DateTime6)
     used_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+
+class DeclaredRole(TimestampMixin, Base):
+    """The role Staff say one of their Players plays on a Side (docs/plans PL-4).
+
+    It is the truth for their own Players: their role, and which cohort they are
+    judged against. ``map`` is "" for every Map. Opponents keep inferred roles.
+    """
+
+    __tablename__ = "declared_roles"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "player_id", "side", "map", name="uq_declared_role"),
+    )
+
+    id: Mapped[int] = mapped_column(BigId, primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        BigId, ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    player_id: Mapped[int] = mapped_column(BigId, ForeignKey("players.id", ondelete="CASCADE"))
+    side: Mapped[str] = mapped_column(String(2))
+    map: Mapped[str] = mapped_column(String(32), default="")
+    role: Mapped[str] = mapped_column(String(16))
