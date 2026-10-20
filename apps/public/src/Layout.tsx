@@ -24,13 +24,16 @@ export default function Layout() {
   return (
     // A column at least the screen tall, so a short page still puts the footer at the bottom.
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-line bg-surface">
+      <header className="border-b border-line bg-surface print:hidden">
         <div className={`mx-auto flex ${width} flex-wrap items-center gap-6 px-4 py-3 text-sm`}>
           <span className="font-semibold text-ink">cs-analyze</span>
           {me.data && !staff && (
             <nav className="flex gap-4">
               <NavLink to="/me" className={link}>
                 Миний хуудас
+              </NavLink>
+              <NavLink to="/briefings" className={link}>
+                Briefing
               </NavLink>
             </nav>
           )}
@@ -53,6 +56,9 @@ export default function Layout() {
               </NavLink>
               <NavLink to="/forecasts" className={link}>
                 Forecast
+              </NavLink>
+              <NavLink to="/briefings" className={link}>
+                Briefing
               </NavLink>
             </nav>
           )}
@@ -78,8 +84,10 @@ export default function Layout() {
       <main className={`mx-auto w-full ${width} flex-1 px-4 py-8`}>
         <Outlet />
       </main>
-      {staff && <SystemFooter width={width} />}
-      {staff && <Assistant />}
+      <div className="print:hidden">
+        {staff && <SystemFooter width={width} />}
+        {staff && <Assistant />}
+      </div>
     </div>
   )
 }

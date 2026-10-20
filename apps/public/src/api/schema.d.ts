@@ -553,6 +553,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/briefings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Index
+         * @description Staff see every Briefing of the Workspace; a Player, the shared ones.
+         */
+        get: operations["index_briefings_get"];
+        put?: never;
+        /**
+         * Create
+         * @description Freeze the picked lines of each Map's Playbook as they read now.
+         */
+        post: operations["create_briefings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/briefings/{public_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detail */
+        get: operations["detail_briefings__public_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete */
+        delete: operations["delete_briefings__public_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/briefings/{public_id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Share */
+        post: operations["share_briefings__public_id__share_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/uploads": {
         parameters: {
             query?: never;
@@ -1053,6 +1112,106 @@ export interface components {
         Body_transcribe_assistant_transcribe_post: {
             /** Audio */
             audio: string;
+        };
+        /** BriefingCreate */
+        BriefingCreate: {
+            /** My Team Id */
+            my_team_id: number;
+            /** Opponent Id */
+            opponent_id: number;
+            /** My Lineup */
+            my_lineup?: string[];
+            /** Their Lineup */
+            their_lineup?: string[];
+            /** Title */
+            title: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Include Forecast
+             * @default false
+             */
+            include_forecast: boolean;
+            /**
+             * Stamp
+             * @default
+             */
+            stamp: string;
+            /** Maps */
+            maps?: components["schemas"]["BriefingMapPick"][];
+            /**
+             * Share
+             * @default false
+             */
+            share: boolean;
+        };
+        /** BriefingList */
+        BriefingList: {
+            /** Briefings */
+            briefings: components["schemas"]["BriefingRow"][];
+        };
+        /** BriefingMapPick */
+        BriefingMapPick: {
+            /** Map */
+            map: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Picks */
+            picks?: string[];
+        };
+        /** BriefingRead */
+        BriefingRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            my_team: components["schemas"]["TeamRef"];
+            opponent: components["schemas"]["TeamRef"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Shared At */
+            shared_at: string | null;
+            /** Created By */
+            created_by: string;
+            /** Include Forecast */
+            include_forecast: boolean;
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            };
+        };
+        /** BriefingRow */
+        BriefingRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            my_team: components["schemas"]["TeamRef"];
+            opponent: components["schemas"]["TeamRef"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Shared At */
+            shared_at: string | null;
+            /** Created By */
+            created_by: string;
         };
         /** BrokerState */
         BrokerState: {
@@ -3812,6 +3971,150 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ForecastRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    index_briefings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingList"];
+                };
+            };
+        };
+    };
+    create_briefings_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BriefingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detail_briefings__public_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                public_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_briefings__public_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                public_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    share_briefings__public_id__share_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                public_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingRow"];
                 };
             };
             /** @description Validation Error */

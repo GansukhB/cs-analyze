@@ -137,7 +137,10 @@ export default function GameplanPage() {
           </h1>
           <p className="lede">
             Тоглолтын бэлтгэл. Манай {header.data.lede.my_maps}, тэдний {header.data.lede.opponent_maps} газрын зураг,
-            хоорондын {header.data.lede.h2h_maps} газрын зураг дээр тулгуурлав.
+            хоорондын {header.data.lede.h2h_maps} газрын зураг дээр тулгуурлав.{' '}
+            <Link to={`/gameplan/${mine}/vs/${theirs}/briefing${search}`} className="text-ct hover:underline">
+              Briefing бэлдэх →
+            </Link>
           </p>
         </div>
       ) : (

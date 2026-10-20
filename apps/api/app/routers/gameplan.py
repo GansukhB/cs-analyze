@@ -256,14 +256,7 @@ def playbook(
     started = time.perf_counter()
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()
-        part = lineup.cache_part(my_five, their_five) + scope.cache_part(db)
-        key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:playbook:{map_name}:{stamp}"
-        data = _cache_get(key)
-        hit = data is not None
-        if data is None:
-            data = playbook_view.panel(my_team, opponent, map_name)
-            data = json.loads(json.dumps(data, default=str))
-            _cache_set(key, data)
+        data, hit = playbook_data(db, my_team, opponent, my_five, their_five, map_name, stamp)
     return GameplanPanel(
         tab="todo",
         stamp=stamp,
@@ -271,6 +264,19 @@ def playbook(
         ms=round((time.perf_counter() - started) * 1000, 1),
         data=data,
     )
+
+
+def playbook_data(db, my_team, opponent, my_five, their_five, map_name: str, stamp: str):
+    """One Map's Playbook panel and whether it came from the cache. The caller has
+    bound ``dbctx`` and the Lineups; a Briefing freezes its lines from the same."""
+    part = lineup.cache_part(my_five, their_five) + scope.cache_part(db)
+    key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:playbook:{map_name}:{stamp}"
+    data = _cache_get(key)
+    if data is not None:
+        return data, True
+    data = json.loads(json.dumps(playbook_view.panel(my_team, opponent, map_name), default=str))
+    _cache_set(key, data)
+    return data, False
 
 
 def _grid_team(mine: int, theirs: int, team: int, side: str, level: str) -> None:

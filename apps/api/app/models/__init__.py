@@ -43,6 +43,7 @@ from app.models.analysis import (
 )
 from app.models.assistant import AssistantUsage
 from app.models.base import TimestampMixin
+from app.models.briefing import Briefing
 from app.models.forecast import Forecast
 from app.models.jobs import (
     AnalysisArtifact,
@@ -66,6 +67,7 @@ __all__ = [
     "User",
     "UserRole",
     "AssistantUsage",
+    "Briefing",
     "Forecast",
     "Invite",
     "SeriesResult",

@@ -5,6 +5,7 @@ import { Link } from 'react-router'
 import { $api } from '../api/client'
 import type { components } from '../api/schema'
 import { day } from '../jobs/format'
+import { BriefingList } from './BriefingsPage'
 import { clock, swingRateText, swingText } from '../review/format'
 
 type Finding = components['schemas']['MeFinding']
@@ -25,6 +26,8 @@ export default function MePage() {
           Бүх тоо, Map ба Side-аар →
         </Link>
       </div>
+
+      <Briefings />
 
       <section className="space-y-3">
         <h2 className="font-medium text-ink">Эхлээд засах</h2>
@@ -114,5 +117,16 @@ function FindingCard({ f, href }: { f: Finding; href: string }) {
         Replay дээр үзэх →
       </Link>
     </li>
+  )
+}
+
+function Briefings() {
+  const list = $api.useQuery('get', '/briefings')
+  if (!list.data?.briefings.length) return null
+  return (
+    <section className="space-y-3">
+      <h2 className="font-medium text-ink">Briefing</h2>
+      <BriefingList rows={list.data.briefings.slice(0, 5)} />
+    </section>
   )
 }

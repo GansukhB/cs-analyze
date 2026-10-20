@@ -717,6 +717,54 @@ class MeOverview(BaseModel):
     focus_maps: int
 
 
+# -- Briefings (docs/plans/01 WS-5) ------------------------------------------------
+class BriefingMapPick(BaseModel):
+    map: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")
+    note: str = Field(default="", max_length=2000)
+    # Each line's place in that Map's Playbook panel, e.g. "advice.ct.levers.0".
+    picks: list[str] = Field(default_factory=list, max_length=40)
+
+
+class BriefingCreate(BaseModel):
+    my_team_id: int
+    opponent_id: int
+    my_lineup: list[str] = Field(default_factory=list, max_length=5)
+    their_lineup: list[str] = Field(default_factory=list, max_length=5)
+    title: str = Field(min_length=1, max_length=160)
+    note: str = Field(default="", max_length=4000)
+    include_forecast: bool = False
+    # The Game Plan stamp the page showed: a parse since then means reload first.
+    stamp: str = ""
+    maps: list[BriefingMapPick] = Field(default_factory=list, max_length=7)
+    share: bool = False
+
+
+class BriefingRow(BaseModel):
+    id: uuid.UUID
+    title: str
+    my_team: TeamRef
+    opponent: TeamRef
+    created_at: dt.datetime
+    shared_at: dt.datetime | None
+    created_by: str
+
+    @field_validator("created_at", "shared_at")
+    @classmethod
+    def stamped_utc(cls, value: dt.datetime | None) -> dt.datetime | None:
+        return _utc(value)
+
+
+class BriefingRead(BriefingRow):
+    include_forecast: bool
+    # {"note", "lineups": {"mine": [names], "theirs": [names]}, "forecast"?,
+    #  "maps": [{"map", "label", "note", "items": [{kind, section, title, lines, counter, refs}]}]}
+    content: dict[str, Any]
+
+
+class BriefingList(BaseModel):
+    briefings: list[BriefingRow]
+
+
 # -- Uploads (docs/plans/02 DATA-1) -------------------------------------------------
 class UploadCreate(BaseModel):
     """Describe the file first; its bytes follow in parts."""

@@ -1594,6 +1594,213 @@
         }
       }
     },
+    "/briefings": {
+      "get": {
+        "tags": [
+          "briefings"
+        ],
+        "summary": "Index",
+        "description": "Staff see every Briefing of the Workspace; a Player, the shared ones.",
+        "operationId": "index_briefings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefingList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "briefings"
+        ],
+        "summary": "Create",
+        "description": "Freeze the picked lines of each Map's Playbook as they read now.",
+        "operationId": "create_briefings_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BriefingCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefingRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/briefings/{public_id}": {
+      "get": {
+        "tags": [
+          "briefings"
+        ],
+        "summary": "Detail",
+        "operationId": "detail_briefings__public_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefingRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "briefings"
+        ],
+        "summary": "Delete",
+        "operationId": "delete_briefings__public_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/briefings/{public_id}/share": {
+      "post": {
+        "tags": [
+          "briefings"
+        ],
+        "summary": "Share",
+        "operationId": "share_briefings__public_id__share_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "public_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Public Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefingRow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/uploads": {
       "get": {
         "tags": [
@@ -2817,6 +3024,233 @@
           "audio"
         ],
         "title": "Body_transcribe_assistant_transcribe_post"
+      },
+      "BriefingCreate": {
+        "properties": {
+          "my_team_id": {
+            "type": "integer",
+            "title": "My Team Id"
+          },
+          "opponent_id": {
+            "type": "integer",
+            "title": "Opponent Id"
+          },
+          "my_lineup": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "My Lineup"
+          },
+          "their_lineup": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Their Lineup"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Note",
+            "default": ""
+          },
+          "include_forecast": {
+            "type": "boolean",
+            "title": "Include Forecast",
+            "default": false
+          },
+          "stamp": {
+            "type": "string",
+            "title": "Stamp",
+            "default": ""
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/BriefingMapPick"
+            },
+            "type": "array",
+            "maxItems": 7,
+            "title": "Maps"
+          },
+          "share": {
+            "type": "boolean",
+            "title": "Share",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "my_team_id",
+          "opponent_id",
+          "title"
+        ],
+        "title": "BriefingCreate"
+      },
+      "BriefingList": {
+        "properties": {
+          "briefings": {
+            "items": {
+              "$ref": "#/components/schemas/BriefingRow"
+            },
+            "type": "array",
+            "title": "Briefings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "briefings"
+        ],
+        "title": "BriefingList"
+      },
+      "BriefingMapPick": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "pattern": "^de_[a-z0-9_]{2,30}$",
+            "title": "Map"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Note",
+            "default": ""
+          },
+          "picks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Picks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map"
+        ],
+        "title": "BriefingMapPick"
+      },
+      "BriefingRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "my_team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "opponent": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "shared_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared At"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "include_forecast": {
+            "type": "boolean",
+            "title": "Include Forecast"
+          },
+          "content": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "my_team",
+          "opponent",
+          "created_at",
+          "shared_at",
+          "created_by",
+          "include_forecast",
+          "content"
+        ],
+        "title": "BriefingRead"
+      },
+      "BriefingRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "my_team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "opponent": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "shared_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared At"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "my_team",
+          "opponent",
+          "created_at",
+          "shared_at",
+          "created_by"
+        ],
+        "title": "BriefingRow"
       },
       "BrokerState": {
         "properties": {

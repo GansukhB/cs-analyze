@@ -2,6 +2,9 @@ import { Navigate, Route, Routes, useMatch } from 'react-router'
 import { useToken } from './auth/token'
 import { useMe } from './auth/useMe'
 import Layout from './Layout'
+import BriefingNewPage from './pages/BriefingNewPage'
+import BriefingPage from './pages/BriefingPage'
+import BriefingsPage from './pages/BriefingsPage'
 import ForecastsPage from './pages/ForecastsPage'
 import GameplanPage from './pages/GameplanPage'
 import GameplanPickPage from './pages/GameplanPickPage'
@@ -40,6 +43,9 @@ export default function App() {
         <Route path="players/:steamid" element={<PlayerPage />} />
         <Route path="gameplan" element={<GameplanPickPage />} />
         <Route path="forecasts" element={<ForecastsPage />} />
+        <Route path="briefings" element={<BriefingsPage />} />
+        <Route path="briefings/:id" element={<BriefingPage />} />
+        <Route path="gameplan/:mine/vs/:theirs/briefing" element={<BriefingNewPage />} />
         <Route path="uploads" element={<UploadsPage />} />
         <Route path="workspace" element={<WorkspacePage />} />
         <Route path="gameplan/:mine/vs/:theirs" element={<GameplanPage />} />
