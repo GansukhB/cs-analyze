@@ -658,6 +658,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/players/{steamid}/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Plan
+         * @description His goals with their progress; for Staff, suggested goals and every KPI too.
+         */
+        get: operations["plan_players__steamid__goals_get"];
+        put?: never;
+        /** Add Goal */
+        post: operations["add_goal_players__steamid__goals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/goals/{goal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Goal */
+        delete: operations["delete_goal_goals__goal_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change Goal */
+        patch: operations["change_goal_goals__goal_id__patch"];
+        trace?: never;
+    };
     "/uploads": {
         parameters: {
             query?: never;
@@ -1350,6 +1389,15 @@ export interface components {
             /** Why */
             why: string;
         };
+        /** DevelopmentPlan */
+        DevelopmentPlan: {
+            /** Goals */
+            goals: components["schemas"]["GoalRead"][];
+            /** Suggestions */
+            suggestions: components["schemas"]["GoalSuggestion"][];
+            /** Kpis */
+            kpis: components["schemas"]["KpiChoice"][];
+        };
         /**
          * ForecastCreate
          * @description Make the Fixture's Forecast now and keep it. Lineups are Steam ids.
@@ -1521,6 +1569,103 @@ export interface components {
             name: string;
             /** Maps */
             maps: number;
+        };
+        /** GoalCreate */
+        GoalCreate: {
+            /** Kpi */
+            kpi: string;
+            /** Target */
+            target: number;
+            /** Baseline */
+            baseline?: number | null;
+            /** Start On */
+            start_on?: string | null;
+            /** Due On */
+            due_on?: string | null;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+        };
+        /** GoalPatch */
+        GoalPatch: {
+            /** Target */
+            target?: number | null;
+            /** Due On */
+            due_on?: string | null;
+            /** Status */
+            status?: ("active" | "done" | "dropped") | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** GoalProgress */
+        GoalProgress: {
+            /** Value */
+            value: number | null;
+            /** Low */
+            low: number | null;
+            /** High */
+            high: number | null;
+            /** Maps */
+            maps: number;
+            /** Rounds */
+            rounds: number;
+            /** Events */
+            events: number | null;
+            /** Verdict */
+            verdict: string;
+        };
+        /** GoalRead */
+        GoalRead: {
+            /** Id */
+            id: number;
+            /** Kpi */
+            kpi: string;
+            /** Label */
+            label: string;
+            /** Better */
+            better: string;
+            /** Unit */
+            unit: string;
+            /** Baseline */
+            baseline: number | null;
+            /** Target */
+            target: number;
+            /**
+             * Start On
+             * Format: date
+             */
+            start_on: string;
+            /**
+             * Due On
+             * Format: date
+             */
+            due_on: string;
+            /** Status */
+            status: string;
+            /** Notes */
+            notes: string;
+            progress: components["schemas"]["GoalProgress"];
+        };
+        /** GoalSuggestion */
+        GoalSuggestion: {
+            /** Kpi */
+            kpi: string;
+            /** Label */
+            label: string;
+            /** Baseline */
+            baseline: number;
+            /** Target */
+            target: number;
+            /** Events */
+            events: number;
+            /** Rounds */
+            rounds: number;
+            /** Over */
+            over: number | null;
+            /** Excess */
+            excess: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1808,6 +1953,17 @@ export interface components {
             counts: {
                 [key: string]: string;
             };
+        };
+        /** KpiChoice */
+        KpiChoice: {
+            /** Kpi */
+            kpi: string;
+            /** Label */
+            label: string;
+            /** Better */
+            better: string;
+            /** Unit */
+            unit: string;
         };
         /** LineupMember */
         LineupMember: {
@@ -4370,6 +4526,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BriefingRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plan_players__steamid__goals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                steamid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DevelopmentPlan"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_goal_players__steamid__goals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                steamid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_goal_goals__goal_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_goal_goals__goal_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalRead"];
                 };
             };
             /** @description Validation Error */

@@ -6,6 +6,7 @@ import { $api } from '../api/client'
 import type { components } from '../api/schema'
 import { day } from '../jobs/format'
 import { BriefingList } from './BriefingsPage'
+import DevelopmentPlan from '../development/Plan'
 import { clock, swingRateText, swingText } from '../review/format'
 
 type Finding = components['schemas']['MeFinding']
@@ -28,6 +29,8 @@ export default function MePage() {
       </div>
 
       <Briefings />
+
+      <DevelopmentPlan steamid={player.steamid} staff={false} />
 
       <section className="space-y-3">
         <h2 className="font-medium text-ink">Эхлээд засах</h2>

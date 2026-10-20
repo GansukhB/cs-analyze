@@ -768,6 +768,72 @@ class DeclaredRoles(BaseModel):
     choices: dict[str, list[dict[str, str]]]
 
 
+# -- Development plans (docs/plans/07 RV-9) -----------------------------------------
+class GoalProgress(BaseModel):
+    value: float | None
+    low: float | None
+    high: float | None
+    maps: int
+    rounds: int
+    events: int | None
+    verdict: str  # "reached", "close", "not_yet" or "no_data"
+
+
+class GoalRead(BaseModel):
+    id: int
+    kpi: str
+    label: str
+    better: str
+    unit: str
+    baseline: float | None
+    target: float
+    start_on: dt.date
+    due_on: dt.date
+    status: str
+    notes: str
+    progress: GoalProgress
+
+
+class GoalSuggestion(BaseModel):
+    kpi: str
+    label: str
+    baseline: float
+    target: float
+    events: int
+    rounds: int
+    over: float | None
+    excess: float
+
+
+class KpiChoice(BaseModel):
+    kpi: str
+    label: str
+    better: str
+    unit: str
+
+
+class DevelopmentPlan(BaseModel):
+    goals: list[GoalRead]
+    suggestions: list[GoalSuggestion]
+    kpis: list[KpiChoice]
+
+
+class GoalCreate(BaseModel):
+    kpi: str = Field(max_length=32)
+    target: float
+    baseline: float | None = None  # read from the last 90 days when left out
+    start_on: dt.date | None = None
+    due_on: dt.date | None = None
+    notes: str = Field(default="", max_length=4000)
+
+
+class GoalPatch(BaseModel):
+    target: float | None = None
+    due_on: dt.date | None = None
+    status: Literal["active", "done", "dropped"] | None = None
+    notes: str | None = Field(default=None, max_length=4000)
+
+
 # -- Briefings (docs/plans/01 WS-5) ------------------------------------------------
 class BriefingMapPick(BaseModel):
     map: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")

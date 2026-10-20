@@ -1954,6 +1954,206 @@
         }
       }
     },
+    "/players/{steamid}/goals": {
+      "get": {
+        "tags": [
+          "development"
+        ],
+        "summary": "Plan",
+        "description": "His goals with their progress; for Staff, suggested goals and every KPI too.",
+        "operationId": "plan_players__steamid__goals_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "steamid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$",
+              "title": "Steamid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevelopmentPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "development"
+        ],
+        "summary": "Add Goal",
+        "operationId": "add_goal_players__steamid__goals_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "steamid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$",
+              "title": "Steamid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/goals/{goal_id}": {
+      "patch": {
+        "tags": [
+          "development"
+        ],
+        "summary": "Change Goal",
+        "operationId": "change_goal_goals__goal_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "goal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Goal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "development"
+        ],
+        "summary": "Delete Goal",
+        "operationId": "delete_goal_goals__goal_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "goal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Goal Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/uploads": {
       "get": {
         "tags": [
@@ -3627,6 +3827,38 @@
         ],
         "title": "DemoState"
       },
+      "DevelopmentPlan": {
+        "properties": {
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/GoalRead"
+            },
+            "type": "array",
+            "title": "Goals"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/GoalSuggestion"
+            },
+            "type": "array",
+            "title": "Suggestions"
+          },
+          "kpis": {
+            "items": {
+              "$ref": "#/components/schemas/KpiChoice"
+            },
+            "type": "array",
+            "title": "Kpis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "goals",
+          "suggestions",
+          "kpis"
+        ],
+        "title": "DevelopmentPlan"
+      },
       "ForecastCreate": {
         "properties": {
           "my_team_id": {
@@ -4087,6 +4319,325 @@
           "maps"
         ],
         "title": "GameplanTeam"
+      },
+      "GoalCreate": {
+        "properties": {
+          "kpi": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Kpi"
+          },
+          "target": {
+            "type": "number",
+            "title": "Target"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
+          "start_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start On"
+          },
+          "due_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due On"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Notes",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "kpi",
+          "target"
+        ],
+        "title": "GoalCreate"
+      },
+      "GoalPatch": {
+        "properties": {
+          "target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "due_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due On"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "done",
+                  "dropped"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "title": "GoalPatch"
+      },
+      "GoalProgress": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "events": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Events"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "low",
+          "high",
+          "maps",
+          "rounds",
+          "events",
+          "verdict"
+        ],
+        "title": "GoalProgress"
+      },
+      "GoalRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "kpi": {
+            "type": "string",
+            "title": "Kpi"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "better": {
+            "type": "string",
+            "title": "Better"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
+          "target": {
+            "type": "number",
+            "title": "Target"
+          },
+          "start_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Start On"
+          },
+          "due_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Due On"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/GoalProgress"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kpi",
+          "label",
+          "better",
+          "unit",
+          "baseline",
+          "target",
+          "start_on",
+          "due_on",
+          "status",
+          "notes",
+          "progress"
+        ],
+        "title": "GoalRead"
+      },
+      "GoalSuggestion": {
+        "properties": {
+          "kpi": {
+            "type": "string",
+            "title": "Kpi"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "baseline": {
+            "type": "number",
+            "title": "Baseline"
+          },
+          "target": {
+            "type": "number",
+            "title": "Target"
+          },
+          "events": {
+            "type": "integer",
+            "title": "Events"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "over": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Over"
+          },
+          "excess": {
+            "type": "number",
+            "title": "Excess"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kpi",
+          "label",
+          "baseline",
+          "target",
+          "events",
+          "rounds",
+          "over",
+          "excess"
+        ],
+        "title": "GoalSuggestion"
       },
       "HTTPValidationError": {
         "properties": {
@@ -4798,6 +5349,34 @@
         ],
         "title": "JobWords",
         "description": "Mongolian stage and tally names, from the server's single dictionary."
+      },
+      "KpiChoice": {
+        "properties": {
+          "kpi": {
+            "type": "string",
+            "title": "Kpi"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "better": {
+            "type": "string",
+            "title": "Better"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kpi",
+          "label",
+          "better",
+          "unit"
+        ],
+        "title": "KpiChoice"
       },
       "LineupMember": {
         "properties": {

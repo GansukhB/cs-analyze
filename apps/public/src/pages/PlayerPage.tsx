@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { $api } from '../api/client'
 import { useMe } from '../auth/useMe'
+import DevelopmentPlan from '../development/Plan'
 import type { components } from '../api/schema'
 import { day } from '../jobs/format'
 import { swingRateText } from '../review/format'
@@ -36,6 +37,7 @@ export default function PlayerPage() {
       <Header p={p} />
       {staff && <DeclaredRoles steamid={steamid} />}
       <Tiles p={p} />
+      <DevelopmentPlan steamid={steamid} staff={staff} />
       <Form rows={p.form} />
       <Maps p={p} />
       <Findings p={p} />

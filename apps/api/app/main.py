@@ -9,6 +9,7 @@ from app.routers import (
     assistant,
     auth,
     briefings,
+    development,
     forecasts,
     gameplan,
     jobs,
@@ -46,6 +47,7 @@ app.include_router(me.router)
 app.include_router(gameplan.router)
 app.include_router(forecasts.router)
 app.include_router(briefings.router)
+app.include_router(development.router)
 app.include_router(uploads.router)
 app.include_router(workspace.router)
 app.include_router(assistant.router)
