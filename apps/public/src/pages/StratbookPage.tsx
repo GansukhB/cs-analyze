@@ -26,6 +26,9 @@ export function StratbookPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-4">
         <h1 className="text-2xl font-semibold text-ink">Stratbook</h1>
+        <Link to="/lineups" className="text-sm text-ct hover:underline">
+          Lineup-ийн сан →
+        </Link>
         {myTeams.length > 1 && (
           <select
             value={team ?? ''}

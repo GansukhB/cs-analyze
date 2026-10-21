@@ -544,6 +544,12 @@ function Proof({ e, label }: { e: Evidence; label?: string }) {
             R{r.round}
           </Link>
         ))}
+        {e.refs.length > 1 && (
+          // VIZ-5: every Round of the line played over each other.
+          <Link to={`/ghost?r=${e.refs.map((r) => `${r.match}.${r.map}.${r.round}`).join(',')}`} title="Бүх раундыг давхарлаж үзэх">
+            ⧉ давхар
+          </Link>
+        )}
       </span>
     </div>
   )
