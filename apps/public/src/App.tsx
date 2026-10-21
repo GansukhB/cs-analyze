@@ -15,6 +15,7 @@ import JobPage from './pages/JobPage'
 import JobsPage from './pages/JobsPage'
 import LoginPage from './pages/LoginPage'
 import MatchPage from './pages/MatchPage'
+import MapSheetPage from './pages/MapSheetPage'
 import MePage from './pages/MePage'
 import PlayerPage from './pages/PlayerPage'
 import { PlaylistPage, PlaylistsPage } from './pages/PlaylistsPage'
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="briefings" element={<BriefingsPage />} />
         <Route path="briefings/:id" element={<BriefingPage />} />
         <Route path="gameplan/:mine/vs/:theirs/briefing" element={<BriefingNewPage />} />
+        <Route path="gameplan/:mine/vs/:theirs/sheet/:map" element={<MapSheetPage />} />
         <Route path="uploads" element={<UploadsPage />} />
         <Route path="scrims" element={<ScrimsPage />} />
         <Route path="playlists" element={<PlaylistsPage />} />

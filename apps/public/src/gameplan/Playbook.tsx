@@ -148,7 +148,14 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
   return (
     <section className="panel pb">
       <h2>
-        {d.label} — {d.opponent}-ийн эсрэг
+        {d.label} — {d.opponent}-ийн эсрэг{' '}
+        <Link
+          to={`/gameplan/${fixture.mine.id}/vs/${fixture.theirs.id}/sheet/${map}${fixture.search}`}
+          className="mono"
+          title="Нэг хуудсанд, хэвлэхэд"
+        >
+          · Map хуудас
+        </Link>
       </h2>
       <p className="lede">
         {d.opponent}: {them.maps} map ({them.h2h_maps} нь хоорондын), T {them.rounds.t} · CT {them.rounds.ct} раунд.{' '}
