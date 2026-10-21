@@ -173,7 +173,7 @@ Leetify-ийн тодорхойлолтыг өөрийн датанд таару
 
 ### PL-10. Тогтвортой байдал ба дарамт (P2, S)
 
-> **Төлөв:** 🟡 `1e38ba9` (improvement-01). Pistol, match point, ойр төгсгөлийн Swing/раунд Pool-той; map хоорондын хэлбэлзэл percentile-аар. LAN/online (датанд алга), өрсөлдөгчийн түвшингээр үлдсэн.
+> **Төлөв:** ✅ `1e38ba9` (improvement-01). Pistol, match point, ойр төгсгөлийн Swing/раунд Pool-той; map хоорондын хэлбэлзэл percentile-аар; өрсөлдөгчийн түвшингээр Swing/раунд (`by_tier`). LAN/online нь датанд байхгүй тул задлаагүй.
 
 - Map бүрийн Swing-ийн хэлбэлзэл (consistency).
 - Чухал Round-ууд: match point, pistol, 1vX, ойрхон оноо.
