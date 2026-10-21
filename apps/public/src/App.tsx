@@ -31,6 +31,7 @@ const PlaylistsPage = lazy(() => import('./pages/PlaylistsPage').then((m) => ({ 
 const ScrimsPage = lazy(() => import('./pages/ScrimsPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
 const DataPage = lazy(() => import('./pages/DataPage'))
+const WeekPage = lazy(() => import('./pages/WeekPage'))
 const StratbookPage = lazy(() => import('./pages/StratbookPage').then((m) => ({ default: m.StratbookPage })))
 const StratNewPage = lazy(() => import('./pages/StratbookPage').then((m) => ({ default: m.StratNewPage })))
 const StratPage = lazy(() => import('./pages/StratbookPage').then((m) => ({ default: m.StratPage })))
@@ -75,6 +76,7 @@ export default function App() {
         <Route path="ghost" element={<GhostPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="data" element={<DataPage />} />
+        <Route path="week" element={<WeekPage />} />
         <Route path="stratbook/new" element={<StratNewPage />} />
         <Route path="stratbook/:stratId" element={<StratPage />} />
         <Route path="playlists/:playlistId" element={<PlaylistPage />} />

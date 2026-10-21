@@ -19,11 +19,12 @@ from app.schemas import (
     MemberPatch,
     MemberPlayer,
     MemberRead,
+    PracticeWeek,
     Token,
     WorkspaceMembers,
 )
 from app.security import create_access_token
-from app.services import audit_log, members, ratelimit
+from app.services import audit_log, members, practice_week, ratelimit
 
 router = APIRouter(tags=["workspace"])
 
@@ -82,6 +83,13 @@ def list_members(db: DbSession, user: StaffUser) -> WorkspaceMembers:
         members=[_member(db, u) for u in people],
         invites=[_invite(db, i) for i in open_invites],
     )
+
+
+@router.get("/workspace/week")
+def practice(db: DbSession, user: StaffUser) -> PracticeWeek:
+    """The week's practice on the tier-2 template, filled from what the
+    Workspace has: Matches to review, goals, Scrim focus points, next opponents."""
+    return PracticeWeek(**practice_week.week(db, user.workspace_id))
 
 
 @router.get("/workspace/audit")

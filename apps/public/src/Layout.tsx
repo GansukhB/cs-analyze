@@ -65,6 +65,9 @@ export default function Layout() {
               <NavLink to="/scrims" className={link}>
                 Scrim
               </NavLink>
+              <NavLink to="/week" className={link}>
+                Week
+              </NavLink>
               <NavLink to="/playlists" className={link}>
                 Playlist
               </NavLink>

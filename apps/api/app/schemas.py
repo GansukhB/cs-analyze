@@ -1436,6 +1436,55 @@ class Coverage(BaseModel):
     queued: int
 
 
+# -- The week's practice (docs/plans/07 RV-11) ---------------------------------------
+class WeekReview(BaseModel):
+    match_id: int
+    opponent: str
+    score: str
+    played_at: dt.datetime | None
+
+
+class WeekGoal(BaseModel):
+    player: str
+    steamid: str
+    kpi: str
+    target: float
+    due_on: dt.date
+    verdict: str  # reached, close, not_yet, no_data
+    value: float | None
+
+
+class WeekScrim(BaseModel):
+    match_id: int
+    partner: str
+    played_at: dt.datetime | None
+    focus: list[str]
+
+
+class WeekPrep(BaseModel):
+    briefing: str
+    title: str
+    mine: int
+    theirs: int
+    opponent: str
+    shared: bool
+
+
+class WeekDay(BaseModel):
+    day: str
+    theme: str
+    blocks: list[str]  # which of review, goals, scrims, prep the day shows
+
+
+class PracticeWeek(BaseModel):
+    team: TeamRef | None
+    days: list[WeekDay]
+    review: list[WeekReview]
+    goals: list[WeekGoal]
+    scrims: list[WeekScrim]
+    prep: list[WeekPrep]
+
+
 # -- Staff's notes on Playbook lines (docs/plans/06 GP-13) ---------------------------
 class PlaybookNoteRead(BaseModel):
     text: str

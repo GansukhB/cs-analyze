@@ -4688,6 +4688,33 @@
         ]
       }
     },
+    "/workspace/week": {
+      "get": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Practice",
+        "description": "The week's practice on the tier-2 template, filled from what the\nWorkspace has: Matches to review, goals, Scrim focus points, next opponents.",
+        "operationId": "practice_workspace_week_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PracticeWeek"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/workspace/audit": {
       "get": {
         "tags": [
@@ -12070,6 +12097,65 @@
         ],
         "title": "PlaylistWrite"
       },
+      "PracticeWeek": {
+        "properties": {
+          "team": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/WeekDay"
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "review": {
+            "items": {
+              "$ref": "#/components/schemas/WeekReview"
+            },
+            "type": "array",
+            "title": "Review"
+          },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/WeekGoal"
+            },
+            "type": "array",
+            "title": "Goals"
+          },
+          "scrims": {
+            "items": {
+              "$ref": "#/components/schemas/WeekScrim"
+            },
+            "type": "array",
+            "title": "Scrims"
+          },
+          "prep": {
+            "items": {
+              "$ref": "#/components/schemas/WeekPrep"
+            },
+            "type": "array",
+            "title": "Prep"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "days",
+          "review",
+          "goals",
+          "scrims",
+          "prep"
+        ],
+        "title": "PracticeWeek"
+      },
       "PressureLine": {
         "properties": {
           "key": {
@@ -16349,6 +16435,196 @@
           "kind"
         ],
         "title": "VetoStep"
+      },
+      "WeekDay": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "theme": {
+            "type": "string",
+            "title": "Theme"
+          },
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "theme",
+          "blocks"
+        ],
+        "title": "WeekDay"
+      },
+      "WeekGoal": {
+        "properties": {
+          "player": {
+            "type": "string",
+            "title": "Player"
+          },
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "kpi": {
+            "type": "string",
+            "title": "Kpi"
+          },
+          "target": {
+            "type": "number",
+            "title": "Target"
+          },
+          "due_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Due On"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "player",
+          "steamid",
+          "kpi",
+          "target",
+          "due_on",
+          "verdict",
+          "value"
+        ],
+        "title": "WeekGoal"
+      },
+      "WeekPrep": {
+        "properties": {
+          "briefing": {
+            "type": "string",
+            "title": "Briefing"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "mine": {
+            "type": "integer",
+            "title": "Mine"
+          },
+          "theirs": {
+            "type": "integer",
+            "title": "Theirs"
+          },
+          "opponent": {
+            "type": "string",
+            "title": "Opponent"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared"
+          }
+        },
+        "type": "object",
+        "required": [
+          "briefing",
+          "title",
+          "mine",
+          "theirs",
+          "opponent",
+          "shared"
+        ],
+        "title": "WeekPrep"
+      },
+      "WeekReview": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "opponent": {
+            "type": "string",
+            "title": "Opponent"
+          },
+          "score": {
+            "type": "string",
+            "title": "Score"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "opponent",
+          "score",
+          "played_at"
+        ],
+        "title": "WeekReview"
+      },
+      "WeekScrim": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "partner": {
+            "type": "string",
+            "title": "Partner"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "focus": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Focus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "partner",
+          "played_at",
+          "focus"
+        ],
+        "title": "WeekScrim"
       },
       "WorkspaceMembers": {
         "properties": {

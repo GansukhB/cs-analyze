@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 REPLAY_HZ = 8
 # Bumped when the payload's shape changes: every stored round is rebuilt from
 # the Tick Data (see tickdata.derived_version).
-REPLAY_SCHEMA = 7  # 6: who saw whom (VIZ-4); 7: the Round search's tokens (VIZ-7)
+REPLAY_SCHEMA = 8  # 6: who saw whom (VIZ-4); 7: the Round search's tokens; 8: footsteps (VIZ-12)
 # Sightings bridged across gaps this short are one stretch of seeing.
 SIGHT_GAP = 0.15  # seconds
 
@@ -311,6 +311,7 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict | None:
     events = _events(frames, spans, tickrate, split)
     loadouts = _loadouts(frames.get("loadout"), spans, step, frames_by_round)
     sights = _sights(frames.get("sightings"), spans, tickrate)
+    steps = _steps(frames.get("footsteps"), spans, tickrate, split)
     sighted = frames.get("sightings") is not None and not frames["sightings"].is_empty()
     round_rows = {
         r.number: r
@@ -329,6 +330,7 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict | None:
             frames_by_round[number], tracks.get(number, {}), teams, nades.get(number, []),
             effects.get(number, []), events.get(number, []), level_keys,
             loadouts.get(number), sights.get(number, []) if sighted else None,
+            steps.get(number, []),
         )  # fmt: skip
         db.add(
             ReplayRound(
@@ -798,9 +800,35 @@ def _sights(frame, spans: dict, tickrate: int) -> dict[int, list]:
     return out
 
 
+def _steps(frame, spans: dict, tickrate: int, split) -> dict[int, list]:
+    """Round -> ``[[steamid, t, x, y, floor], ...]``: each footstep loud enough to
+    be heard (the demo's footstep events), in seconds after freeze end (VIZ-12)."""
+    out: dict[int, list] = {}
+    if frame is None or frame.is_empty():
+        return out
+    needed = {"round_num", "tick", "player_steamid", "player_X", "player_Y", "player_Z"}
+    if not needed <= set(frame.columns):
+        return out
+    for row in frame.select(sorted(needed)).iter_rows(named=True):
+        number = _i(row["round_num"])
+        if number not in spans:
+            continue
+        start = spans[number][0]
+        if row["tick"] < start:
+            continue  # the freeze time: nobody is going anywhere yet
+        x, y = _f(row["player_X"]), _f(row["player_Y"])
+        if x is None or y is None:
+            continue
+        out.setdefault(number, []).append([
+            str(row["player_steamid"]), round((row["tick"] - start) / tickrate, 2),
+            round(x, 1), round(y, 1), _event_level(split, row["player_Z"]),
+        ])  # fmt: skip
+    return out
+
+
 def _round_payload(
     match_map, round_row, number, start, end, tickrate, step, n_frames, tracks, teams, nades,
-    effects, events, level_keys=(), loadouts=None, sights=None,
+    effects, events, level_keys=(), loadouts=None, sights=None, steps=None,
 ) -> dict:  # fmt: skip
     """Assemble one round, and decide who is on screen.
 
@@ -886,4 +914,6 @@ def _round_payload(
         "effects": effects,
         # Who had which enemy in sight, when; None without Sightings (VIZ-4).
         "sights": sights,
+        # Footsteps others could hear: [steamid, t, x, y, floor] (VIZ-12).
+        "steps": steps or [],
     }

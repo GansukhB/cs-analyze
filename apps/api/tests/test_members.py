@@ -125,3 +125,19 @@ def test_what_staff_did_is_in_the_audit_log_without_secrets(client, db, auth, wo
     assert token not in str(log)  # never a secret
     them = {"Authorization": f"Bearer {create_access_token(member.id)}"}
     assert client.get("/workspace/audit", headers=them).status_code in (401, 403)
+
+
+def test_the_week_is_the_template_filled_from_the_workspace(client, db, auth, workspace):
+    """RV-11: no my team, no week; with one, seven days and its latest Matches."""
+    from app.models import Team, WorkspaceTeam
+
+    assert client.get("/workspace/week", headers=auth).json()["team"] is None
+    team = Team(name="Huns")
+    db.add(team)
+    db.flush()
+    db.add(WorkspaceTeam(workspace_id=workspace.id, team_id=team.id))
+    db.commit()
+    week = client.get("/workspace/week", headers=auth).json()
+    assert week["team"]["name"] == "Huns" and len(week["days"]) == 7
+    assert week["days"][0]["blocks"] == ["review", "goals"] and week["days"][6]["blocks"] == []
+    assert week["review"] == [] and week["goals"] == [] and week["prep"] == []

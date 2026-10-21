@@ -1483,6 +1483,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/workspace/week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Practice
+         * @description The week's practice on the tier-2 template, filled from what the
+         *     Workspace has: Matches to review, goals, Scrim focus points, next opponents.
+         */
+        get: operations["practice_workspace_week_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workspace/audit": {
         parameters: {
             query?: never;
@@ -4165,6 +4186,20 @@ export interface components {
              */
             shared: boolean;
         };
+        /** PracticeWeek */
+        PracticeWeek: {
+            team: components["schemas"]["TeamRef"] | null;
+            /** Days */
+            days: components["schemas"]["WeekDay"][];
+            /** Review */
+            review: components["schemas"]["WeekReview"][];
+            /** Goals */
+            goals: components["schemas"]["WeekGoal"][];
+            /** Scrims */
+            scrims: components["schemas"]["WeekScrim"][];
+            /** Prep */
+            prep: components["schemas"]["WeekPrep"][];
+        };
         /** PressureLine */
         PressureLine: {
             /** Key */
@@ -5731,6 +5766,72 @@ export interface components {
             who: string;
             /** Kind */
             kind: string;
+        };
+        /** WeekDay */
+        WeekDay: {
+            /** Day */
+            day: string;
+            /** Theme */
+            theme: string;
+            /** Blocks */
+            blocks: string[];
+        };
+        /** WeekGoal */
+        WeekGoal: {
+            /** Player */
+            player: string;
+            /** Steamid */
+            steamid: string;
+            /** Kpi */
+            kpi: string;
+            /** Target */
+            target: number;
+            /**
+             * Due On
+             * Format: date
+             */
+            due_on: string;
+            /** Verdict */
+            verdict: string;
+            /** Value */
+            value: number | null;
+        };
+        /** WeekPrep */
+        WeekPrep: {
+            /** Briefing */
+            briefing: string;
+            /** Title */
+            title: string;
+            /** Mine */
+            mine: number;
+            /** Theirs */
+            theirs: number;
+            /** Opponent */
+            opponent: string;
+            /** Shared */
+            shared: boolean;
+        };
+        /** WeekReview */
+        WeekReview: {
+            /** Match Id */
+            match_id: number;
+            /** Opponent */
+            opponent: string;
+            /** Score */
+            score: string;
+            /** Played At */
+            played_at: string | null;
+        };
+        /** WeekScrim */
+        WeekScrim: {
+            /** Match Id */
+            match_id: number;
+            /** Partner */
+            partner: string;
+            /** Played At */
+            played_at: string | null;
+            /** Focus */
+            focus: string[];
         };
         /** WorkspaceMembers */
         WorkspaceMembers: {
@@ -8483,6 +8584,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceMembers"];
+                };
+            };
+        };
+    };
+    practice_workspace_week_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PracticeWeek"];
                 };
             };
         };

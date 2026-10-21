@@ -380,3 +380,20 @@ def test_sightings_become_stretches_of_seeing():
     stretches = [(a, b, round(t0, 2)) for a, b, t0, _t1 in out[1]]
     assert stretches == [("1", "2", 1.0), ("1", "2", 1.56), ("1", "2", 7.81)]
     assert replay._sights(pl.DataFrame(), {1: (1000, 3000)}, 64) == {}
+
+
+def test_footsteps_after_the_freeze_become_the_replays_steps():
+    """VIZ-12: a step in the freeze time is dropped; one live step is kept, in seconds."""
+    frame = pl.DataFrame(
+        {
+            "round_num": [1, 1, 2],
+            "tick": [900, 1128, 5000],
+            "player_steamid": ["7", "7", "8"],
+            "player_X": [1.0, 10.04, 3.0],
+            "player_Y": [2.0, -20.0, 4.0],
+            "player_Z": [0.0, 0.0, 0.0],
+        }
+    )
+    out = replay._steps(frame, {1: (1000, 3000)}, 64, None)
+    assert out == {1: [["7", 2.0, 10.0, -20.0, None]]}
+    assert replay._steps(pl.DataFrame(), {1: (1000, 3000)}, 64, None) == {}
