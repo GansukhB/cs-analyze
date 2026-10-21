@@ -55,22 +55,30 @@ Coach, analyst ажлынхаа ихэнх цагийг раунд үзэхэд 
 
 ### VIZ-2. Deep link ба хуваалцах (P1, S)
 
+> **Төлөв:** 🟡 `fa46c05` (improvement-01). `?round&t&player` линк, «Энэ агшны холбоос хуулах» товч. Game Plan-ийн сонголтыг URL-д оруулах нь үлдсэн.
+
 - URL: `/matches/:id/m/:n?round=14&t=63.5&player=<steamid>`. "Энэ агшны линк хуулах" товч нэмнэ.
 - Game Plan-ийн map/side, тоглогч, heatmap-ийн сонголтыг URL-д оруулна.
 - Note (RV-7), Briefing (WS-5), Assistant (AS-5) бүгд энэ линкийг ашиглана.
 
 ### VIZ-3. Zoom, pan, тоглогчийг дагах камер, touch (P1, M)
 
+> **Төлөв:** ✅ `1348038` (improvement-01). Wheel/pinch zoom, чирж pan, Shift+click дагах, double-click буцаах; утсан дээр шудрахад цаг гүйлгэнэ.
+
 - Wheel эсвэл pinch-ээр zoom хийнэ, чирж pan хийнэ. "Тоглогчийг дагах" горимтой.
 - Утсан дээр: товшвол play/pause, шудрахад цаг гүйлгэнэ. Ингэвэл тоглогчид Briefing-ийн линкийг утаснаасаа үзэж чадна.
 
 ### VIZ-4. Харах чиглэл ба Sighting (P1, M)
+
+> **Төлөв:** 🟡 `5b3a466` (improvement-01). Харах конус ба Sighting-ийн шугам (`REPLAY_SCHEMA` 6); Sighting-гүй Map дээр зөвхөн конус, шалтгааныг хэлнэ. Раунд бүрийн анхны контактын тэмдэг үлдсэн.
 
 - Ticks-ийн yaw-аас харах конус (90°) зурна. Toggle-тэй.
 - Sighting байгаа Match Map дээр "хэн хэнийг харж байгаа" гэсэн шугамыг зурж, раунд бүрийн анхны контактыг тэмдэглэнэ. Sighting-гүй Map дээр toggle идэвхгүй байж, шалтгаанаа хэлнэ (ADR 0006).
 - Аудитаар Sighting локал 113 Map-ийн зөвхөн 6-д нь байсан. Тиймээс DATA-1 (upload) ба шинэ Scout-ууд хэрэгтэй.
 
 ### VIZ-5. Олон раундыг давхарлах ("ghost" горим) (P1, M)
+
+> **Төлөв:** 🟡 `dfd0efb` (improvement-01). `/ghost`: сонгосон раундуудыг freeze end-ээс синк хийж давхарлана, Playbook-ийн evidence-ээс «⧉ давхар». Онооны байдал, Setup, Set play-ээр шүүх нь үлдсэн.
 
 Anti-strat-ийн хамгийн их хэрэглэгддэг харагдац: сонгосон N раундыг (жишээ нь өрсөлдөгчийн Inferno-гийн бүх Full buy T раунд) freeze end-ээс эхлэн синк хийж тоглуулна. Тоглогч бүр бүдэг цэг, мөрөөр харагдана.
 
@@ -83,9 +91,13 @@ Anti-strat-ийн хамгийн их хэрэглэгддэг харагдац:
 
 ### VIZ-6. Win probability-ийн курсор (P1, S)
 
+> **Төлөв:** ✅ `fa46c05` (improvement-01). WinChart Replay-ийн цагийг даган курсор зурна, дарахад тэр агшин руу үсэрнэ.
+
 `ReplayBridge`-д `onTime` нэмнэ. WinChart Replay-ийн цагийг даган курсор зурна, график дээр дарахад тэр агшин руу үсэрнэ.
 
 ### VIZ-7. Раунд хайх: "ийм раунд олж өг" (P1, L)
+
+> **Төлөв:** 🟡 `1a799c6` (improvement-01). Токеныг `round_states` биш `replay_rounds.tokens`-д (Replay-тэй хамт, `REPLAY_SCHEMA` 7), Callout-оор; ±2 s цонх, Team ба buy шүүлт, үр дүн ghost горимд. Spot-оор хайх, үр дүнгийн нийт heatmap үлдсэн.
 
 ggViz-ийн арга (Xenopoulos нар, CHI PLAY 2022, `12-research-sources.md`):
 
@@ -97,10 +109,14 @@ ggViz-ийн арга (Xenopoulos нар, CHI PLAY 2022, `12-research-sources.md
 
 ### VIZ-8. Coach-ийн зураас ба тэмдэглэл (P1, M, RV-7-той хамт)
 
+> **Төлөв:** 🟡 `1a799c6` (improvement-01). Сум, тойрог, текст Note-тэй хадгалагдаж, Replay дээр тэр агшинд харагдана. Briefing-д харуулах нь үлдсэн.
+
 - Replay-ийг зогсоож сум, тойрог, текст зурна. Зурсныг Note (раунд, агшин, тоглогчид) болгон хадгална. Review болон Briefing-д харагдана.
 - Тоглогч өөрт нь хаягласан Note-ийг `/me` дээр харна (WS-4).
 
 ### VIZ-9. Heatmap v2 (P1, M)
+
+> **Төлөв:** 🟡 `ae4c470` (improvement-01). Хугацааны үе (0–15/15–30/30–60/60+/plant-ийн дараа), buy, Pool-той diff heatmap. Байрлалын heatmap ба «B дээр хаана үхдэг вэ» товч үлдсэн.
 
 - **Цагаар хуваах:** 0–15 s, 15–30 s, 30–60 s, plant-ийн дараа.
 - **Байрлалын heatmap:** kill биш, хаана зогсдог вэ. Хадгалсан walks ба `round_snapshots`-аас.
@@ -113,6 +129,8 @@ ggViz-ийн арга (Xenopoulos нар, CHI PLAY 2022, `12-research-sources.md
 Өрсөлдөгчийн Map ба Side бүрийн smoke, molotov, flash буусан цэгүүдийг харуулна. Шидсэн байрлалаар нь (trajectory-ийн эхний цэг) lineup болгон бүлэглэж, хугацааг нь харуулна. Set play болон Strat руу линктэй.
 
 ### VIZ-11. Map-ийн хамрах хүрээ ба pool-ийн солигдол (P1, S)
+
+> **Төлөв:** 🟡 `b5c5e70` (improvement-01). Spot-ийн хувилбар Map бүрээр (`match_map_reviews.spots_version`). Map pool-ийн огноотой тохиргоо TM-6-д (`36ec17f`). Шинэ Map-ийн checklist, patch-ийн дараах Spot шалгалт үлдсэн.
 
 - **Map pool-ийн тохиргоо:** hard-code хийсэн `ACTIVE_DUTY`-г (`mapstrategy.py:53`) огноотой тохиргоогоор солино. Жишээ нь `de_cache: 2026-07-08–`, `de_overpass: 2025-07-16–2026-07-08` (TM-6, DATA-7).
 - **Шинэ Map:** pool-д Map орж ирэх бүрт radar PNG, Valve-ийн calibration (`radar.py`), Spot polygon-ыг бэлдэх checklist. Одоогийн 7 Map бүгд бэлэн.
