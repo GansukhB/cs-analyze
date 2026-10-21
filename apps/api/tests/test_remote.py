@@ -37,6 +37,8 @@ def test_a_drive_share_link_becomes_its_download_link(link, file_id):
         ("http://example.com/a.dem", "10.0.0.5"),
         ("http://example.com/a.dem", "169.254.169.254"),
         ("http://example.com/a.dem", "::1"),
+        ("http://example.com/a.dem", "fe80::1%en0"),
+        ("http://example.com/a.dem", "::ffff:127.0.0.1"),
         ("ftp://example.com/a.dem", PUBLIC),
         ("http://user:pw@example.com/a.dem", PUBLIC),
     ],

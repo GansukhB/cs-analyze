@@ -72,7 +72,10 @@ def check(url: str, *, resolve=socket.getaddrinfo) -> str:
     except OSError:
         raise RemoteError(f"{parts.hostname} хаяг олдсонгүй.") from None
     for info in infos:
-        address = ipaddress.ip_address(info[4][0])
+        try:  # a link-local answer carries its zone ("fe80::1%en0"): never public anyway
+            address = ipaddress.ip_address(str(info[4][0]).split("%")[0])
+        except ValueError:
+            raise RemoteError("Дотоод сүлжээний хаягаас татахгүй.") from None
         if not address.is_global or address.is_multicast:
             raise RemoteError("Дотоод сүлжээний хаягаас татахгүй.")
     return parts.hostname
