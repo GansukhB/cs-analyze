@@ -7370,6 +7370,14 @@
               }
             ],
             "title": "Map Log Loss"
+          },
+          "reliability": {
+            "items": {
+              "$ref": "#/components/schemas/ReliabilityBand"
+            },
+            "type": "array",
+            "title": "Reliability",
+            "default": []
           }
         },
         "type": "object",
@@ -11710,6 +11718,49 @@
           "title"
         ],
         "title": "PlaylistWrite"
+      },
+      "ReliabilityBand": {
+        "properties": {
+          "lo": {
+            "type": "number",
+            "title": "Lo"
+          },
+          "hi": {
+            "type": "number",
+            "title": "Hi"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "mean_p": {
+            "type": "number",
+            "title": "Mean P"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lo",
+          "hi",
+          "n",
+          "won",
+          "mean_p",
+          "low",
+          "high"
+        ],
+        "title": "ReliabilityBand"
       },
       "Review": {
         "properties": {

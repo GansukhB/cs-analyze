@@ -113,3 +113,18 @@ def test_a_head_to_head_drop_is_called_only_past_chance():
     assert not gameplan._delta_test("t_win_pct", own, small)["clear"]
     adr_own, adr_vs = {"adr": 80.0, "rounds": 1200}, {"adr": 60.0, "rounds": 96}
     assert gameplan._delta_test("adr", adr_own, adr_vs)["clear"]
+
+
+def test_the_forecasts_reliability_by_band_of_our_chance():
+    """FC-4: graded series per band, with the share won and its Wilson range."""
+    from app.services import forecast_store
+
+    calls = [(0.7, True), (0.72, True), (0.68, False), (0.5, True), (0.3, False)]
+    bands = {b["lo"]: b for b in forecast_store.reliability(calls)}
+    assert set(bands) == {0.0, 0.45, 0.65}
+    top = bands[0.65]
+    assert (top["n"], top["won"], top["mean_p"]) == (3, 2, 0.7)
+    assert top["low"] < 2 / 3 < top["high"]
+    assert stats.wilson(0, 0) == (0.0, 1.0)
+    low, high = stats.wilson(50, 100)
+    assert round(low, 2) == 0.44 and round(high, 2) == 0.56

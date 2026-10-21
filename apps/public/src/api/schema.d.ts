@@ -2514,6 +2514,11 @@ export interface components {
             maps: number;
             /** Map Log Loss */
             map_log_loss: number | null;
+            /**
+             * Reliability
+             * @default []
+             */
+            reliability: components["schemas"]["ReliabilityBand"][];
         };
         /** GameplanHeader */
         GameplanHeader: {
@@ -4009,6 +4014,23 @@ export interface components {
              * @default false
              */
             shared: boolean;
+        };
+        /** ReliabilityBand */
+        ReliabilityBand: {
+            /** Lo */
+            lo: number;
+            /** Hi */
+            hi: number;
+            /** N */
+            n: number;
+            /** Won */
+            won: number;
+            /** Mean P */
+            mean_p: number;
+            /** Low */
+            low: number;
+            /** High */
+            high: number;
         };
         /** Review */
         Review: {

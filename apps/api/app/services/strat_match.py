@@ -14,7 +14,6 @@ when last.
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
 from datetime import timedelta
 
@@ -32,7 +31,7 @@ from app.models import (
     StratStatus,
 )
 from app.models.base import utcnow
-from app.services import scope
+from app.services import scope, stats
 from app.services.dbctx import db
 
 SPREAD = 5.0  # seconds
@@ -110,10 +109,7 @@ def refresh(strat: Strat) -> int:
 
 def _range(k: int, n: int) -> tuple[float, float]:
     """An 80% range for k of n (Wilson)."""
-    p = k / n
-    centre = (p + Z80**2 / (2 * n)) / (1 + Z80**2 / n)
-    half = Z80 * math.sqrt(p * (1 - p) / n + Z80**2 / (4 * n * n)) / (1 + Z80**2 / n)
-    return max(0.0, centre - half), min(1.0, centre + half)
+    return stats.wilson(k, n, Z80)
 
 
 def report(strat: Strat) -> dict:

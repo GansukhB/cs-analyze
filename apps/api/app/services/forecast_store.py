@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Forecast, GameMap, Match, MatchMap, Player, SeriesResult, Team, User
 from app.models.base import utcnow
-from app.services import dbctx, forecast
+from app.services import dbctx, forecast, stats
 
 GRADE_WINDOW_DAYS = 30
 
@@ -186,4 +186,28 @@ def summary(rows: Sequence[Forecast]) -> dict:
         out["favourites_won"] = sum((f.p_series > 0.5) == bool(f.result["won"]) for f in called)
     if maps:
         out["map_log_loss"] = round(sum(_loss(p, won) for p, won in maps) / len(maps), 4)
+    out["reliability"] = reliability([(f.p_series, bool(f.result["won"])) for f in graded])
+    return out
+
+
+# FC-4: our chance of the series in the bands the Forecast's words use.
+BANDS = ((0.0, 0.35), (0.35, 0.45), (0.45, 0.55), (0.55, 0.65), (0.65, 1.0001))
+
+
+def reliability(calls: Sequence[tuple[float, bool]]) -> list[dict]:
+    """Per band of our chance: how many series, how many we won, and that share's
+    80% range. A model whose 60% calls come true about 60% of the time is
+    calibrated; with few series the ranges say how little that shows."""
+    out = []
+    for lo, hi in BANDS:
+        inside = [(p, won) for p, won in calls if lo <= p < hi]
+        if not inside:
+            continue
+        won = sum(1 for _p, w in inside if w)
+        low, high = stats.wilson(won, len(inside))
+        out.append({
+            "lo": lo, "hi": min(hi, 1.0), "n": len(inside), "won": won,
+            "mean_p": round(sum(p for p, _w in inside) / len(inside), 3),
+            "low": round(low, 3), "high": round(high, 3),
+        })  # fmt: skip
     return out

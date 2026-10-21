@@ -1785,6 +1785,16 @@ class ForecastRead(BaseModel):
         return _utc(value)
 
 
+class ReliabilityBand(BaseModel):
+    lo: float
+    hi: float
+    n: int
+    won: int
+    mean_p: float
+    low: float
+    high: float
+
+
 class ForecastSummary(BaseModel):
     made: int
     graded: int
@@ -1795,6 +1805,8 @@ class ForecastSummary(BaseModel):
     favourites_won: int | None
     maps: int
     map_log_loss: float | None
+    # FC-4: per band of our chance, the series and how many we won (80% range).
+    reliability: list[ReliabilityBand] = []
 
 
 class ForecastList(BaseModel):

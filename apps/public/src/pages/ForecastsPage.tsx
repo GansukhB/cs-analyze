@@ -43,6 +43,8 @@ export default function ForecastsPage() {
         </p>
       )}
 
+      {summary.reliability.length > 0 && <Reliability bands={summary.reliability} />}
+
       {items.length === 0 ? (
         <p className="text-sm text-ink-3">
           Forecast алга. <Link to="/gameplan" className="text-ct hover:underline">Game plan</Link>-ийн «Шийдвэр» tab-аас
@@ -98,5 +100,50 @@ export default function ForecastsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// FC-4: our chance against how often we won, per band of the Forecast's words.
+// On the diagonal is calibrated; the bar is each band's 80% range, wide while
+// few series are graded.
+function Reliability({ bands }: { bands: { lo: number; hi: number; n: number; won: number; mean_p: number; low: number; high: number }[] }) {
+  const W = 360
+  const H = 240
+  const pad = 32
+  const x = (p: number) => pad + p * (W - pad - 12)
+  const y = (p: number) => H - pad - p * (H - pad - 12)
+  return (
+    <section className="space-y-2">
+      <h2 className="font-medium text-ink">Хэр тохирсон бэ</h2>
+      <p className="max-w-2xl text-sm text-ink-3">
+        Хэвтээ нь бидний хожих магадлал, босоо нь тэр бүлгийн цувралын хэдэн хувийг хожсон. Диагональ дээр байвал
+        Forecast тохирсон; босоо зураас нь 80%-ийн хүрээ.
+      </p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-md" role="img" aria-label="Forecast-ын тохирол">
+        {[0, 0.25, 0.5, 0.75, 1].map((v) => (
+          <g key={v}>
+            <line x1={x(0)} x2={x(1)} y1={y(v)} y2={y(v)} stroke="var(--line-soft)" />
+            <text x={pad - 6} y={y(v) + 3} fontSize={10} textAnchor="end" fill="var(--ink-3)">
+              {Math.round(v * 100)}%
+            </text>
+            <text x={x(v)} y={H - pad + 14} fontSize={10} textAnchor="middle" fill="var(--ink-3)">
+              {Math.round(v * 100)}%
+            </text>
+          </g>
+        ))}
+        <line x1={x(0)} y1={y(0)} x2={x(1)} y2={y(1)} stroke="var(--ink-3)" strokeDasharray="4 4" />
+        {bands.map((b) => (
+          <g key={b.lo}>
+            <line x1={x(b.mean_p)} x2={x(b.mean_p)} y1={y(b.low)} y2={y(b.high)} stroke="var(--ct)" strokeWidth={2} strokeLinecap="round" />
+            <circle cx={x(b.mean_p)} cy={y(b.won / b.n)} r={5} fill="var(--ct)" stroke="var(--surface)" strokeWidth={2}>
+              <title>{`${Math.round(b.lo * 100)}–${Math.round(b.hi * 100)}%: ${b.won}/${b.n} хожсон`}</title>
+            </circle>
+            <text x={x(b.mean_p) + 8} y={y(b.won / b.n) + 3} fontSize={10} fill="var(--ink-2)">
+              {b.won}/{b.n}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </section>
   )
 }

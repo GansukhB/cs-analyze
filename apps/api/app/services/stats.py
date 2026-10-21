@@ -206,6 +206,19 @@ def stratified_gap(
     return observed, p, n_flagged
 
 
+Z80 = 1.2816  # the normal quantile for an 80% two-sided range
+
+
+def wilson(k: int, n: int, z: float = Z80) -> tuple[float, float]:
+    """A range for ``k`` successes of ``n`` (Wilson score), 80% by default."""
+    if n <= 0:
+        return 0.0, 1.0
+    p = k / n
+    centre = (p + z**2 / (2 * n)) / (1 + z**2 / n)
+    half = z * math.sqrt(p * (1 - p) / n + z**2 / (4 * n * n)) / (1 + z**2 / n)
+    return max(0.0, centre - half), min(1.0, centre + half)
+
+
 def chance_higher(k1: float, n1: float, k2: float, n2: float) -> float:
     """The chance the first rate is above the second, each a Beta(1 + k, 1 + n - k):
     a normal reading of their difference (fine past a handful of each)."""
