@@ -127,6 +127,8 @@ export interface RoundData {
   events: ReplayEvent[]
   nades: Nade[]
   effects: Effect[]
+  // VIZ-4: [spotter, seen, t0, t1] stretches of sight; null without Sightings.
+  sights?: [string, string, number, number][] | null
 }
 
 type Floor = number | null
@@ -284,6 +286,7 @@ export function mountReplay(
     shots: true,
     labels: false,
     damage: false,
+    vision: false,
     // "auto" or a floor index; `autoFloor` is what auto has settled on this round.
     floor: 'auto' as 'auto' | number,
     autoFloor: null as Floor,
@@ -372,6 +375,9 @@ export function mountReplay(
       const data = await fetchRound(n)
       if (destroyed || state.round !== n) return
       state.data = data
+      // Without Sightings the toggle shows the cones only, and says so (docs/adr/0006).
+      const box = root.querySelector<HTMLInputElement>('#rp-vision')
+      if (box) box.parentElement!.title = data.sights ? '' : 'Энэ map-д Sighting алга: зөвхөн харах чиглэл'
     } catch (err) {
       if (destroyed) return
       loading.textContent = String((err as Error).message || err)
@@ -760,6 +766,7 @@ export function mountReplay(
     if (state.shots) drawShots(t, floor)
     drawKills(t, floor)
     if (state.trails) drawTrails(f, floor)
+    if (state.vision) drawVision(f, t, floor)
     drawPlayers(f, t, floor)
 
     $('rp-clock').textContent = clock(t)
@@ -1002,6 +1009,49 @@ export function mountReplay(
     })
   }
 
+  // VIZ-4: where each living Player looks (a 90° cone), and with Sightings,
+  // a line from each Player to every enemy he has in sight right now.
+  const CONE = 600 // world units
+  function drawVision(f: number, t: number, floor: Floor) {
+    const d = state.data!
+    const where = new Map<string, { x: number; y: number }>()
+    d.players.forEach((p) => {
+      const s = at(p, f)
+      if (!s || s.hp <= 0 || !onFloor(playerFloorAt(p, Math.floor(f)), floor)) return
+      const x = px(s.x)
+      const y = py(s.y)
+      where.set(p.sid, { x, y })
+      if (s.dir === null || s.dir === undefined) return
+      const a = facingRad(s.dir)
+      ctx.save()
+      ctx.globalAlpha = 0.1
+      ctx.fillStyle = p.colour
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      ctx.arc(x, y, CONE * UNIT, a - Math.PI / 4, a + Math.PI / 4)
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+    })
+    for (const [spotter, seen, t0, t1] of d.sights ?? []) {
+      if (t < t0 || t > t1) continue
+      const a = where.get(spotter)
+      const b = where.get(seen)
+      if (!a || !b) continue
+      const p = d.players.find((x) => x.sid === spotter)
+      ctx.save()
+      ctx.globalAlpha = 0.7
+      ctx.strokeStyle = p?.colour ?? '#ccc'
+      ctx.lineWidth = 1.2
+      ctx.setLineDash([4, 3])
+      ctx.beginPath()
+      ctx.moveTo(a.x, a.y)
+      ctx.lineTo(b.x, b.y)
+      ctx.stroke()
+      ctx.restore()
+    }
+  }
+
   function drawPlayers(f: number, t: number, floor: Floor) {
     const d = state.data!
     d.players.forEach((p) => {
@@ -1236,6 +1286,14 @@ export function mountReplay(
     renderFeed()
     markFeed()
   })
+
+  const visionBox = root.querySelector<HTMLInputElement>('#rp-vision')
+  if (visionBox) {
+    on(visionBox, 'change', () => {
+      state.vision = visionBox.checked
+      draw()
+    })
+  }
 
   on($('rp-rounds'), 'click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-round]')

@@ -363,3 +363,20 @@ def test_tick_data_without_the_loadout_replays_but_needs_its_demo(db, nuke):
 def test_walks_payload_is_compressed(db, nuke):
     dataset = tickdata.store(db, nuke["map"], _bundle())
     assert json.loads(gzip.decompress(dataset.walks))
+
+
+def test_sightings_become_stretches_of_seeing():
+    """VIZ-4: samples a few ticks apart are one stretch; a gap past 0.15 s starts another."""
+    frame = pl.DataFrame(
+        {
+            "round_num": [1] * 6,
+            "tick": [1064, 1066, 1068, 1100, 1102, 1500],
+            "steamid": [2, 2, 2, 2, 2, 2],
+            "spotter": [1, 1, 1, 1, 1, 1],
+        },
+        schema_overrides={"steamid": pl.UInt64, "spotter": pl.UInt64},
+    )
+    out = replay._sights(frame, {1: (1000, 3000)}, 64)
+    stretches = [(a, b, round(t0, 2)) for a, b, t0, _t1 in out[1]]
+    assert stretches == [("1", "2", 1.0), ("1", "2", 1.56), ("1", "2", 7.81)]
+    assert replay._sights(pl.DataFrame(), {1: (1000, 3000)}, 64) == {}

@@ -110,6 +110,7 @@ export default function Replay(props: {
               <label><input type="checkbox" id="rp-util" defaultChecked /> utility</label>
               <label><input type="checkbox" id="rp-shots" defaultChecked /> shots</label>
               <label><input type="checkbox" id="rp-dmg" /> damage</label>
+              <label><input type="checkbox" id="rp-vision" /> vision</label>
               <label><input type="checkbox" id="rp-labels" /> callouts</label>
               {scene.levels.length > 0 && (
                 <span className="floors" id="rp-floors" role="group" aria-label="Floor">

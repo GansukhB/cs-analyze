@@ -55,7 +55,9 @@ logger = logging.getLogger(__name__)
 REPLAY_HZ = 8
 # Bumped when the payload's shape changes: every stored round is rebuilt from
 # the Tick Data (see tickdata.derived_version).
-REPLAY_SCHEMA = 5
+REPLAY_SCHEMA = 6  # 6: who saw whom (VIZ-4), from the Sightings
+# Sightings bridged across gaps this short are one stretch of seeing.
+SIGHT_GAP = 0.15  # seconds
 
 # awpy names grenade entities by their engine class. The ones that end in
 # Projectile are the thrown object in flight; the rest is inventory (H3).
@@ -308,6 +310,8 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict | None:
         effects.setdefault(number, []).extend(pops)
     events = _events(frames, spans, tickrate, split)
     loadouts = _loadouts(frames.get("loadout"), spans, step, frames_by_round)
+    sights = _sights(frames.get("sightings"), spans, tickrate)
+    sighted = frames.get("sightings") is not None and not frames["sightings"].is_empty()
     round_rows = {
         r.number: r
         for r in db.scalars(
@@ -324,7 +328,7 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict | None:
             match_map, round_rows.get(number), number, start, end, tickrate, step,
             frames_by_round[number], tracks.get(number, {}), teams, nades.get(number, []),
             effects.get(number, []), events.get(number, []), level_keys,
-            loadouts.get(number),
+            loadouts.get(number), sights.get(number, []) if sighted else None,
         )  # fmt: skip
         db.add(
             ReplayRound(
@@ -727,9 +731,46 @@ def _events(frames, spans, tickrate, split: float | None = None) -> dict:
     return out
 
 
+def _sights(frame, spans: dict, tickrate: int) -> dict[int, list]:
+    """Round -> ``[[spotter, seen, t0, t1], ...]``: each stretch of one Player
+    having an enemy in sight, in seconds after freeze end (VIZ-4). None of it on
+    Tick Data without Sightings (docs/adr/0006)."""
+    out: dict[int, list] = {}
+    if frame is None or frame.is_empty():
+        return out
+    gap = int(SIGHT_GAP * tickrate)
+    rows = frame.select("round_num", "tick", "steamid", "spotter").sort(
+        ["round_num", "spotter", "steamid", "tick"]
+    )
+    for (number, spotter, seen), part in rows.group_by(
+        ["round_num", "spotter", "steamid"], maintain_order=True
+    ):
+        number = _i(number)
+        if number not in spans:
+            continue
+        start = spans[number][0]
+        ticks = part["tick"].to_list()
+        a = prev = ticks[0]
+        stretches = []
+        for t in ticks[1:]:
+            if t - prev > gap:
+                stretches.append((a, prev))
+                a = t
+            prev = t
+        stretches.append((a, prev))
+        for a, b in stretches:
+            if b < start:
+                continue
+            out.setdefault(number, []).append(
+                [str(spotter), str(seen), round((a - start) / tickrate, 2),
+                 round((b - start) / tickrate + 1 / 32, 2)]
+            )  # fmt: skip
+    return out
+
+
 def _round_payload(
     match_map, round_row, number, start, end, tickrate, step, n_frames, tracks, teams, nades,
-    effects, events, level_keys=(), loadouts=None,
+    effects, events, level_keys=(), loadouts=None, sights=None,
 ) -> dict:  # fmt: skip
     """Assemble one round, and decide who is on screen.
 
@@ -813,4 +854,6 @@ def _round_payload(
         "events": events,
         "nades": nades,
         "effects": effects,
+        # Who had which enemy in sight, when; None without Sightings (VIZ-4).
+        "sights": sights,
     }
