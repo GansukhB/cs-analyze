@@ -239,7 +239,7 @@ Match-ийн Summary ба Focus point-оос 45–60 минутын хуралд
 
 #### RV-12. Үүргийг тооцсон ба ахисан түвшний detector (P2, M тус бүр)
 
-> **Төлөв:** 🟡 `a87f872` (improvement-01). Lurker (`4c14eb4`); хожуу execute (20 с-ээс бага үлдэхэд site-д хүрсэн, тоо дутаагүй, хожигдсон) ба эрт rotate (T орохоос 5–20 с-ийн өмнө site-аа орхисон). Smoke-ийн LOS, stack-ийн уншлага, re-peek, dry peek, crossfire үлдсэн.etector үлдсэн.
+> **Төлөв:** 🟡 `d1f5f57` (improvement-01). Lurker (`4c14eb4`); хожуу execute ба эрт rotate (`a87f872`); stack руу орсон (T) ба stack-ээр уншсан (CT): T-ийн хүрсэн site-д CT баг ердийнхөөсөө (энэ Map-ын setup-ийн median) олон, 3+, setup үед. Smoke-ийн LOS, re-peek, dry peek, crossfire үлдсэн. Smoke-ийн LOS, stack-ийн уншлага, re-peek, dry peek, crossfire үлдсэн.etector үлдсэн.
 
 - **Үүргийг тооцох (PL-4):** lurker-ийн ганц үхлийг default-аар `untraded` Mistake гэж үзэхгүй.
 - **Шинэ detector-ууд:**
