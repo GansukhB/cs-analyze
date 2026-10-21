@@ -1341,6 +1341,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/search/spots/{map_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Spot Names
+         * @description The hand-drawn Spots a condition can name on this Map (VIZ-7).
+         */
+        get: operations["spot_names_search_spots__map_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/search/rounds": {
         parameters: {
             query?: never;
@@ -5040,6 +5060,12 @@ export interface components {
         SearchCondition: {
             /** Place */
             place: string;
+            /**
+             * Kind
+             * @default place
+             * @enum {string}
+             */
+            kind: "place" | "spot";
             /**
              * Min
              * @default 1
@@ -8755,6 +8781,37 @@ export interface operations {
         };
     };
     places_search_places__map_name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                map_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spot_names_search_spots__map_name__get: {
         parameters: {
             query?: never;
             header?: never;

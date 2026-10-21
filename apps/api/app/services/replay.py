@@ -47,7 +47,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import GrenadeThrow, MapRoster, MatchMap, ReplayRound, Round
-from app.services import radar
+from app.services import radar, spots
 from app.services.analysis_store import weapon_family
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,9 @@ logger = logging.getLogger(__name__)
 REPLAY_HZ = 8
 # Bumped when the payload's shape changes: every stored round is rebuilt from
 # the Tick Data (see tickdata.derived_version).
-REPLAY_SCHEMA = 8  # 6: who saw whom (VIZ-4); 7: the Round search's tokens; 8: footsteps (VIZ-12)
+# 6: who saw whom (VIZ-4); 7: the Round search's tokens; 8: footsteps (VIZ-12);
+# 9: the tokens count Spots too (VIZ-7).
+REPLAY_SCHEMA = 9
 # Sightings bridged across gaps this short are one stretch of seeing.
 SIGHT_GAP = 0.15  # seconds
 
@@ -353,14 +355,18 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict | None:
 def tokens(payload: dict) -> dict:
     """VIZ-7: each second of the Round, how many of each Side's living Players
     stood in each Callout: ``{"places": [...], "ct": [[s, place, n], ...], "t": ...}``
-    (the method of ggViz, Xenopoulos et al. 2022: a state as counts per place)."""
+    (the method of ggViz, Xenopoulos et al. 2022: a state as counts per place),
+    and the same per hand-drawn Spot (``spots``, ``ct_spot``, ``t_spot``)."""
     hz = payload["hz"]
     places = payload["places"]
-    out: dict = {"places": places, "ct": [], "t": []}
+    map_name = payload.get("map") or ""
+    out: dict = {"places": places, "ct": [], "t": [], "spots": [], "ct_spot": [], "t_spot": []}
+    spot_index: dict[str, int] = {}
     seconds = int(payload["seconds"])
     for s in range(0, seconds + 1):
         f = s * hz
         counts: dict[tuple, int] = {}
+        at_spot: dict[tuple, int] = {}
         for p in payload["players"]:
             side = p["side"]
             if side not in ("ct", "t") or f >= len(p["hp"]) or not p["hp"][f]:
@@ -372,8 +378,17 @@ def tokens(payload: dict) -> dict:
                 here = idx
             if here is not None:
                 counts[(side, here)] = counts.get((side, here), 0) + 1
+            if map_name and f < len(p["x"]) and p["x"][f] is not None:
+                place = places[here] if here is not None else None
+                spot = spots.spot_only(map_name, p["x"][f], p["y"][f], None, place)
+                if spot:
+                    idx = spot_index.setdefault(spot, len(spot_index))
+                    at_spot[(side, idx)] = at_spot.get((side, idx), 0) + 1
         for (side, idx), n in counts.items():
             out[side].append([s, idx, n])
+        for (side, idx), n in at_spot.items():
+            out[f"{side}_spot"].append([s, idx, n])
+    out["spots"] = list(spot_index)
     return out
 
 

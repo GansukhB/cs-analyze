@@ -4308,6 +4308,58 @@
         }
       }
     },
+    "/search/spots/{map_name}": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Spot Names",
+        "description": "The hand-drawn Spots a condition can name on this Map (VIZ-7).",
+        "operationId": "spot_names_search_spots__map_name__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "map_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Map Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Spot Names Search Spots  Map Name  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/search/rounds": {
       "post": {
         "tags": [
@@ -14571,6 +14623,15 @@
             "maxLength": 40,
             "minLength": 1,
             "title": "Place"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "place",
+              "spot"
+            ],
+            "title": "Kind",
+            "default": "place"
           },
           "min": {
             "type": "integer",

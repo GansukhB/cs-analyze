@@ -130,12 +130,17 @@ def _inside(poly: list[tuple[float, float]], x: float, y: float) -> bool:
 
 def spot_at(map_name: str, x, y, z=None, place: str | None = None) -> str:
     """The Spot a point is in, else its Callout as words, else ``""``."""
+    return spot_only(map_name, x, y, z, place) or callout_label(place)
+
+
+def spot_only(map_name: str, x, y, z=None, place: str | None = None) -> str:
+    """The Spot a point is in, or ``""`` (no Callout fallback)."""
     try:
         fx, fy = float(x), float(y)
     except (TypeError, ValueError):
-        return callout_label(place)
+        return ""
     if fx != fx or fy != fy:  # NaN
-        return callout_label(place)
+        return ""
     fz = None
     if z is not None:
         try:
@@ -152,7 +157,7 @@ def spot_at(map_name: str, x, y, z=None, place: str | None = None) -> str:
             continue
         if _inside(spot["poly"], fx, fy):
             return spot["name"]
-    return callout_label(place)
+    return ""
 
 
 def scene(map_name: str) -> list[dict]:

@@ -2,11 +2,12 @@
 
 Each stored Replay Round carries, second by second, how many of each Side's
 living Players stood in each Callout (``replay_rounds.tokens``, ggViz's state
-tokens). A search names a Map, the Side the conditions are about and,
-optionally, its Team and its buy; each condition is a Callout, a fewest (and
-a most) number of that Side's Players there, and a window of seconds after
-freeze end. A Round matches when every condition holds at some second of its
-window, give or take :data:`SLACK` (a token jumps at a Callout's border).
+tokens), and in each hand-drawn Spot. A search names a Map, the Side the
+conditions are about and, optionally, its Team and its buy; each condition is
+a Callout or a Spot (``kind``), a fewest (and a most) number of that Side's
+Players there, and a window of seconds after freeze end. A Round matches when
+every condition holds at some second of its window, give or take :data:`SLACK`
+(a token jumps at a Callout's border).
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import json
 from sqlalchemy import select
 
 from app.models import GameMap, KillEvent, Match, MatchMap, ReplayRound, Round, Team
-from app.services import heatmap_groups, playbook, scope
+from app.services import heatmap_groups, playbook, scope, spots
 from app.services.dbctx import db
 
 SLACK = 2  # seconds either side of a window
@@ -48,15 +49,21 @@ def _blobs(map_name: str, limit: int | None = None):
     return db().scalars(query)
 
 
+def spot_names(map_name: str) -> list[str]:
+    """The Spots a condition can name on this Map (VIZ-7), by name."""
+    return sorted({s["name"] for s in spots.spots(map_name)})
+
+
 def _holds(t: dict, side: str, cond: dict) -> bool:
     name, fewest, most = cond["place"], cond.get("min", 1), cond.get("max")
     lo, hi = int(cond.get("start", 0)) - SLACK, int(cond.get("end", 180)) + SLACK
+    by_spot = cond.get("kind") == "spot"
     try:
-        idx = t["places"].index(name)
+        idx = (t.get("spots") or [] if by_spot else t["places"]).index(name)
     except ValueError:
         return fewest <= 0
     counts: dict[int, int] = {}
-    for s, i, n in t[side]:
+    for s, i, n in t.get(f"{side}_spot") or [] if by_spot else t[side]:
         if i == idx and lo <= s <= hi:
             counts[s] = n
     for s in range(max(0, lo), hi + 1):

@@ -91,3 +91,26 @@ def test_the_lead_before_each_round_per_team(db, league):  # noqa: F811
     loser = first.t_team_id if winner == first.ct_team_id else first.ct_team_id
     assert leads[(mm.id, 2)][winner] == 1 and leads[(mm.id, 2)][loser] == -1
     assert second.number == 2
+
+
+def test_tokens_count_spots_too_and_a_condition_can_name_one():
+    """VIZ-7: two T in Mirage's «B Site» Spot from second 2; a search by Spot finds it."""
+    from app.services import spots
+
+    b_site = next(s for s in spots.spots("de_mirage") if s["name"] == "B Site")
+    x = sum(p[0] for p in b_site["poly"]) / len(b_site["poly"])
+    y = sum(p[1] for p in b_site["poly"]) / len(b_site["poly"])
+    assert spots.spot_only("de_mirage", x, y, None, "BombsiteB") == "B Site"
+    payload = _payload()
+    payload["map"], payload["places"] = "de_mirage", ["Middle", "BombsiteB"]
+    for p in payload["players"]:
+        p["x"] = [None] * 16 + [x] * 32
+        p["y"] = [None] * 16 + [y] * 32
+    t = replay.tokens(payload)
+    assert t["spots"] == ["B Site"]
+    at = {(s, t["spots"][i]): n for s, i, n in t["t_spot"]}
+    assert at[(2, "B Site")] == 2 and at[(4, "B Site")] == 1
+    cond = {"kind": "spot", "place": "B Site", "min": 2, "start": 2, "end": 3}
+    assert round_search._holds(t, "t", cond)
+    assert not round_search._holds(t, "t", {**cond, "place": "A Site"})
+    assert "B Site" in round_search.spot_names("de_mirage")

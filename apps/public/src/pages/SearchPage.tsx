@@ -17,10 +17,12 @@ export default function SearchPage() {
   const [map, setMap] = useState('')
   const chosen = map || maps.data?.[0] || ''
   const places = $api.useQuery('get', '/search/places/{map_name}', { params: { path: { map_name: chosen } } }, { enabled: !!chosen })
+  // VIZ-7: or one of the Map's hand-drawn Spots (finer than a Callout on a site).
+  const spotNames = $api.useQuery('get', '/search/spots/{map_name}', { params: { path: { map_name: chosen } } }, { enabled: !!chosen })
   const [side, setSide] = useState<'t' | 'ct'>('t')
   const [team, setTeam] = useState<number | null>(null)
   const [buy, setBuy] = useState<'' | 'full' | 'light'>('')
-  const [conds, setConds] = useState<Condition[]>([{ place: '', min: 2, max: null, start: 15, end: 30 }])
+  const [conds, setConds] = useState<Condition[]>([{ place: '', kind: 'place', min: 2, max: null, start: 15, end: 30 }])
   // VIZ-7: where the side died or got its kills in all the matched Rounds.
   const [heat, setHeat] = useState<'' | 'deaths' | 'kills'>('deaths')
   // VIZ-5: how the Map stood for the Side's Team when the Round began.
@@ -82,13 +84,31 @@ export default function SearchPage() {
       <div className="space-y-2">
         {conds.map((c, i) => (
           <div key={i} className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
-            <select value={c.place} onChange={(e) => set(i, { place: e.target.value })} className={field}>
-              <option value="">Callout…</option>
-              {(places.data ?? []).map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
+            <select
+              value={c.place ? `${c.kind}:${c.place}` : ''}
+              onChange={(e) => {
+                const [kind, ...rest] = e.target.value.split(':')
+                set(i, { kind: kind === 'spot' ? 'spot' : 'place', place: rest.join(':') })
+              }}
+              className={field}
+            >
+              <option value="">Callout эсвэл Spot…</option>
+              <optgroup label="Callout">
+                {(places.data ?? []).map((p) => (
+                  <option key={p} value={`place:${p}`}>
+                    {p}
+                  </option>
+                ))}
+              </optgroup>
+              {(spotNames.data ?? []).length > 0 && (
+                <optgroup label="Spot">
+                  {(spotNames.data ?? []).map((p) => (
+                    <option key={p} value={`spot:${p}`}>
+                      {p}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
             дээр
             <input type="number" min={0} max={5} value={c.min} onChange={(e) => set(i, { min: Number(e.target.value) })} className={`${field} w-16`} />
@@ -118,7 +138,7 @@ export default function SearchPage() {
           {conds.length < 6 && (
             <button
               type="button"
-              onClick={() => setConds([...conds, { place: '', min: 1, max: null, start: 0, end: 40 }])}
+              onClick={() => setConds([...conds, { place: '', kind: 'place', min: 1, max: null, start: 0, end: 40 }])}
               className="text-ct hover:underline"
             >
               + нөхцөл

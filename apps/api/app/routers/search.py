@@ -22,6 +22,14 @@ def places(map_name: str, db: DbSession, _: StaffUser) -> list[str]:
         return round_search.places(map_name)
 
 
+@router.get("/spots/{map_name}")
+def spot_names(map_name: str, _: StaffUser) -> list[str]:
+    """The hand-drawn Spots a condition can name on this Map (VIZ-7)."""
+    if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
+    return round_search.spot_names(map_name)
+
+
 @router.post("/rounds")
 def rounds(body: SearchAsk, db: DbSession, _: StaffUser) -> SearchResult:
     """Every Round where all the conditions held for the Side, newest first."""

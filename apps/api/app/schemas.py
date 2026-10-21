@@ -1642,6 +1642,8 @@ class AuditLine(BaseModel):
 # -- The Round search (docs/plans/09 VIZ-7) ------------------------------------------
 class SearchCondition(BaseModel):
     place: str = Field(min_length=1, max_length=40)
+    # VIZ-7: a game Callout, or one of the Map's hand-drawn Spots.
+    kind: Literal["place", "spot"] = "place"
     min: int = Field(default=1, ge=0, le=5)
     max: int | None = Field(default=None, ge=0, le=5)
     start: int = Field(default=0, ge=0, le=180)  # seconds after freeze end
