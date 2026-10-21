@@ -30,7 +30,7 @@ from app.schemas import (
     AssistantUsageReport,
     AssistantUserUsage,
 )
-from app.services import assistant, mn, voice
+from app.services import alerts, assistant, mn, voice
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +136,11 @@ def chat(body: AssistantChat, db: DbSession, user: StaffUser) -> StreamingRespon
     settings = get_settings()
     cost, chars = spent_today(db, user)
     if cost >= settings.assistant_daily_usd:
+        alerts.send(
+            f"assistant-limit:{user.id}",
+            f"{user.username} reached the Assistant's daily limit (${cost:.2f})",
+            every=24 * 3600,
+        )
         frames = iter(
             [
                 _event({"type": "paragraph", "id": 0, "text": mn.ASSISTANT_LIMIT}),

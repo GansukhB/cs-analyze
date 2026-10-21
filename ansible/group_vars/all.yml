@@ -36,6 +36,9 @@ jwt_secret_file: /etc/cs2/jwt_secret
 claude_api_key: "{{ lookup('ansible.builtin.ini', 'CLAUDE_API_KEY', type='properties', file=cstat_env_file, default='') }}"
 elevenlabs_api_key: "{{ lookup('ansible.builtin.ini', 'ELEVENLABS_API_KEY', type='properties', file=cstat_env_file, default='') }}"
 elevenlabs_voice_id: "{{ lookup('ansible.builtin.ini', 'ELEVENLABS_VOICE_ID', type='properties', file=cstat_env_file, default='') }}"
+# Alerts (docs/plans OPS-5), from the same file or -e; empty leaves them in the log.
+telegram_bot_token: "{{ lookup('ansible.builtin.ini', 'TELEGRAM_BOT_TOKEN', type='properties', file=cstat_env_file, default='') }}"
+telegram_chat_id: "{{ lookup('ansible.builtin.ini', 'TELEGRAM_CHAT_ID', type='properties', file=cstat_env_file, default='') }}"
 
 mysql_database: cs_analyze
 # MySQL runs on this host, so the app connects through the socket: no TCP, and

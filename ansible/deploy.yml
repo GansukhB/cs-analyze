@@ -235,6 +235,28 @@
         label: "{{ item.name }}"
       tags: [services]
 
+    - name: Install the alert, health check and canary units (OPS-5)
+      ansible.builtin.template:
+        src: "templates/{{ item }}.j2"
+        dest: "/etc/systemd/system/cs2-{{ item }}"
+        mode: "0644"
+      loop:
+        - alert@.service
+        - watch.service
+        - watch.timer
+        - canary.service
+        - canary.timer
+      tags: [services]
+
+    - name: Enable the health check and canary timers
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+        daemon_reload: true
+      loop: [cs2-watch.timer, cs2-canary.timer]
+      tags: [services]
+
     - name: Restart the API and the worker
       ansible.builtin.systemd:
         name: "{{ item }}"

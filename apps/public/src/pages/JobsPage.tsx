@@ -6,6 +6,7 @@ export default function JobsPage() {
   const list = $api.useQuery('get', '/jobs')
   // The worker panel is the one thing here that changes second to second.
   const broker = $api.useQuery('get', '/workers', {}, { refetchInterval: 4000 })
+  const timings = $api.useQuery('get', '/jobs/timings')
 
   return (
     <div className="space-y-8">
@@ -38,6 +39,21 @@ export default function JobsPage() {
         )}
       </section>
 
+      {timings.data && timings.data.jobs > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-medium text-ink">How long a Scout takes</h2>
+          <p className="text-sm text-ink-3">Median over the latest {timings.data.jobs} finished Scouts.</p>
+          <div className="flex flex-wrap gap-3">
+            {timings.data.rows.map((r) => (
+              <div key={r.label} className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-2" title={`${r.n} measured`}>
+                <b className="block font-mono text-xl text-ink">{r.median === null ? '—' : seconds(r.median)}</b>
+                {r.label}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="space-y-3">
         <h2 className="font-medium text-ink">Runs</h2>
         {list.data && (
@@ -69,4 +85,11 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
       <div className="text-ink">{children}</div>
     </div>
   )
+}
+
+/** 98.8 → "1:39", 9.9 → "9.9 s". */
+function seconds(v: number): string {
+  if (v < 60) return `${v} s`
+  const s = Math.round(v)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }

@@ -34,6 +34,7 @@ from app.schemas import (
     JobResult,
     JobRow,
     JobStatusPayload,
+    JobTimings,
     JobWords,
     ScoutDefaults,
 )
@@ -116,6 +117,13 @@ def list_jobs(db: DbSession, _: StaffUser) -> JobList:
         jobs=[JobRow.of(j) for j in rows],
         counts={s.value: counts.get(s.value, 0) for s in JobStatus},
     )
+
+
+@router.get("/jobs/timings")
+def job_timings(db: DbSession, _: StaffUser) -> JobTimings:
+    """Median seconds per archive downloaded and unpacked, per Map parsed and per
+    Match, over the latest finished Scouts (OPS-5)."""
+    return JobTimings(**job_service.timings(db))
 
 
 @router.get("/jobs/{public_id}")

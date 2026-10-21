@@ -1,0 +1,10 @@
+# Rendered by ansible/deploy.yml. Started by cs2-watch.timer: the worker's
+# heartbeat, a Scout stage running too long, the disk, HLTV refusing the
+# browser; an alert for each (docs/plans OPS-5).
+[Unit]
+Description=cs-analyze health checks
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ api_path }}
+ExecStart={{ api_path }}/.venv/bin/python -m app.cli watch

@@ -87,6 +87,13 @@ class Settings(BaseSettings):
     # The Assistant's Users speak Mongolian; pinned so a short question isn't read as Russian.
     elevenlabs_stt_language: str = "mon"
     elevenlabs_timeout: int = 30
+    # OPS-5: alerts go to this Telegram chat when both are set; otherwise only
+    # the log has them. The thresholds `cli watch` checks every 5 minutes.
+    telegram_bot_token: SecretStr = SecretStr("")
+    telegram_chat_id: str = ""
+    alert_disk_percent: float = 85.0
+    alert_stage_minutes: int = 45
+    alert_blocked_in_a_row: int = 3
 
 
 @lru_cache

@@ -12,6 +12,8 @@ python -m app.cli rebuild-tickdata           # Replays, walks, geometry from the
 python -m app.cli fit-winprob                # refit the Review's Win probability model
 python -m app.cli assistant-eval [--yes]     # ask and score the Assistant's golden set
 python -m app.cli hltv-canary                # check HLTV still reads the Scout's way
+python -m app.cli watch                      # alert on what is wrong now (every 5 min)
+python -m app.cli alert <key> <text>         # send one alert
 python -m app.cli rebuild-reviews [--map ID] # cut every Match Map's Review again
 python -m app.cli summary-thresholds         # the Patterns' 75th percentiles, measured again
 python -m app.cli import-vrs [checkout]       # Valve Regional Standings -> series results
@@ -258,8 +260,9 @@ def fit_winprob(since: str | None = None, dry_run: bool = False) -> None:
 
 
 def hltv_canary(team: str) -> None:
-    """Read one known Team on HLTV the Scout's way; exit 1 naming what broke (OPS-9)."""
-    from app.services import canary
+    """Read one known Team on HLTV the Scout's way; exit 1 naming what broke (OPS-9),
+    and say so as an alert (OPS-5)."""
+    from app.services import alerts, canary
     from app.services.browser import HltvBrowser
     from app.services.client import HltvClient
 
@@ -268,8 +271,27 @@ def hltv_canary(team: str) -> None:
     if problems:
         for p in problems:
             print(f"BROKEN {p}")
+        alerts.send("canary", "HLTV no longer reads the Scout's way: " + "; ".join(problems))
         raise SystemExit(1)
     print(f"HLTV reads as expected ({team}).")
+
+
+def watch() -> None:
+    """The every-5-minutes check (OPS-5): send an alert for each thing wrong."""
+    from app.services import alerts
+
+    with SessionLocal() as db:
+        found = alerts.checks(db)
+    for key, text in found:
+        alerts.send(key, text)
+    print(f"{len(found)} problem(s)" + (": " + "; ".join(t for _k, t in found) if found else "."))
+
+
+def alert(key: str, text: str) -> None:
+    """Send one alert, e.g. from a systemd unit's OnFailure (OPS-5)."""
+    from app.services import alerts
+
+    alerts.send(key, text)
 
 
 def assistant_eval(limit: int | None = None, yes: bool = False) -> None:
@@ -442,6 +464,10 @@ def main() -> None:
     sub.add_parser("hltv-canary").add_argument(
         "--team", default="Vitality", help="A Team HLTV lists with recent demos."
     )
+    sub.add_parser("watch")
+    al = sub.add_parser("alert")
+    al.add_argument("key", help="Alerts of one key are sent once an hour at most.")
+    al.add_argument("text")
     ev = sub.add_parser("assistant-eval")
     ev.add_argument("--limit", type=int, help="Only the first N questions.")
     ev.add_argument("--yes", action="store_true", help="Ask them (each is a paid turn).")
@@ -479,6 +505,12 @@ def main() -> None:
         return
     if args.command == "forecast-backtest":
         forecast_backtest()
+        return
+    if args.command == "watch":
+        watch()
+        return
+    if args.command == "alert":
+        alert(args.key, args.text)
         return
     if args.command == "hltv-canary":
         hltv_canary(args.team)

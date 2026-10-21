@@ -255,6 +255,19 @@ class ScoutDefaults(BaseModel):
     max_matches: int
 
 
+class JobTiming(BaseModel):
+    label: str
+    n: int
+    median: float | None  # seconds
+
+
+class JobTimings(BaseModel):
+    """How long a Scout's stages take, over the latest finished ones (OPS-5)."""
+
+    jobs: int
+    rows: list[JobTiming]
+
+
 class HomeInfo(BaseModel):
     recent_jobs: list[JobRow]
     known_teams: list[str]

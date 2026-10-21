@@ -1,0 +1,9 @@
+# Rendered by ansible/deploy.yml. Started by another unit's OnFailure= with that
+# unit's name as %i: says it failed, once an hour at most (docs/plans OPS-5).
+[Unit]
+Description=cs-analyze alert: %i failed
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ api_path }}
+ExecStart={{ api_path }}/.venv/bin/python -m app.cli alert unit:%i "%i failed: journalctl -u %i"

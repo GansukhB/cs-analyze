@@ -32,6 +32,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from app.config import get_settings
+from app.services import alerts
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +216,7 @@ class HltvBrowser:
                 if not _is_challenge(status, title, self.page.url):
                     # Let late client-side rendering finish before callers read DOM.
                     self.page.wait_for_timeout(settle_ms)
+                    alerts.hltv_through()
                     return self.page
 
                 last = f"status={status} title={title!r}"
@@ -242,6 +244,7 @@ class HltvBrowser:
                 self.recover_page()
                 time.sleep((3000 + 2000 * attempt) / 1000)
 
+        alerts.hltv_blocked()  # OPS-5: several in a row and someone is told
         raise HltvBlocked(
             f"could not reach {url} after {self.retries} attempts ({last}). "
             "Try again shortly, or set HLTV_HEADLESS=false to solve it interactively."

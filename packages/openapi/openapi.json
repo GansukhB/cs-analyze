@@ -170,6 +170,33 @@
         ]
       }
     },
+    "/jobs/timings": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Job Timings",
+        "description": "Median seconds per archive downloaded and unpacked, per Map parsed and per\nMatch, over the latest finished Scouts (OPS-5).",
+        "operationId": "job_timings_jobs_timings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobTimings"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/jobs/{public_id}": {
       "get": {
         "tags": [
@@ -8507,6 +8534,58 @@
         ],
         "title": "JobStatusPayload",
         "description": "Mirrors what the WebSocket pushes as `status` (and inside `snapshot`)."
+      },
+      "JobTiming": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "n",
+          "median"
+        ],
+        "title": "JobTiming"
+      },
+      "JobTimings": {
+        "properties": {
+          "jobs": {
+            "type": "integer",
+            "title": "Jobs"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/JobTiming"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "jobs",
+          "rows"
+        ],
+        "title": "JobTimings",
+        "description": "How long a Scout's stages take, over the latest finished ones (OPS-5)."
       },
       "JobWords": {
         "properties": {

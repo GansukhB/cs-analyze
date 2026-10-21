@@ -497,3 +497,48 @@ def stage_ladder(job: AnalysisJob) -> list:
             }
         )
     return rows
+
+
+# -- how long a Scout's stages take (OPS-5) -----------------------------------
+TIMING_JOBS = 20
+# Each per-Match stage's time divided by what it did: an archive downloaded or
+# unpacked, a Map parsed.
+TIMED = (
+    (JobStage.FETCHING, "downloaded", "Download, нэг архив"),
+    (JobStage.UNPACKING, "archives", "Задлах, нэг архив"),
+    (JobStage.PARSING, "parsed", "Parse, нэг map"),
+)
+
+
+def timings(db: Session) -> dict:
+    """Median seconds per archive and per Map over the latest finished Scouts,
+    and per Match (its download, unpack and parse together)."""
+    from statistics import median
+
+    rows = db.scalars(
+        select(AnalysisJob)
+        .where(AnalysisJob.status == JobStatus.SUCCESS, AnalysisJob.kind == JobKind.SCOUT)
+        .order_by(AnalysisJob.finished_at.desc())
+        .limit(TIMING_JOBS)
+    ).all()
+    per: dict[str, list[float]] = {stage: [] for stage, _c, _l in TIMED}
+    matches: list[float] = []
+    for job in rows:
+        cycles: dict[int, float] = {}
+        for e in job.stage_log or []:
+            if e.get("cycle") is None or not e.get("seconds"):
+                continue
+            cycles[e["cycle"]] = cycles.get(e["cycle"], 0.0) + e["seconds"]
+            for stage, count, _label in TIMED:
+                n = (e.get("counts") or {}).get(count)
+                if e.get("stage") == stage and n:
+                    per[stage].append(e["seconds"] / n)
+        matches += cycles.values()
+    out = [
+        {"label": label, "n": len(per[stage]),
+         "median": round(median(per[stage]), 1) if per[stage] else None}
+        for stage, _c, label in TIMED
+    ]  # fmt: skip
+    out.append({"label": "Нэг тоглолт бүхэлдээ", "n": len(matches),
+                "median": round(median(matches), 1) if matches else None})  # fmt: skip
+    return {"jobs": len(rows), "rows": out}

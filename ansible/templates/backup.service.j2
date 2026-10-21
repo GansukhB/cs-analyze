@@ -3,6 +3,8 @@
 [Unit]
 Description=cs-analyze nightly database backup
 After=mysql.service
+# A failed backup leaves the Tick Data with no copy: say so (OPS-5).
+OnFailure=cs2-alert@%n.service
 
 [Service]
 Type=oneshot

@@ -1,0 +1,11 @@
+# Rendered by ansible/deploy.yml. Started by cs2-canary.timer: reads one Team on
+# HLTV the Scout's way and alerts when a selector broke (docs/plans OPS-9).
+[Unit]
+Description=cs-analyze HLTV selector canary
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ api_path }}
+Environment=TMPDIR=/var/tmp
+PrivateTmp=true
+ExecStart={{ api_path }}/.venv/bin/python -m app.cli hltv-canary

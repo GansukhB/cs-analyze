@@ -1,0 +1,12 @@
+# Rendered by ansible/deploy.yml. Three HLTV pages a week, early on Monday in
+# Mongolia, when no Scout is likely to run.
+[Unit]
+Description=cs-analyze HLTV selector canary, weekly
+
+[Timer]
+OnCalendar=Sun *-*-* 19:00:00 UTC
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target

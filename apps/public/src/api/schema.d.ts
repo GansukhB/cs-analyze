@@ -79,6 +79,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/jobs/timings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Job Timings
+         * @description Median seconds per archive downloaded and unpacked, per Map parsed and per
+         *     Match, over the latest finished Scouts (OPS-5).
+         */
+        get: operations["job_timings_jobs_timings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/jobs/{public_id}": {
         parameters: {
             query?: never;
@@ -2930,6 +2951,25 @@ export interface components {
             stages: components["schemas"]["StageRow"][];
             cycle?: components["schemas"]["JobCycle"] | null;
         };
+        /** JobTiming */
+        JobTiming: {
+            /** Label */
+            label: string;
+            /** N */
+            n: number;
+            /** Median */
+            median: number | null;
+        };
+        /**
+         * JobTimings
+         * @description How long a Scout's stages take, over the latest finished ones (OPS-5).
+         */
+        JobTimings: {
+            /** Jobs */
+            jobs: number;
+            /** Rows */
+            rows: components["schemas"]["JobTiming"][];
+        };
         /**
          * JobWords
          * @description Mongolian stage and tally names, from the server's single dictionary.
@@ -5586,6 +5626,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    job_timings_jobs_timings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTimings"];
                 };
             };
         };
