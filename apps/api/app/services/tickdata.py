@@ -283,6 +283,13 @@ def _last_tick(frame: pl.DataFrame) -> int:
     return max((int(v) for v in values if v is not None), default=0)
 
 
+def load_bundle(dataset: TickDataset) -> bytes:
+    """A map's Tick Data bundle, wherever it is kept. Every read goes through here
+    and every write through :func:`store`, so moving the bundles out of MySQL
+    (object storage, past OPS-7's threshold) changes this module only."""
+    return dataset.bundle
+
+
 def read(blob: bytes) -> Bundle:
     out = Bundle()
     with zipfile.ZipFile(io.BytesIO(blob)) as bundle:
@@ -345,7 +352,7 @@ def ensure(db: Session, match_map: MatchMap) -> TickDataset | None:
 
 def rebuild(db: Session, match_map: MatchMap, dataset: TickDataset) -> None:
     logger.info("rebuilding what is cut from the tick data of map %s", match_map.id)
-    derive(db, match_map, dataset, read(dataset.bundle))
+    derive(db, match_map, dataset, read(load_bundle(dataset)))
 
 
 # ------------------------------------------------------------- re-parsing ---

@@ -297,7 +297,7 @@ def rebuild(db: Session, match_map: MatchMap, bundle=None) -> dict | None:
         dataset = db.scalar(select(TickDataset).where(TickDataset.match_map_id == match_map.id))
         if dataset is None:
             return None
-        bundle = tickdata.read(dataset.bundle)
+        bundle = tickdata.read(tickdata.load_bundle(dataset))
     try:
         payload = build(db, match_map, bundle)
     except Exception:  # a Review must never take an ingest down with it
@@ -2445,7 +2445,7 @@ def states(db: Session, match_map: MatchMap, bundle=None) -> list[tuple[list, bo
         dataset = db.scalar(select(TickDataset).where(TickDataset.match_map_id == match_map.id))
         if dataset is None:
             return []
-        bundle = tickdata.read(dataset.bundle)
+        bundle = tickdata.read(tickdata.load_bundle(dataset))
     inputs = _Inputs(db, match_map, bundle)
     out = []
     for rnd in inputs.rounds:

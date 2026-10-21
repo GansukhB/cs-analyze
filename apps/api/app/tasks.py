@@ -370,7 +370,7 @@ def _reassign_upload_map(job_db, db, job, upload, match, entry: dict) -> dict:
     groups = [[int(p["steamid"]) for p in g] for g in entry["groups"]]
     given = uploads.sides(groups, entry["mine"], upload.my_team_id, match.team2_id)
     with heavy.permit(f"job:{job.public_id}"):
-        bundle, version = stored.bundle, stored.awpy_version
+        bundle, version = tickdata.load_bundle(stored), stored.awpy_version
         parsed = tickdata.parsed_map(bundle, demo.filename, version)
         match_map = analysis_store.ingest_map(db, demo, parsed, bundle=bundle, sides=given)
         db.commit()
@@ -1373,7 +1373,7 @@ def _parse_one_now(job_db, db, job, demo: Demo, scratch: Path | None, totals: di
                 job_db, job, key="parse:stored", stage=STAGE.PARSING,
                 text=f"{map_label} · {mn.ingest_step('stored')} ({mn.mb(stored.size_bytes)})",
             )  # fmt: skip
-            bundle = stored.bundle
+            bundle = tickdata.load_bundle(stored)
             parsed = tickdata.parsed_map(bundle, demo.filename or map_label, stored.awpy_version)
         read_took = time.monotonic() - started
         match_map = analysis_store.ingest_map(
