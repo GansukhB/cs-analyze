@@ -87,6 +87,22 @@ export function Decision({ data, fixture }: { data: DecisionPanel; fixture: Fixt
             ))}
           </>
         )}
+        {data.top_advice && (data.top_advice.levers.length > 0 || data.top_advice.cautions.length > 0) && (
+          <>
+            <p className="dec-h">Бүх map-аас: ашиглах ба анхаарах</p>
+            {[...data.top_advice.levers.map((a) => ({ ...a, tone: 'good' })), ...data.top_advice.cautions.map((a) => ({ ...a, tone: 'warn' }))].map(
+              (a, i) => (
+                <div key={i} className={`dec-move ${a.tone}`}>
+                  <span className="n">{a.tone === 'good' ? '+' : '!'}</span>
+                  <span>
+                    <span className="w">{a.what}</span>
+                    <span className="y">{a.why}</span>
+                  </span>
+                </div>
+              ),
+            )}
+          </>
+        )}
         <p className="dec-foot">{d.confidence}</p>
         <a className="dec-more" href="#detail">
           Дэлгэрэнгүй нотолгоо доор ↓

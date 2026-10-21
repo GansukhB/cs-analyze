@@ -43,6 +43,8 @@ export interface DecisionPanel {
     confidence: string
   }
   h2h_maps: number
+  // GP-2: the strongest Levers and Cautions over every Map of the veto.
+  top_advice?: { levers: { what: string; why: string }[]; cautions: { what: string; why: string }[] }
 }
 
 export interface VerdictPanel {

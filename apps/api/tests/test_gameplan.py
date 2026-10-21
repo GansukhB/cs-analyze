@@ -174,6 +174,9 @@ def test_header_and_every_panel(client, auth, league):
     decision = client.get(f"/gameplan/{a}/vs/{b}/s/decision", headers=auth).json()
     assert decision["cached"] is True
     assert decision["data"]["decision"]["label"]
+    # GP-2: at most three of each over every Map, each a worded action.
+    top = decision["data"]["top_advice"]
+    assert set(top) == {"levers", "cautions"} and all(len(v) <= 3 for v in top.values())
     maps = client.get(f"/gameplan/{a}/vs/{b}/s/maps", headers=auth).json()["data"]
     assert maps["board"][0]["call_label"] and "<svg" in maps["chart"]
 

@@ -75,6 +75,11 @@ def _order(entry: dict) -> tuple:
     return (not entry["pair"], -entry["weight"] * (1.0 if here else ALL_MAPS_RANK))
 
 
+def order(entry: dict) -> tuple:
+    """The rank of a Lever or Caution among others: strongest first."""
+    return _order(entry)
+
+
 def identity(entry: dict) -> tuple:
     """What a line says, whichever Map it is on: its role and the numbers behind it."""
     return (

@@ -272,6 +272,7 @@ def panel(tab: str, report: Mapping, my_team: Team, opponent: Team, *,
         return {
             "decision": decision.build(report, my_team, opponent),
             "h2h_maps": report["sample"]["h2h_maps"],
+            "top_advice": _top_advice(playbook_view.maps(report), my_team, opponent),
         }
 
     if tab in ("verdict", "todo"):
@@ -353,6 +354,32 @@ def panel(tab: str, report: Mapping, my_team: Team, opponent: Team, *,
 # join the action list, after the veto's own lines.
 PLAYED_CALLS = ("pick", "contest")
 VETO_ACTIONS = ("ban", "pick", "no_pick")
+
+
+TOP_ADVICE = 3
+
+
+def _top_advice(maps: list[dict], my_team, opponent) -> dict:
+    """GP-2: the strongest Levers and Cautions over every Map of the veto, each
+    idea once (a line read across all Maps would repeat on every Map)."""
+    found: dict[str, list] = {"levers": [], "cautions": []}
+    for m in maps:
+        built = levers.build(my_team, opponent, m["map"])
+        for column in built["columns"].values():
+            for role in found:
+                found[role] += [(entry, m["label"]) for entry in column[role]]
+    out = {}
+    for role, entries in found.items():
+        said, picked = set(), []
+        for entry, label in sorted(entries, key=lambda e: levers.order(e[0])):
+            if levers.identity(entry) in said:
+                continue
+            said.add(levers.identity(entry))
+            picked.append(mn.advice_action(entry, label, opponent.name))
+            if len(picked) == TOP_ADVICE:
+                break
+        out[role] = picked
+    return out
 
 
 def _todo_actions(raw: list[dict], maps: list[dict], my_team, opponent) -> list[dict]:
