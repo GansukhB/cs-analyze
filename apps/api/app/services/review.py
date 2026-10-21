@@ -1588,7 +1588,10 @@ class _RoundReview:
                     "mistake", "unused_utility", tick, [victim, killer], loss, nades=nades, **facts
                 )
 
-        # Team Mistakes.
+        self.team_mistakes()
+
+    def team_mistakes(self) -> None:
+        """The Round run out of time, and a retake lost for want of a kit."""
         if self.rnd.end_reason == "time_ran_out" and self.plant is None:
             alive = self.alive_at(self.end, inclusive=True)
             ts = [s for s in alive if self.side.get(s) == "t"]
@@ -2018,7 +2021,14 @@ class _RoundReview:
                 spot=found["spot"],
             )
 
-        # A Round two up, or 80% won, and still lost.
+        self.advantage_lost(live)
+        self.defuse_chance()
+        if self.i.sightings:
+            self._saw_no_shot(live)
+            self._saw_first_lost(live)
+
+    def advantage_lost(self, live: list) -> None:
+        """A Round two up, or 80% won, and still lost."""
         for side in ("ct", "t"):
             if self.won(side):
                 continue
@@ -2051,7 +2061,8 @@ class _RoundReview:
                     ],
                 )
 
-        # Time for a defuse, and nobody went.
+    def defuse_chance(self) -> None:
+        """Time for a defuse, and nobody went."""
         if self.rnd.end_reason == "bomb_exploded" and self.plant is not None:
             last_t = self._last_t_death()
             cts = [s for s in self.alive_at(self.end, inclusive=True) if self.side.get(s) == "ct"]
@@ -2078,10 +2089,6 @@ class _RoundReview:
                         need=round(best[0], 1),
                         kit=best[1] in self.kit,
                     )
-
-        if self.i.sightings:
-            self._saw_no_shot(live)
-            self._saw_first_lost(live)
 
     def _spans(self, ticks: np.ndarray) -> list[tuple[int, int]]:
         """Continuous stretches of a Sighting (gaps of up to 0.15 s bridged)."""
@@ -2190,7 +2197,8 @@ class _RoundReview:
         # Flashes: who they blinded, and what came of it.
         pops = self.i.flashes.get(self.n, [])
         blinded: dict[int, list[Blind]] = defaultdict(list)
-        for track in self.tracks.values():
+        # By Steam id, so a stored Review reads the same whichever order the ticks came in.
+        for _sid, track in sorted(self.tracks.items()):
             for b in track.blinds:
                 if b.flash_tick is not None and b.thrower:
                     blinded[b.flash_tick].append(b)

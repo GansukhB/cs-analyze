@@ -90,7 +90,7 @@ def _held(steamid: int, tick: int, held: tuple[str, int] | None) -> str:
 
 
 def _bundle(
-    sightings: bool, held: tuple[str, int] | None = None, with_loadout: bool = True
+    sightings: bool, held: tuple[str, int] | None = None, with_loadout: bool = True, tweak=None
 ) -> bytes:
     kills = pl.DataFrame(
         [
@@ -195,6 +195,8 @@ def _bundle(
             ],  # fmt: skip
             schema_overrides={"steamid": pl.UInt64},
         )
+    if tweak is not None:  # a detector test bends the Round's tables (test_review_detectors)
+        tweak(frames)
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as bundle:
         for name, frame in frames.items():
@@ -228,8 +230,8 @@ def inferno(db):
     return {"map": match_map, "match": match}
 
 
-def _review(db, inferno, sightings=False, held=None, loadout=True) -> dict:
-    tickdata.store(db, inferno["map"], _bundle(sightings, held, loadout))
+def _review(db, inferno, sightings=False, held=None, loadout=True, tweak=None) -> dict:
+    tickdata.store(db, inferno["map"], _bundle(sightings, held, loadout, tweak))
     db.commit()
     return review.ensure(db, inferno["map"])
 

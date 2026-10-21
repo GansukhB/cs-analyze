@@ -21,7 +21,8 @@ def bent(monkeypatch):
 
 def test_the_round_as_built_has_none_of_them(db, inferno):  # noqa: F811
     codes = _codes(_review(db, inferno))
-    assert not {"team_flash", "team_flashed_death", "saw_first_lost"} & set(codes)
+    assert not {"team_flash", "team_flashed_death", "saw_first_lost", "unfinished",
+                "blind_unpunished"} & set(codes)  # fmt: skip
 
 
 def test_a_long_team_flash_is_a_finding(db, inferno, bent):  # noqa: F811
@@ -138,3 +139,96 @@ def test_leaving_the_site_the_ts_then_hit_is_an_early_rotate(leaves, early):
     assert bool(found) == early
     if early:
         assert found[0]["sids"] == ["c1"] and found[0]["facts"]["lead"] == 15.0
+
+
+def _late_round(*, reason, kit=False, plant=500):
+    """Two Ts against one CT; the Ts die 10 and 32 s after a plant at 50 s, the
+    bomb goes off at 90 s, and the CT stands 230 units (one second) from it."""
+    tracks = {
+        "c1": _walk((0, 230, 0), side="ct"),
+        "t1": _walk((0, 0, 100), side="t"),
+        "t2": _walk((0, 0, -100), side="t"),
+    }
+    r = _bare_round(tracks, {"c1": "ct", "t1": "t", "t2": "t"},
+                    won="t" if reason == "bomb_exploded" else "ct", plant=plant)  # fmt: skip
+    r.rnd.end_reason, r.end = reason, 900
+    r.kit, r.bomb_pos = ({"c1"} if kit else set()), (0.0, 0.0, 0.0)
+    r.kills = [
+        {"victim": "t1", "tick": 600, "credits": {"t1": -0.2}},
+        {"victim": "t2", "tick": 820, "credits": {"t2": -0.3}},
+    ]
+    return r
+
+
+def test_the_ts_running_out_of_time_alive_is_the_teams_mistake():
+    r = _late_round(reason="time_ran_out", plant=None)
+    r.kills = []
+    r.team_mistakes()
+    (f,) = [f for f in r.findings if f["code"] == "time_out"]
+    assert sorted(f["sids"]) == ["t1", "t2"] and f["facts"] == {"side": "t", "ts": 2, "cts": 1}
+    done = _late_round(reason="t_killed", plant=None)
+    done.team_mistakes()
+    assert not done.findings
+
+
+@pytest.mark.parametrize("kit", [False, True])
+def test_eight_seconds_left_is_a_kit_short_or_a_defuse_missed(kit):
+    """8 s left and one to walk: with a kit the defuse fitted and nobody went;
+    without one it never could, and the kit was the Mistake."""
+    r = _late_round(reason="bomb_exploded", kit=kit)
+    r.team_mistakes()
+    r.defuse_chance()
+    codes = {f["code"]: f for f in r.findings}
+    assert ("kitless" in codes) is not kit and ("defuse_chance" in codes) is kit
+    if kit:
+        assert codes["defuse_chance"]["facts"] == {"left": 8.0, "need": 6.0, "kit": True}
+    else:
+        assert codes["kitless"]["facts"]["left"] == 8.0 and codes["kitless"]["sids"] == ["c1"]
+
+
+@pytest.mark.parametrize(("peak", "found"), [(0.9, True), (0.7, False)])
+def test_a_round_won_on_paper_and_lost_is_an_advantage_lost(peak, found):
+    """The Ts reach their peak 30 s in, then both die and the CT wins."""
+    r = _late_round(reason="t_killed", plant=None)
+    r.wp = [(0.0, 0.5), (30.0, 1 - peak), (60.0, 0.9)]
+    r.advantage_lost(r.kills)
+    lost = [f for f in r.findings if f["code"] == "advantage_lost"]
+    assert bool(lost) == found
+    if found:
+        assert lost[0]["sids"] == ["t1", "t2"] and lost[0]["swing"] == -0.9
+        assert lost[0]["facts"]["men"] == [2, 1] and lost[0]["side"] == "t"
+
+
+def test_an_enemy_hurt_and_left_alive_who_then_kills_is_unfinished(db, inferno):  # noqa: F811
+    """a1 puts 60 into b2 at 1600 and leaves him on 40; b2 kills a1 at 1700."""
+    import polars as pl
+
+    def hurt(frames):
+        row = {"tick": 1600, "attacker_steamid": 11, "victim_steamid": 22, "attacker_side": "ct",
+               "victim_side": "t", "weapon": "m4a1", "dmg_health_real": 60, "health": 40,
+               "round_num": 1}  # fmt: skip
+        frames["damages"] = pl.concat(
+            [frames["damages"], pl.DataFrame([row], schema=frames["damages"].schema)]
+        )
+
+    f = _codes(_review(db, inferno, tweak=hurt))["unfinished"][0]
+    assert f["sids"] == ["11", "22"] and f["facts"]["dealt"] == 60 and f["facts"]["hp"] == 40
+    assert f["facts"]["victims"] == ["11"] and f["swing"] < 0
+
+
+def test_a_blinded_enemy_left_alive_is_a_flash_unpunished(db, inferno, bent):  # noqa: F811
+    """b1's flash holds a1 2.5 s; with his death moved past it, nobody punished it."""
+    import polars as pl
+
+    def later(frames):
+        frames["kills"] = frames["kills"].with_columns(
+            pl.when(pl.col("victim_steamid") == 11)
+            .then(1900)
+            .otherwise(pl.col("tick"))
+            .alias("tick")
+        )
+
+    bent(DIES=(11, 1900))
+    f = _codes(_review(db, inferno, tweak=later))["blind_unpunished"][0]
+    assert f["sids"][1] == "11" and f["facts"]["thrower"] == "21"
+    assert f["facts"]["enemies"] == [{"sid": "11", "seconds": 2.5}]
