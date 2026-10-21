@@ -10,6 +10,7 @@ python -m app.cli activate-user [username]
 python -m app.cli import-tickdata [folder]   # parquet bundles on disk -> MySQL
 python -m app.cli rebuild-tickdata           # Replays, walks, geometry from the stored bundles
 python -m app.cli fit-winprob                # refit the Review's Win probability model
+python -m app.cli assistant-eval [--yes]     # ask and score the Assistant's golden set
 python -m app.cli rebuild-reviews [--map ID] # cut every Match Map's Review again
 python -m app.cli summary-thresholds         # the Patterns' 75th percentiles, measured again
 python -m app.cli import-vrs [checkout]       # Valve Regional Standings -> series results
@@ -255,6 +256,40 @@ def fit_winprob(since: str | None = None, dry_run: bool = False) -> None:
     print(f"Wrote {winprob.MODEL_PATH} (version {spec['version']}).")
 
 
+def assistant_eval(limit: int | None = None, yes: bool = False) -> None:
+    """Ask the Assistant its golden set and score it (AS-4). Every question is a
+    paid turn: without ``yes`` this only says what it would cost."""
+    import json
+    from datetime import UTC, datetime
+
+    from app.config import get_settings
+    from app.services import assistant, assistant_eval
+
+    items = assistant_eval.questions()[:limit] if limit else assistant_eval.questions()
+    guess = len(items) * assistant_eval.COST_GUESS_USD
+    if not assistant.is_configured():
+        raise SystemExit("CLAUDE_API_KEY is not set.")
+    if not yes:
+        print(f"{len(items)} questions on {get_settings().claude_model}, about ${guess:.2f}.")
+        print("Run again with --yes to ask them.")
+        return
+    results = []
+    with SessionLocal() as db:
+        for i, item in enumerate(items, 1):
+            result = assistant_eval.ask(db, item)
+            results.append(result)
+            mark = "skip" if "skipped" in result else ("ok " if result["tool_ok"] else "TOOL")
+            loose = ", ".join(result.get("unchecked", []))
+            print(f"{i:>2} {mark} {item['q'][:60]}" + (f"  [check: {loose}]" if loose else ""))
+    total = assistant_eval.summary(results)
+    stamp = f"{datetime.now(UTC):%Y%m%d-%H%M}"
+    out = Path(get_settings().hltv_data_dir) / "tmp" / f"assistant-eval-{stamp}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({"summary": total, "results": results}, ensure_ascii=False, indent=1))
+    print(json.dumps(total))
+    print(f"Answers for reading: {out}")
+
+
 def rebuild_reviews(match_map_id: int | None = None) -> None:
     """Cut the Review of every Match Map with Tick Data again (or of one)."""
     from app.services import review
@@ -388,6 +423,9 @@ def main() -> None:
     fit.add_argument("--since", help="Only Match Maps played on or after this day (YYYY-MM-DD).")
     fit.add_argument("--dry-run", action="store_true", help="Print the metrics, write nothing.")
     sub.add_parser("forecast-backtest")
+    ev = sub.add_parser("assistant-eval")
+    ev.add_argument("--limit", type=int, help="Only the first N questions.")
+    ev.add_argument("--yes", action="store_true", help="Ask them (each is a paid turn).")
     sub.add_parser("rebuild-reviews").add_argument("--map", type=int, help="One Match Map id.")
     sub.add_parser("summary-thresholds")
     cstat = sub.add_parser("import-cstat")
@@ -422,6 +460,9 @@ def main() -> None:
         return
     if args.command == "forecast-backtest":
         forecast_backtest()
+        return
+    if args.command == "assistant-eval":
+        assistant_eval(args.limit, args.yes)
         return
     if args.command == "fit-winprob":
         fit_winprob(args.since, args.dry_run)

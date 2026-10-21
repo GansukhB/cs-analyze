@@ -12,6 +12,7 @@ export type ChatEvent =
   | { type: 'status'; text: string }
   | { type: 'paragraph'; id: number; text: string }
   | { type: 'audio'; id: number; audio: string }
+  | { type: 'check'; id: number; numbers: string[] }
   | { type: 'error'; text: string }
   | { type: 'done' }
 

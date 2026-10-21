@@ -8248,7 +8248,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Server-Sent Events: `status`, `paragraph` (`id`, `text`), `audio` (`id`, base64 MP3), `error`, then `done`. */
+            /** @description Server-Sent Events: `status`, `paragraph` (`id`, `text`), `audio` (`id`, base64 MP3), `check` (`id`, the numbers no tool returned), `error`, then `done`. */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -463,3 +463,49 @@ def test_a_player_a_scout_and_the_picker_are_pages_too(db, league):  # noqa: F81
     assert f"team_id {a.id} versus {b.id}" in done and "gameplan_section" in done
     assert assistant.clean_context(db, {"job": "not-a-uuid"}).note() == ""
     assert "Game Plan picker" in assistant.clean_context(db, {"picker": True}).note()
+
+
+def test_numbers_no_tool_returned_are_marked(db, league, configured, monkeypatch):  # noqa: F811
+    """AS-4: a rating tool's numbers pass; one it never said comes back to check."""
+    a = league["a"]
+    fake = FakeClaude(
+        [
+            _tool("rating", {"team_id": a.id}),
+            _text("Alpha [R3] дээр 7 раунд, 1:40 агшинд.\n\nХоёр дахь хэсэгт тоо алга."),
+        ]
+    )
+    monkeypatch.setattr(assistant, "_client", lambda: fake)
+    usage = assistant.Usage()
+    ctx = assistant.clean_context(db, {"team": a.id})
+    events = list(assistant.chat_events(db, [], "Alpha ямар вэ?", context=ctx,
+                                        voice_on=False, usage=usage))  # fmt: skip
+    checks = [e for e in events if e["type"] == "check"]
+    assert usage.tools == ["rating"]
+    # 7 and 100 seconds came from no tool; [R3] is a token, not a number said.
+    assert checks == [{"type": "check", "id": 0, "numbers": ["1:40", "7"]}]
+    assert usage.unchecked == ["1:40", "7"]
+
+
+def test_grounding_matches_rounded_shares_and_moments():
+    from app.services import grounding as g
+
+    src = g.source_numbers('{"win": 0.549, "rounds": 37, "t": 83.4, "adr": 81.27, "chance": 0.62}')
+    said = "55 хувь, 54.9 хувь; 37 раунд, 1:23 агшинд, ADR 81.3, 60 хувь, 2 map, 5star, 13–6."
+    assert g.ungrounded(said, src) == ["13", "6"]
+    assert g.ungrounded("Loss bonus 1,400", g.source_numbers("1400")) == []
+    assert g.ungrounded("[4021.2:R14 1:23 @76561198000000001]", set()) == []
+
+
+def test_the_golden_set_resolves_its_pages(db, league):  # noqa: F811
+    from app.services import assistant_eval
+
+    assert len(assistant_eval.questions()) == 40
+    a, b = league["a"], league["b"]
+    assert assistant_eval.resolve(db, {}) == {}
+    assert assistant_eval.resolve(db, {"mine": "alpha", "theirs": "Bravo"}) == {
+        "mine": a.id, "theirs": b.id,
+    }  # fmt: skip
+    assert assistant_eval.resolve(db, {"team": "Nobody"}) is None
+    found = assistant_eval.resolve(db, {"match": ["Alpha", "Bravo"], "map": 1})
+    assert found["map"] == 1 and found["match"]
+    assert assistant_eval.resolve(db, {"picker": True}) == {"picker": True}

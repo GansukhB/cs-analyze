@@ -1,0 +1,50 @@
+{
+ "note": "AS-4's golden set: coach questions in Mongolian, each with the page it is asked on and the tools a right answer calls (any of them). Teams and players are named, resolved to ids on the local DB when the eval runs (npm run assistant:eval). Facts are not listed: the numbers change with every parse, so the eval checks them against the turn's own tool output.",
+ "questions": [
+  {"q": "Ямар багуудын өгөгдөл байна?", "page": {}, "tools": ["list_teams"]},
+  {"q": "The MongolZ-ийн map pool ямар вэ?", "page": {}, "tools": ["team_overview", "map_strategy"]},
+  {"q": "Vitality Mirage дээр T талдаа юу хийдэг вэ?", "page": {}, "tools": ["map_strategy"]},
+  {"q": "5star-ийн AWPer хэн бэ, ямар үүрэгтэй вэ?", "page": {}, "tools": ["role_report", "team_overview"]},
+  {"q": "Falcons-ийн хамгийн сүүлийн тоглолтууд аль нь вэ?", "page": {}, "tools": ["team_matches"]},
+  {"q": "The Huns-ийн Rating хэд вэ, хэдэн цуврал дээр суурилсан бэ?", "page": {}, "tools": ["rating"]},
+  {"q": "NEXVOID ямар map-ыг ban хийдэг вэ?", "page": {}, "tools": ["team_overview", "map_strategy"]},
+  {"q": "controlez сүүлийн үед ямар form-той байна?", "page": {}, "tools": ["player_form"]},
+
+  {"q": "Энэ багийн хамгийн хүчтэй map аль нь вэ?", "page": {"team": "The MongolZ"}, "tools": ["team_overview", "map_strategy"]},
+  {"q": "Хэн ямар үүрэгтэй тоглодог вэ?", "page": {"team": "The MongolZ"}, "tools": ["role_report"]},
+  {"q": "Энэ багийн CT талын сул тал юу вэ?", "page": {"team": "Vitality"}, "tools": ["map_strategy", "team_overview", "scouting_report"]},
+  {"q": "Pistol раунд дээр ямар байдаг вэ?", "page": {"team": "5star"}, "tools": ["map_strategy", "team_overview"]},
+  {"q": "Сүүлийн 3 тоглолтоо хэрхэн тоглосон бэ?", "page": {"team": "Alter Ego"}, "tools": ["team_matches", "match_summary"]},
+  {"q": "Энэ багийн Rating ба form ямар байна?", "page": {"team": "Falcons"}, "tools": ["rating", "team_overview"]},
+  {"q": "Inferno дээр T талдаа аль site руу их ордог вэ?", "page": {"team": "The MongolZ"}, "tools": ["map_strategy"]},
+  {"q": "Хамгийн сул тоглогч нь хэн бэ?", "page": {"team": "NEXVOID"}, "tools": ["role_report", "team_overview"]},
+
+  {"q": "Ямар map сонгож, алийг нь ban хийх вэ?", "page": {"mine": "The Huns", "theirs": "The MongolZ"}, "tools": ["gameplan_section"]},
+  {"q": "Тэдний хамгийн аюултай тоглогч хэн бэ?", "page": {"mine": "The Huns", "theirs": "The MongolZ"}, "tools": ["gameplan_section", "scouting_report"]},
+  {"q": "Бидний T талын төлөвлөгөө Mirage дээр ямар байх вэ?", "page": {"mine": "The Huns", "theirs": "The MongolZ"}, "tools": ["gameplan_section"]},
+  {"q": "Тэднийг юугаар нь ашиглаж болох вэ?", "page": {"mine": "The Huns", "theirs": "5star"}, "tools": ["gameplan_section"]},
+  {"q": "Хожих магадлал хэд вэ?", "page": {"mine": "The Huns", "theirs": "5star"}, "tools": ["forecast"]},
+  {"q": "Хоорондын тоглолтуудад юу болсон бэ?", "page": {"mine": "The Huns", "theirs": "5star"}, "tools": ["gameplan_section", "scouting_report"]},
+  {"q": "Тэдний pistol раундын хэв маяг ямар вэ?", "page": {"mine": "The Huns", "theirs": "NEXVOID"}, "tools": ["gameplan_section", "map_strategy"]},
+  {"q": "Ямар анхааруулга байна, юунаас болгоомжлох вэ?", "page": {"mine": "The Huns", "theirs": "NEXVOID"}, "tools": ["gameplan_section"]},
+  {"q": "Тэдний AWPer-ийн эсрэг юу хийх вэ?", "page": {"mine": "The Huns", "theirs": "Vitality"}, "tools": ["gameplan_section", "role_report", "scouting_report"]},
+  {"q": "Bo3-д бидний боломж хэд вэ?", "page": {"mine": "The Huns", "theirs": "Vitality"}, "tools": ["forecast"]},
+
+  {"q": "Энэ map-ийг юунаас болж алдсан бэ?", "page": {"match": ["The Huns", "5star"], "map": 1}, "tools": ["match_review", "match_summary"]},
+  {"q": "Хэн хамгийн их алдаа гаргасан бэ?", "page": {"match": ["The Huns", "5star"], "map": 1}, "tools": ["match_review"]},
+  {"q": "Аль раунд тоглолтын эргэлт болсон бэ?", "page": {"match": ["The Huns", "5star"], "map": 1}, "tools": ["match_review"]},
+  {"q": "Энэ раундад юу буруу болсон бэ?", "page": {"match": ["The Huns", "5star"], "map": 1, "round": 5}, "tools": ["match_review"]},
+  {"q": "Тоглолтын тойм хэл.", "page": {"match": ["The Huns", "NEXVOID"]}, "tools": ["match_summary"]},
+  {"q": "Бидний trade хийх нь ямар байсан бэ?", "page": {"match": ["The Huns", "NEXVOID"], "map": 1}, "tools": ["match_review", "match_summary"]},
+  {"q": "Utility-гаа хэр сайн ашигласан бэ?", "page": {"match": ["The Huns", "Space"], "map": 1}, "tools": ["match_review"]},
+  {"q": "Eco раундуудаа хэрхэн тоглосон бэ?", "page": {"match": ["The Huns", "Space"], "map": 1}, "tools": ["match_review", "match_summary"]},
+
+  {"q": "Энэ тоглогчийн хүчтэй, сул тал юу вэ?", "page": {"player": "controlez"}, "tools": ["player_form"]},
+  {"q": "Аль map дээр хамгийн сайн тоглодог вэ?", "page": {"player": "controlez"}, "tools": ["player_form"]},
+  {"q": "Opening duel-үүд нь ямар вэ?", "page": {"player": "LaN"}, "tools": ["player_form"]},
+  {"q": "Хамгийн их ямар алдаа гаргадаг вэ?", "page": {"player": "LaN"}, "tools": ["player_form"]},
+
+  {"q": "Манай одоогийн тав хэн бэ?", "page": {"picker": true}, "tools": ["team_overview", "role_report", "list_teams"]},
+  {"q": "The MongolZ-ийн одоогийн бүрэлдэхүүн хэн бэ?", "page": {"picker": true}, "tools": ["team_overview", "role_report"]}
+ ]
+}

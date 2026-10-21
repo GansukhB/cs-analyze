@@ -50,6 +50,7 @@ from app.services import (
     dbctx,
     decision,
     forecast,
+    grounding,
     jobs,
     lineup,
     mapstrategy,
@@ -90,6 +91,9 @@ class Usage:
     cache_write_tokens: int = 0
     tool_rounds: int = 0
     tts_chars: int = 0
+    # Not stored: the tools called, and the numbers no tool gave (AS-4's eval).
+    tools: list = field(default_factory=list)
+    unchecked: list = field(default_factory=list)
 
     def add(self, usage) -> None:
         if usage is None:
@@ -1462,6 +1466,8 @@ def chat_events(
       the answer, the moment a blank line closes it.
     - ``{"type": "audio", "id": n, "audio": <base64 MP3>}`` -- paragraph ``n``
       spoken, in paragraph order, when voiced and the voice could be made.
+    - ``{"type": "check", "id": n, "numbers": [...]}`` -- numbers in paragraph ``n``
+      that no tool returned (AS-4), for the page to mark.
     - ``{"type": "done"}`` -- the turn is over.
     """
     if not is_configured():
@@ -1506,12 +1512,18 @@ def _turn(
         {"role": "user", "content": message + _language_reminder(message)},
     ]
     count = 0
+    # AS-4: what the turn's numbers may come from: the question, the page, the tools.
+    sources = grounding.source_numbers(message + note)
 
-    def speak(text: str) -> dict:
+    def speak(text: str) -> Iterator[dict]:
         nonlocal count
         voices.submit(count, text)
         count += 1
-        return {"type": "paragraph", "id": count - 1, "text": text}
+        yield {"type": "paragraph", "id": count - 1, "text": text}
+        loose = grounding.ungrounded(text, sources)
+        if loose:
+            usage.unchecked += loose
+            yield {"type": "check", "id": count - 1, "numbers": loose}
 
     for _ in range(MAX_TOOL_ROUNDS):
         buf = ""
@@ -1532,15 +1544,15 @@ def _turn(
                 while "\n\n" in buf:
                     para, buf = buf.split("\n\n", 1)
                     if para.strip():
-                        yield speak(para.strip())
+                        yield from speak(para.strip())
                 yield from voices.ready()
             final = stream.get_final_message()
         usage.add(getattr(final, "usage", None))
         if buf.strip():
-            yield speak(buf.strip())
+            yield from speak(buf.strip())
 
         if final.stop_reason == "refusal":
-            yield speak(mn.ASSISTANT_REFUSED)
+            yield from speak(mn.ASSISTANT_REFUSED)
             return
         messages.append({"role": "assistant", "content": final.content})
         if final.stop_reason != "tool_use":
@@ -1551,18 +1563,15 @@ def _turn(
             if block.type != "tool_use":
                 continue
             yield {"type": "status", "text": _tool_status(session, block.name, block.input)}
-            results.append(
-                {
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": _execute_tool(session, ctx, block.name, dict(block.input)),
-                }
-            )
+            usage.tools.append(block.name)
+            content = _execute_tool(session, ctx, block.name, dict(block.input))
+            sources |= grounding.source_numbers(content)
+            results.append({"type": "tool_result", "tool_use_id": block.id, "content": content})
             yield from voices.ready()
         messages.append({"role": "user", "content": results})
     else:
-        yield speak(mn.ASSISTANT_TOO_MANY_LOOKUPS)
+        yield from speak(mn.ASSISTANT_TOO_MANY_LOOKUPS)
         return
 
     if not count:
-        yield speak(mn.ASSISTANT_NOTHING)
+        yield from speak(mn.ASSISTANT_NOTHING)

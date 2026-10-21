@@ -123,7 +123,8 @@ def _frames(db: Session, body: AssistantChat, context, user: User, voice_on: boo
     responses={
         200: {
             "description": "Server-Sent Events: `status`, `paragraph` (`id`, `text`), `audio` "
-            "(`id`, base64 MP3), `error`, then `done`.",
+            "(`id`, base64 MP3), `check` (`id`, the numbers no tool returned), `error`, "
+            "then `done`.",
             "content": {"text/event-stream": {}},
         }
     },

@@ -18,6 +18,8 @@ import './assistant.css'
 interface Para {
   text: string
   audio?: string
+  /** Numbers in it no tool returned (AS-4): the page marks them to check. */
+  check?: string[]
 }
 
 interface Turn {
@@ -222,12 +224,19 @@ export default function Assistant() {
             const url = audioUrl(event.audio)
             patch(reply.id, (t) => {
               const paras = [...t.paras]
-              paras[event.id] = { text: paras[event.id]?.text ?? '', audio: url }
+              paras[event.id] = { ...paras[event.id], text: paras[event.id]?.text ?? '', audio: url }
               return { ...t, paras }
             })
             if (voiceRef.current) speaker.enqueue(`${reply.id}:${event.id}`, url)
             break
           }
+          case 'check':
+            patch(reply.id, (t) => {
+              const paras = [...t.paras]
+              paras[event.id] = { ...paras[event.id], text: paras[event.id]?.text ?? '', check: event.numbers }
+              return { ...t, paras }
+            })
+            break
           case 'error':
             patch(reply.id, (t) => ({ ...t, error: event.text }))
             break
@@ -563,6 +572,11 @@ function Reply({ turn, speaker, onRetry }: { turn: Turn; speaker: SpeakerApi; on
                   <p className="pr-7 text-sm leading-relaxed whitespace-pre-wrap text-ink">
                     <WithRefs text={p.text} at={turn.at} />
                   </p>
+                  {p.check && p.check.length > 0 && (
+                    <p className="text-xs text-warn" title="Энэ тоо tool-ийн гаралтад олдсонгүй: дэлгэц дээрх тоотой тулгаж шалгаарай">
+                      шалгах: {p.check.join(', ')}
+                    </p>
+                  )}
                   {p.audio && (
                     <button
                       onClick={() => (speaking ? speaker.stop() : speaker.play(key, p.audio!))}
