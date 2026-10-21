@@ -40,6 +40,8 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
     staleTime: 5 * 60_000,
     retry: false,
     enabled: !!detail.data?.parsed,
+    // OPS-8: an older cut is shown while the worker rebuilds it; look again soon.
+    refetchInterval: (q) => (q.state.data?.stale ? 30_000 : false),
   })
   const [search] = useSearchParams()
   const startRound = Number(search.get('round')) || undefined
@@ -151,6 +153,12 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
             <MapSummary review={review} team={filters.team} side={filters.side} onGoto={goto} />
           ) : (
             <p className="text-sm text-ink-3">Тойм бэлтгэж байна…</p>
+          )}
+          {review?.stale && (
+            <p className="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink-2">
+              <span className="mr-1 text-ct">↻</span>
+              Review шинэчлэгдэж байна: model шинэчлэгдсэн тул өмнөх хувилбарыг харуулж байна, бэлэн болмогц солигдоно.
+            </p>
           )}
           {review?.missing && (
             <p className="rounded-lg border border-warn/40 bg-surface px-3 py-2 text-sm text-ink-2">

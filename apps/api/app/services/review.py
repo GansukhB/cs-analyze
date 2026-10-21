@@ -264,12 +264,24 @@ def current(row: MatchMapReview | None, match_map: MatchMap) -> bool:
 
 
 # ---------------------------------------------------------------- storage ---
-def ensure(db: Session, match_map: MatchMap) -> dict | None:
+def ensure(db: Session, match_map: MatchMap, stale_ok: bool = False) -> dict | None:
     """This Match Map's Review, rebuilt first if it is missing or stale; None
-    without Tick Data."""
+    without Tick Data.
+
+    ``stale_ok`` (a page, OPS-8): a stored Review whose detectors are this code's
+    and only its model or Spots moved is served as it is, marked ``stale``, and
+    the worker is asked to rebuild it, rather than holding the page for seconds.
+    One cut by other detectors may not have the fields the page reads: rebuilt here.
+    """
     row = db.scalar(select(MatchMapReview).where(MatchMapReview.match_map_id == match_map.id))
     if current(row, match_map):
         return json.loads(gzip.decompress(row.payload))
+    if stale_ok and row is not None and row.version.split(".")[0] == str(REVIEW_SCHEMA):
+        from app.services import dbctx, review_pool
+
+        with dbctx.using(db):
+            review_pool.request_refresh()
+        return {**json.loads(gzip.decompress(row.payload)), "stale": True}
     built = rebuild(db, match_map)
     if built is not None:
         db.commit()

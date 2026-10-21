@@ -559,3 +559,30 @@ def test_editing_one_maps_spots_rebuilds_that_maps_reviews_only(db, inferno, mon
     assert not review.current(row, inferno["map"])
     review.ensure(db, inferno["map"])
     assert db.scalar(select(MatchMapReview)).spots_version == "edited"
+
+
+def test_a_page_gets_a_model_stale_review_while_the_worker_rebuilds_it(
+    client, auth, db, inferno, monkeypatch
+):
+    """OPS-8: only the model moved, so the stored cut is served, marked, and a
+    refresh asked for; one cut by other detectors is rebuilt on the spot."""
+    from app.services import review_pool
+
+    asked = []
+    monkeypatch.setattr(review_pool, "request_refresh", lambda **kw: asked.append(1) or True)
+    _review(db, inferno)
+    row = db.scalar(select(MatchMapReview))
+    row.version = f"{review.REVIEW_SCHEMA}.older-model"
+    db.commit()
+    url = f"/matches/{inferno['match'].id}/maps/1/review"
+    body = client.get(url, headers=auth).json()
+    assert body["stale"] is True
+    assert asked and db.scalar(select(MatchMapReview)).version.endswith("older-model")
+    row = db.scalar(select(MatchMapReview))
+    row.version = f"{review.REVIEW_SCHEMA - 1}.older-model"
+    db.commit()
+    body = client.get(url, headers=auth).json()
+    assert body["stale"] is False and len(asked) == 1
+    assert db.scalar(select(MatchMapReview)).version == review.version()
+    res = client.get("/health")
+    assert res.headers["server-timing"].startswith("app;dur=")

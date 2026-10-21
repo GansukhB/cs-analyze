@@ -88,7 +88,7 @@ def build(db, match: Match, team_id: int) -> dict:
     players = []
     mistakes: dict[str, Counter] = {}
     for mm in sorted(match.map_results, key=lambda m: m.map_number):
-        stored = review.ensure(db, mm) if mm.is_parsed else None
+        stored = review.ensure(db, mm, stale_ok=True) if mm.is_parsed else None
         if not stored:
             continue
         side_of = {}

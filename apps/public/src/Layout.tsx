@@ -1,9 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { Suspense } from 'react'
 import { NavLink, Outlet, useMatch } from 'react-router'
 import Assistant from './assistant/Assistant'
 import { tokenStore } from './auth/token'
 import { useMe } from './auth/useMe'
 import SystemFooter from './system/SystemFooter'
+import { PageSkeleton } from './ui/Skeleton'
 
 const link = ({ isActive }: { isActive: boolean }) =>
   isActive ? 'text-ink' : 'text-ink-3 hover:text-ink'
@@ -100,7 +102,9 @@ export default function Layout() {
         </div>
       </header>
       <main className={`mx-auto w-full ${width} flex-1 px-4 py-8`}>
-        <Outlet />
+        <Suspense fallback={<PageSkeleton />}>
+          <Outlet />
+        </Suspense>
       </main>
       <div className="print:hidden">
         {staff && <SystemFooter width={width} />}

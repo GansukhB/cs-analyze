@@ -11571,6 +11571,11 @@
             "type": "string",
             "title": "Version"
           },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "default": false
+          },
           "sightings": {
             "type": "boolean",
             "title": "Sightings"

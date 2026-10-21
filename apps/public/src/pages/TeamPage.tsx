@@ -7,6 +7,8 @@ import AfterContactSection from '../team/AfterContact'
 import type { components } from '../api/schema'
 import Count from '../components/Count'
 import { day, PILL } from '../jobs/format'
+import { LoadError } from '../ui/LoadError'
+import { PageSkeleton } from '../ui/Skeleton'
 
 type TeamResult = components['schemas']['TeamResult']
 
@@ -19,8 +21,8 @@ const OUTCOME: Record<string, string> = {
 export default function TeamPage() {
   const { teamId = '' } = useParams()
   const team = $api.useQuery('get', '/teams/{team_id}', { params: { path: { team_id: Number(teamId) } } })
-  if (team.error) return <p className="text-crit">Баг олдсонгүй.</p>
-  if (!team.data) return <p className="text-ink-3">Уншиж байна…</p>
+  if (team.error) return <LoadError error={team.error} what="Баг" retry={() => void team.refetch()} />
+  if (!team.data) return <PageSkeleton />
   const { team: info, record, results, n_parsed_maps, map_record, players, plannable = [], strength, map_pool } =
     team.data
   const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`

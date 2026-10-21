@@ -13,6 +13,8 @@ import {
 } from '../jobs/format'
 import StatusPill from '../jobs/StatusPill'
 import { useJobLive } from '../jobs/useJobLive'
+import { LoadError } from '../ui/LoadError'
+import { PageSkeleton } from '../ui/Skeleton'
 
 // Log lines sit on a dark background.
 const LEVEL: Record<string, string> = {
@@ -43,8 +45,8 @@ export default function JobPage() {
   const { detail, status, events, conn, error } = useJobLive(publicId)
   const cancel = $api.useMutation('post', '/jobs/{public_id}/cancel')
 
-  if (error) return <p className="text-crit">Job олдсонгүй.</p>
-  if (!detail || !status) return <p className="text-ink-3">Уншиж байна…</p>
+  if (error) return <LoadError error={error} what="Job" />
+  if (!detail || !status) return <PageSkeleton />
   const { job, words } = detail
 
   return (

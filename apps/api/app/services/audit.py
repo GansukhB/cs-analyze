@@ -38,7 +38,7 @@ def _break_before(number: int) -> bool:
 
 def _starts(match_map: MatchMap) -> dict[int, float]:
     """Round number -> CT's Win probability as it went live, from the stored Review."""
-    stored = review.ensure(db(), match_map) if match_map.is_parsed else None
+    stored = review.ensure(db(), match_map, stale_ok=True) if match_map.is_parsed else None
     out = {}
     for r in (stored or {}).get("rounds") or []:
         if r.get("wp"):

@@ -27,6 +27,7 @@ from app.routers import (
     uploads,
     workspace,
 )
+from app.timing import ServerTiming
 
 _docs = get_settings().api_docs
 app = FastAPI(
@@ -37,11 +38,13 @@ app = FastAPI(
     openapi_url="/openapi.json" if _docs else None,
 )
 
+app.add_middleware(ServerTiming, origins=get_settings().cors_origins)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
+    expose_headers=["Server-Timing"],
 )
 
 app.include_router(auth.router)

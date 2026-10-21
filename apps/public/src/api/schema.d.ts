@@ -3952,6 +3952,11 @@ export interface components {
         Review: {
             /** Version */
             version: string;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
             /** Sightings */
             sightings: boolean;
             /**

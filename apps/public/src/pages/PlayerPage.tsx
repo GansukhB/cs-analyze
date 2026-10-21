@@ -6,6 +6,8 @@ import DevelopmentPlan from '../development/Plan'
 import type { components } from '../api/schema'
 import { day } from '../jobs/format'
 import { swingRateText } from '../review/format'
+import { LoadError } from '../ui/LoadError'
+import { PageSkeleton } from '../ui/Skeleton'
 
 type Page = components['schemas']['PlayerPage']
 type FormRow = components['schemas']['PlayerFormRow']
@@ -29,8 +31,8 @@ export default function PlayerPage() {
   const { steamid = '' } = useParams()
   const page = $api.useQuery('get', '/players/{steamid}', { params: { path: { steamid } } })
   const staff = useMe().data?.role === 'staff'
-  if (page.isPending) return <p className="text-ink-3">Уншиж байна…</p>
-  if (page.error || !page.data) return <p className="text-ink-3">Тоглогч олдсонгүй.</p>
+  if (page.isPending) return <PageSkeleton />
+  if (page.error || !page.data) return <LoadError error={page.error} what="Тоглогч" retry={() => void page.refetch()} />
   const p = page.data
   return (
     <div className="space-y-8">

@@ -22,6 +22,7 @@ import {
 } from '../gameplan/panels'
 import type * as T from '../gameplan/types'
 import { useElapsed } from '../gameplan/useElapsed'
+import { LoadError } from '../ui/LoadError'
 
 type Panel = components['schemas']['GameplanPanel']
 type Tab = components['schemas']['GameplanTab']
@@ -119,7 +120,7 @@ export default function GameplanPage() {
         </Link>
       </p>
     )
-  if (header.error) return <p className="text-crit">Баг олдсонгүй.</p>
+  if (header.error) return <LoadError error={header.error} what="Game Plan" retry={() => void header.refetch()} />
   if (!known) return <p className="text-crit">Ийм хэсэг алга: {tab}</p>
 
   const fixture: Fixture | null = header.data

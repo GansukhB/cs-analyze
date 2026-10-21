@@ -1,35 +1,43 @@
+import { lazy } from 'react'
 import { Navigate, Route, Routes, useMatch } from 'react-router'
 import { useToken } from './auth/token'
 import { useMe } from './auth/useMe'
 import Layout from './Layout'
-import AgendaPage from './pages/AgendaPage'
-import BriefingNewPage from './pages/BriefingNewPage'
-import BriefingPage from './pages/BriefingPage'
-import BriefingsPage from './pages/BriefingsPage'
-import ForecastsPage from './pages/ForecastsPage'
-import GameplanPage from './pages/GameplanPage'
-import GameplanPickPage from './pages/GameplanPickPage'
 import HomePage from './pages/HomePage'
 import InvitePage from './pages/InvitePage'
 import JobPage from './pages/JobPage'
 import JobsPage from './pages/JobsPage'
 import LoginPage from './pages/LoginPage'
-import MatchPage from './pages/MatchPage'
-import GhostPage from './pages/GhostPage'
-import LineupsPage from './pages/LineupsPage'
-import MapSheetPage from './pages/MapSheetPage'
 import MePage from './pages/MePage'
-import PlayerPage from './pages/PlayerPage'
-import { PlaylistPage, PlaylistsPage } from './pages/PlaylistsPage'
-import ScrimsPage from './pages/ScrimsPage'
-import SearchPage from './pages/SearchPage'
-import DataPage from './pages/DataPage'
-import { StratbookPage, StratNewPage, StratPage } from './pages/StratbookPage'
-import TeamPage from './pages/TeamPage'
 import TeamsPage from './pages/TeamsPage'
-import UploadsPage from './pages/UploadsPage'
-import VetoLabPage from './pages/VetoLabPage'
-import WorkspacePage from './pages/WorkspacePage'
+
+
+// OPS-8: the heavy pages (the Replay, the Game Plan, the Stratbook...) load when
+// first opened; Layout shows a skeleton meanwhile.
+const AgendaPage = lazy(() => import('./pages/AgendaPage'))
+const BriefingNewPage = lazy(() => import('./pages/BriefingNewPage'))
+const BriefingPage = lazy(() => import('./pages/BriefingPage'))
+const BriefingsPage = lazy(() => import('./pages/BriefingsPage'))
+const ForecastsPage = lazy(() => import('./pages/ForecastsPage'))
+const GameplanPage = lazy(() => import('./pages/GameplanPage'))
+const GameplanPickPage = lazy(() => import('./pages/GameplanPickPage'))
+const MatchPage = lazy(() => import('./pages/MatchPage'))
+const GhostPage = lazy(() => import('./pages/GhostPage'))
+const LineupsPage = lazy(() => import('./pages/LineupsPage'))
+const MapSheetPage = lazy(() => import('./pages/MapSheetPage'))
+const PlayerPage = lazy(() => import('./pages/PlayerPage'))
+const PlaylistPage = lazy(() => import('./pages/PlaylistsPage').then((m) => ({ default: m.PlaylistPage })))
+const PlaylistsPage = lazy(() => import('./pages/PlaylistsPage').then((m) => ({ default: m.PlaylistsPage })))
+const ScrimsPage = lazy(() => import('./pages/ScrimsPage'))
+const SearchPage = lazy(() => import('./pages/SearchPage'))
+const DataPage = lazy(() => import('./pages/DataPage'))
+const StratbookPage = lazy(() => import('./pages/StratbookPage').then((m) => ({ default: m.StratbookPage })))
+const StratNewPage = lazy(() => import('./pages/StratbookPage').then((m) => ({ default: m.StratNewPage })))
+const StratPage = lazy(() => import('./pages/StratbookPage').then((m) => ({ default: m.StratPage })))
+const TeamPage = lazy(() => import('./pages/TeamPage'))
+const UploadsPage = lazy(() => import('./pages/UploadsPage'))
+const VetoLabPage = lazy(() => import('./pages/VetoLabPage'))
+const WorkspacePage = lazy(() => import('./pages/WorkspacePage'))
 
 export default function App() {
   const token = useToken()

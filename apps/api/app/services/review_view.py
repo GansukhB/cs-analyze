@@ -18,7 +18,7 @@ _KIND_ORDER = {"key_play": 0, "mistake": 1, "missed_chance": 2, "utility": 3}
 
 def panel(db: Session, match_map: MatchMap) -> dict | None:
     """The page's Review of ``match_map``, or None when it has no Tick Data."""
-    stored = review.ensure(db, match_map)
+    stored = review.ensure(db, match_map, stale_ok=True)
     if stored is None:
         return None
     names = {p["sid"]: p["name"] for p in stored["players"]}
@@ -93,6 +93,7 @@ def panel(db: Session, match_map: MatchMap) -> dict | None:
         )
     return {
         "version": stored["version"],
+        "stale": bool(stored.get("stale")),
         "sightings": stored["sightings"],
         "missing": missing,
         "teams": [{"id": k, "name": v} for k, v in teams.items()],
@@ -121,7 +122,7 @@ def match_panel(db: Session, match: Match) -> dict:
             "teams": [],
         }
         rows.append(row)
-        stored = review.ensure(db, match_map) if match_map.is_parsed else None
+        stored = review.ensure(db, match_map, stale_ok=True) if match_map.is_parsed else None
         if stored is None:
             continue
         names.update({p["sid"]: p["name"] for p in stored["players"]})

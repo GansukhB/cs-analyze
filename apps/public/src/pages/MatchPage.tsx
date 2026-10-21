@@ -4,6 +4,8 @@ import { useMe } from '../auth/useMe'
 import type { components } from '../api/schema'
 import MapReview from '../review/MapReview'
 import MatchOverview from '../review/MatchOverview'
+import { LoadError } from '../ui/LoadError'
+import { PageSkeleton } from '../ui/Skeleton'
 
 type MatchInfo = components['schemas']['MatchInfo']
 
@@ -17,8 +19,8 @@ export default function MatchPage() {
   const match = $api.useQuery('get', '/matches/{match_id}', { params: { path: { match_id: id } } })
   const staff = useMe().data?.role === 'staff'
 
-  if (match.error) return <p className="text-crit">Тоглолт олдсонгүй.</p>
-  if (!match.data) return <p className="text-ink-3">Уншиж байна…</p>
+  if (match.error) return <LoadError error={match.error} what="Тоглолт" retry={() => void match.refetch()} />
+  if (!match.data) return <PageSkeleton />
   const info = match.data
   const parsed = info.maps.some((m) => m.parsed)
 

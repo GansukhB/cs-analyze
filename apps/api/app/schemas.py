@@ -1981,6 +1981,8 @@ class ReviewRound(BaseModel):
 
 class Review(BaseModel):
     version: str
+    # OPS-8: an older cut, served while the worker rebuilds it.
+    stale: bool = False
     sightings: bool
     missing: str = Field(description="What this Match Map's Review lacks without Sightings.")
     teams: list[ReviewTeam]
