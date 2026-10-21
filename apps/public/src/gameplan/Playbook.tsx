@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { $api } from '../api/client'
 import { StyleTable } from '../team/Style'
 import { type Fixture, Todo } from './panels'
+import UtilityMap from './UtilityMap'
 import type { Advice, AdviceSide, Evidence, Habit, PlaybookPanel, RoundRef, Strength, TodoPanel } from './types'
 
 const STALE = 5 * 60_000
@@ -322,6 +323,9 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
           </ul>
         </>
       )}
+
+      <h3 className="pb-section">Utility-ийн зураг</h3>
+      <UtilityMap mine={fixture.mine.id} theirs={fixture.theirs.id} map={map} />
 
       <h3 className="pb-section">Pistol раунд</h3>
       {d.conversion.length > 0 && (

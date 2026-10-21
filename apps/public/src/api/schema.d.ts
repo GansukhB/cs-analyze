@@ -801,6 +801,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/gameplan/{mine}/vs/{theirs}/utility/{map_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Utility
+         * @description VIZ-10: where a Team's utility lands on a Map and Side, from where, when,
+         *     and the lineups it repeats; drawn by the page over the overview.
+         */
+        get: operations["utility_gameplan__mine__vs__theirs__utility__map_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gameplan/{mine}/vs/{theirs}/playbook/{map_name}": {
         parameters: {
             query?: never;
@@ -7209,6 +7230,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FixtureStyle"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    utility_gameplan__mine__vs__theirs__utility__map_name__get: {
+        parameters: {
+            query?: {
+                side?: string;
+                whose?: string;
+            };
+            header?: never;
+            path: {
+                mine: number;
+                theirs: number;
+                map_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

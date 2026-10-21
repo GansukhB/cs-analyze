@@ -53,6 +53,7 @@ from app.services import (
     scope,
     style,
     timeout_card,
+    utility_map,
     veto_lab,
 )
 
@@ -289,6 +290,26 @@ def fixture_style(
         return FixtureStyle(
             mine=style.team(my_team.id, map_name), theirs=style.team(opponent.id, map_name)
         )
+
+
+@router.get("/{mine}/vs/{theirs}/utility/{map_name}")
+def utility(
+    mine: int,
+    theirs: int,
+    map_name: str,
+    db: DbSession,
+    _: StaffUser,
+    side: str = Query("t", pattern="^(t|ct)$"),
+    whose: str = Query("theirs", pattern="^(mine|theirs)$"),
+) -> dict[str, Any]:
+    """VIZ-10: where a Team's utility lands on a Map and Side, from where, when,
+    and the lineups it repeats; drawn by the page over the overview."""
+    if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
+    my_team, opponent = _fixture(db, mine, theirs)
+    team = opponent if whose == "theirs" else my_team
+    with dbctx.using(db):
+        return {"team": team.name, **utility_map.build(team.id, map_name, side)}
 
 
 @router.get("/{mine}/vs/{theirs}/playbook/{map_name}")

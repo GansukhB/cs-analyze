@@ -2303,6 +2303,96 @@
         }
       }
     },
+    "/gameplan/{mine}/vs/{theirs}/utility/{map_name}": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Utility",
+        "description": "VIZ-10: where a Team's utility lands on a Map and Side, from where, when,\nand the lineups it repeats; drawn by the page over the overview.",
+        "operationId": "utility_gameplan__mine__vs__theirs__utility__map_name__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          },
+          {
+            "name": "map_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Map Name"
+            }
+          },
+          {
+            "name": "side",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(t|ct)$",
+              "default": "t",
+              "title": "Side"
+            }
+          },
+          {
+            "name": "whose",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(mine|theirs)$",
+              "default": "theirs",
+              "title": "Whose"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Utility Gameplan  Mine  Vs  Theirs  Utility  Map Name  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/gameplan/{mine}/vs/{theirs}/playbook/{map_name}": {
       "get": {
         "tags": [

@@ -23,6 +23,10 @@ export interface HeatData {
   // VIZ-9: every other Team's points the same way, to draw where this one is
   // more (red) or less (blue) than usual instead of the plain heat.
   pool?: [number, number][] | null
+  // VIZ-10: throws drawn from where they left the hand to where they landed,
+  // and landings as coloured dots, over the overview instead of a heat.
+  lines?: { from: [number, number]; to: [number, number]; colour: string; width?: number }[]
+  marks?: { at: [number, number]; colour: string; r?: number }[]
 }
 
 // radar.py's composite: the overview is a backdrop, not the subject -- pulled
@@ -324,6 +328,27 @@ export async function drawHeatmap(canvas: HTMLCanvasElement, data: HeatData, css
     g.fill()
     g.stroke()
   }
+  for (const l of data.lines ?? []) {
+    g.save()
+    g.strokeStyle = l.colour
+    g.globalAlpha = 0.85
+    g.lineWidth = Math.max(1, W * 0.0016) * (l.width ?? 1)
+    g.beginPath()
+    g.moveTo(px(l.from[0]), py(l.from[1]))
+    g.lineTo(px(l.to[0]), py(l.to[1]))
+    g.stroke()
+    g.restore()
+  }
+  for (const m of data.marks ?? []) {
+    g.save()
+    g.fillStyle = m.colour
+    g.globalAlpha = 0.75
+    g.beginPath()
+    g.arc(px(m.at[0]), py(m.at[1]), Math.max(2, W * 0.0045) * (m.r ?? 1), 0, Math.PI * 2)
+    g.fill()
+    g.restore()
+  }
+
   const font = Math.max(9, W * 0.0168)
   g.font = `${font}px ui-sans-serif, system-ui, sans-serif`
   g.textAlign = 'center'
