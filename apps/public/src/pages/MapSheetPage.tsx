@@ -45,6 +45,15 @@ function Habits({ habits }: { habits: Habit[] }) {
   )
 }
 
+const EVIDENCE: [string, string][] = [
+  ['metrics', 'Үзүүлэлт'],
+  ['h2h', 'Хоорондын тоглолт'],
+  ['players', 'Тоглогчид'],
+  ['roles', 'Үүрэг'],
+  ['duels', 'Дуэль'],
+  ['edge', 'Тулгуур ба тоо'],
+]
+
 export default function MapSheetPage() {
   const params = useParams()
   const mine = Number(params.mine)
@@ -74,10 +83,16 @@ export default function MapSheetPage() {
           {d.opponent}: {d.sample.theirs.maps} map ({d.sample.theirs.h2h_maps} хоорондын) · {d.my_team}:{' '}
           {d.sample.mine.maps} map
         </span>
-        <span className="ml-auto flex gap-3 text-xs print:hidden">
+        <span className="ml-auto flex flex-wrap gap-3 text-xs print:hidden">
           <Link to={`/gameplan/${mine}/vs/${theirs}/s/todo/m/${map}?${search}`} className="text-ct hover:underline">
             Playbook
           </Link>
+          {/* GP-14: the evidence behind the page, one click away. */}
+          {EVIDENCE.map(([key, label]) => (
+            <Link key={key} to={`/gameplan/${mine}/vs/${theirs}/s/${key}?${search}`} className="text-ink-3 hover:text-ct">
+              {label}
+            </Link>
+          ))}
           <button type="button" onClick={() => window.print()} className="text-ct underline">
             Хэвлэх
           </button>

@@ -77,6 +77,8 @@ export default function GameplanPage() {
   const statuses = useQueries({
     queries: tabs.map((t) => ({ ...optionsFor(t.key), enabled: false, staleTime: STALE })),
   })
+  const todoAt = tabs.findIndex((t) => t.key === 'todo')
+  const sheets = ((statuses[todoAt]?.data as { data?: { maps?: { map: string; label: string; call_label: string }[] } } | undefined)?.data?.maps ?? [])
 
   // Warm the next few once the open panel is in: sequentially, so the server is
   // computing one section at a time and the reader's own clicks are not queued
@@ -177,6 +179,23 @@ export default function GameplanPage() {
 
       <div className="gp">
         <aside className="gp-side">
+          {/* GP-14: each Map's one page, in veto order, once «Юу хийх» has read it. */}
+          {sheets.length > 0 && (
+            <div>
+              <div className="grp">Map-ын хуудас</div>
+              {sheets.map((m) => (
+                <Link
+                  key={m.map}
+                  to={`/gameplan/${mine}/vs/${theirs}/sheet/${m.map}${search}`}
+                  title={m.call_label}
+                >
+                  <span className="st" aria-hidden="true" />
+                  {m.label}
+                  <span className="n">{m.call_label}</span>
+                </Link>
+              ))}
+            </div>
+          )}
           {[
             [1, 'Тойм'],
             [2, 'Задлан шинжилгээ'],
