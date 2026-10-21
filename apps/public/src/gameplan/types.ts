@@ -154,6 +154,8 @@ export interface PlaybookPanel {
     buys?: Record<'eco' | 'force' | 'full', { n: number; won: number }>
     after_pistol_loss?: Record<string, number>
     habits: Habit[]
+    /** TM-8: their choice in each buy spot against what each is worth in the Pool. */
+    choices?: { text: string; costly: boolean }[]
   }
   /** card: PL-7's lines from the Reviews (Swing with its range, Findings past their test). */
   players: { player: string; tags: string[]; lines: string[]; duels: string; card?: string[] }[]

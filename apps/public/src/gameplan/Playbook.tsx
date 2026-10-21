@@ -379,6 +379,15 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
             ))}
           </p>
           <Habits habits={d.economy.habits} />
+          {d.economy.choices && d.economy.choices.length > 0 && (
+            <ul className="pb-rows">
+              {d.economy.choices.map((c) => (
+                <li key={c.text}>
+                  {c.costly && <span className="tag theirs">ашиглах</span>} {c.text}
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       ) : (
         <p className="none">Эдийн засгийн дата алга.</p>

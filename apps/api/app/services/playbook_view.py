@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from app.models import Team
-from app.services import levers, mn, playbook, player_cards
+from app.services import economy_model, levers, mn, playbook, player_cards
 
 # How many counters the plan at the top of a Map takes from each side.
 PLAN_PER_SIDE = 2
@@ -119,6 +119,10 @@ def panel(my_team: Team, opponent: Team, map_name: str, view: dict | None = None
             "buys": economy.get("buys"),
             "after_pistol_loss": economy.get("after_pistol_loss"),
             "habits": mn.playbook_habits(economy["habits"]),
+            # TM-8: their choice in each spot against what each is worth.
+            "choices": [
+                mn.economy_choice(c, opponent.name) for c in economy_model.team(opponent.id)
+            ],
         },
         "players": [
             {**mn.playbook_player(p), "card": _card(cards.get(p["player_id"]))}

@@ -3388,3 +3388,27 @@ TIMEOUT_SIGNALS = {
     "early_pick": ("Эхний 20 с-д CT pick", "Эхний гарцуудаа flash-тай, хосоороо ав.",
                    "Тэд хүлээнэ — map control-оо тайван ав."),
 }  # fmt: skip
+
+
+# -- TM-8: what a buy decision is worth --------------------------------------------
+ECONOMY_SPOT = {
+    "after_pistol_loss": "Pistol алдсаны дараах раунд",
+    "after_full_loss": "Full buy-тай алдсаны дараах раунд",
+}
+ECONOMY_CHOICE = {"force": "force", "eco": "хэмнэх (eco)"}
+
+
+def economy_choice(row: dict, team: str) -> dict:
+    """One spot: what the Team does, and what each choice is worth over that Round
+    and the next in the Pool."""
+    habit = row["habit"]
+    text = (
+        f"{ECONOMY_SPOT[row['spot']]}: {team} {ECONOMY_CHOICE[habit]} {row['times']}/{row['of']} "
+        f"удаа. Pool-д тэр ба дараагийн раундаас force {row['worth']['force']:g}, "
+        f"eco {row['worth']['eco']:g} раунд авдаг"
+    )
+    if row["costly"]:
+        text += f": {ECONOMY_CHOICE[habit]} нь дунджаар {row['gap']:g} раунд алддаг."
+    else:
+        text += "."
+    return {"text": text, "costly": row["costly"]}

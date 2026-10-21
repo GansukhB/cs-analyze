@@ -141,3 +141,27 @@ def test_a_round_is_pistol_match_point_close_or_other():
     assert pressure._kind(21, 10, 10) == "close" and pressure._kind(19, 9, 9) == "close"
     assert pressure._kind(18, 9, 8) == "other" and pressure._kind(20, 12, 5) == "match_point"
     assert pressure._kind(28, 14, 13) == "close"  # overtime: no match point counted
+
+
+def test_a_buy_decision_is_worth_the_rounds_it_wins_over_two():
+    """TM-8: spots after a pistol lost and after a full buy lost, and their worth."""
+    from types import SimpleNamespace as R
+
+    from app.services import economy_model
+
+    def rnd(n, winner, ct_buy, t_buy):
+        return R(match_map_id=1, number=n, winner_team_id=winner, ct_team_id=10, t_team_id=20,
+                 ct_buy=ct_buy, t_buy=t_buy)  # fmt: skip
+
+    rows = [
+        rnd(1, 10, "pistol", "pistol"),  # 20 loses the pistol
+        rnd(2, 20, "full", "force"),  # 20 forces and wins it
+        rnd(3, 10, "full", "eco"),
+        rnd(4, 20, "full", "full"),  # 10 loses a full buy
+        rnd(5, 10, "eco", "full"),  # 10 saves, then wins 5
+        rnd(6, 20, "full", "full"),
+    ]
+    spots = economy_model._spots(rows)
+    assert ("after_pistol_loss", 20, "force", 1) in spots
+    assert ("after_full_loss", 10, "eco", 1) in spots
+    assert all(s[2] in economy_model.CHOICES for s in spots)
