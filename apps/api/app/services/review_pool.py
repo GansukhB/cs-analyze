@@ -31,7 +31,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 from redis.exceptions import RedisError
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 
 from app.models import GameMap, MatchMap, MatchMapReview, Player, Team, TickDataset
 from app.services import mapstrategy, review, review_summary
@@ -824,14 +824,22 @@ def stale_ids() -> list[int]:
     """Match Maps with Tick Data whose Review is missing or not at the current version."""
 
     def compute():
-        return list(
-            db().scalars(
-                select(TickDataset.match_map_id)
-                .outerjoin(MatchMapReview, MatchMapReview.match_map_id == TickDataset.match_map_id)
-                .where(or_(MatchMapReview.id.is_(None), MatchMapReview.version != review.version()))
-                .order_by(TickDataset.match_map_id)
-            )
-        )
+        from app.services import spots
+
+        rows = db().execute(
+            select(TickDataset.match_map_id, MatchMapReview.version, MatchMapReview.spots_version,
+                   GameMap.name)
+            .join(MatchMap, MatchMap.id == TickDataset.match_map_id)
+            .outerjoin(GameMap, GameMap.id == MatchMap.game_map_id)
+            .outerjoin(MatchMapReview, MatchMapReview.match_map_id == TickDataset.match_map_id)
+            .order_by(TickDataset.match_map_id)
+        )  # fmt: skip
+        current = review.version()
+        return [
+            mm
+            for mm, version, spot, name in rows
+            if version != current or spot != spots.version(name or "")
+        ]
 
     return memo(("review_stale",), compute)
 

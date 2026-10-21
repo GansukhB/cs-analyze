@@ -34,7 +34,16 @@ from app.models import (
     Team,
 )
 from app.models.base import utcnow
-from app.services import mn, review, review_pool, review_summary, review_view, tickdata, winprob
+from app.services import (
+    mn,
+    review,
+    review_pool,
+    review_summary,
+    review_view,
+    spots,
+    tickdata,
+    winprob,
+)
 
 START, END, OFFICIAL = 1000, 3560, 3700
 FLASH, A1_DIES, B2_DIES, B1_DIES = 1640, 1700, 2200, 2500
@@ -533,3 +542,20 @@ def test_aim_is_ranked_against_every_player_past_the_bar(monkeypatch):
     # Quicker and more first shots on target than both others past 100 engagements.
     assert me["rank"]["ttd_ms"] == 67 and me["rank"]["first_hit_pct"] == 67
     assert aim.player("few")["enough"] is False
+
+
+def test_editing_one_maps_spots_rebuilds_that_maps_reviews_only(db, inferno, monkeypatch):
+    """VIZ-11: a Review keeps its Map's Spots version apart from its own."""
+    from app.models import MatchMapReview
+
+    _review(db, inferno)
+    row = db.scalar(select(MatchMapReview))
+    assert row.spots_version == spots.version("de_inferno") and row.version == review.version()
+    assert review.current(row, inferno["map"])
+    real = spots.version
+    monkeypatch.setattr(spots, "version", lambda m=None: "edited" if m == "de_mirage" else real(m))
+    assert review.current(row, inferno["map"])  # another Map's Spots moved
+    monkeypatch.setattr(spots, "version", lambda m=None: "edited" if m == "de_inferno" else real(m))
+    assert not review.current(row, inferno["map"])
+    review.ensure(db, inferno["map"])
+    assert db.scalar(select(MatchMapReview)).spots_version == "edited"

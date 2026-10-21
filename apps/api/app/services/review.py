@@ -246,7 +246,21 @@ CODE_KIND = {
 
 
 def version() -> str:
-    return f"{REVIEW_SCHEMA}.{winprob.version()}.{spots.version()}"
+    """The Review's code and model. The Spots are kept per Map apart (VIZ-11)."""
+    return f"{REVIEW_SCHEMA}.{winprob.version()}"
+
+
+def _map_name(match_map: MatchMap) -> str:
+    return match_map.game_map.name if match_map.game_map else ""
+
+
+def current(row: MatchMapReview | None, match_map: MatchMap) -> bool:
+    """Whether a stored Review is at this code, model and the Map's Spots."""
+    return (
+        row is not None
+        and row.version == version()
+        and row.spots_version == spots.version(_map_name(match_map))
+    )
 
 
 # ---------------------------------------------------------------- storage ---
@@ -254,7 +268,7 @@ def ensure(db: Session, match_map: MatchMap) -> dict | None:
     """This Match Map's Review, rebuilt first if it is missing or stale; None
     without Tick Data."""
     row = db.scalar(select(MatchMapReview).where(MatchMapReview.match_map_id == match_map.id))
-    if row is not None and row.version == version():
+    if current(row, match_map):
         return json.loads(gzip.decompress(row.payload))
     built = rebuild(db, match_map)
     if built is not None:
@@ -283,6 +297,7 @@ def rebuild(db: Session, match_map: MatchMap, bundle=None) -> dict | None:
         row = MatchMapReview(match_map_id=match_map.id)
         db.add(row)
     row.version = payload["version"]
+    row.spots_version = spots.version(_map_name(match_map))
     row.sightings = payload["sightings"]
     row.payload = blob
     db.flush()

@@ -94,10 +94,23 @@ def spots(map_name: str) -> tuple[dict, ...]:
     return tuple(out)
 
 
-@lru_cache(maxsize=1)
-def version() -> str:
-    """Changes whenever any Spots file does, so stored Reviews rebuild."""
+# map -> (the file's mtime, its hash): read again only when the file changes.
+_VERSIONS: dict[str, tuple[int, str]] = {}
+
+
+def version(map_name: str | None = None) -> str:
+    """Changes whenever the Map's Spots file does (or, with no Map, any file), so
+    that Map's stored Reviews rebuild and no other's (VIZ-11)."""
     digest = hashlib.sha1(usedforsecurity=False)
+    if map_name is not None:
+        path = SPOTS_DIR / f"{map_name}.json"
+        stamp = path.stat().st_mtime_ns if path.exists() else 0
+        known = _VERSIONS.get(map_name)
+        if known and known[0] == stamp:
+            return known[1]
+        digest.update(path.read_bytes() if path.exists() else b"none")
+        _VERSIONS[map_name] = (stamp, digest.hexdigest()[:8])
+        return _VERSIONS[map_name][1]
     for path in sorted(SPOTS_DIR.glob("*.json")):
         digest.update(path.name.encode())
         digest.update(path.read_bytes())

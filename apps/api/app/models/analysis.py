@@ -829,6 +829,9 @@ class MatchMapReview(TimestampMixin, Base):
         BigId, ForeignKey("match_maps.id", ondelete="CASCADE"), unique=True
     )
     version: Mapped[str] = mapped_column(String(48), default="")
+    # The Map's Spots it was built with (spots.version(map)), apart from ``version``
+    # so that editing one Map's Spots rebuilds that Map's Reviews only (VIZ-11).
+    spots_version: Mapped[str] = mapped_column(String(8), default="")
     sightings: Mapped[bool] = mapped_column(default=False, doc="Built with Sightings (schema 13).")
     payload: Mapped[bytes] = mapped_column(MediumBlob)
 
