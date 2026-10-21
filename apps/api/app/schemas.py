@@ -1436,6 +1436,25 @@ class Coverage(BaseModel):
     queued: int
 
 
+# -- A Strat played by other Teams (docs/plans/08 SB-5) --------------------------------
+class StratElsewhereTeam(BaseModel):
+    team_id: int
+    team: str
+    rounds: int
+    won: int
+    low: float  # 80% range of the share won
+    high: float
+
+
+class StratElsewhere(BaseModel):
+    rounds: int
+    won: int
+    low: float
+    high: float
+    teams: list[StratElsewhereTeam]
+    refs: list[CheckRef]
+
+
 # -- The week's practice (docs/plans/07 RV-11) ---------------------------------------
 class WeekReview(BaseModel):
     match_id: int

@@ -29,6 +29,7 @@ from app.models import (
 from app.routers.matches import _map
 from app.schemas import (
     StratCoverage,
+    StratElsewhere,
     StratEventRead,
     StratExampleRead,
     StratExampleWrite,
@@ -228,6 +229,14 @@ def delete_strat(strat_id: int, db: DbSession, user: StaffUser) -> None:
     audit_log.record(db, user, "strat.delete", strat.name, map=strat.map_name, side=strat.side)
     db.delete(strat)
     db.commit()
+
+
+@router.get("/{strat_id}/elsewhere")
+def strat_elsewhere(strat_id: int, db: DbSession, user: StaffUser) -> StratElsewhere:
+    """SB-5: the other Teams whose Rounds played this Strat's grenades, and how they did."""
+    strat = _get(db, user, strat_id)
+    with dbctx.using(db):
+        return StratElsewhere(**strat_match.elsewhere(strat))
 
 
 @router.post("/{strat_id}/print", status_code=status.HTTP_204_NO_CONTENT)

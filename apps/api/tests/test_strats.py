@@ -116,3 +116,29 @@ def test_rounds_that_played_a_strat_are_found_and_counted(client, db, auth, work
     client.put(f"/strats/{sid}", headers=auth, json=_body(a.id, grenades=nades, status="active"))
     cover = client.get(f"/strats/coverage/{a.id}", headers=auth).json()
     assert cover["de_mirage"]["active"] == 1
+
+
+def test_a_strat_is_searched_in_every_other_teams_rounds(client, db, auth, workspace, league):
+    """SB-5: Bravo's T Rounds 1-3 against Alpha threw Alpha's Strat's two grenades."""
+    from app.models import GrenadeThrow, MatchMap, Round
+
+    a, b = league["a"], league["b"]
+    _ours(db, workspace, a)
+    match = db.scalar(select(Match).where(Match.team1_id == a.id, Match.team2_id == b.id))
+    mm = db.scalar(select(MatchMap).where(MatchMap.match_id == match.id))
+    bravo_t = db.scalars(select(Round).where(Round.match_map_id == mm.id, Round.t_team_id == b.id))
+    for r in list(bravo_t)[:3]:
+        for i, (kind, secs) in enumerate((("smoke", 15.0), ("inferno", 18.5))):
+            landed = r.freeze_end_tick + int(secs * 64)
+            db.add(GrenadeThrow(round_id=r.id, entity_id=700 + i, type=kind, thrower_side="t",
+                                start_tick=landed, place="BombsiteA"))  # fmt: skip
+    db.commit()
+    nades = [{"type": "smoke", "place": "BombsiteA", "at": 16.0},
+             {"type": "inferno", "place": "BombsiteA", "at": 20.0}]  # fmt: skip
+    sid = client.post("/strats", headers=auth, json=_body(a.id, grenades=nades)).json()["id"]
+    found = client.get(f"/strats/{sid}/elsewhere", headers=auth).json()
+    assert found["rounds"] == 3 and [t["team"] for t in found["teams"]] == ["Bravo"]
+    assert found["teams"][0]["low"] <= found["won"] / 3 <= found["teams"][0]["high"]
+    assert len(found["refs"]) == 3
+    # Alpha's own Rounds are the Strat's report, never "elsewhere".
+    assert client.post(f"/strats/{sid}/match", headers=auth).json()["report"]["played"] == 0

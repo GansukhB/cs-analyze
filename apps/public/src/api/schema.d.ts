@@ -1332,6 +1332,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/strats/{strat_id}/elsewhere": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Strat Elsewhere
+         * @description SB-5: the other Teams whose Rounds played this Strat's grenades, and how they did.
+         */
+        get: operations["strat_elsewhere_strats__strat_id__elsewhere_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/strats/{strat_id}/print": {
         parameters: {
             query?: never;
@@ -4812,6 +4832,36 @@ export interface components {
             active: number;
             /** Recent */
             recent: number;
+        };
+        /** StratElsewhere */
+        StratElsewhere: {
+            /** Rounds */
+            rounds: number;
+            /** Won */
+            won: number;
+            /** Low */
+            low: number;
+            /** High */
+            high: number;
+            /** Teams */
+            teams: components["schemas"]["StratElsewhereTeam"][];
+            /** Refs */
+            refs: components["schemas"]["CheckRef"][];
+        };
+        /** StratElsewhereTeam */
+        StratElsewhereTeam: {
+            /** Team Id */
+            team_id: number;
+            /** Team */
+            team: string;
+            /** Rounds */
+            rounds: number;
+            /** Won */
+            won: number;
+            /** Low */
+            low: number;
+            /** High */
+            high: number;
         };
         /** StratEventRead */
         StratEventRead: {
@@ -8361,6 +8411,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    strat_elsewhere_strats__strat_id__elsewhere_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratElsewhere"];
+                };
             };
             /** @description Validation Error */
             422: {

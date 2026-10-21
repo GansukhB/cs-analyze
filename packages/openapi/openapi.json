@@ -4337,6 +4337,54 @@
         }
       }
     },
+    "/strats/{strat_id}/elsewhere": {
+      "get": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Strat Elsewhere",
+        "description": "SB-5: the other Teams whose Rounds played this Strat's grenades, and how they did.",
+        "operationId": "strat_elsewhere_strats__strat_id__elsewhere_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StratElsewhere"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/strats/{strat_id}/print": {
       "post": {
         "tags": [
@@ -13915,6 +13963,88 @@
           "recent"
         ],
         "title": "StratCoverage"
+      },
+      "StratElsewhere": {
+        "properties": {
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/StratElsewhereTeam"
+            },
+            "type": "array",
+            "title": "Teams"
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/CheckRef"
+            },
+            "type": "array",
+            "title": "Refs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rounds",
+          "won",
+          "low",
+          "high",
+          "teams",
+          "refs"
+        ],
+        "title": "StratElsewhere"
+      },
+      "StratElsewhereTeam": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "team",
+          "rounds",
+          "won",
+          "low",
+          "high"
+        ],
+        "title": "StratElsewhereTeam"
       },
       "StratEventRead": {
         "properties": {

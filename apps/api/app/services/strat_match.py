@@ -29,6 +29,7 @@ from app.models import (
     Strat,
     StratExample,
     StratStatus,
+    Team,
 )
 from app.models.base import utcnow
 from app.services import scope, stats
@@ -51,18 +52,29 @@ def _wanted(strat: Strat) -> list[tuple[str, str, float | None]]:
 
 def find(strat: Strat) -> list[tuple[int, int]]:
     """``(match_map id, round number)`` of every Round that played the Strat."""
+    return sorted((r.match_map_id, r.number) for r in _matching(strat, strat.team_id))
+
+
+def _matching(strat: Strat, team_id: int | None) -> list:
+    """The Rounds on the Strat's Map and Side whose grenades played it: one Team's,
+    or (``team_id`` None) every Team's."""
     wanted = _wanted(strat)
     if len(wanted) < MIN_GRENADES:
         return []
     session = db()
     scope.allow_scrims(session)
     team_side = Round.ct_team_id if strat.side == "ct" else Round.t_team_id
-    rounds = session.execute(
-        select(Round.id, Round.match_map_id, Round.number, Round.freeze_end_tick, MatchMap.tickrate)
+    query = (
+        select(Round.id, Round.match_map_id, Round.number, Round.freeze_end_tick,
+               MatchMap.tickrate, MatchMap.match_id, MatchMap.map_number,
+               Round.winner_team_id, team_side.label("team_id"))
         .join(MatchMap, MatchMap.id == Round.match_map_id)
         .join(GameMap, GameMap.id == MatchMap.game_map_id)
-        .where(GameMap.name == strat.map_name, team_side == strat.team_id)
-    ).all()
+        .where(GameMap.name == strat.map_name, team_side.is_not(None))
+    )  # fmt: skip
+    if team_id is not None:
+        query = query.where(team_side == team_id)
+    rounds = session.execute(query).all()
     if not rounds:
         return []
     by_id = {r.id: r for r in rounds}
@@ -76,8 +88,9 @@ def find(strat: Strat) -> list[tuple[int, int]]:
         tick = start or pop
         if tick is not None:
             landed[rid].append((kind, place, (tick - r.freeze_end_tick) / (r.tickrate or 64)))
-    out = []
-    for rid, nades in landed.items():
+    return [
+        by_id[rid]
+        for rid, nades in landed.items()
         if all(
             any(
                 kind == k and place == p
@@ -85,10 +98,36 @@ def find(strat: Strat) -> list[tuple[int, int]]:
                 for kind, place, t in nades
             )
             for k, p, at in wanted
-        ):  # fmt: skip
-            r = by_id[rid]
-            out.append((r.match_map_id, r.number))
-    return sorted(out)
+        )
+    ]  # fmt: skip
+
+
+ELSEWHERE_REFS = 20
+
+
+def elsewhere(strat: Strat) -> dict:
+    """SB-5: which other Teams play the Strat (its grenades, on its Map and Side),
+    how often, and how they did, each with an 80% range; the Rounds to watch."""
+    rows = [r for r in _matching(strat, None) if r.team_id != strat.team_id]
+    by_team: dict[int, list] = defaultdict(list)
+    for r in rows:
+        by_team[r.team_id].append(r)
+    names = dict(db().execute(select(Team.id, Team.name).where(Team.id.in_(list(by_team)))).all())
+    teams = []
+    for team_id, rs in sorted(by_team.items(), key=lambda kv: -len(kv[1])):
+        won = sum(1 for r in rs if r.winner_team_id == team_id)
+        low, high = stats.wilson(won, len(rs))
+        teams.append({"team_id": team_id, "team": names.get(team_id, "?"), "rounds": len(rs),
+                      "won": won, "low": round(low, 3), "high": round(high, 3)})  # fmt: skip
+    won = sum(1 for r in rows if r.winner_team_id == r.team_id)
+    low, high = stats.wilson(won, len(rows)) if rows else (0.0, 1.0)
+    rows.sort(key=lambda r: (-r.match_map_id, r.number))
+    return {
+        "rounds": len(rows), "won": won, "low": round(low, 3), "high": round(high, 3),
+        "teams": teams,
+        "refs": [{"match": r.match_id, "map": r.map_number, "round": r.number}
+                 for r in rows[:ELSEWHERE_REFS]],
+    }  # fmt: skip
 
 
 def refresh(strat: Strat) -> int:

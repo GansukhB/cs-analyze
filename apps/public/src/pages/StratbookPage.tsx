@@ -275,6 +275,7 @@ export function StratPage() {
         ) : null,
       )}
       <Report s={s} onMatch={s.can_edit ? () => match.mutate(path) : undefined} busy={match.isPending} />
+      {s.can_edit && <Elsewhere id={s.id} side={s.side} />}
       <section className="space-y-1">
         <h2 className="font-medium text-ink">Жишээ раундууд</h2>
         <ul className="space-y-0.5 text-sm">
@@ -356,6 +357,57 @@ type Read = NonNullable<ReturnType<typeof useStrat>['data']>
 const useStrat = (id: number) => $api.useQuery('get', '/strats/{strat_id}', { params: { path: { strat_id: id } } })
 
 /** How it did over its kept Rounds (SB-4), and finding more. */
+// SB-5: the other Teams whose Rounds played this Strat's grenades, and how they did.
+function Elsewhere({ id, side }: { id: number; side: string }) {
+  const [asked, setAsked] = useState(false)
+  const q = $api.useQuery('get', '/strats/{strat_id}/elsewhere', { params: { path: { strat_id: id } } }, { enabled: asked })
+  const pct = (v: number) => `${Math.round(v * 100)}%`
+  return (
+    <section className="space-y-2">
+      <h2 className="font-medium text-ink">Бусад баг</h2>
+      {!asked ? (
+        <button type="button" onClick={() => setAsked(true)} className="text-sm text-ct hover:underline">
+          Энэ Strat-ийг бусад багийн раундаас хайх →
+        </button>
+      ) : !q.data ? (
+        <p className="text-sm text-ink-3">{q.isError ? 'Хайж чадсангүй.' : 'Хайж байна…'}</p>
+      ) : q.data.rounds === 0 ? (
+        <p className="text-sm text-ink-3">Өөр баг энэ гранатуудаар тоглосон раунд алга (эсвэл Strat-д 2-оос цөөн гранат).</p>
+      ) : (
+        <div className="space-y-2 text-sm">
+          <p className="text-ink-2">
+            {q.data.teams.length} баг {q.data.rounds} раундад тоглосон, {q.data.won}-д нь хожсон ({pct(q.data.won / q.data.rounds)}, 80%:{' '}
+            {pct(q.data.low)}–{pct(q.data.high)}).{' '}
+            <Link
+              to={`/ghost?r=${q.data.refs.map((r) => `${r.match}.${r.map}.${r.round}`).join(',')}&side=${side}`}
+              className="text-ct hover:underline"
+            >
+              ⧉ давхарлаж үзэх
+            </Link>
+          </p>
+          <table>
+            <tbody>
+              {q.data.teams.map((t) => (
+                <tr key={t.team_id} className="border-t-1 border-line">
+                  <td className="py-1 pr-6">
+                    <Link to={`/teams/${t.team_id}`} className="text-ink hover:underline">
+                      {t.team}
+                    </Link>
+                  </td>
+                  <td className="py-1 pr-6 font-mono text-ink-3">{t.rounds} раунд</td>
+                  <td className="py-1 font-mono">
+                    {t.won}/{t.rounds} <span className="text-xs text-ink-3">({pct(t.low)}–{pct(t.high)})</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
+}
+
 function Report({ s, onMatch, busy }: { s: Read; onMatch?: () => void; busy: boolean }) {
   const r = s.report
   const share = (t?: { played: number; won: number } | null) => (t && t.played ? `${t.won}/${t.played}` : '—')
