@@ -1,0 +1,10 @@
+# cs-analyze gets its own MySQL account; systemd sandboxing waits for one try on the host
+
+This narrows ADR 0004, which had the API and the worker use cstat's MySQL `root`. cs-analyze now gets a MySQL account of its own, `cs2`, with every right on `cs_analyze.*` and nothing else, created once by `ansible/db_user.yml` with a password generated on the server; every deploy after that writes it into the API's `.env`, so a leaked `.env` or an SQL injection can no longer reach cstat's data. The worker always gets `OOMScoreAdjust=500`, so when the 7.3 GB host runs out of memory the kernel kills it (systemd restarts it and the job fails) rather than MySQL, which holds cstat too. The rest of OPS-4 is opt-in with `-e harden=true`: a 3500M memory cap on the worker and a read-only filesystem but for `data/` for both units. We chose opt-in over on by default because none of it can be tried before a deploy, and a cap or a read-only path the worker needs would stop every Scout; it should become the default after one Scout runs under it.
+
+## Consequences
+
+- Migrations, the CLI and the backup timer's restore steps run as `cs2`. `ALL` on the database covers the DDL the migrations do (generated columns, foreign keys); it was checked locally with an account limited to `cs_analyze.*` running the migrations down and up and `alembic check`. The backup itself still dumps as root.
+- Deleting `/etc/cs2/mysql_password` and deploying goes back to root.
+- Still open, in this order: the services as a non-root user `cs2` (its home for Playwright's Chromium, `chown` of the app directory, Chromium's own sandbox once not root), a Redis ACL user of our own (Redis ACLs can't confine a user to its DB numbers, so it would limit commands, not keys), and rotating cstat's Redis password, which the old `/workers` page showed.
+- Rotating `JWT_SECRET`: delete `/etc/cs2/jwt_secret` on the server and deploy. A new one is generated, every issued token stops working, and every User signs in again; nothing else depends on it.

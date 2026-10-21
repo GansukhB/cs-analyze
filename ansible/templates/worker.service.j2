@@ -37,6 +37,18 @@ Environment=TMPDIR=/var/tmp
 PrivateTmp=true
 NoNewPrivileges=true
 LimitNOFILE=65536
+# When the host runs out of memory, the kernel kills this, not MySQL (which
+# holds cstat's data too); systemd restarts it and the job is failed (OPS-4).
+OOMScoreAdjust=500
+{% if harden %}
+# docs/adr/0012: capped below the host's 7.3 GB, and the filesystem read-only
+# but for the data directory (and the private /tmp and /var/tmp).
+MemoryMax={{ worker_memory_max }}
+ProtectSystem=strict
+ReadWritePaths={{ app_path }}/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+{% endif %}
 
 [Install]
 WantedBy=multi-user.target

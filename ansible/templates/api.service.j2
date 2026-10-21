@@ -27,6 +27,13 @@ TimeoutStopSec=30
 PrivateTmp=true
 NoNewPrivileges=true
 LimitNOFILE=65536
+{% if harden %}
+# docs/adr/0012: the filesystem read-only but for the data directory.
+ProtectSystem=strict
+ReadWritePaths={{ app_path }}/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+{% endif %}
 
 [Install]
 WantedBy=multi-user.target

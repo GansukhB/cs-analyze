@@ -30,6 +30,14 @@ redis_port: "{{ lookup('ansible.builtin.ini', 'REDIS_PORT', type='properties', f
 redis_user: "{{ lookup('ansible.builtin.ini', 'REDIS_USERNAME', type='properties', file=cstat_env_file) }}"
 redis_password: "{{ lookup('ansible.builtin.ini', 'REDIS_PASSWORD', type='properties', file=cstat_env_file) }}"
 jwt_secret_file: /etc/cs2/jwt_secret
+# The app's own MySQL account (docs/adr/0012, ansible/db_user.yml). Until that
+# playbook has run there is no password file, and the app keeps cstat's root.
+app_mysql_user: cs2
+app_mysql_password_file: /etc/cs2/mysql_password
+# systemd sandboxing and the worker's memory cap, off until tried on the host
+# once (-e harden=true); the OOM score that spares MySQL is always on.
+harden: false
+worker_memory_max: 3500M
 # The Assistant's keys, from the same file. Missing ones leave it off: no Claude
 # key and the chat says it isn't configured; no ElevenLabs pair and it answers
 # in text only. CLAUDE_MODEL is not taken from cstat: ours defaults to Sonnet 5.5.

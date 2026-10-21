@@ -170,6 +170,20 @@
       no_log: true
       tags: [env]
 
+    - name: Look for the app's own MySQL account (ansible/db_user.yml)
+      ansible.builtin.stat:
+        path: "{{ app_mysql_password_file }}"
+      register: app_mysql
+      tags: [env]
+
+    - name: Read its password
+      ansible.builtin.slurp:
+        src: "{{ app_mysql_password_file }}"
+      register: app_mysql_secret
+      when: app_mysql.stat.exists
+      no_log: true
+      tags: [env]
+
     - name: Render the API environment
       ansible.builtin.template:
         src: templates/api.env.j2

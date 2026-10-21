@@ -1,0 +1,38 @@
+# One-off (docs/adr/0012): give cs-analyze a MySQL account of its own, with
+# rights on its own database only, instead of cstat's root. Its password is
+# generated on the server once (/etc/cs2/mysql_password); every deploy after
+# this one reads it and writes it into the API's .env, so the API, the worker,
+# the migrations and the CLI all run as that account.
+#
+#   npm run deploy:db-user && npm run deploy
+#
+# cstat's root still creates it (and the backup still dumps with it). To go back,
+# delete /etc/cs2/mysql_password and deploy.
+
+- name: Give cs-analyze its own MySQL account
+  hosts: cs2
+  gather_facts: false
+
+  tasks:
+    - name: Generate the account's password once
+      ansible.builtin.shell: umask 077 && openssl rand -hex 24 > {{ app_mysql_password_file }}
+      args:
+        creates: "{{ app_mysql_password_file }}"
+
+    - name: Read it
+      ansible.builtin.slurp:
+        src: "{{ app_mysql_password_file }}"
+      register: app_password
+      no_log: true
+
+    - name: Create the account, with every right on {{ mysql_database }} and nothing else
+      community.mysql.mysql_user:
+        login_unix_socket: "{{ mysql_socket }}"
+        login_user: "{{ mysql_user }}"
+        login_password: "{{ mysql_password }}"
+        name: "{{ app_mysql_user }}"
+        host: localhost
+        password: "{{ app_password.content | b64decode | trim }}"
+        priv: "{{ mysql_database }}.*:ALL"
+        state: present
+      no_log: true
