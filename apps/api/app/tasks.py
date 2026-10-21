@@ -56,7 +56,9 @@ from app.models import (
     JobStatus,
     MapRoster,
     Match,
+    MatchKind,
     MatchMap,
+    Round,
     Team,
     TickDataset,
     Upload,
@@ -402,8 +404,19 @@ def _reassign_upload_map(job_db, db, job, upload, match, entry: dict) -> dict:
 
 
 def _score_upload_match(db, match: Match) -> None:
-    """The Match's score in Maps, from my team's side (team1)."""
+    """The Match's score in Maps, from my team's side (team1). A Scrim's Map
+    played on past 13 keeps the score it stood at then (DATA-1)."""
     maps = db.scalars(select(MatchMap).where(MatchMap.match_id == match.id)).all()
+    if match.kind == MatchKind.SCRIM:
+        for m in maps:
+            if not (m.team1_id and m.team2_id):
+                continue
+            rounds = db.execute(
+                select(Round.number, Round.winner_team_id).where(Round.match_map_id == m.id)
+            ).all()
+            score = uploads.clinched([tuple(r) for r in rounds], m.team1_id, m.team2_id)
+            if score is not None:
+                m.team1_score, m.team2_score = score
     won = sum(1 for m in maps if m.winner_id and m.winner_id == match.team1_id)
     lost = sum(1 for m in maps if m.winner_id and m.winner_id == match.team2_id)
     match.team1_score, match.team2_score = won, lost

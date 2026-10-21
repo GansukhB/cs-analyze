@@ -268,6 +268,27 @@ def demo_files(path: Path, folder: Path) -> list[Path]:
     return archive.extract(path, folder / "demos", entries)
 
 
+CLINCH = 13  # Rounds that win a regulation Map
+
+
+def clinched(
+    rounds: list[tuple[int, int | None]], team1: int, team2: int
+) -> tuple[int, int] | None:
+    """A Scrim played on past the Map's end ("all 24 Rounds"): the score when
+    one side reached 13 in regulation, the Rounds after it being practice; None
+    when nobody did before the last Round (a full Map, a draw or overtime)."""
+    score = {team1: 0, team2: 0}
+    ordered = sorted(rounds)
+    for i, (number, winner) in enumerate(ordered):
+        if number > 2 * (CLINCH - 1):
+            return None
+        if winner in score:
+            score[winner] += 1
+        if max(score.values()) == CLINCH:
+            return (score[team1], score[team2]) if i < len(ordered) - 1 else None
+    return None
+
+
 def drop_parts(db: Session, upload: Upload) -> None:
     db.execute(delete(UploadPart).where(UploadPart.upload_id == upload.id))
     db.commit()

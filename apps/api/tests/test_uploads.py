@@ -370,3 +370,17 @@ def test_a_link_is_queued_then_fetched_by_the_job(
     upload = _unscoped(db).get(Upload, upload.id)
     assert upload.status == UploadStatus.DONE, upload.error
     assert upload.size_bytes == 8 and upload.maps[0]["assigned"] is True
+
+
+@pytest.mark.parametrize(
+    ("wins", "score"),
+    [
+        ("A" * 13 + "B" * 11, (13, 0)),  # played on: 13-0 at Round 13, the rest practice
+        ("AB" * 9 + "A" * 4 + "B" * 2, (13, 9)),
+        ("A" * 13, None),  # the Map ended at 13: nothing to cut
+        ("AB" * 12 + "AAAA", None),  # 12-12 then overtime: no clinch in regulation
+    ],
+)
+def test_a_scrim_played_past_thirteen_keeps_the_score_it_was_won_at(wins, score):
+    rounds = [(n, 1 if w == "A" else 2) for n, w in enumerate(wins, 1)]
+    assert uploads.clinched(rounds, 1, 2) == score
