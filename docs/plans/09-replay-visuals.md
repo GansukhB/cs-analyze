@@ -149,7 +149,7 @@ ggViz-ийн арга (Xenopoulos нар, CHI PLAY 2022, `12-research-sources.md
 
 ### VIZ-13. Клип гаргах (P2, M)
 
-> **Төлөв:** 🟡 `3c1a75b` (improvement-01). Replay-ийн 10 с-ийг browser-т WebM болгож татна (MediaRecorder). Note/Briefing-д хавсаргах (хадгалах газар) үлдсэн.
+> **Төлөв:** ✅ `11620c7` (improvement-01). Replay-ийн 10 с-ийг WebM болгож татна (`3c1a75b`); Review-ийн Note тухайн агшныхаа клипийг хадгалж (`note_clips`), уншиж болох хүн бүрт тоглуулна.
 
 Сонгосон хугацааны canvas-ийг `MediaRecorder`-ээр WebM болгож browser-т бичнэ. Сервер дээр render хийхгүй. Note эсвэл Briefing-д хавсаргана.
 

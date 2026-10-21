@@ -93,7 +93,7 @@
 
 ### TM-3. Recency ба roster-ийн үе (P1, M)
 
-> **Төлөв:** 🟡 `f1df8cb` (improvement-01). Playbook-ийн habit одоогийн бүрэлдэхүүний үеэс (`689be9e`); Game Plan-ий цонх `?since=` (бүгд, 180/90 хоног, patch-аас хойш) бүх хэсэг ба cache-д, Pool бүтнээрээ. Хагас задралын жин үлдсэн.
+> **Төлөв:** 🟡 `bd3afe3` (improvement-01). Habit одоогийн бүрэлдэхүүнээс (`689be9e`); Game Plan-ий цонх `?since=` (`f1df8cb`); Map pool-ийн хүч 90 хоногийн хагас задралтай. Playbook-ийн habit-ийн 60 хоногийн жин үлдсэн.нээрээ. Хагас задралын жин үлдсэн.
 
 - **Хугацааны шүүлтүүр:** `since`, `until`-ийг `Report._window`-оор дамжуулна. Одоо зөвхөн `profile_team`, `map_board`, `map_plan` авдаг. Үүнийг players, roles, linchpin, Playbook-д ч хэрэглэж, cache-ийн түлхүүрт нэмнэ.
 - **Хагас задралын жин:** habit-д τ = 60 хоног, map pool-д 90 хоног. Default утгууд бөгөөд backtest-ээр тааруулна.
