@@ -201,7 +201,7 @@ GRID-ийн үнэгүй Open Access хаагдсан бололтой (`grid.gg
 
 ### DATA-7. Patch-ийн үе ба map pool-ийн тохиргоо (P1, S)
 
-> **Төлөв:** 🟡 `42ec2cd` (improvement-01). `app/data/patches.json` (patch, Map pool-ийн үе), Active Duty өдрөөр, Match-ийн patch, Playbook «patch-аас хойш», `review:fit --since`. Cache/C4 үеийн fit бүх датаас сайн биш тул model хэвээр. Post-plant detector-ийг 7 сараас хойших датагаар шалгах нь үлдсэн.
+> **Төлөв:** ✅ `42ec2cd` (improvement-01). `app/data/patches.json` (patch, Map pool-ийн үе), Active Duty өдрөөр, Match-ийн patch, Playbook «patch-аас хойш», `review:fit --since`. Cache/C4 үеийн fit бүх датаас сайн биш тул model хэвээр. Post-plant шалгалт (2026-10-21, локал): C4 patch-аас хойш 1,106 plant-тай раундад CT-ийн таамаг 23.1%, бодит 22.6% (Brier 0.098); өмнө 130 раундад 24.6% / 25.4%. Detector-ууд бөмбөгний 40 с, defuse-ийн 5/10 с дээр тулгуурладаг, C4 damage өөрчлөлт тэдэнд нөлөөлөхгүй.бүх датаас сайн биш тул model хэвээр. Post-plant detector-ийг 7 сараас хойших датагаар шалгах нь үлдсэн.
 
 - **`game_patches`:** огноо, build, тэмдэглэл. Тэмдэглэх patch-ууд:
   - CT-ийн T тутамд $50 (2025-07-16)
