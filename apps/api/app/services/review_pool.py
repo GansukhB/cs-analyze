@@ -648,6 +648,50 @@ def team_lines(team: Team, map_name: str, h2h: set[int]) -> list[dict]:
     return out
 
 
+TEAM_PAGE_LINES = 3  # Strengths and as many Weaknesses, per scope and Side
+
+
+def team_page(team: Team, maps: list[str]) -> dict:
+    """TM-10: the Team's weightiest Strengths and Weaknesses against the Pool, as
+    the Game Plan reads them (no fixture): the tendencies across all its Maps once
+    per Side, then what each Map's own events say beyond them."""
+    overall: dict[str, dict] = {side: {} for side in SIDES}
+    by_map = []
+    for map_name in maps:
+        lines = team_lines(team, map_name, set())
+        for side in SIDES:
+            mine = sorted((x for x in lines if x["side"] == side), key=lambda x: -x["weight"])
+            for x in mine:
+                if x["scope"] == "all_maps":
+                    overall[side].setdefault(x["key"], x)
+            own = [x for x in mine if x["scope"] != "all_maps"]
+            if own:
+                by_map.append({"map": map_name, "side": side, "lines": _top(own)})
+    return {
+        "overall": {side: _top(list(found.values())) for side, found in overall.items()},
+        "maps": by_map,
+    }
+
+
+def _top(lines: list[dict]) -> list[dict]:
+    lines = sorted(lines, key=lambda x: -x["weight"])
+    good = [x for x in lines if x["good"]][:TEAM_PAGE_LINES]
+    bad = [x for x in lines if not x["good"]][:TEAM_PAGE_LINES]
+    return [_page_line(x) for x in good + bad]
+
+
+def _page_line(x: dict) -> dict:
+    from app.services import mn
+
+    label = mn.SUMMARY_LABEL.get(x["key"]) or mn.REVIEW_CODE.get(x["key"], x["key"])
+    if x["kind"] == "rate":
+        value, mean = f"{round(100 * x['value'])}%", f"{round(100 * x['mean'])}%"
+    else:
+        value, mean = f"{x['value']:.1f}/24", f"{x['mean']:.1f}/24"
+    return {"good": x["good"], "key": x["key"], "label": label, "value": value, "pool": mean,
+            "z": x["z"], "of": x["of"]}  # fmt: skip
+
+
 def score(team: Team, key: str, map_name: str, side: str) -> float | None:
     """The Team's z on one Measure on this Map, signed so that above 0 is good for
     them; None when it can't be told."""

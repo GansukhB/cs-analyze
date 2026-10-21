@@ -24,6 +24,7 @@ from app.schemas import (
     TeamList,
     TeamMapPool,
     TeamPlayer,
+    TeamProfile,
     TeamRef,
     TeamResult,
     TeamResultMap,
@@ -31,7 +32,15 @@ from app.schemas import (
     TeamStrength,
     TeamStyleView,
 )
-from app.services import after_contact, dbctx, map_pool, roster, style, team_strength
+from app.services import (
+    after_contact,
+    dbctx,
+    map_pool,
+    review_pool,
+    roster,
+    style,
+    team_strength,
+)
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -123,6 +132,13 @@ def get_team(team_id: int, db: DbSession, _: StaffUser) -> TeamDetail:
         ).unique()
     )
     results = [_result(team, match) for match in matches]
+    with dbctx.using(db):
+        chances = team_strength.expected_results(team, [
+            (r.match_id, r.played_at, r.opponent.id if r.opponent else None, len(r.maps))
+            for r in results
+        ])  # fmt: skip
+    for r in results:
+        r.expected = chances.get(r.match_id)
     record = {"won": 0, "lost": 0, "drawn": 0}
     for row in results:
         if row.outcome:
@@ -151,7 +167,16 @@ def get_team(team_id: int, db: DbSession, _: StaffUser) -> TeamDetail:
         else [],
         strength=_strength(db, team),
         map_pool=_map_pool(db, team),
+        profile=_profile(db, team),
     )
+
+
+def _profile(db: Session, team: Team) -> TeamProfile | None:
+    with dbctx.using(db):
+        built = review_pool.team_page(team, list(map_pool.active_duty()))
+    if not built["maps"] and not any(built["overall"].values()):
+        return None
+    return TeamProfile(**built)
 
 
 def _strength(db: Session, team: Team) -> TeamStrength | None:

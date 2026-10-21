@@ -5597,6 +5597,7 @@ export interface components {
             plannable: components["schemas"]["TeamRef"][];
             strength?: components["schemas"]["TeamStrength"] | null;
             map_pool?: components["schemas"]["TeamMapPool"] | null;
+            profile?: components["schemas"]["TeamProfile"] | null;
         };
         /** TeamList */
         TeamList: {
@@ -5637,6 +5638,44 @@ export interface components {
             /** Last */
             last: string | null;
         };
+        /**
+         * TeamProfile
+         * @description TM-10: Strengths and Weaknesses against the Pool, from the Reviews.
+         */
+        TeamProfile: {
+            /** Overall */
+            overall: {
+                [key: string]: components["schemas"]["TeamProfileLine"][];
+            };
+            /** Maps */
+            maps: components["schemas"]["TeamProfileMap"][];
+        };
+        /** TeamProfileLine */
+        TeamProfileLine: {
+            /** Good */
+            good: boolean;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+            /** Pool */
+            pool: string;
+            /** Z */
+            z: number;
+            /** Of */
+            of: number;
+        };
+        /** TeamProfileMap */
+        TeamProfileMap: {
+            /** Map */
+            map: string;
+            /** Side */
+            side: string;
+            /** Lines */
+            lines: components["schemas"]["TeamProfileLine"][];
+        };
         /** TeamRef */
         TeamRef: {
             /** Id */
@@ -5666,6 +5705,8 @@ export interface components {
             /** N Parsed */
             n_parsed: number;
             demo: components["schemas"]["DemoState"];
+            /** Expected */
+            expected?: number | null;
         };
         /** TeamResultMap */
         TeamResultMap: {

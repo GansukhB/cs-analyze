@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router'
 import { $api } from '../api/client'
 import MapPool from '../team/MapPool'
+import ProfileSection from '../team/Profile'
 import StrengthSection from '../team/Strength'
 import StyleSection from '../team/Style'
 import AfterContactSection from '../team/AfterContact'
@@ -24,7 +25,7 @@ export default function TeamPage() {
   const team = $api.useQuery('get', '/teams/{team_id}', { params: { path: { team_id: Number(teamId) } } })
   if (team.error) return <LoadError error={team.error} what="Баг" retry={() => void team.refetch()} />
   if (!team.data) return <PageSkeleton />
-  const { team: info, record, results, n_parsed_maps, map_record, players, plannable = [], strength, map_pool } =
+  const { team: info, record, results, n_parsed_maps, map_record, players, plannable = [], strength, map_pool, profile } =
     team.data
   const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`
 
@@ -59,6 +60,7 @@ export default function TeamPage() {
 
       {strength && <StrengthSection s={strength} />}
       {map_pool && <MapPool pool={map_pool} />}
+      {profile && <ProfileSection p={profile} />}
       {n_parsed_maps > 0 && <StyleSection teamId={info.id} name={info.name} />}
       {n_parsed_maps > 0 && <AfterContactSection teamId={info.id} name={info.name} />}
       {n_parsed_maps > 0 && <RosterSection teamId={info.id} />}
@@ -94,6 +96,9 @@ export default function TeamPage() {
                   <th className="px-4 py-2">Date</th>
                   <th className="px-4 py-2">Opponent</th>
                   <th className="px-4 py-2 text-right">Score</th>
+                  <th className="px-4 py-2 text-right" title="The chance the two Ratings gave this team the day before">
+                    Rating-аар
+                  </th>
                   <th className="px-4 py-2">Maps</th>
                   <th className="px-4 py-2">Event</th>
                   <th className="px-4 py-2">Demo</th>
@@ -208,6 +213,22 @@ function ResultRow({ row }: { row: TeamResult }) {
           <span className={OUTCOME[row.outcome]}>{row.ours}–{row.theirs}</span>
         ) : (
           <span className="text-ink-3">{row.score || '—'}</span>
+        )}
+      </td>
+      <td className="px-4 py-2 text-right font-mono text-xs tabular-nums">
+        {row.expected == null ? (
+          <span className="text-ink-3">—</span>
+        ) : (
+          // TM-10: an upset (won at under 40%, lost at over 60%) stands out.
+          <span
+            className={
+              (row.outcome === 'win' && row.expected < 0.4) || (row.outcome === 'loss' && row.expected > 0.6)
+                ? 'text-warn'
+                : 'text-ink-2'
+            }
+          >
+            {Math.round(row.expected * 100)}%
+          </span>
         )}
       </td>
       <td className="px-4 py-2">

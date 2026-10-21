@@ -18,8 +18,8 @@ export default function MapPool({ pool }: { pool: Pool }) {
       <h2 className="font-medium text-ink">Map pool</h2>
       <p className="max-w-2xl text-sm text-ink-3">
         Гүн: идэвхтэй {pool.active.length} map-аас <b className="text-ink">{pool.depth}</b> нь 2+ удаа тоглогдож, раундын
-        хожил нь өөрийн дундаж ({pool.mean}%)-аас 5 нэгжээс илүү доогуур биш. Хувь нь нэг map-ын жингээр өөрийн дундаж руу
-        татагдсан.
+        хожил нь өөрийн дундаж ({pool.mean}%)-аас 5 нэгжээс илүү доогуур биш. Хүч нь Match Map бүрийг сүүлийн тоглолтоос хойш
+        насаар нь жинлэж (90 хоногт хагас), нэг map-ын жингээр өөрийн дундаж руу татсан; «Раунд» нь жингүй хувь.
       </p>
       <table className="text-sm">
         <thead className="text-left text-xs text-ink-3">
@@ -27,7 +27,7 @@ export default function MapPool({ pool }: { pool: Pool }) {
             <th className="py-1 pr-6 font-normal">Map</th>
             <th className="py-1 pr-6 text-right font-normal">Map W–L</th>
             <th className="py-1 pr-6 text-right font-normal">Раунд</th>
-            <th className="py-1 pr-6 text-right font-normal" title="Нэг map-ын жингээр өөрийн дундаж руу татсан">
+            <th className="py-1 pr-6 text-right font-normal" title="Сүүлийн тоглолтуудыг илүү жинлэж (90 хоногт хагас), нэг map-ын жингээр өөрийн дундаж руу татсан">
               Хүч
             </th>
             <th className="py-1 pr-6 text-right font-normal">Сүүлийн 90 хоног</th>

@@ -122,6 +122,32 @@ def _rounds(team: Team, expected_map) -> list[dict]:
     return out
 
 
+def expected_results(team: Team, rows: list[tuple]) -> dict[int, float]:
+    """TM-10: each Match's chance for ``team`` from the two Ratings the day before,
+    ``rows`` being ``(match id, played_at, opponent id, Maps played)``; a Match of
+    two or three Maps read as a Bo3, of four or five as a Bo5."""
+    me = forecast.standing(team)
+    if me is None:
+        return {}
+    snap = rating.current()
+    names = forecast._team_names()
+    slope = forecast.map_slope() * math.log(10) / rating.SCALE
+    between = forecast._region_gap(snap)
+    out = {}
+    for match_id, played, other_id, maps in rows:
+        other = names.get(other_id)
+        if played is None or other is None:
+            continue
+        day = played.date() if hasattr(played, "date") else played
+        mine, theirs = snap.before(me.name, day), snap.before(other, day)
+        if mine is None or theirs is None:
+            continue
+        p = 1 / (1 + math.exp(-(slope * (mine - theirs) + between(me.name, other))))
+        best_of = 1 if maps <= 1 else 3 if maps <= 3 else 5
+        out[match_id] = round(forecast.series_chance([p] * best_of, best_of), 3)
+    return out
+
+
 def tier_of(name: str, rank_of: dict[str, int]) -> str:
     return _tier(rank_of.get(rating._key(name)))
 

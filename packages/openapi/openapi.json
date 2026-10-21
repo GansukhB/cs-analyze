@@ -15929,6 +15929,16 @@
                 "type": "null"
               }
             ]
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -16045,6 +16055,103 @@
         ],
         "title": "TeamPlayer"
       },
+      "TeamProfile": {
+        "properties": {
+          "overall": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/TeamProfileLine"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Overall"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/TeamProfileMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "overall",
+          "maps"
+        ],
+        "title": "TeamProfile",
+        "description": "TM-10: Strengths and Weaknesses against the Pool, from the Reviews."
+      },
+      "TeamProfileLine": {
+        "properties": {
+          "good": {
+            "type": "boolean",
+            "title": "Good"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "pool": {
+            "type": "string",
+            "title": "Pool"
+          },
+          "z": {
+            "type": "number",
+            "title": "Z"
+          },
+          "of": {
+            "type": "integer",
+            "title": "Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "good",
+          "key",
+          "label",
+          "value",
+          "pool",
+          "z",
+          "of"
+        ],
+        "title": "TeamProfileLine"
+      },
+      "TeamProfileMap": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/TeamProfileLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "side",
+          "lines"
+        ],
+        "title": "TeamProfileMap"
+      },
       "TeamRef": {
         "properties": {
           "id": {
@@ -16138,6 +16245,17 @@
           },
           "demo": {
             "$ref": "#/components/schemas/DemoState"
+          },
+          "expected": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected"
           }
         },
         "type": "object",

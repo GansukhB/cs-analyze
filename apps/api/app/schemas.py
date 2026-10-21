@@ -385,6 +385,8 @@ class TeamResult(BaseModel):
     maps: list[TeamResultMap]
     n_parsed: int
     demo: DemoState
+    # TM-10: the chance the two Ratings gave this Team the day before.
+    expected: float | None = None
 
     @field_validator("played_at")
     @classmethod
@@ -482,6 +484,29 @@ class TeamMapPool(BaseModel):
     rows: list[MapPoolRow]
 
 
+class TeamProfileLine(BaseModel):
+    good: bool
+    key: str
+    label: str
+    value: str
+    pool: str
+    z: float
+    of: int
+
+
+class TeamProfileMap(BaseModel):
+    map: str
+    side: str
+    lines: list[TeamProfileLine]
+
+
+class TeamProfile(BaseModel):
+    """TM-10: Strengths and Weaknesses against the Pool, from the Reviews."""
+
+    overall: dict[str, list[TeamProfileLine]]
+    maps: list[TeamProfileMap]
+
+
 class TeamDetail(BaseModel):
     team: TeamRow
     record: MatchRecord
@@ -492,6 +517,7 @@ class TeamDetail(BaseModel):
     plannable: list[TeamRef] = []
     strength: TeamStrength | None = None
     map_pool: TeamMapPool | None = None
+    profile: TeamProfile | None = None
 
 
 # -- matches -----------------------------------------------------------------------

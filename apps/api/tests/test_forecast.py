@@ -229,3 +229,21 @@ def test_one_player_in_for_another_moves_the_rating_a_fifth(db):
     assert moved.rating == pytest.approx(base.rating + (stars_rating - base.rating) / 5, abs=0.1)
     assert "swap" in {x["code"] for x in out["limits"]}
     assert out["why"][0]["code"] == "gap"
+
+
+def test_each_result_says_what_the_ratings_expected(client, db, auth):
+    """TM-10: a stored Match carries the chance the two Ratings gave the day before."""
+    import datetime as dt
+
+    teams = [Team(name=n, hltv_id=i + 1) for i, n in enumerate(("Alpha", "Bravo"))]
+    db.add_all(teams)
+    db.flush()
+    a, b = teams
+    _results(db, "Alpha", "Bravo", a_wins=9, b_wins=3, start=date(2026, 1, 1))
+    db.add(Match(hltv_id=5, team1=a, team2=b, team1_score=1, team2_score=0,
+                 played_at=dt.datetime(2026, 3, 1)))  # fmt: skip
+    db.commit()
+    (row,) = client.get(f"/teams/{a.id}", headers=auth).json()["results"]
+    assert 0.5 < row["expected"] < 1.0
+    (theirs,) = client.get(f"/teams/{b.id}", headers=auth).json()["results"]
+    assert theirs["expected"] == pytest.approx(1 - row["expected"], abs=0.02)
