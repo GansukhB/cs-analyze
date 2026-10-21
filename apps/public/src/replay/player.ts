@@ -1008,15 +1008,15 @@ export function mountReplay(
     if (!d?.steps?.length) return
     const sides = Object.fromEntries(d.players.map((p) => [p.sid, p.side]))
     ctx.save()
-    ctx.lineWidth = 1.5 / state.zoom
+    ctx.lineWidth = 2.5 / state.zoom
     for (const [sid, t0, x, y, lvl] of d.steps) {
       const age = t - t0
       if (age < 0 || age >= STEP_SECONDS || !onFloor(lvl, floor)) continue
       const k = age / STEP_SECONDS
-      ctx.globalAlpha = 0.7 * (1 - k)
+      ctx.globalAlpha = 0.9 * (1 - k)
       ctx.strokeStyle = sides[sid] === 'ct' ? '#5b9bd8' : '#d39a55'
       ctx.beginPath()
-      ctx.arc(px(x), py(y), (4 + 16 * k) / state.zoom, 0, Math.PI * 2)
+      ctx.arc(px(x), py(y), (8 + 22 * k) / state.zoom, 0, Math.PI * 2)
       ctx.stroke()
     }
     ctx.restore()
