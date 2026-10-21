@@ -118,7 +118,7 @@ ggViz-ийн арга (Xenopoulos нар, CHI PLAY 2022, `12-research-sources.md
 
 ### VIZ-9. Heatmap v2 (P1, M)
 
-> **Төлөв:** 🟡 `ae4c470` (improvement-01). Хугацааны үе (0–15/15–30/30–60/60+/plant-ийн дараа), buy, Pool-той diff heatmap. Байрлалын heatmap ба «B дээр хаана үхдэг вэ» товч үлдсэн.
+> **Төлөв:** 🟡 `0e16301` (improvement-01). Хугацааны үе, buy, Pool-той diff heatmap (`ae4c470`); байрлалын heatmap (20 с-ийн Setup snapshot). «B дээр хаана үхдэг вэ» нэг товшилт үлдсэн.
 
 - **Цагаар хуваах:** 0–15 s, 15–30 s, 30–60 s, plant-ийн дараа.
 - **Байрлалын heatmap:** kill биш, хаана зогсдог вэ. Хадгалсан walks ба `round_snapshots`-аас.
