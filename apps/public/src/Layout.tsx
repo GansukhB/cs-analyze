@@ -111,7 +111,7 @@ export default function Layout() {
       </main>
       <div className="print:hidden">
         {staff && <SystemFooter width={width} />}
-        {staff && <Assistant />}
+        {me.data && <Assistant />}
       </div>
     </div>
   )

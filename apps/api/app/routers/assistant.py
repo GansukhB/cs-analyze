@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app import db as database
 from app.config import get_settings
-from app.deps import DbSession, StaffUser
+from app.deps import CurrentUser, DbSession, StaffUser
 from app.models import AssistantUsage, User
 from app.models.base import utcnow
 from app.schemas import (
@@ -41,7 +41,7 @@ MAX_AUDIO_BYTES = 10 * 1024 * 1024
 
 
 @router.get("/config")
-def config(_: StaffUser) -> AssistantConfig:
+def config(_: CurrentUser) -> AssistantConfig:
     """Which halves are set up, so the page can hide what wouldn't work."""
     return AssistantConfig(configured=assistant.is_configured(), voice=voice.is_configured())
 
@@ -129,7 +129,7 @@ def _frames(db: Session, body: AssistantChat, context, user: User, voice_on: boo
         }
     },
 )
-def chat(body: AssistantChat, db: DbSession, user: StaffUser) -> StreamingResponse:
+def chat(body: AssistantChat, db: DbSession, user: CurrentUser) -> StreamingResponse:
     """One question, answered paragraph by paragraph as Claude writes it."""
     if not body.message.strip():
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Empty message")
@@ -200,7 +200,7 @@ def usage(db: DbSession, _: StaffUser) -> AssistantUsageReport:
 
 
 @router.post("/transcribe")
-def transcribe(audio: UploadFile, db: DbSession, _: StaffUser) -> AssistantTranscript:
+def transcribe(audio: UploadFile, db: DbSession, _: CurrentUser) -> AssistantTranscript:
     """A recorded question as text (ElevenLabs Scribe, Mongolian, primed with team names)."""
     if not voice.is_configured():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Voice is not configured")

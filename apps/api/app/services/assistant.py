@@ -46,7 +46,17 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.config import get_settings
-from app.models import AnalysisJob, JobStatus, MapRoster, Match, MatchMap, Player, Round, Team
+from app.models import (
+    AnalysisJob,
+    GameMap,
+    JobStatus,
+    MapRoster,
+    Match,
+    MatchMap,
+    Player,
+    Round,
+    Team,
+)
 from app.services import (
     after_contact,
     dbctx,
@@ -535,6 +545,45 @@ TOOLS = [
                 "limit": {"type": "integer", "description": "At most 10; 5 by default."},
             },
         },
+    },
+]
+
+
+# AS-8: what a Player login's Assistant can call, each held to their own play.
+PLAYER_TOOLS = [
+    {
+        "name": "player_form",
+        "description": (
+            "The user's own player page: their totals, numbers by map and side, the "
+            "Findings they get most per 24 rounds against every player's rate, and their "
+            "latest maps' form. Takes no arguments."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "my_matches",
+        "description": "The user's latest parsed Match Maps, newest first, with their ids.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer", "description": "At most 20."}},
+        },
+    },
+    next(t for t in TOOLS if t["name"] == "match_review"),
+    {
+        "name": "my_goals",
+        "description": (
+            "The user's active Development goals: the KPI, its target and due date, where "
+            "it stands now and whether it is reached."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "my_briefings",
+        "description": (
+            "Briefings the staff shared with the team: with no id the list, with an id one "
+            "Briefing's notes and lines per map."
+        ),
+        "input_schema": {"type": "object", "properties": {"briefing_id": {"type": "string"}}},
     },
 ]
 
@@ -1170,6 +1219,113 @@ def _tool_scrims(team_id: int | None = None, limit: int = 5) -> dict:
     return {"team": _team(team_id).name, "scrims": rows}
 
 
+# -- AS-8: what a Player login may ask -------------------------------------------------
+_PLAYER: ContextVar[Player | None] = ContextVar("assistant_player", default=None)
+MY_MATCHES_LIMIT = 10
+
+
+def _tool_my_matches(limit: int = MY_MATCHES_LIMIT) -> dict:
+    player = _PLAYER.get()
+    session = dbctx.db()
+    rows = session.execute(
+        select(MatchMap.match_id, MatchMap.map_number, GameMap.name, Match.played_at,
+               MapRoster.team_id)
+        .join(MapRoster, MapRoster.match_map_id == MatchMap.id)
+        .join(Match, Match.id == MatchMap.match_id)
+        .outerjoin(GameMap, GameMap.id == MatchMap.game_map_id)
+        .where(MapRoster.player_id == player.id, MatchMap.parsed_at.is_not(None))
+        .order_by(Match.played_at.desc())
+        .limit(max(1, min(int(limit or MY_MATCHES_LIMIT), 20)))
+    ).all()  # fmt: skip
+    return {"player": player.name, "maps": [
+        {"match_id": m, "map_number": n, "map": mn.game_map(name or ""),
+         "date": played.date().isoformat() if played else None}
+        for m, n, name, played, _team in rows
+    ]}  # fmt: skip
+
+
+def _tool_my_goals() -> dict:
+    from app.models import DevelopmentGoal, GoalStatus
+    from app.services import development
+
+    player = _PLAYER.get()
+    session = dbctx.db()
+    goals = session.scalars(
+        select(DevelopmentGoal).where(
+            DevelopmentGoal.player_id == player.id,
+            DevelopmentGoal.workspace_id == _WORKSPACE.get(),
+            DevelopmentGoal.status == GoalStatus.ACTIVE,
+        )
+    ).all()
+    specs = development.kpis()
+    out = []
+    for g in goals:
+        progress = development.progress(g, player)
+        out.append({
+            "kpi": (specs.get(g.kpi) or {}).get("label", g.kpi), "baseline": g.baseline,
+            "target": g.target, "due": g.due_on.isoformat(), "now": progress["value"],
+            "verdict": progress["verdict"], "notes": g.notes,
+        })  # fmt: skip
+    return {"player": player.name, "goals": out}
+
+
+def _tool_my_briefings(briefing_id: str = "") -> dict:
+    from app.models import Briefing
+    from app.services import briefings
+
+    session = dbctx.db()
+    shared = select(Briefing).where(
+        Briefing.workspace_id == _WORKSPACE.get(), Briefing.shared_at.is_not(None)
+    )
+    if not briefing_id:
+        rows = session.scalars(shared.order_by(Briefing.shared_at.desc()).limit(10)).all()
+        return {"briefings": [{"id": str(b.public_id), "title": b.title} for b in rows]}
+    try:
+        wanted = uuid.UUID(briefing_id)
+    except ValueError:
+        return {"error": "give a briefing id from the list"}
+    b = session.scalar(shared.where(Briefing.public_id == wanted))
+    if b is None:
+        return {"error": "no shared briefing with that id"}
+    content = briefings.unpack(b.payload)
+    return {"title": b.title, "note": content.get("note", ""), "maps": [
+        {"map": m.get("label"), "note": m.get("note", ""),
+         "lines": [i.get("title") for i in m.get("items", [])]}
+        for m in content.get("maps", [])
+    ]}  # fmt: skip
+
+
+def _for_a_player(name: str, tool_input: dict):
+    """A Player login's call, held to their own play; None when it may not be made."""
+    player = _PLAYER.get()
+    if name == "player_form":
+        return _tool_player_form(steamid=str(player.steamid))
+    if name == "match_review":
+        match_id = tool_input.get("match_id")
+        played = dbctx.db().scalar(
+            select(MapRoster.id)
+            .join(MatchMap, MatchMap.id == MapRoster.match_map_id)
+            .where(MatchMap.match_id == match_id, MapRoster.player_id == player.id)
+            .limit(1)
+        )
+        if played is None:
+            return {"error": "you did not play in that match"}
+        out = _tool_match_review(**{**tool_input, "player": player.name})
+        if isinstance(out, dict) and "players" in out:
+            out["players"] = [p for p in out["players"] if p.get("name") == player.name]
+        return out
+    if name in PLAYER_DISPATCH:
+        return PLAYER_DISPATCH[name](**tool_input)
+    return None
+
+
+PLAYER_DISPATCH = {
+    "my_matches": _tool_my_matches,
+    "my_goals": _tool_my_goals,
+    "my_briefings": _tool_my_briefings,
+}
+
+
 DISPATCH = {
     "list_teams": _tool_list_teams,
     "team_overview": _tool_team_overview,
@@ -1215,9 +1371,21 @@ class Context:
     # The signed-in User's Workspace's my teams (CONTEXT.md): who "we" are.
     my_teams: list[Team] = field(default_factory=list)
     workspace_id: int | None = None
+    # AS-8: a Player login asks about their own play only.
+    player_login: Player | None = None
 
     def note(self) -> str:
         """A preface for the system prompt: standing knowledge, not something the user said."""
+        if self.player_login is not None:
+            p = self.player_login
+            return (
+                f"\n\nThe user is the player {p.name!r} (Steam id {p.steamid}), not staff. "
+                "They may ask only about their own play: their form (player_form), the "
+                "Reviews of Matches they played (my_matches, then match_review, which shows "
+                "their own Findings), their Development goals (my_goals) and the Briefings "
+                "shared with their team (my_briefings). Say plainly that anything else "
+                "(other teams' scouting, Forecasts, the Stratbook) is for their staff."
+            )
         return self._ours() + self._page()
 
     def _ours(self) -> str:
@@ -1347,6 +1515,8 @@ def clean_context(session: Session, raw, user=None) -> Context:
     if user is not None and user.workspace is not None:
         ctx.my_teams = [wt.team for wt in user.workspace.teams]
         ctx.workspace_id = user.workspace_id
+    if user is not None and not user.is_staff and user.player_id is not None:
+        ctx.player_login = session.get(Player, user.player_id)
     return ctx
 
 
@@ -1485,18 +1655,27 @@ def _language_reminder(message: str) -> str:
 
 def _execute_tool(session: Session, ctx: Context, name: str, tool_input: dict) -> str:
     """Always a JSON string -- that is what a ``tool_result`` block's content must be."""
-    fn = DISPATCH.get(name)
+    fn = DISPATCH.get(name) or PLAYER_DISPATCH.get(name)
     if fn is None:
         result = {"error": f"no such tool: {name}"}
     else:
         try:
             token = _WORKSPACE.set(ctx.workspace_id)
+            mine = _PLAYER.set(ctx.player_login)
             try:
                 with dbctx.using(session):
-                    picked = {team_id: lineup.resolve(ids) for team_id, ids in ctx.lineups.items()}
-                    with lineup.using(picked):
-                        result = fn(**tool_input)
+                    if ctx.player_login is not None:
+                        result = _for_a_player(name, dict(tool_input))
+                        if result is None:
+                            result = {"error": "that is for your staff to look at"}
+                    else:
+                        picked = {
+                            team_id: lineup.resolve(ids) for team_id, ids in ctx.lineups.items()
+                        }
+                        with lineup.using(picked):
+                            result = fn(**tool_input)
             finally:
+                _PLAYER.reset(mine)
                 _WORKSPACE.reset(token)
         except UnknownTeam:
             result = {"error": "no team with that id"}
@@ -1716,7 +1895,7 @@ def _turn(
             model=settings.claude_model,
             max_tokens=settings.claude_max_tokens,
             system=system,
-            tools=TOOLS,
+            tools=PLAYER_TOOLS if ctx.player_login is not None else TOOLS,
             messages=messages,
             output_config={"effort": settings.claude_effort},
             cache_control={"type": "ephemeral"},

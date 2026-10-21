@@ -13,6 +13,7 @@ import { Check, Close, Mic, NewChat, Pin, Play, Retry, Send, Sparkle, Speaker, S
 import { useRecorder } from './useRecorder'
 import { useSpeaker, type Speaker as SpeakerApi } from './useSpeaker'
 import { WithRefs } from './refs'
+import { useMe } from '../auth/useMe'
 import type { MapAt } from './roundTokens'
 import './assistant.css'
 
@@ -530,6 +531,15 @@ function IconButton(props: {
   )
 }
 
+// AS-8: a Player login asks about their own play only.
+const PLAYER_GREETING =
+  'Өөрийн тоглолт, Review дээрх алдаа ба сайн үйлдэл, Development зорилго, багт хуваалцсан Briefing-ийн талаар асуу.'
+const PLAYER_SUGGESTIONS = [
+  'Сүүлийн тоглолтод би юуг сайжруулах вэ?',
+  'Миний зорилгууд хэр ахисан бэ?',
+  'Сүүлийн Briefing-д юу гэж байна?',
+]
+
 function Welcome(props: {
   page: PageContext
   configured: boolean
@@ -537,12 +547,13 @@ function Welcome(props: {
   voice: boolean
   onPick: (q: string) => void
 }) {
+  const player = useMe().data?.role === 'player'
   return (
     <div className="as-in flex flex-1 flex-col items-center justify-center gap-5 px-2 text-center">
       <Orb state="idle" size="h-14 w-14 [&_svg]:h-7 [&_svg]:w-7" />
       <div className="space-y-1.5">
         <p className="text-base font-semibold text-ink">Юу мэдэхийг хүсэж байна?</p>
-        <p className="text-sm leading-relaxed text-ink-2">{greeting(props.page)}</p>
+        <p className="text-sm leading-relaxed text-ink-2">{player ? PLAYER_GREETING : greeting(props.page)}</p>
       </div>
       {!props.loading && !props.configured ? (
         <p className="rounded-xl border border-crit/50 bg-crit/10 px-3 py-2 text-sm text-crit">
@@ -550,7 +561,7 @@ function Welcome(props: {
         </p>
       ) : (
         <div className="flex w-full flex-col gap-2">
-          {suggestions(props.page.scope).map((q) => (
+          {(player ? PLAYER_SUGGESTIONS : suggestions(props.page.scope)).map((q) => (
             <button
               key={q}
               onClick={() => props.onPick(q)}

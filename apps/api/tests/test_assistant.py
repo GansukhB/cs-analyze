@@ -542,3 +542,38 @@ def test_the_round_search_strats_and_scrims_tools(db, league, workspace):  # noq
     assert "error" in run("scrims", {"team_id": league["b"].id})
     nobody = json.loads(assistant._execute_tool(db, assistant.Context(), "scrims", {}))
     assert nobody["error"] == "the user has no Workspace"
+
+
+def test_a_player_logins_assistant_keeps_to_their_own_play(db, league, workspace):  # noqa: F811
+    """AS-8: their own form whoever is asked for, only Matches they played, no staff tools."""
+    from sqlalchemy import select
+
+    from app.models import Match, User, UserRole
+
+    a, c = league["a"], league["c"]
+    me = league["players"][a.id][0]
+    user = User(username="A0", password_hash="x", workspace=workspace, role=UserRole.PLAYER,
+                player_id=me.id)  # fmt: skip
+    db.add(user)
+    db.commit()
+    ctx = assistant.clean_context(db, None, user)
+    assert ctx.player_login is not None and "not staff" in ctx.note()
+
+    def run(name, tool_input):
+        return json.loads(assistant._execute_tool(db, ctx, name, tool_input))
+
+    other = str(league["players"][c.id][0].steamid)
+    assert run("player_form", {"steamid": other})["player"]["steamid"] == str(me.steamid)
+    mine = run("my_matches", {})["maps"]
+    assert mine and all(m["match_id"] for m in mine)
+    theirs = db.scalar(select(Match.id).where(Match.team1_id == league["b"].id))
+    refused = run("match_review", {"match_id": theirs})
+    assert refused == {"error": "you did not play in that match"}
+    assert run("forecast", {"mine_id": a.id, "theirs_id": c.id}) == {
+        "error": "that is for your staff to look at"
+    }  # fmt: skip
+    assert run("my_goals", {}) == {"player": me.name, "goals": []}
+    assert run("my_briefings", {}) == {"briefings": []}
+    assert {t["name"] for t in assistant.PLAYER_TOOLS} == {
+        "player_form", "my_matches", "match_review", "my_goals", "my_briefings",
+    }  # fmt: skip
