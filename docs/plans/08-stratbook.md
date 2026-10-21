@@ -40,6 +40,8 @@
 
 ### SB-1. Stratbook ба Strat-ийн загвар (P1, M)
 
+> **Төлөв:** ✅ `7e09024` (improvement-01). Strat-ийн загвар, Map × Side grid, засвар, хувилбар, жишээ раунд.
+
 - **`strats`:**
   - `id`, `workspace_id`, `team_id` (my team), `game_map_id`, `side`
   - `name`, `kind`: default | execute | fake | retake | CT setup | pistol | anti-eco | force
@@ -63,11 +65,15 @@
 
 ### SB-2. Set play-ээс Strat (P1, M)
 
+> **Төлөв:** ✅ `c20e602` (improvement-01). Playbook-ийн Set play-ээс нэг товчоор Strat ба эсрэг Strat.
+
 - **Өөрийн Set play-ээс:** official болон Scrim-ээс олдсон Set play бүрт "Strat болгож хадгалах" товч. Гранат, жишээ Round, timing урьдчилан бөглөгдөнө.
 - **Өрсөлдөгчийн Set play-ээс:** Playbook дахь Set play бүрт "эсрэг Strat" линк. Тэр нь манай CT Setup эсвэл retake-ийн Strat-ийг холбоно. GP-3-ийн "манай төлөвлөгөө" хэсэгт харагдана.
 - **ADR 0010:** өрсөлдөгчийн Set play зөвхөн official тоглолтоос гарна. Scrim-ийн түнш багийнх орохгүй.
 
 ### SB-3. Lineup-ийн сан (P1, M; DATA-5-ийн `grenade_thrown`-оос сайжирна)
+
+> **Төлөв:** ✅ `c8d7629` (improvement-01). Lineup-ийн сан (spot, aim, нислэг, хэн, setpos). Jump/run-throw тэмдэглэгээ үлдсэн.
 
 - **Эх дата:**
   - Bundle-ийн `grenades` trajectory-ийн эхний цэг.
@@ -84,6 +90,8 @@
   - Өрсөлдөгчийнх нь utility-ийн газрын зурагт (VIZ-10).
 
 ### SB-4. Strat-ийн гүйцэтгэлийг хэмжих (P1, M–L)
+
+> **Төлөв:** ✅ `63b2fc9` (improvement-01). Гранатаар раунд тааруулах, батлах/хасах, гүйцэтгэл (80% муж, buy, official/Scrim), map-ын хамрах хүрээ veto лабораторид.
 
 - **Тааруулах:** Official болон Scrim-ийн Round бүрийг Strat-уудтай ижил төстэй байдлаар тааруулна:
   - Strat-ийн гранатууд тодорхой цонхонд буусан эсэх. Set play-ийн 5 s-ийн дүрмийг дахин ашиглана.
@@ -107,11 +115,15 @@
 
 ### SB-6. Хуваалцах ба танилцуулах (P1, S–M)
 
+> **Төлөв:** 🟡 `2265412` (improvement-01). Strat-ийн граната lineup-тай, хэвлэх картад setpos. Briefing-ээс Strat руу линк үлдсэн.
+
 - Strat-ийг багтаа хуваалцана. Player User read-only уншина (WS-4).
 - Хэвлэх карт: Map, Side, slot бүрийн үүрэг, lineup.
 - Briefing дахь "манай төлөвлөгөө" мөрөөс Strat руу линк (WS-5, GP-3).
 
 ### SB-7. Нууцлал (P1, S)
+
+> **Төлөв:** ✅ `7e09024` (improvement-01). Засвар зөвхөн Staff, багт хуваалцах, бүх уншилт/хэвлэлт/засварын бүртгэл. Watermark (P2) үлдсэн.
 
 - **Хамгийн эмзэг дата:** засах эрх зөвхөн Staff-д. Strat бүрийг тусад нь хуваалцана. Нийтийн линк гаргахгүй.
 - **Audit log:** хэн нээсэн, хэвлэсэн, export хийсэн (WS-7). Задрал гарвал эх сурвалжийг олох хэрэгсэл.
