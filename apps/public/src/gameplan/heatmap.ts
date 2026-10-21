@@ -36,10 +36,10 @@ const OPAQUE = 25
 const CROP_PAD = 8
 // heatmaps.py: a 240x240 kernel density at bandwidth factor 0.22, transparent
 // where cold (alpha = density x 1.5, capped at 0.88).
-const GRID = 240
+export const GRID = 240
 const BANDWIDTH = 0.22
 
-type Extent = [number, number, number, number]
+export type Extent = [number, number, number, number]
 
 interface Backdrop {
   canvas: HTMLCanvasElement | null
@@ -153,7 +153,7 @@ async function build(plate: HeatPlate, level: string): Promise<Backdrop | null> 
 /** scipy's gaussian_kde with bw_method=0.22, on a GRID x GRID lattice over the
  *  extent, normalised to its peak. Null when it cannot be fit (too few or
  *  co-linear points), which -- as in cstat -- leaves just the dots. */
-function density(
+export function density(
   points: [number, number][],
   [x0, x1, y0, y1]: Extent,
   norm: 'peak' | 'mass' = 'peak',
@@ -218,7 +218,7 @@ function density(
 // each as a share of its own mass, scaled to the largest gap (VIZ-9).
 const MORE = [209, 73, 91]
 const LESS = [91, 155, 216]
-function difference(points: [number, number][], pool: [number, number][], extent: Extent): Float32Array | null {
+export function difference(points: [number, number][], pool: [number, number][], extent: Extent): Float32Array | null {
   const a = density(points, extent, 'mass')
   const b = density(pool, extent, 'mass')
   if (!a || !b) return null

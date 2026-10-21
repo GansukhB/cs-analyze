@@ -11,6 +11,7 @@ python -m app.cli import-tickdata [folder]   # parquet bundles on disk -> MySQL
 python -m app.cli rebuild-tickdata           # Replays, walks, geometry from the stored bundles
 python -m app.cli fit-winprob                # refit the Review's Win probability model
 python -m app.cli assistant-eval [--yes]     # ask and score the Assistant's golden set
+python -m app.cli hltv-canary                # check HLTV still reads the Scout's way
 python -m app.cli rebuild-reviews [--map ID] # cut every Match Map's Review again
 python -m app.cli summary-thresholds         # the Patterns' 75th percentiles, measured again
 python -m app.cli import-vrs [checkout]       # Valve Regional Standings -> series results
@@ -256,6 +257,21 @@ def fit_winprob(since: str | None = None, dry_run: bool = False) -> None:
     print(f"Wrote {winprob.MODEL_PATH} (version {spec['version']}).")
 
 
+def hltv_canary(team: str) -> None:
+    """Read one known Team on HLTV the Scout's way; exit 1 naming what broke (OPS-9)."""
+    from app.services import canary
+    from app.services.browser import HltvBrowser
+    from app.services.client import HltvClient
+
+    with HltvBrowser() as browser:
+        problems = canary.check(HltvClient(browser), team)
+    if problems:
+        for p in problems:
+            print(f"BROKEN {p}")
+        raise SystemExit(1)
+    print(f"HLTV reads as expected ({team}).")
+
+
 def assistant_eval(limit: int | None = None, yes: bool = False) -> None:
     """Ask the Assistant its golden set and score it (AS-4). Every question is a
     paid turn: without ``yes`` this only says what it would cost."""
@@ -423,6 +439,9 @@ def main() -> None:
     fit.add_argument("--since", help="Only Match Maps played on or after this day (YYYY-MM-DD).")
     fit.add_argument("--dry-run", action="store_true", help="Print the metrics, write nothing.")
     sub.add_parser("forecast-backtest")
+    sub.add_parser("hltv-canary").add_argument(
+        "--team", default="Vitality", help="A Team HLTV lists with recent demos."
+    )
     ev = sub.add_parser("assistant-eval")
     ev.add_argument("--limit", type=int, help="Only the first N questions.")
     ev.add_argument("--yes", action="store_true", help="Ask them (each is a paid turn).")
@@ -460,6 +479,9 @@ def main() -> None:
         return
     if args.command == "forecast-backtest":
         forecast_backtest()
+        return
+    if args.command == "hltv-canary":
+        hltv_canary(args.team)
         return
     if args.command == "assistant-eval":
         assistant_eval(args.limit, args.yes)

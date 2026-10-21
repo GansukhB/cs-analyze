@@ -12,7 +12,8 @@ import { suggestions, usePageContext, type PageContext } from './context'
 import { Check, Close, Mic, NewChat, Pin, Play, Retry, Send, Sparkle, Speaker, SpeakerOff, StopSquare } from './icons'
 import { useRecorder } from './useRecorder'
 import { useSpeaker, type Speaker as SpeakerApi } from './useSpeaker'
-import { type MapAt, WithRefs } from './refs'
+import { WithRefs } from './refs'
+import type { MapAt } from './roundTokens'
 import './assistant.css'
 
 interface Para {

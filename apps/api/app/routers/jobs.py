@@ -79,7 +79,8 @@ def home(db: DbSession, _: StaffUser) -> HomeInfo:
     )
     return HomeInfo(
         recent_jobs=[JobRow.of(j) for j in recent],
-        known_teams=list(teams),
+        # HLTV has several Teams of one name (dead rosters, academies): one entry each.
+        known_teams=list(dict.fromkeys(teams)),
         parsed_maps=parsed or 0,
         defaults=ScoutDefaults(
             matches=settings.analysis_default_matches, max_matches=settings.analysis_max_matches
