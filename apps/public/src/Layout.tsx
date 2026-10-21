@@ -38,6 +38,9 @@ export default function Layout() {
               <NavLink to="/playlists" className={link}>
                 Playlist
               </NavLink>
+              <NavLink to="/stratbook" className={link}>
+                Stratbook
+              </NavLink>
             </nav>
           )}
           {staff && (
@@ -59,6 +62,9 @@ export default function Layout() {
               </NavLink>
               <NavLink to="/playlists" className={link}>
                 Playlist
+              </NavLink>
+              <NavLink to="/stratbook" className={link}>
+                Stratbook
               </NavLink>
               <NavLink to="/gameplan" className={link}>
                 Game plan

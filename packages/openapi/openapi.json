@@ -3409,6 +3409,552 @@
         }
       }
     },
+    "/strats": {
+      "get": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "List Strats",
+        "operationId": "list_strats_strats_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "map_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Map Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StratRow"
+                  },
+                  "title": "Response List Strats Strats Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Create Strat",
+        "operationId": "create_strat_strats_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StratWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StratRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strats/maps": {
+      "get": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Strat Maps",
+        "description": "The Active Duty Maps, the Stratbook's rows.",
+        "operationId": "strat_maps_strats_maps_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response Strat Maps Strats Maps Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/strats/{strat_id}": {
+      "get": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Get Strat",
+        "operationId": "get_strat_strats__strat_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StratRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Update Strat",
+        "operationId": "update_strat_strats__strat_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StratWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StratRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Delete Strat",
+        "operationId": "delete_strat_strats__strat_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strats/{strat_id}/print": {
+      "post": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Printed",
+        "description": "Logs a print (SB-7): the page calls it before it prints.",
+        "operationId": "printed_strats__strat_id__print_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strats/{strat_id}/examples": {
+      "post": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Add Example",
+        "operationId": "add_example_strats__strat_id__examples_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StratExampleWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StratRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strats/{strat_id}/examples/{example_id}": {
+      "delete": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Drop Example",
+        "operationId": "drop_example_strats__strat_id__examples__example_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          },
+          {
+            "name": "example_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Example Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StratRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strats/{strat_id}/versions": {
+      "get": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Versions",
+        "operationId": "versions_strats__strat_id__versions_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StratVersionRead"
+                  },
+                  "title": "Response Versions Strats  Strat Id  Versions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strats/{strat_id}/events": {
+      "get": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Events",
+        "description": "Who read, printed or changed it (SB-7), newest first.",
+        "operationId": "events_strats__strat_id__events_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StratEventRead"
+                  },
+                  "title": "Response Events Strats  Strat Id  Events Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/workspace/members": {
       "get": {
         "tags": [
@@ -10901,6 +11447,534 @@
           "counts"
         ],
         "title": "StageRow"
+      },
+      "StratEventRead": {
+        "properties": {
+          "user": {
+            "type": "string",
+            "title": "User"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "action",
+          "at"
+        ],
+        "title": "StratEventRead"
+      },
+      "StratExampleRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "match_id",
+          "map_number",
+          "round",
+          "label",
+          "source",
+          "confirmed",
+          "note"
+        ],
+        "title": "StratExampleRead"
+      },
+      "StratExampleWrite": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "round": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Round"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "map_number",
+          "round"
+        ],
+        "title": "StratExampleWrite"
+      },
+      "StratGrenade": {
+        "properties": {
+          "slot": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "smoke",
+              "flash",
+              "he",
+              "inferno",
+              "decoy"
+            ],
+            "title": "Type",
+            "default": "smoke"
+          },
+          "place": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Place",
+            "default": ""
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Note",
+            "default": ""
+          },
+          "lineup": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lineup"
+          }
+        },
+        "type": "object",
+        "title": "StratGrenade"
+      },
+      "StratRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "map_name": {
+            "type": "string",
+            "title": "Map Name"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility"
+          },
+          "examples": {
+            "type": "integer",
+            "title": "Examples"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/StratRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "grenades": {
+            "items": {
+              "$ref": "#/components/schemas/StratGrenade"
+            },
+            "type": "array",
+            "title": "Grenades"
+          },
+          "timings": {
+            "type": "string",
+            "title": "Timings"
+          },
+          "variations": {
+            "type": "string",
+            "title": "Variations"
+          },
+          "calls": {
+            "type": "string",
+            "title": "Calls"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "examples_list": {
+            "items": {
+              "$ref": "#/components/schemas/StratExampleRead"
+            },
+            "type": "array",
+            "title": "Examples List"
+          },
+          "versions": {
+            "type": "integer",
+            "title": "Versions"
+          },
+          "can_edit": {
+            "type": "boolean",
+            "title": "Can Edit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "team",
+          "map_name",
+          "side",
+          "name",
+          "kind",
+          "status",
+          "visibility",
+          "examples",
+          "updated_at",
+          "description",
+          "roles",
+          "grenades",
+          "timings",
+          "variations",
+          "calls",
+          "tags",
+          "examples_list",
+          "versions",
+          "can_edit"
+        ],
+        "title": "StratRead"
+      },
+      "StratRole": {
+        "properties": {
+          "slot": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Slot"
+          },
+          "player": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Player",
+            "default": ""
+          },
+          "role": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Role",
+            "default": ""
+          },
+          "does": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Does",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "slot"
+        ],
+        "title": "StratRole"
+      },
+      "StratRow": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "map_name": {
+            "type": "string",
+            "title": "Map Name"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility"
+          },
+          "examples": {
+            "type": "integer",
+            "title": "Examples"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "team",
+          "map_name",
+          "side",
+          "name",
+          "kind",
+          "status",
+          "visibility",
+          "examples",
+          "updated_at"
+        ],
+        "title": "StratRow"
+      },
+      "StratVersionRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_by",
+          "created_at",
+          "payload"
+        ],
+        "title": "StratVersionRead"
+      },
+      "StratWrite": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "map_name": {
+            "type": "string",
+            "pattern": "^de_[a-z0-9_]{2,30}$",
+            "title": "Map Name"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "ct",
+              "t"
+            ],
+            "title": "Side"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "default",
+              "execute",
+              "fake",
+              "retake",
+              "setup",
+              "pistol",
+              "anti_eco",
+              "force"
+            ],
+            "title": "Kind",
+            "default": "default"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Description",
+            "default": ""
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/StratRole"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Roles"
+          },
+          "grenades": {
+            "items": {
+              "$ref": "#/components/schemas/StratGrenade"
+            },
+            "type": "array",
+            "maxItems": 25,
+            "title": "Grenades"
+          },
+          "timings": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Timings",
+            "default": ""
+          },
+          "variations": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Variations",
+            "default": ""
+          },
+          "calls": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Calls",
+            "default": ""
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Tags"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "retired"
+            ],
+            "title": "Status",
+            "default": "draft"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "staff",
+              "team"
+            ],
+            "title": "Visibility",
+            "default": "staff"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "map_name",
+          "side",
+          "name"
+        ],
+        "title": "StratWrite"
       },
       "StyleMetric": {
         "properties": {

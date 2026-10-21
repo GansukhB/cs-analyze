@@ -60,6 +60,15 @@ from app.models.jobs import (
 from app.models.notes import NoteKind, Playlist, ReviewNote
 from app.models.results import SeriesResult, VrsStanding
 from app.models.source import Demo, Match, MatchKind, MatchSource, Team, Tournament
+from app.models.strat import (
+    Strat,
+    StratEvent,
+    StratExample,
+    StratKind,
+    StratStatus,
+    StratVersion,
+    StratVisibility,
+)
 from app.models.upload import Upload, UploadPart, UploadStatus
 from app.models.user import User
 from app.models.workspace import DeclaredRole, Invite, UserRole, Workspace, WorkspaceTeam
@@ -132,4 +141,11 @@ __all__ = [
     "EventLevel",
     "AnalysisArtifact",
     "ArtifactKind",
+    "Strat",
+    "StratEvent",
+    "StratExample",
+    "StratKind",
+    "StratStatus",
+    "StratVersion",
+    "StratVisibility",
 ]

@@ -1256,6 +1256,113 @@ class TimeoutCard(BaseModel):
     pool: AuditPool
 
 
+# -- The Stratbook (docs/plans/08 SB-1, SB-7) ---------------------------------------
+class StratRole(BaseModel):
+    slot: int = Field(ge=1, le=5)
+    player: str = Field(default="", max_length=20)  # a Steam id, or "" for the slot
+    role: str = Field(default="", max_length=40)
+    does: str = Field(default="", max_length=500)
+
+
+class StratGrenade(BaseModel):
+    slot: int | None = Field(default=None, ge=1, le=5)
+    type: Literal["smoke", "flash", "he", "inferno", "decoy"] = "smoke"
+    place: str = Field(default="", max_length=40)
+    at: float | None = Field(default=None, ge=0, le=180)
+    note: str = Field(default="", max_length=300)
+    lineup: int | None = None
+
+
+class StratWrite(BaseModel):
+    team_id: int
+    map_name: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")
+    side: Literal["ct", "t"]
+    name: str = Field(min_length=1, max_length=120)
+    kind: Literal["default", "execute", "fake", "retake", "setup", "pistol", "anti_eco",
+                  "force"] = "default"  # fmt: skip
+    description: str = Field(default="", max_length=8000)
+    roles: list[StratRole] = Field(default_factory=list, max_length=5)
+    grenades: list[StratGrenade] = Field(default_factory=list, max_length=25)
+    timings: str = Field(default="", max_length=4000)
+    variations: str = Field(default="", max_length=4000)
+    calls: str = Field(default="", max_length=2000)
+    tags: list[str] = Field(default_factory=list, max_length=12)
+    status: Literal["draft", "active", "retired"] = "draft"
+    visibility: Literal["staff", "team"] = "staff"
+
+
+class StratRow(BaseModel):
+    id: int
+    team: TeamRef
+    map_name: str
+    side: str
+    name: str
+    kind: str
+    status: str
+    visibility: str
+    examples: int
+    updated_at: dt.datetime
+
+    @field_validator("updated_at")
+    @classmethod
+    def updated_utc(cls, value: dt.datetime) -> dt.datetime:
+        return _utc(value)
+
+
+class StratExampleRead(BaseModel):
+    id: int
+    match_id: int
+    map_number: int
+    round: int
+    label: str
+    source: str
+    confirmed: bool
+    note: str
+
+
+class StratExampleWrite(BaseModel):
+    match_id: int
+    map_number: int
+    round: int = Field(ge=1, le=60)
+    note: str = Field(default="", max_length=300)
+
+
+class StratRead(StratRow):
+    description: str
+    roles: list[StratRole]
+    grenades: list[StratGrenade]
+    timings: str
+    variations: str
+    calls: str
+    tags: list[str]
+    examples_list: list[StratExampleRead]
+    versions: int
+    can_edit: bool
+
+
+class StratEventRead(BaseModel):
+    user: str
+    action: str
+    at: dt.datetime
+
+    @field_validator("at")
+    @classmethod
+    def at_utc(cls, value: dt.datetime) -> dt.datetime:
+        return _utc(value)
+
+
+class StratVersionRead(BaseModel):
+    id: int
+    created_by: str
+    created_at: dt.datetime
+    payload: dict
+
+    @field_validator("created_at")
+    @classmethod
+    def created_utc(cls, value: dt.datetime) -> dt.datetime:
+        return _utc(value)
+
+
 # -- Briefings (docs/plans/01 WS-5) ------------------------------------------------
 class BriefingMapPick(BaseModel):
     map: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")

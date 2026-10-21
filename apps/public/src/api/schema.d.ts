@@ -1064,6 +1064,154 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/strats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Strats */
+        get: operations["list_strats_strats_get"];
+        put?: never;
+        /** Create Strat */
+        post: operations["create_strat_strats_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/maps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Strat Maps
+         * @description The Active Duty Maps, the Stratbook's rows.
+         */
+        get: operations["strat_maps_strats_maps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/{strat_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Strat */
+        get: operations["get_strat_strats__strat_id__get"];
+        /** Update Strat */
+        put: operations["update_strat_strats__strat_id__put"];
+        post?: never;
+        /** Delete Strat */
+        delete: operations["delete_strat_strats__strat_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/{strat_id}/print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Printed
+         * @description Logs a print (SB-7): the page calls it before it prints.
+         */
+        post: operations["printed_strats__strat_id__print_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/{strat_id}/examples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Example */
+        post: operations["add_example_strats__strat_id__examples_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/{strat_id}/examples/{example_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Drop Example */
+        delete: operations["drop_example_strats__strat_id__examples__example_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/{strat_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Versions */
+        get: operations["versions_strats__strat_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/{strat_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Events
+         * @description Who read, printed or changed it (SB-7), newest first.
+         */
+        get: operations["events_strats__strat_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workspace/members": {
         parameters: {
             query?: never;
@@ -3773,6 +3921,240 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** StratEventRead */
+        StratEventRead: {
+            /** User */
+            user: string;
+            /** Action */
+            action: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** StratExampleRead */
+        StratExampleRead: {
+            /** Id */
+            id: number;
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Round */
+            round: number;
+            /** Label */
+            label: string;
+            /** Source */
+            source: string;
+            /** Confirmed */
+            confirmed: boolean;
+            /** Note */
+            note: string;
+        };
+        /** StratExampleWrite */
+        StratExampleWrite: {
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Round */
+            round: number;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** StratGrenade */
+        StratGrenade: {
+            /** Slot */
+            slot?: number | null;
+            /**
+             * Type
+             * @default smoke
+             * @enum {string}
+             */
+            type: "smoke" | "flash" | "he" | "inferno" | "decoy";
+            /**
+             * Place
+             * @default
+             */
+            place: string;
+            /** At */
+            at?: number | null;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Lineup */
+            lineup?: number | null;
+        };
+        /** StratRead */
+        StratRead: {
+            /** Id */
+            id: number;
+            team: components["schemas"]["TeamRef"];
+            /** Map Name */
+            map_name: string;
+            /** Side */
+            side: string;
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Status */
+            status: string;
+            /** Visibility */
+            visibility: string;
+            /** Examples */
+            examples: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Description */
+            description: string;
+            /** Roles */
+            roles: components["schemas"]["StratRole"][];
+            /** Grenades */
+            grenades: components["schemas"]["StratGrenade"][];
+            /** Timings */
+            timings: string;
+            /** Variations */
+            variations: string;
+            /** Calls */
+            calls: string;
+            /** Tags */
+            tags: string[];
+            /** Examples List */
+            examples_list: components["schemas"]["StratExampleRead"][];
+            /** Versions */
+            versions: number;
+            /** Can Edit */
+            can_edit: boolean;
+        };
+        /** StratRole */
+        StratRole: {
+            /** Slot */
+            slot: number;
+            /**
+             * Player
+             * @default
+             */
+            player: string;
+            /**
+             * Role
+             * @default
+             */
+            role: string;
+            /**
+             * Does
+             * @default
+             */
+            does: string;
+        };
+        /** StratRow */
+        StratRow: {
+            /** Id */
+            id: number;
+            team: components["schemas"]["TeamRef"];
+            /** Map Name */
+            map_name: string;
+            /** Side */
+            side: string;
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Status */
+            status: string;
+            /** Visibility */
+            visibility: string;
+            /** Examples */
+            examples: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** StratVersionRead */
+        StratVersionRead: {
+            /** Id */
+            id: number;
+            /** Created By */
+            created_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        /** StratWrite */
+        StratWrite: {
+            /** Team Id */
+            team_id: number;
+            /** Map Name */
+            map_name: string;
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "ct" | "t";
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @default default
+             * @enum {string}
+             */
+            kind: "default" | "execute" | "fake" | "retake" | "setup" | "pistol" | "anti_eco" | "force";
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Roles */
+            roles?: components["schemas"]["StratRole"][];
+            /** Grenades */
+            grenades?: components["schemas"]["StratGrenade"][];
+            /**
+             * Timings
+             * @default
+             */
+            timings: string;
+            /**
+             * Variations
+             * @default
+             */
+            variations: string;
+            /**
+             * Calls
+             * @default
+             */
+            calls: string;
+            /** Tags */
+            tags?: string[];
+            /**
+             * Status
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "active" | "retired";
+            /**
+             * Visibility
+             * @default staff
+             * @enum {string}
+             */
+            visibility: "staff" | "team";
+        };
         /** StyleMetric */
         StyleMetric: {
             /** Key */
@@ -6458,6 +6840,344 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScrimLog"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_strats_strats_get: {
+        parameters: {
+            query?: {
+                team_id?: number | null;
+                map_name?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_strat_strats_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StratWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    strat_maps_strats_maps_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
+    get_strat_strats__strat_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_strat_strats__strat_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StratWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_strat_strats__strat_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    printed_strats__strat_id__print_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_example_strats__strat_id__examples_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StratExampleWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    drop_example_strats__strat_id__examples__example_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+                example_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    versions_strats__strat_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratVersionRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    events_strats__strat_id__events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratEventRead"][];
                 };
             };
             /** @description Validation Error */
