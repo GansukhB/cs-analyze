@@ -232,3 +232,37 @@ def test_a_blinded_enemy_left_alive_is_a_flash_unpunished(db, inferno, bent):  #
     f = _codes(_review(db, inferno, tweak=later))["blind_unpunished"][0]
     assert f["sids"][1] == "11" and f["facts"]["thrower"] == "21"
     assert f["facts"]["enemies"] == [{"sid": "11", "seconds": 2.5}]
+
+
+def test_the_rounds_first_kill_for_the_side_that_won_is_an_entry(db, inferno, bent):  # noqa: F811
+    """With a1's death taken out, a2's kill on b2 opens the Round, and the CTs win it."""
+    import polars as pl
+
+    def a1_lives(frames):
+        frames["kills"] = frames["kills"].filter(pl.col("victim_steamid") != 11)
+
+    bent(DIES=(11, 10**9))
+    codes = _codes(_review(db, inferno, tweak=a1_lives))
+    entry = codes["entry"][0]
+    assert entry["sids"][0] == "12" and entry["swing"] >= 0.12
+    assert "clutch" not in codes  # a1 is alive: no clutch
+
+
+def test_he_damage_that_lets_a_teammate_finish_is_a_utility_kill(db, inferno):  # noqa: F811
+    """a1's HE puts 40 into b1 at 1500; a2 kills b1 at 2000, 8 s later."""
+    import polars as pl
+
+    def he(frames):
+        row = {"tick": 1500, "attacker_steamid": 11, "victim_steamid": 21, "attacker_side": "ct",
+               "victim_side": "t", "weapon": "hegrenade", "dmg_health_real": 40, "health": 60,
+               "round_num": 1}  # fmt: skip
+        more = pl.DataFrame([row], schema=frames["damages"].schema)
+        frames["damages"] = pl.concat([frames["damages"], more])
+        b1 = pl.col("victim_steamid") == 21
+        frames["kills"] = frames["kills"].with_columns(
+            pl.when(b1).then(2000).otherwise(pl.col("tick")).alias("tick")
+        )
+
+    f = _codes(_review(db, inferno, tweak=he))["nade_damage_kill"][0]
+    assert f["sids"] == ["11", "12", "21"] and f["facts"]["nade"] == "he"
+    assert f["facts"]["dealt"] == 40 and f["facts"]["killer"] == "12"
