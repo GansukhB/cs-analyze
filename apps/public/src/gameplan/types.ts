@@ -494,6 +494,9 @@ export interface Shot {
   heat?: boolean
   labels?: { name: string; x: number; y: number }[]
   level?: string
+  // VIZ-9: the game Callouts this selection has, most first, and the one it is kept to.
+  places?: { place: string; n: number }[]
+  place?: string
   plate?: {
     url: string | null
     lower: string | null

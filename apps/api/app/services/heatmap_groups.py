@@ -15,6 +15,7 @@ on the server (docs/adr/0002-tick-data-in-mysql.md): the points come from
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
 from collections.abc import Iterable
 
 from sqlalchemy import and_, func, or_, select
@@ -241,7 +242,7 @@ def _narrow(query, actor_side, phase: str, buy: str, joined: bool = False):
 
 def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
            level: str = ALL_LEVELS, phase: str = "all", buy: str = "all",
-           compare: bool = False) -> dict | None:  # fmt: skip
+           compare: bool = False, place: str = "") -> dict | None:  # fmt: skip
     """One cell of the grid: the positions to draw and what to draw them over.
 
     None when the selection has no usable positions -- the page says "nothing
@@ -268,14 +269,17 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
     source = RoundSnapshot if standing else KillEvent
     if standing:
         actor_id, actor_side = RoundSnapshot.player_id, RoundSnapshot.side
+        actor_place = RoundSnapshot.place
         phase = "all"  # the snapshot is one moment, 20 s in
     else:
-        actor_id = KillEvent.attacker_id if kind == "kills" else KillEvent.victim_id
-        actor_side = KillEvent.attacker_side if kind == "kills" else KillEvent.victim_side
+        kills = kind == "kills"
+        actor_id = KillEvent.attacker_id if kills else KillEvent.victim_id
+        actor_side = KillEvent.attacker_side if kills else KillEvent.victim_side
+        actor_place = KillEvent.attacker_place if kills else KillEvent.victim_place
     fx, fy, fz = (getattr(source, f) for f in spec["fields"])
     map_ids = [m.id for m in maps]
     query = (
-        select(fx, fy, fz)
+        select(fx, fy, fz, actor_place)
         .join(Round, Round.id == source.round_id)
         .where(Round.match_map_id.in_(map_ids), fx.is_not(None), fy.is_not(None))
         .order_by(source.id)
@@ -306,8 +310,17 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
         # A kill with no altitude is dropped from a floor view: a point on a floor
         # picture is a claim about which floor it was on.
         rows = [r for r in rows if r[2] is not None and radar.level_at(split, r[2]) == level]
+    # VIZ-9's quick question ("where on B do they die?"): the game Callouts this
+    # selection has, most first, and the selection kept to one of them.
+    seen: dict[str, int] = defaultdict(int)
+    for r in rows:
+        if r[3]:
+            seen[r[3]] += 1
+    places = [{"place": p, "n": n} for p, n in sorted(seen.items(), key=lambda kv: -kv[1])]
+    if place:
+        rows = [r for r in rows if r[3] == place]
     if not rows:
-        return None
+        return {"empty": True, "places": places} if place else None
 
     geometry = map_geometry(maps)
     labels = (
@@ -319,6 +332,7 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
             "positions": "where they stand 20 s in"}[kind]  # fmt: skip
     side_label = {"ct": "CT side", "t": "T side"}.get(side, "both sides")
     floor_label = "" if level == ALL_LEVELS else f" · {level} floor"
+    floor_label += f" · {place}" if place else ""
     count = f"{len(rows)} position{'' if len(rows) == 1 else 's'}"
     heat = len(rows) >= HEAT_MIN_POINTS
     backdrop = plate(map_name)
@@ -339,6 +353,8 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
             others = others.where(actor_side == side)
         if standing:
             others = others.where(RoundSnapshot.moment == SnapshotMoment.SETUP)
+        if place:
+            others = others.where(actor_place == place)
         others = _narrow(others, actor_side, phase, buy, joined=True)
         pool = [[round(x, 1), round(y, 1)] for x, y in session.execute(others).all()]
     return {
@@ -348,7 +364,9 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
         "title": f"{label} — {verb}",
         "subtitle": f"{map_name} · {side_label}{floor_label} · {count}"
         + ("" if heat else " · too few for a heat layer"),
-        "points": [[round(x, 1), round(y, 1)] for x, y, _z in rows],
+        "points": [[round(x, 1), round(y, 1)] for x, y, _z, _p in rows],
+        "places": places,
+        "place": place,
         "heat": heat,
         "labels": labels,
         "level": "" if level == ALL_LEVELS else level,

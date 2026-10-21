@@ -22,6 +22,7 @@ interface Selection {
   phase: string
   buy: string
   compare: boolean
+  place: string
 }
 
 const PHASES: [string, string][] = [
@@ -69,6 +70,7 @@ export default function MapGrid({
       phase: pick('gph', PHASES.map(([k]) => k), 'all'),
       buy: pick('gb', BUYS.map(([k]) => k), 'all'),
       compare: asked('gc') === '1',
+      place: asked('gpl'),
     }
   })
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function MapGrid({
     put('gph', sel.phase, 'all')
     put('gb', sel.buy, 'all')
     put('gc', sel.compare ? '1' : '', '')
+    put('gpl', sel.place, '')
     if (next.toString() !== window.location.search.replace(/^\?/, '')) setSearch(next, { replace: true })
   }, [sel, setSearch])
   const played = playedMaps(index, sel.team)
@@ -102,6 +105,8 @@ export default function MapGrid({
       // A floor the new map does not have falls back to both.
       const keys = index.levels[next.map] ?? []
       if (next.level !== 'all' && !keys.includes(next.level)) next.level = 'all'
+      // A Callout belongs to its Map.
+      if (patch.map !== undefined && patch.map !== cur.map) next.place = ''
       return next
     })
   }
@@ -111,7 +116,7 @@ export default function MapGrid({
       const n = index.available[[sel.map, sel.team, sel.player, sel.side, k.key].join('|')] ?? 0
       return {
         // Each cell is fetched at most once; re-selecting a view is free.
-        queryKey: ['gameplan-grid', kind, mine, theirs, sel.map, sel.team, sel.player, sel.side, k.key, sel.level, sel.phase, sel.buy, sel.compare],
+        queryKey: ['gameplan-grid', kind, mine, theirs, sel.map, sel.team, sel.player, sel.side, k.key, sel.level, sel.phase, sel.buy, sel.compare, sel.place],
         queryFn: () => drawCell(kind, mine, theirs, sel, k.key),
         enabled: n > 0,
         staleTime: Infinity,
@@ -123,6 +128,11 @@ export default function MapGrid({
   // Only the first kind's response fills the tables, so two shots answering at
   // different times cannot fight over one region.
   const tables: TableSpec[] = (shots[0]?.data?.tables as TableSpec[] | undefined) ?? []
+  // Every Callout any cell has, most first: the quick question's choices.
+  const placeCounts = new Map<string, number>()
+  for (const q of shots) for (const p of q.data?.places ?? []) placeCounts.set(p.place, (placeCounts.get(p.place) ?? 0) + p.n)
+  const places = [...placeCounts.entries()].sort((a, b) => b[1] - a[1]).map(([p]) => p)
+  const sites = places.filter((p) => /^Bombsite[AB]$/.test(p)).sort()
 
   return (
     <>
@@ -189,6 +199,31 @@ export default function MapGrid({
                 Pool-той харьцуулах
               </Chip>
             </Row>
+            {(places.length > 0 || sel.place) && (
+              <Row label="Газар">
+                <Chip on={!sel.place} mono onClick={() => change({ place: '' })}>
+                  Бүх газар
+                </Chip>
+                {sites.map((p) => (
+                  <Chip key={p} on={sel.place === p} mono onClick={() => change({ place: p })}>
+                    {p.replace('Bombsite', '')} site дээр
+                  </Chip>
+                ))}
+                <select
+                  value={sites.includes(sel.place) ? '' : sel.place}
+                  onChange={(e) => change({ place: e.target.value })}
+                  className="gp-select"
+                  aria-label="Callout"
+                >
+                  <option value="">Callout…</option>
+                  {places.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </Row>
+            )}
           </>
         )}
       </div>
@@ -402,7 +437,10 @@ async function drawCell(kind: Kind, mine: number, theirs: number, sel: Selection
   const res =
     kind === 'heatmap'
       ? await fetchClient.GET('/gameplan/{mine}/vs/{theirs}/heatmap', {
-          params: { path, query: { ...query, phase: sel.phase, buy: sel.buy, compare: sel.compare } },
+          params: {
+            path,
+            query: { ...query, phase: sel.phase, buy: sel.buy, compare: sel.compare, place: sel.place || undefined },
+          },
         })
       : await fetchClient.GET('/gameplan/{mine}/vs/{theirs}/movement', { params: { path, query } })
   if (res.error || !res.data) throw new Error('draw failed')

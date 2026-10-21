@@ -411,6 +411,11 @@ def test_where_a_team_stands_twenty_seconds_in(client, auth, league, db):
     url = f"/gameplan/{a.id}/vs/{b.id}/heatmap?team={a.id}&map=de_mirage&side=t&kind=positions"
     body = client.get(url, headers=auth).json()
     assert len(body["points"]) == len(rounds) and "stand 20 s in" in body["title"]
+    assert body["places"] == [{"place": "Middle", "n": len(rounds)}]
+    # The quick question: kept to one Callout, or nothing there.
+    there = client.get(url + "&place=Middle", headers=auth).json()
+    assert len(there["points"]) == len(rounds) and "Middle" in there["subtitle"]
+    assert client.get(url + "&place=BombsiteB", headers=auth).json()["empty"] is True
     grid = client.get(f"/gameplan/{a.id}/vs/{b.id}/s/heatmaps", headers=auth).json()["data"]
     assert [k["key"] for k in grid["index"]["kinds"]] == ["kills", "deaths", "positions"]
     assert grid["index"]["available"][f"de_mirage|{a.id}|all|t|positions"] == len(rounds)

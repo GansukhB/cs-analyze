@@ -2536,7 +2536,7 @@
           "gameplan"
         ],
         "summary": "Heatmap",
-        "description": "One heatmap cell for a fixture: the positions and the map they go on (the page\ndraws it); by phase of the Round and buy, against every other Team's (VIZ-9).",
+        "description": "One heatmap cell for a fixture: the positions and the map they go on (the page\ndraws it); by phase of the Round and buy, against every other Team's, and kept\nto one game Callout (VIZ-9).",
         "operationId": "heatmap_gameplan__mine__vs__theirs__heatmap_get",
         "security": [
           {
@@ -2651,6 +2651,17 @@
               "type": "boolean",
               "default": false,
               "title": "Compare"
+            }
+          },
+          {
+            "name": "place",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 24,
+              "default": "",
+              "title": "Place"
             }
           }
         ],
