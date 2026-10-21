@@ -42,6 +42,8 @@ type OrbState = 'idle' | 'thinking' | 'speaking' | 'listening'
 
 const STORE = 'cs-analyze.assistant.v1'
 const VOICE = 'cs-analyze.assistant.voice'
+// AS-9: send what was heard straight away, or put it in the box to check first.
+const AUTO_SEND = 'cs-analyze.assistant.autosend'
 const MAX_CHARS = 2000
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -81,6 +83,22 @@ function loadVoice(): boolean {
     return localStorage.getItem(VOICE) !== '0'
   } catch {
     return true
+  }
+}
+
+function loadAutoSend(): boolean {
+  try {
+    return localStorage.getItem(AUTO_SEND) === '1'
+  } catch {
+    return false
+  }
+}
+
+function saveAutoSend(on: boolean) {
+  try {
+    localStorage.setItem(AUTO_SEND, on ? '1' : '0')
+  } catch {
+    // Not remembered; the toggle still works for this page.
   }
 }
 
@@ -162,6 +180,11 @@ export default function Assistant() {
   const [open, setOpen] = useState(false)
   const [turns, setTurns] = useState<Turn[]>(loadTurns)
   const [draft, setDraft] = useState('')
+  // AS-9: the box holds what was heard until it is checked and sent.
+  const [heard, setHeard] = useState(false)
+  const [autoSend, setAutoSend] = useState(loadAutoSend)
+  // Every audio URL made for a reply, released when the chat is cleared or closed.
+  const audioUrls = useRef<string[]>([])
   const [busy, setBusy] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -223,6 +246,7 @@ export default function Assistant() {
             break
           case 'audio': {
             const url = audioUrl(event.audio)
+            audioUrls.current.push(url)
             patch(reply.id, (t) => {
               const paras = [...t.paras]
               paras[event.id] = { ...paras[event.id], text: paras[event.id]?.text ?? '', audio: url }
@@ -280,26 +304,38 @@ export default function Assistant() {
       setTranscribing(true)
       try {
         const text = await transcribe(audio)
-        if (text.trim()) await ask(text, true)
-        else setNotice('Юу ч сонсогдсонгүй. Микрофон руу ойртож дахин ярина уу.')
+        if (!text.trim()) setNotice('Юу ч сонсогдсонгүй. Микрофон руу ойртож дахин ярина уу.')
+        else if (autoSend) await ask(text, true)
+        else {
+          setDraft(text)
+          setHeard(true)
+          setNotice('Сонссоноо шалгаад Enter дарж илгээнэ үү.')
+        }
       } catch {
         setNotice('Яриаг таньж чадсангүй. Дахин оролдох эсвэл бичиж асууна уу.')
       } finally {
         setTranscribing(false)
       }
     },
-    [ask],
+    [ask, autoSend],
   )
   const recorder = useRecorder(onRecorded)
   const recording = recorder.state !== 'idle'
 
   const shownNotice = notice ?? (recorder.error ? RECORDER_ERRORS[recorder.error] : null)
 
+  const releaseAudio = useCallback(() => {
+    for (const url of audioUrls.current) URL.revokeObjectURL(url)
+    audioUrls.current = []
+  }, [])
+  useEffect(() => releaseAudio, [releaseAudio])
+
   const reset = useCallback(() => {
     stop()
+    releaseAudio()
     setTurns([])
     setNotice(null)
-  }, [stop])
+  }, [stop, releaseAudio])
 
   const retry = useCallback(
     (replyId: string) => {
@@ -419,9 +455,18 @@ export default function Assistant() {
               setNotice(null)
               recorder.clearError()
             }}
-            onSend={() => void ask(draft)}
+            onSend={() => {
+              // Spoken, even when edited: the reply is read aloud the same way.
+              void ask(draft, heard)
+              setHeard(false)
+            }}
             onStop={stop}
             recorder={voiceAvailable ? recorder : null}
+            autoSend={autoSend}
+            setAutoSend={(on) => {
+              setAutoSend(on)
+              saveAutoSend(on)
+            }}
           />
         </section>
       )}
@@ -666,6 +711,8 @@ function Composer(props: {
   onSend: () => void
   onStop: () => void
   recorder: ReturnType<typeof useRecorder> | null
+  autoSend: boolean
+  setAutoSend: (on: boolean) => void
 }) {
   const { recorder, draft } = props
   const input = useRef<HTMLTextAreaElement>(null)
@@ -679,6 +726,7 @@ function Composer(props: {
   }, [draft])
 
   const canSend = !!props.draft.trim() && !props.disabled
+  const touched = useRef(0)
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
   return (
@@ -706,11 +754,15 @@ function Composer(props: {
               <span key={i} style={{ height: `${Math.max(8, l * 100)}%`, opacity: 0.35 + l * 0.65 }} />
             ))}
           </div>
+          <label className="flex items-center gap-1 text-[11px] text-ink-3" title="Сонссоноо шалгалгүй шууд илгээх">
+            <input type="checkbox" checked={props.autoSend} onChange={(e) => props.setAutoSend(e.target.checked)} />
+            шууд
+          </label>
           <button
             onClick={recorder.stop}
             disabled={recorder.state !== 'recording'}
-            aria-label="Дуусгаад илгээх"
-            title="Дуусгаад илгээх"
+            aria-label="Дуусгах"
+            title="Дуусгах"
             className="as-orb h-9 w-9 shrink-0 disabled:opacity-50"
             data-state="none"
           >
@@ -753,14 +805,35 @@ function Composer(props: {
             className="max-h-[150px] min-h-[36px] flex-1 resize-none bg-transparent py-1.5 text-sm leading-relaxed text-ink placeholder:text-ink-3 focus:outline-none disabled:opacity-50"
           />
           {recorder && !props.busy && (
-            <IconButton
-              label="Дуугаар асуух"
-              onClick={() => void recorder.start()}
+            // AS-9: a tap starts and the check mark stops; on a phone, hold to talk.
+            <button
+              type="button"
+              aria-label="Дуугаар асуух (утсан дээр дарж байгаад ярь)"
+              title="Дуугаар асуух"
               disabled={props.disabled}
-              className="h-9 w-9 rounded-full"
+              onPointerDown={(e) => {
+                if (e.pointerType !== 'touch') return
+                // The recording bar replaces this button at once: hear the lift on the window.
+                touched.current = performance.now()
+                let lifted = false
+                const lift = () => {
+                  lifted = true
+                  recorder.stop()
+                }
+                window.addEventListener('pointerup', lift, { once: true })
+                window.addEventListener('pointercancel', lift, { once: true })
+                void recorder.start().then(() => {
+                  if (lifted) recorder.stop() // lifted before the microphone was ready
+                })
+              }}
+              onClick={() => {
+                if (performance.now() - touched.current < 1000) return // the touch's own click
+                void recorder.start()
+              }}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-2 transition hover:bg-raised hover:text-ink disabled:pointer-events-none disabled:opacity-35"
             >
               <Mic />
-            </IconButton>
+            </button>
           )}
           {props.busy ? (
             <button
