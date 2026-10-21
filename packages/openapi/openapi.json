@@ -12851,6 +12851,21 @@
             "maxItems": 6,
             "minItems": 1,
             "title": "Conditions"
+          },
+          "heat": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "deaths",
+                  "kills"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat"
           }
         },
         "type": "object",
@@ -12930,6 +12945,18 @@
             },
             "type": "array",
             "title": "Rounds"
+          },
+          "heat": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat"
           }
         },
         "type": "object",

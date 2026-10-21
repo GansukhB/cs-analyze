@@ -1,6 +1,7 @@
 """The Round search (docs/plans/09 VIZ-7)."""
 
 from app.services import replay, round_search
+from tests.test_gameplan import league  # noqa: F401  (fixture)
 
 
 def _payload():
@@ -43,4 +44,30 @@ def test_the_search_answers_with_no_indexed_rounds(client, auth):
         "found": 0,
         "won": 0,
         "rounds": [],
+        "heat": None,
     }
+
+
+def test_a_search_finds_a_round_and_draws_where_its_side_died(client, auth, db, league):  # noqa: F811
+    """One indexed Round of the league: two T at B from second 2; its T death heats."""
+    import gzip
+    import json
+
+    from sqlalchemy import select
+
+    from app.models import MatchMap, ReplayRound, Round
+
+    mm = db.scalars(select(MatchMap).order_by(MatchMap.id)).first()
+    rnd = db.scalar(select(Round).where(Round.match_map_id == mm.id, Round.number == 1))
+    blob = gzip.compress(json.dumps(replay.tokens(_payload())).encode())
+    db.add(ReplayRound(match_map_id=mm.id, number=1, payload=gzip.compress(b"{}"), tokens=blob))
+    db.commit()
+    body = {"map_name": "de_mirage", "side": "t", "heat": "deaths",
+            "conditions": [{"place": "B", "min": 2, "start": 0, "end": 5}]}  # fmt: skip
+    out = client.post("/search/rounds", headers=auth, json=body).json()
+    assert (out["looked"], out["found"]) == (1, 1) and out["rounds"][0]["round"] == rnd.number
+    assert out["heat"]["kind"] == "deaths" and len(out["heat"]["points"]) == 1
+    none = client.post("/search/rounds", headers=auth, json={**body, "side": "ct"}).json()
+    assert none["found"] == 0 and none["heat"] is None
+    places = client.get("/search/places/de_mirage", headers=auth).json()
+    assert places == ["B", "Mid"]

@@ -16,8 +16,8 @@ import json
 
 from sqlalchemy import select
 
-from app.models import GameMap, Match, MatchMap, ReplayRound, Round, Team
-from app.services import scope
+from app.models import GameMap, KillEvent, Match, MatchMap, ReplayRound, Round, Team
+from app.services import heatmap_groups, scope
 from app.services.dbctx import db
 
 SLACK = 2  # seconds either side of a window
@@ -66,14 +66,53 @@ def _holds(t: dict, side: str, cond: dict) -> bool:
     return False
 
 
+def _heat(map_name: str, side: str, round_ids: list[int], kind: str) -> dict | None:
+    """Where ``side`` died (or got its kills) in the matched Rounds, as the
+    heatmap draws it (VIZ-7: the results at a glance)."""
+    if not round_ids:
+        return None
+    prefix = "victim" if kind == "deaths" else "attacker"
+    fx, fy = getattr(KillEvent, f"{prefix}_x"), getattr(KillEvent, f"{prefix}_y")
+    side_col = getattr(KillEvent, f"{prefix}_side")
+    session = db()
+    rows = session.execute(
+        select(fx, fy).where(
+            KillEvent.round_id.in_(round_ids), side_col == side, fx.is_not(None), fy.is_not(None)
+        )
+    ).all()
+    if not rows:
+        return None
+    maps = session.scalars(
+        select(MatchMap).join(Round, Round.match_map_id == MatchMap.id).where(
+            Round.id.in_(round_ids)
+        ).distinct()
+    ).all()  # fmt: skip
+    backdrop = heatmap_groups.plate(map_name)
+    verb = "where they die" if kind == "deaths" else "where they get their kills"
+    return {
+        "kind": kind,
+        "cmap": "viridis" if kind == "deaths" else "inferno",
+        "title": f"{side.upper()} — {verb}",
+        "subtitle": f"{map_name} · {len(round_ids)} Rounds · {len(rows)} positions",
+        "points": [[round(x, 1), round(y, 1)] for x, y in rows],
+        "heat": len(rows) >= heatmap_groups.HEAT_MIN_POINTS,
+        "labels": heatmap_groups.map_geometry(maps).get("labels") or [],
+        "level": "",
+        "plate": backdrop,
+        "renderer": "map-background" if backdrop and backdrop.get("url") else "density",
+    }
+
+
 def search(
     map_name: str,
     side: str,
     conditions: list[dict],
     team_id: int | None = None,
     buy: str | None = None,
+    heat: str | None = None,
 ) -> dict:
-    """Every Round matching all ``conditions`` for ``side``, newest first."""
+    """Every Round matching all ``conditions`` for ``side``, newest first, and
+    with ``heat`` ("deaths" or "kills") where that happened in all of them."""
     session = db()
     scope.allow_scrims(session)
     team_col = Round.ct_team_id if side == "ct" else Round.t_team_id
@@ -120,4 +159,7 @@ def search(
         )
     won = sum(1 for r in found if r[1].winner_team_id == (r[1].ct_team_id if side == "ct"
                                                            else r[1].t_team_id))  # fmt: skip
-    return {"looked": looked, "found": len(found), "won": won, "rounds": rows}
+    out = {"looked": looked, "found": len(found), "won": won, "rounds": rows}
+    if heat in ("deaths", "kills"):
+        out["heat"] = _heat(map_name, side, [r[1].id for r in found], heat)
+    return out

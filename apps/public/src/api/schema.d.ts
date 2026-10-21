@@ -4414,6 +4414,8 @@ export interface components {
             buy?: ("full" | "light") | null;
             /** Conditions */
             conditions: components["schemas"]["SearchCondition"][];
+            /** Heat */
+            heat?: ("deaths" | "kills") | null;
         };
         /** SearchCondition */
         SearchCondition: {
@@ -4447,6 +4449,10 @@ export interface components {
             won: number;
             /** Rounds */
             rounds: components["schemas"]["SearchRound"][];
+            /** Heat */
+            heat?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** SearchRound */
         SearchRound: {

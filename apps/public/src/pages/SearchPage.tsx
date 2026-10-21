@@ -1,10 +1,11 @@
 // The Round search (docs/plans/09 VIZ-7): "find me Rounds like this". Pick a
 // Map and the Side the conditions are about, then Callouts with how many of
 // that Side stood there and when; the matching Rounds open in ghost mode.
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { $api } from '../api/client'
 import type { components } from '../api/schema'
+import { drawHeatmap, type HeatData } from '../gameplan/heatmap'
 
 type Condition = components['schemas']['SearchCondition']
 const field = 'rounded-md border border-line bg-surface-2 px-2 py-1 text-sm text-ink'
@@ -20,6 +21,8 @@ export default function SearchPage() {
   const [team, setTeam] = useState<number | null>(null)
   const [buy, setBuy] = useState<'' | 'full' | 'light'>('')
   const [conds, setConds] = useState<Condition[]>([{ place: '', min: 2, max: null, start: 15, end: 30 }])
+  // VIZ-7: where the side died or got its kills in all the matched Rounds.
+  const [heat, setHeat] = useState<'' | 'deaths' | 'kills'>('deaths')
   const run = $api.useMutation('post', '/search/rounds')
   const set = (i: number, patch: Partial<Condition>) => setConds(conds.map((c, k) => (k === i ? { ...c, ...patch } : c)))
   const ready = conds.every((c) => c.place)
@@ -56,6 +59,11 @@ export default function SearchPage() {
               {t.name}
             </option>
           ))}
+        </select>
+        <select value={heat} onChange={(e) => setHeat(e.target.value as '' | 'deaths' | 'kills')} className={field}>
+          <option value="deaths">Heatmap: үхсэн газар</option>
+          <option value="kills">Heatmap: kill авсан газар</option>
+          <option value="">Heatmap-гүй</option>
         </select>
         <select value={buy} onChange={(e) => setBuy(e.target.value as '' | 'full' | 'light')} className={field}>
           <option value="">Бүх buy</option>
@@ -113,7 +121,7 @@ export default function SearchPage() {
             disabled={!ready || run.isPending}
             onClick={() =>
               run.mutate({
-                body: { map_name: chosen, side, team_id: team, buy: buy || null, conditions: conds },
+                body: { map_name: chosen, side, team_id: team, buy: buy || null, conditions: conds, heat: heat || null },
               })
             }
             className="rounded-md bg-ct px-4 py-1.5 font-medium text-ground disabled:opacity-50"
@@ -133,6 +141,7 @@ export default function SearchPage() {
               </Link>
             )}
           </p>
+          {result.heat && <Heat data={result.heat as unknown as HeatData} caption={String(result.heat.subtitle ?? '')} />}
           <ul className="grid gap-x-6 text-sm sm:grid-cols-2">
             {result.rounds.map((r) => (
               <li key={`${r.match}-${r.map}-${r.round}`} className="flex gap-2">
@@ -150,5 +159,18 @@ export default function SearchPage() {
         </section>
       )}
     </div>
+  )
+}
+
+function Heat({ data, caption }: { data: HeatData; caption: string }) {
+  const canvas = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    if (canvas.current) void drawHeatmap(canvas.current, data, Math.min(560, window.innerWidth - 32))
+  }, [data])
+  return (
+    <figure className="space-y-1">
+      <canvas ref={canvas} className="max-w-full rounded-lg" />
+      <figcaption className="text-xs text-ink-3">{caption}</figcaption>
+    </figure>
   )
 }

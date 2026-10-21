@@ -1413,6 +1413,8 @@ class SearchAsk(BaseModel):
     team_id: int | None = None
     buy: Literal["full", "light"] | None = None
     conditions: list[SearchCondition] = Field(min_length=1, max_length=6)
+    # Where the side died or got its kills in all the matched Rounds (a heatmap).
+    heat: Literal["deaths", "kills"] | None = None
 
 
 class SearchRound(BaseModel):
@@ -1430,6 +1432,7 @@ class SearchResult(BaseModel):
     found: int
     won: int
     rounds: list[SearchRound]
+    heat: dict[str, Any] | None = None  # the heatmap's data, as /gameplan/.../heatmap
 
 
 # -- The lineup library (docs/plans/08 SB-3) -----------------------------------------
