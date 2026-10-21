@@ -32,6 +32,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import joinedload
 
 from app.models import BombEvent, MapRoster, Match, MatchMap, PlayerRound, Round, Team
+from app.services import window
 from app.services.analysis_store import PISTOL_ROUNDS
 from app.services.dbctx import count_if, db, memo
 
@@ -120,7 +121,10 @@ def maps_in_window(
     until: datetime | None = None,
     opponent: Team | None = None,
 ) -> list[MatchMap]:
-    """Every parsed map this team played, optionally inside a date window."""
+    """Every parsed map this team played, optionally inside a date window: the one
+    given, else the request's (TM-3, :mod:`app.services.window`)."""
+    if since is None:
+        since = window.since()
     key = ("maps_in_window", team.id, since, until, opponent.id if opponent else None)
     return list(memo(key, lambda: _maps_in_window(team, since, until, opponent)))
 

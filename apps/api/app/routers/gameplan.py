@@ -57,6 +57,7 @@ from app.services import (
     timeout_card,
     utility_map,
     veto_lab,
+    window,
 )
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,14 @@ def _lineup_query():
         "",
         pattern=r"^(\d{1,20}(,\d{1,20}){0,4})?$",
         description="Up to five Steam ids, comma-separated; empty for the most recent five.",
+    )
+
+
+def _since_query():
+    return Query(
+        "",
+        pattern=r"^(|\d{4}-\d{2}-\d{2})$",
+        description="TM-3: read the Teams' Maps from this day on (the Pool stays whole).",
     )
 
 
@@ -173,17 +182,18 @@ def header(
     _: StaffUser,
     my_lineup: str = _lineup_query(),
     their_lineup: str = _lineup_query(),
+    since: str = _since_query(),
 ) -> GameplanHeader:
     """The page header, the tab list and both Lineups, on every tab."""
     my_team, opponent = _fixture(db, mine, theirs)
     my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
     picked = {my_team.id: my_five, opponent.id: their_five}
-    with dbctx.using(db), lineup.using(picked):
+    with dbctx.using(db), lineup.using(picked), window.using(window.parse(since)):
         # Opening a Game Plan is when stale Reviews matter: have the worker
         # rebuild them (docs/adr/0008). A no-op while one rebuild is running.
         review_pool.request_refresh()
         stamp = gameplan_view.stamp()
-        part = lineup.cache_part(my_five, their_five) + scope.cache_part(db)
+        part = lineup.cache_part(my_five, their_five) + scope.cache_part(db) + window.cache_part()
         key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:header:{stamp}"
         cached = _cache_get(key)
         if cached is None:
@@ -217,16 +227,18 @@ def panel(
     _: StaffUser,
     my_lineup: str = _lineup_query(),
     their_lineup: str = _lineup_query(),
+    since: str = _since_query(),
 ) -> GameplanPanel:
-    """One panel's data, computed once per parse stamp and pair of Lineups."""
+    """One panel's data, computed once per parse stamp, pair of Lineups and window."""
     if tab not in gameplan_view.TAB_KEYS:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such section: {tab}")
     my_team, opponent = _fixture(db, mine, theirs)
     my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
     started = time.perf_counter()
-    with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
+    picked = {my_team.id: my_five, opponent.id: their_five}
+    with dbctx.using(db), lineup.using(picked), window.using(window.parse(since)):
         stamp = gameplan_view.stamp()
-        part = lineup.cache_part(my_five, their_five) + scope.cache_part(db)
+        part = lineup.cache_part(my_five, their_five) + scope.cache_part(db) + window.cache_part()
         key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:{tab}:{stamp}"
         data = _cache_get(key)
         hit = data is not None

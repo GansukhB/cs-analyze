@@ -53,6 +53,7 @@ from app.services import (
     scope,
     scouting,
     stats,
+    window,
 )
 from app.services.dbctx import count_if, db, memo, total
 
@@ -217,7 +218,8 @@ def metric_pool(exclude: Team | None = None) -> dict[str, dict]:
         for team in _teams_with_parsed_maps():
             if exclude is not None and team.id == exclude.id:
                 continue
-            m = team_metrics(team, mapstrategy.maps_in_window(team))
+            with window.none():  # the Pool is every Team over everything (TM-3)
+                m = team_metrics(team, mapstrategy.maps_in_window(team))
             if not m or m.get("rounds", 0) < MIN_POOL_ROUNDS:
                 continue
             for key in METRICS:

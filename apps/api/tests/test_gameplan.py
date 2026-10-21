@@ -419,3 +419,16 @@ def test_where_a_team_stands_twenty_seconds_in(client, auth, league, db):
     grid = client.get(f"/gameplan/{a.id}/vs/{b.id}/s/heatmaps", headers=auth).json()["data"]
     assert [k["key"] for k in grid["index"]["kinds"]] == ["kills", "deaths", "positions"]
     assert grid["index"]["available"][f"de_mirage|{a.id}|all|t|positions"] == len(rounds)
+
+
+def test_a_window_reads_the_teams_maps_from_that_day_on(client, auth, league):
+    """TM-3: ``since`` keeps every section to the Maps played from that day; the
+    cache keeps the windows apart."""
+    a, b = league["a"], league["b"]
+    url = f"/gameplan/{a.id}/vs/{b.id}"
+    whole = client.get(url, headers=auth).json()["lede"]
+    before = client.get(url + "?since=2000-01-01", headers=auth).json()["lede"]
+    later = client.get(url + "?since=2099-01-01", headers=auth).json()["lede"]
+    assert whole["my_maps"] > 0 and before == whole
+    assert later["my_maps"] == 0 and later["opponent_maps"] == 0
+    assert client.get(url + "?since=01-01-2099", headers=auth).status_code == 422

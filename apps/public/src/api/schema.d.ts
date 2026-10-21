@@ -750,7 +750,7 @@ export interface paths {
         };
         /**
          * Panel
-         * @description One panel's data, computed once per parse stamp and pair of Lineups.
+         * @description One panel's data, computed once per parse stamp, pair of Lineups and window.
          */
         get: operations["panel_gameplan__mine__vs__theirs__s__tab__get"];
         put?: never;
@@ -7390,6 +7390,8 @@ export interface operations {
                 my_lineup?: string;
                 /** @description Up to five Steam ids, comma-separated; empty for the most recent five. */
                 their_lineup?: string;
+                /** @description TM-3: read the Teams' Maps from this day on (the Pool stays whole). */
+                since?: string;
             };
             header?: never;
             path: {
@@ -7427,6 +7429,8 @@ export interface operations {
                 my_lineup?: string;
                 /** @description Up to five Steam ids, comma-separated; empty for the most recent five. */
                 their_lineup?: string;
+                /** @description TM-3: read the Teams' Maps from this day on (the Pool stays whole). */
+                since?: string;
             };
             header?: never;
             path: {

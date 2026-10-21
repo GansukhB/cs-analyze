@@ -9,4 +9,11 @@ describe('Lineups in the URL', () => {
     expect(lineupQuery(l)).toEqual({ my_lineup: '1,2,3,4,5' })
     expect(lineupSearch({ mine: [], theirs: [] })).toBe('')
   })
+
+  it('carries the window (TM-3) and drops a malformed day', () => {
+    const l = readLineups(new URLSearchParams('theirs=7&since=2026-07-01'))
+    expect(lineupSearch(l)).toBe('?theirs=7&since=2026-07-01')
+    expect(lineupQuery(l)).toEqual({ their_lineup: '7', since: '2026-07-01' })
+    expect(readLineups(new URLSearchParams('since=July')).since).toBeUndefined()
+  })
 })

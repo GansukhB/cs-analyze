@@ -164,6 +164,7 @@ export default function GameplanPage() {
       )}
 
       {header.data && <LineupBar header={header.data} />}
+      {header.data && <WindowBar />}
 
       <div className="keys">
         <span className="k">
@@ -272,6 +273,41 @@ function NavItem({
   )
 }
 
+// TM-3: the window the Teams' Maps are read in, on the URL with the Lineups. The
+// Pool stays whole; the Playbook's patch chip sets the same day.
+const DAY_MS = 86_400_000
+const daysAgo = (n: number) => new Date(Date.now() - n * DAY_MS).toISOString().slice(0, 10)
+
+function WindowBar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const lineups = readLineups(new URLSearchParams(location.search))
+  const latest = $api.useQuery('get', '/patches', {}, { staleTime: Infinity }).data?.patches[0]
+  const go = (since?: string) => navigate(`${location.pathname}${lineupSearch({ ...lineups, since })}`)
+  const choices: [string | undefined, string][] = [
+    [undefined, 'Бүх цаг'],
+    [daysAgo(180), 'Сүүлийн 180 хоног'],
+    [daysAgo(90), 'Сүүлийн 90 хоног'],
+  ]
+  if (latest) choices.push([latest.date, `${latest.name}-аас хойш`])
+  const shown = new Set(choices.map(([d]) => d))
+  return (
+    <div className="filters" role="group" aria-label="Хугацаа">
+      <span className="cap">Хугацаа</span>
+      {choices.map(([day, label]) => (
+        <button key={label} type="button" className={`chip ${lineups.since === day ? 'on' : ''}`} onClick={() => go(day)}>
+          {label}
+        </button>
+      ))}
+      {lineups.since && !shown.has(lineups.since) && (
+        <button type="button" className="chip on" onClick={() => go(undefined)}>
+          {lineups.since}-аас хойш ✕
+        </button>
+      )}
+    </div>
+  )
+}
+
 // Both Lineups the plan was built with, and an editor for them: applying it is
 // a new URL, so the plan recomputes (or comes from cache) for that pair.
 function LineupBar({ header }: { header: Header }) {
@@ -289,7 +325,8 @@ function LineupBar({ header }: { header: Header }) {
   }
   function apply() {
     setEditing(false)
-    navigate(`${location.pathname}${lineupSearch({ mine: myFive ?? [], theirs: theirFive ?? [] })}`)
+    const since = readLineups(new URLSearchParams(location.search)).since
+    navigate(`${location.pathname}${lineupSearch({ mine: myFive ?? [], theirs: theirFive ?? [], since })}`)
   }
 
   const sides = [
