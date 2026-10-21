@@ -40,6 +40,9 @@ export interface ReplayBridge {
   now?: () => { round: number; t: number } | null
   // Draw the moment again, paused or not: the marks to show changed (VIZ-8).
   redraw?: () => void
+  // VIZ-13: play on from here for `seconds` of the Round while the canvas is
+  // recorded; `done` gets the WebM. False where the browser cannot record.
+  record?: (seconds: number, done: (clip: Blob) => void) => boolean
   // The second on the canvas as it moves, for the Win probability's cursor (VIZ-6).
   onTime?: (round: number, t: number) => void
   // VIZ-8: the pen the page holds (null: the canvas pans), what a stroke drew,
@@ -440,6 +443,28 @@ export function mountReplay(
       state.data && state.round !== null ? { round: state.round, t: Math.round(state.t * 10) / 10 } : null
     bridge.redraw = () => {
       if (state.data) draw()
+    }
+    bridge.record = (seconds, done) => {
+      if (!state.data || typeof MediaRecorder === 'undefined' || !canvas.captureStream) return false
+      const type = ['video/webm;codecs=vp9', 'video/webm'].find((t) => MediaRecorder.isTypeSupported(t))
+      if (!type) return false
+      const recorder = new MediaRecorder(canvas.captureStream(30), { mimeType: type })
+      const parts: Blob[] = []
+      recorder.ondataavailable = (e) => {
+        if (e.data.size) parts.push(e.data)
+      }
+      recorder.onstop = () => done(new Blob(parts, { type: 'video/webm' }))
+      recorder.start()
+      state.playing = true
+      state.last = performance.now()
+      setPlay()
+      // Round seconds at the chosen speed, in the wall-clock time the recorder runs.
+      window.setTimeout(() => {
+        state.playing = false
+        setPlay()
+        recorder.stop()
+      }, (seconds * 1000) / (state.speed || 1))
+      return true
     }
   }
 
@@ -1469,6 +1494,7 @@ export function mountReplay(
       bridge.goto = undefined
       bridge.now = undefined
       bridge.redraw = undefined
+      bridge.record = undefined
     }
     destroyed = true
     cancelAnimationFrame(frame)

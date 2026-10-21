@@ -17,6 +17,8 @@ import { TeamSummaryCard } from './Summary'
 
 type Review = components['schemas']['Review']
 
+const CLIP_SECONDS = 10
+
 export type Goto = (round: number, t: number, sid: string | null, play?: boolean) => void
 
 /**
@@ -83,6 +85,22 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     })
+  }
+  // VIZ-13: ten seconds of the Replay from here as a WebM, made in the browser.
+  const [recording, setRecording] = useState(false)
+  const clip = () => {
+    const at = bridge.now?.()
+    if (!at || recording) return
+    const ok = bridge.record?.(CLIP_SECONDS, (blob) => {
+      setRecording(false)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `match${matchId}-map${mapNumber}-R${at.round}-${Math.floor(at.t)}s.webm`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    })
+    if (ok) setRecording(true)
   }
   const replayBox = useRef<HTMLElement>(null)
   const goto = useCallback<Goto>(
@@ -185,9 +203,14 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
                 bridge={bridge}
                 dim={dim}
               />
-              <button type="button" onClick={copyMoment} className="text-xs text-ct hover:underline">
-                {copied ? 'Холбоос хуулсан ✓' : 'Энэ агшны холбоос хуулах'}
-              </button>
+              <div className="flex flex-wrap gap-4">
+                <button type="button" onClick={copyMoment} className="text-xs text-ct hover:underline">
+                  {copied ? 'Холбоос хуулсан ✓' : 'Энэ агшны холбоос хуулах'}
+                </button>
+                <button type="button" onClick={clip} disabled={recording} className="text-xs text-ct hover:underline disabled:text-ink-3">
+                  {recording ? '● Бичиж байна…' : `● Эндээс ${CLIP_SECONDS} с клип татах`}
+                </button>
+              </div>
             </>
           ) : (
             <>
