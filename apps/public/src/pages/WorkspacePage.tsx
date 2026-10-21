@@ -81,7 +81,51 @@ export default function WorkspacePage() {
         </section>
       )}
       <Disputes />
+      <AuditLog />
     </div>
+  )
+}
+
+// WS-7: what was done in the Workspace and by whom, newest first.
+const ACTIONS: Record<string, string> = {
+  'member.change': 'гишүүнийг өөрчилсөн',
+  'invite.create': 'урилга үүсгэсэн',
+  'invite.revoke': 'урилга цуцалсан',
+  'invite.accept': 'урилгаар нэвтэрсэн',
+  'briefing.share': 'Briefing хуваалцсан',
+  'briefing.delete': 'Briefing устгасан',
+  'strat.delete': 'Strat устгасан',
+  'playlist.delete': 'Playlist устгасан',
+}
+const DETAIL: Record<string, (v: unknown) => string> = {
+  is_active: (v) => (v ? 'идэвхжүүлсэн' : 'идэвхгүй болгосон'),
+  role: (v) => `role: ${String(v)}`,
+  reset: (v) => (v ? 'нууц үг сэргээх' : ''),
+}
+
+function AuditLog() {
+  const log = $api.useQuery('get', '/workspace/audit')
+  if (!log.data?.length) return null
+  return (
+    <section className="space-y-2">
+      <h2 className="font-medium text-ink">Үйлдлийн түүх</h2>
+      <ul className="space-y-1 text-sm">
+        {log.data.map((e) => (
+          <li key={e.id} className="flex flex-wrap gap-x-2 border-t-1 border-line py-1 text-ink-2">
+            <span className="font-mono text-xs text-ink-3">{day(e.at)}</span>
+            <span className="text-ink">{e.actor}</span>
+            <span>{ACTIONS[e.action] ?? e.action}</span>
+            {e.subject && <span className="text-ink">«{e.subject}»</span>}
+            <span className="text-xs text-ink-3">
+              {Object.entries(e.detail)
+                .map(([k, v]) => (DETAIL[k] ? DETAIL[k](v) : `${k}: ${String(v)}`))
+                .filter(Boolean)
+                .join(', ')}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

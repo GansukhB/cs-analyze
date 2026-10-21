@@ -1438,6 +1438,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/workspace/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit
+         * @description What was done in the Workspace and by whom, newest first (WS-7).
+         */
+        get: operations["audit_workspace_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workspace/members/{member_id}": {
         parameters: {
             query?: never;
@@ -1982,6 +2002,26 @@ export interface components {
             turns: number;
             /** Tts Chars */
             tts_chars: number;
+        };
+        /** AuditLine */
+        AuditLine: {
+            /** Id */
+            id: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Actor */
+            actor: string;
+            /** Action */
+            action: string;
+            /** Subject */
+            subject: string;
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            };
         };
         /** AuditMissed */
         AuditMissed: {
@@ -8235,6 +8275,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceMembers"];
+                };
+            };
+        };
+    };
+    audit_workspace_audit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLine"][];
                 };
             };
         };

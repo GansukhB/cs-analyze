@@ -42,6 +42,7 @@ from app.models.analysis import (
     TickDataset,
 )
 from app.models.assistant import AssistantUsage
+from app.models.audit import AuditEvent
 from app.models.base import TimestampMixin
 from app.models.briefing import Briefing
 from app.models.development import DevelopmentGoal, GoalStatus
@@ -78,6 +79,7 @@ __all__ = [
     "User",
     "UserRole",
     "AssistantUsage",
+    "AuditEvent",
     "Briefing",
     "DeclaredRole",
     "DevelopmentGoal",

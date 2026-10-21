@@ -39,7 +39,7 @@ from app.schemas import (
     StratWrite,
     TeamRef,
 )
-from app.services import dbctx, map_pool, scope, strat_match
+from app.services import audit_log, dbctx, map_pool, scope, strat_match
 
 router = APIRouter(prefix="/strats", tags=["strats"])
 FIELDS = ("map_name", "side", "name", "kind", "description", "timings", "variations", "calls",
@@ -224,7 +224,9 @@ def update_strat(strat_id: int, body: StratWrite, db: DbSession, user: StaffUser
 
 @router.delete("/{strat_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_strat(strat_id: int, db: DbSession, user: StaffUser) -> None:
-    db.delete(_get(db, user, strat_id))
+    strat = _get(db, user, strat_id)
+    audit_log.record(db, user, "strat.delete", strat.name, map=strat.map_name, side=strat.side)
+    db.delete(strat)
     db.commit()
 
 

@@ -25,6 +25,7 @@ from app.schemas import (
 )
 from app.services import (
     assistant,
+    audit_log,
     briefing_draft,
     briefings,
     dbctx,
@@ -231,6 +232,8 @@ def check(
 @router.post("/{public_id}/share")
 def share(public_id: uuid.UUID, db: DbSession, user: StaffUser) -> BriefingRow:
     b = _get(db, user, public_id)
+    if b.shared_at is None:
+        audit_log.record(db, user, "briefing.share", b.title)
     b.shared_at = b.shared_at or utcnow()
     db.commit()
     return BriefingRow(**_row(db, b))
@@ -238,5 +241,7 @@ def share(public_id: uuid.UUID, db: DbSession, user: StaffUser) -> BriefingRow:
 
 @router.delete("/{public_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(public_id: uuid.UUID, db: DbSession, user: StaffUser) -> None:
-    db.delete(_get(db, user, public_id))
+    b = _get(db, user, public_id)
+    audit_log.record(db, user, "briefing.delete", b.title, shared=b.shared_at is not None)
+    db.delete(b)
     db.commit()

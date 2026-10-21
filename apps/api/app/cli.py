@@ -136,6 +136,10 @@ def set_active(username: str, active: bool) -> None:
         if user is None:
             sys.exit(f"No user {username!r}.")
         user.is_active = active
+        from app.services import audit_log
+
+        audit_log.record(db, None, "member.change", username, workspace_id=user.workspace_id,
+                         is_active=active)  # fmt: skip
         db.commit()
     print(f"User {username!r} is now {'active' if active else 'deactivated'}.")
 

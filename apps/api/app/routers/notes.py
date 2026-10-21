@@ -25,7 +25,7 @@ from app.schemas import (
     PlaylistSummary,
     PlaylistWrite,
 )
-from app.services import dbctx, mn, review, review_pool, scope
+from app.services import audit_log, dbctx, mn, review, review_pool, scope
 
 router = APIRouter(tags=["notes"])
 LIMIT = 50
@@ -248,5 +248,7 @@ def update_playlist(
 
 @router.delete("/playlists/{playlist_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_playlist(playlist_id: int, db: DbSession, user: StaffUser) -> None:
-    db.delete(_playlist(db, playlist_id, user))
+    playlist = _playlist(db, playlist_id, user)
+    audit_log.record(db, user, "playlist.delete", playlist.title)
+    db.delete(playlist)
     db.commit()

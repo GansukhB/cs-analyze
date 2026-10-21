@@ -104,3 +104,24 @@ def test_another_workspaces_member_is_not_found(client, db, auth):
         client.post("/workspace/invites", json={"user_id": stranger.id}, headers=auth).status_code
         == 400
     )
+
+
+def test_what_staff_did_is_in_the_audit_log_without_secrets(client, db, auth, workspace):
+    """WS-7: an invite made and used, then the new login deactivated."""
+    player = Player(steamid=76561198000000002, name="nin9")
+    db.add(player)
+    db.commit()
+    made = client.post("/workspace/invites", headers=auth,
+                       json={"role": "player", "player_steamid": str(player.steamid)})  # fmt: skip
+    token = made.json()["token"]
+    client.post(f"/invites/{token}/accept", json={"username": "nin9", "password": "x" * 10})
+    member = db.query(User).filter_by(username="nin9").one()
+    client.patch(f"/workspace/members/{member.id}", headers=auth, json={"is_active": False})
+    log = client.get("/workspace/audit", headers=auth).json()
+    assert [e["action"] for e in log] == ["member.change", "invite.accept", "invite.create"]
+    assert log[0]["actor"] == "Bat" and log[0]["subject"] == "nin9"
+    assert log[0]["detail"] == {"is_active": False}
+    assert log[1]["actor"] == "nin9"
+    assert token not in str(log)  # never a secret
+    them = {"Authorization": f"Bearer {create_access_token(member.id)}"}
+    assert client.get("/workspace/audit", headers=them).status_code in (401, 403)

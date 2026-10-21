@@ -4558,6 +4558,37 @@
         ]
       }
     },
+    "/workspace/audit": {
+      "get": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Audit",
+        "description": "What was done in the Workspace and by whom, newest first (WS-7).",
+        "operationId": "audit_workspace_audit_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditLine"
+                  },
+                  "type": "array",
+                  "title": "Response Audit Workspace Audit Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/workspace/members/{member_id}": {
       "patch": {
         "tags": [
@@ -5881,6 +5912,46 @@
           "tts_chars"
         ],
         "title": "AssistantUserUsage"
+      },
+      "AuditLine": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "actor",
+          "action",
+          "subject",
+          "detail"
+        ],
+        "title": "AuditLine"
       },
       "AuditMissed": {
         "properties": {

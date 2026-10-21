@@ -1423,6 +1423,21 @@ class Coverage(BaseModel):
     queued: int
 
 
+# -- The Workspace's audit log (docs/plans/01 WS-7) ---------------------------------
+class AuditLine(BaseModel):
+    id: int
+    at: dt.datetime
+    actor: str
+    action: str
+    subject: str
+    detail: dict[str, Any]
+
+    @field_validator("at")
+    @classmethod
+    def at_utc(cls, value: dt.datetime) -> dt.datetime:
+        return _utc(value)
+
+
 # -- The Round search (docs/plans/09 VIZ-7) ------------------------------------------
 class SearchCondition(BaseModel):
     place: str = Field(min_length=1, max_length=40)

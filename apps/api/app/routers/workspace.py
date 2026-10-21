@@ -11,6 +11,7 @@ from app.models import Invite, Player, User, Workspace
 from app.models.base import utcnow
 from app.routers.auth import FAILURE_WINDOW_SECONDS, FAILURES_PER_ADDRESS, client_address
 from app.schemas import (
+    AuditLine,
     InviteAccept,
     InviteCreate,
     InvitePublic,
@@ -22,7 +23,7 @@ from app.schemas import (
     WorkspaceMembers,
 )
 from app.security import create_access_token
-from app.services import members, ratelimit
+from app.services import audit_log, members, ratelimit
 
 router = APIRouter(tags=["workspace"])
 
@@ -83,15 +84,24 @@ def list_members(db: DbSession, user: StaffUser) -> WorkspaceMembers:
     )
 
 
+@router.get("/workspace/audit")
+def audit(db: DbSession, user: StaffUser) -> list[AuditLine]:
+    """What was done in the Workspace and by whom, newest first (WS-7)."""
+    return [AuditLine(**row) for row in audit_log.recent(db, user.workspace_id)]
+
+
 @router.patch("/workspace/members/{member_id}")
 def change_member(member_id: int, body: MemberPatch, db: DbSession, user: StaffUser) -> MemberRead:
     member = db.get(User, member_id)
     if member is None or member.workspace_id != user.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such member")
+    changes = body.model_dump(exclude_unset=True)
     try:
-        members.change(db, user, member, **body.model_dump(exclude_unset=True))
+        members.change(db, user, member, **changes)
     except members.MemberError as exc:
         _fail(exc)
+    audit_log.record(db, user, "member.change", member.username, **changes)
+    db.commit()
     return _member(db, member)
 
 
@@ -102,6 +112,10 @@ def create_invite(body: InviteCreate, db: DbSession, user: StaffUser) -> InviteR
         row, token = members.invite(db, user, **body.model_dump())
     except members.MemberError as exc:
         _fail(exc)
+    target = db.get(User, row.user_id) if row.user_id else None
+    audit_log.record(db, user, "invite.create", target.username if target else row.role,
+                     role=row.role, reset=target is not None)  # fmt: skip
+    db.commit()
     return _invite(db, row, token)
 
 
@@ -110,6 +124,7 @@ def revoke_invite(invite_id: int, db: DbSession, user: StaffUser) -> None:
     row = db.get(Invite, invite_id)
     if row is None or row.workspace_id != user.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such invite")
+    audit_log.record(db, user, "invite.revoke", row.role)
     db.delete(row)
     db.commit()
 
@@ -140,4 +155,6 @@ def accept_invite(token: str, body: InviteAccept, request: Request, db: DbSessio
     except members.MemberError as exc:
         ratelimit.record(key, FAILURE_WINDOW_SECONDS)
         _fail(exc)
+    audit_log.record(db, user, "invite.accept", user.username, role=user.role)
+    db.commit()
     return Token(access_token=create_access_token(user.id))
