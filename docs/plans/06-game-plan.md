@@ -84,6 +84,8 @@ Decision tab-д дараах зүйлс харагдана:
 
 ### GP-3. Map-ын хуудас: Map бүрт нэг хуудас (P1, M)
 
+> **Төлөв:** ✅ `5d556a5` (improvement-01). Map бүрийн нэг хуудас (Playbook, timeout card, хэв маяг, анхааруулга), хэвлэгдэнэ.
+
 Briefing-ийн Map бүрийн нэгж. Хэвлэхэд тохиромжтой, утсан дээр уншигдана. Агуулга (R3-ийн загвар, `12-research-sources.md`):
 
 | Хэсэг | Агуулга | Эх дата |
@@ -153,11 +155,15 @@ Briefing (бидний таамаглал) ба тоглолтын Review (бо�
 
 ### GP-9. Бүх хэсэгт шүүлтүүр (P1, M)
 
+> **Төлөв:** 🟡 `594ac0f` (improvement-01). Playbook-ийн buy ба хугацааны шүүлтүүр (URL-д). Онооны байдал, LAN/online үлдсэн.
+
 - Habit ба KPI бүрт Buy type, онооны байдал. Pro-ууд тоо бүрийг buy type ба байрлалаар задалж уншдаг. Задаргаагүй тоо төөрөгдүүлдэг (`12-research-sources.md`).
 - Recency, roster-ийн үе (TM-3), LAN эсвэл online, Lineup.
 - Бүх сонголт URL-д орно (VIZ-2).
 
 ### GP-10. Veto лаборатори (P1, M; FC-3, DATA-2-тай)
+
+> **Төлөв:** 🟡 `33d8255` (improvement-01). Алхам алхмаар veto, map-ын магадлалыг гараар, бэлэн байдал (official, Scrim). Veto-ийн түүх DATA-3, Strat-ийн хамрах хүрээ SB-4-ийг хүлээнэ.
 
 - Өрсөлдөгчийн ban, pick-ийн түүх форматаар.
 - Манай Map бүрийн бэлэн байдал:
@@ -178,6 +184,8 @@ Briefing (бидний таамаглал) ба тоглолтын Review (бо�
 - **Эх:** Swani, sycrone нар олон янз байдлыг сайн багийн шинж гэж хэлдэг (`12-research-sources.md`).
 
 ### GP-12. Гүйцэтгэл (P1, M)
+
+> **Төлөв:** 🟡 `a43bbab` (improvement-01). Pool-ийг stale-while-revalidate, 3 tab урьдчилан. Fixture-ийн stamp, Report-ийн завсрын cache үлдсэн.
 
 - **Cache:**
   - Нийтлэг stamp-ийн оронд Fixture бүрийн stamp хэрэглэнэ. Хоёр багийн Match Map-ууд ба Pool-ийн stamp-аас бүрдэнэ.
