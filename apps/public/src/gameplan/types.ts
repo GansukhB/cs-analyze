@@ -144,6 +144,8 @@ export interface PlaybookPanel {
   sections: { key: string; title: string; habits: Habit[] }[]
   pistols: { ref: RoundRef; h2h: boolean; text: string; next: string }[]
   /** GP-5: both Teams' pistols on this Map and what they made of them, against the Pool. */
+  // GP-5: their pistols summed up (CT Setups, T sites, the 2nd and 3rd Round).
+  pistol_plan?: string[]
   conversion: { team: string; pistols: string; converted: string; broken: string; both: string }[]
   economy: {
     known: boolean

@@ -933,6 +933,51 @@ def predictability(
     return {"ct": ct_spread, "t": t_spread}
 
 
+def pistol_plan(team_id: int, pistol_rows: list[dict], rounds: list[_Round]) -> dict:
+    """GP-5: their pistols summed up. The CT Setups they ran and the T sites they
+    planted, each with the pistols won; and after a pistol won or lost, what they
+    bought in the 2nd and 3rd Round of the half and how those went."""
+    ct: dict[str, list] = defaultdict(lambda: [0, 0])
+    t: dict[str, list] = defaultdict(lambda: [0, 0])
+    for row in pistol_rows:
+        if row["side"] == "ct" and row.get("pattern"):
+            key = ",".join(str(row["pattern"].get(k, 0)) for k in LEANS)
+            ct[key][0] += 1
+            ct[key][1] += row["won"]
+        elif row["side"] == "t":
+            t[row.get("site") or "none"][0] += 1
+            t[row.get("site") or "none"][1] += row["won"]
+    by_key = {(r.match_map_id, r.number): r for r in rounds}
+    after: dict = {k: {"r2": defaultdict(lambda: [0, 0]), "r3": defaultdict(lambda: [0, 0])}
+                   for k in ("won", "lost")}  # fmt: skip
+    for r in rounds:
+        if r.number not in PISTOL_ROUNDS or r.winner is None:
+            continue
+        went = "won" if r.winner == team_id else "lost"
+        for step, key in ((1, "r2"), (2, "r3")):
+            nxt = by_key.get((r.match_map_id, r.number + step))
+            if nxt is None or not nxt.buy(team_id):
+                continue
+            cell = after[went][key][nxt.buy(team_id)]
+            cell[0] += 1
+            cell[1] += nxt.winner == team_id
+
+    def rows(d: dict, field: str) -> list[dict]:
+        ranked = sorted(d.items(), key=lambda kv: -kv[1][0])
+        return [{field: k, "n": n, "won": w} for k, (n, w) in ranked]
+
+    return {
+        "ct_setups": [
+            {"pattern": dict(zip(LEANS, (int(x) for x in k.split(",")), strict=True)), "n": n,
+             "won": w}
+            for k, (n, w) in sorted(ct.items(), key=lambda kv: -kv[1][0])
+        ],
+        "t_sites": rows(t, "site"),
+        "after": {went: {key: rows(cells, "buy") for key, cells in steps.items()}
+                  for went, steps in after.items()},
+    }  # fmt: skip
+
+
 def _conversion_rows(rows) -> dict[int, dict]:
     """Per Team: pistols won, then the next two Rounds (GP-5). ``rows`` are
     ``(match_map_id, number, winner, ct, t)`` in Round order."""
@@ -1271,6 +1316,7 @@ def build(my_team: Team, opponent: Team, map_name: str, view: dict | None = None
     mine = _viewed(my_team, every_mine, view)
     sites = site_centroids(map_name)
     detail = _detail(list({r.id: r for r in (*every_theirs, *every_mine)}.values()))
+    their_pistols = pistols(opponent.id, every_theirs, detail, sites)
     all_theirs = _team_rounds(opponent, my_team, None)
     pools = map_pools(map_name)
 
@@ -1305,7 +1351,8 @@ def build(my_team: Team, opponent: Team, map_name: str, view: dict | None = None
             "rounds": len(theirs),
             "of": len(every_theirs),
         },
-        "pistols": pistols(opponent.id, every_theirs, detail, sites),
+        "pistols": their_pistols,
+        "pistol_plan": pistol_plan(opponent.id, their_pistols, every_theirs),
         "conversion": {
             "theirs": conversion(opponent.id, every_theirs),
             "mine": conversion(my_team.id, every_mine),

@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.models import Match, Round
 from app.routers import gameplan as gameplan_router
-from app.services import dbctx, playbook
+from app.services import dbctx, mn, playbook
 from tests.test_gameplan import league  # noqa: F401 -- the shared three-team fixture
 
 
@@ -236,3 +236,21 @@ def test_a_view_by_the_score_when_the_round_began(client, auth, db, league):  # 
     url = f"/gameplan/{a.id}/vs/{b.id}/playbook/de_mirage"
     assert client.get(url + "?score=ahead", headers=auth).status_code == 200
     assert client.get(url + "?score=winning", headers=auth).status_code == 422
+
+
+def test_their_pistols_summed_up_with_the_rounds_after(db, league):  # noqa: F811
+    """GP-5: Bravo's pistols (R1, R7) and the 2nd and 3rd Round it bought after."""
+    a, b = league["a"], league["b"]
+    for r in db.scalars(select(Round)):
+        r.ct_buy, r.t_buy = ("pistol", "pistol") if r.number in (1, 7) else ("eco", "full")
+    db.commit()
+    with dbctx.using(db):
+        built = playbook.build(a, b, "de_mirage")
+    plan = built["pistol_plan"]
+    pistols = built["pistols"]
+    assert sum(s["n"] for s in plan["t_sites"]) == sum(1 for p in pistols if p["side"] == "t")
+    after = plan["after"]
+    total = sum(c["n"] for went in after.values() for c in went["r2"])
+    assert total == sum(1 for p in pistols if p["next_buy"])
+    lines = mn.playbook_pistol_plan(plan)
+    assert any(line.startswith("T pistol:") for line in lines)

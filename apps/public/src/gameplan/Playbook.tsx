@@ -345,6 +345,13 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
           </p>
         </div>
       )}
+      {d.pistol_plan && d.pistol_plan.length > 0 && (
+        <ul className="pb-rows">
+          {d.pistol_plan.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
       {d.pistols.length ? (
         <ul className="pb-rows">
           {d.pistols.map((p) => (

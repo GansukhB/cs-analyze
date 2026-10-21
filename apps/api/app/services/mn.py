@@ -1756,6 +1756,35 @@ def playbook_habits(items, *, whose: str = "theirs") -> list:
     return [playbook_habit(h, whose=whose) for h in sorted(items or [], key=order)]
 
 
+def playbook_pistol_plan(plan: dict) -> list[str]:
+    """GP-5: their pistols in a few lines: CT Setups, T sites, and the 2nd and 3rd
+    Round after a pistol won or lost."""
+    out = []
+    setups = plan.get("ct_setups") or []
+    if setups:
+        out.append("CT pistol setup: " + "; ".join(
+            f"{lean_pattern(s['pattern'])} — {s['n']} удаа ({s['won']} хожсон)" for s in setups[:3]
+        ))  # fmt: skip
+    sites = plan.get("t_sites") or []
+    if sites:
+        out.append("T pistol: " + "; ".join(
+            f"{'plant-гүй' if s['site'] == 'none' else s['site'] + ' цэгт'} {s['n']} удаа "
+            f"({s['won']} хожсон)" for s in sites
+        ))  # fmt: skip
+    for went, label in (("won", "Pistol хожсоны дараа"), ("lost", "Pistol алдсаны дараа")):
+        steps = (plan.get("after") or {}).get(went) or {}
+        bits = []
+        for key, nth in (("r2", "2-р раунд"), ("r3", "3-р раунд")):
+            cells = steps.get(key) or []
+            if cells:
+                bits.append(f"{nth}: " + ", ".join(
+                    f"{BUY.get(c['buy'], c['buy'])} {c['n']} ({c['won']} хожсон)" for c in cells
+                ))  # fmt: skip
+        if bits:
+            out.append(f"{label}: " + "; ".join(bits))
+    return out
+
+
 def playbook_pistol(row: dict) -> dict:
     bits = [side(row["side"], short=True), "хожсон" if row["won"] else "хожигдсон"]
     if row.get("site"):

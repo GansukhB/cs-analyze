@@ -100,6 +100,7 @@ def panel(my_team: Team, opponent: Team, map_name: str, view: dict | None = None
             },
         ],
         "pistols": [mn.playbook_pistol(row) for row in raw["pistols"]],
+        "pistol_plan": mn.playbook_pistol_plan(raw["pistol_plan"]),
         "conversion": mn.playbook_conversion(raw["conversion"], my_team.name, opponent.name),
         "economy": {
             "known": economy["known"],
