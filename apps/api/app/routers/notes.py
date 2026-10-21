@@ -17,6 +17,7 @@ from app.models import Match, MatchMap, NoteKind, Playlist, ReviewNote, Team, Us
 from app.routers.matches import _map
 from app.schemas import (
     DisputeRate,
+    DrawnNote,
     NoteCreate,
     NoteList,
     NoteRead,
@@ -27,7 +28,16 @@ from app.schemas import (
     PlaylistSummary,
     PlaylistWrite,
 )
-from app.services import audit_log, dbctx, mn, playbook_notes, review, review_pool, scope
+from app.services import (
+    audit_log,
+    dbctx,
+    drawn_notes,
+    mn,
+    playbook_notes,
+    review,
+    review_pool,
+    scope,
+)
 
 router = APIRouter(tags=["notes"])
 LIMIT = 50
@@ -103,6 +113,16 @@ def add_note(
     db.add(note)
     db.commit()
     return _read(db, note)
+
+
+@router.get("/notes/drawn")
+def drawn(team_id: int, map_name: str, db: DbSession, user: StaffUser) -> list[DrawnNote]:
+    """VIZ-8: the Workspace's drawn notes on this Map's Match Maps the Team played,
+    newest first: what a Briefing can carry."""
+    with dbctx.using(db):
+        return [
+            DrawnNote(**row) for row in drawn_notes.on_map(user.workspace_id, team_id, map_name)
+        ]
 
 
 @router.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)

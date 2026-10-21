@@ -1389,6 +1389,67 @@
         }
       }
     },
+    "/notes/drawn": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Drawn",
+        "description": "VIZ-8: the Workspace's drawn notes on this Map's Match Maps the Team played,\nnewest first: what a Briefing can carry.",
+        "operationId": "drawn_notes_drawn_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "map_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Map Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DrawnNote"
+                  },
+                  "title": "Response Drawn Notes Drawn Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/notes/{note_id}": {
       "delete": {
         "tags": [
@@ -6823,6 +6884,14 @@
             "type": "array",
             "maxItems": 20,
             "title": "Strats"
+          },
+          "drawings": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Drawings"
           }
         },
         "type": "object",
@@ -7710,6 +7779,84 @@
           "reasons"
         ],
         "title": "DisputeRate"
+      },
+      "DrawnNote": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "round": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round"
+          },
+          "t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T"
+          },
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "teams": {
+            "type": "string",
+            "title": "Teams"
+          },
+          "shapes": {
+            "items": {
+              "$ref": "#/components/schemas/NoteShape"
+            },
+            "type": "array",
+            "title": "Shapes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "round",
+          "t",
+          "match_id",
+          "map_number",
+          "played_at",
+          "teams",
+          "shapes"
+        ],
+        "title": "DrawnNote",
+        "description": "A drawn Review note on a Match Map of the Map (VIZ-8), as a Briefing keeps it."
       },
       "FixtureStyle": {
         "properties": {

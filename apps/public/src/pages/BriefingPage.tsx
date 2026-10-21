@@ -6,6 +6,8 @@ import { $api } from '../api/client'
 import Check from '../briefing/Check'
 import { useMe } from '../auth/useMe'
 import { day } from '../jobs/format'
+import type { Shape } from '../replay/player'
+import DrawingThumb from '../review/DrawingThumb'
 
 interface Ref {
   match: number
@@ -29,6 +31,18 @@ interface MapPart {
   items: Item[]
   // SB-6: the my team's Strats for this Map (since Briefings made after it).
   strats?: { id: number; name: string; side: string; kind: string }[]
+  // VIZ-8: Staff's drawn Review notes on this Map.
+  drawings?: Drawn[]
+}
+interface Drawn {
+  id: number
+  text: string
+  round: number | null
+  match_id: number
+  map_number: number
+  played_at: string | null
+  teams: string
+  shapes: Shape[]
 }
 interface Series {
   format: string
@@ -130,6 +144,26 @@ export default function BriefingPage() {
                 </Link>
               ))}
             </p>
+          )}
+          {m.drawings && m.drawings.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {m.drawings.map((d) => (
+                <figure key={d.id} className="space-y-1 break-inside-avoid text-sm">
+                  <DrawingThumb map={m.map} shapes={d.shapes} label={d.text || `${m.label}, раунд ${d.round}`} />
+                  <figcaption className="space-y-0.5">
+                    {d.text && <span className="block text-ink">{d.text}</span>}
+                    <Link
+                      to={`/matches/${d.match_id}/m/${d.map_number}${d.round ? `?round=${d.round}` : ''}`}
+                      className="text-xs text-ct hover:underline"
+                    >
+                      {d.teams}
+                      {d.round ? `, раунд ${d.round}` : ''}
+                      {d.played_at ? ` · ${d.played_at}` : ''}
+                    </Link>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           )}
           <ul className="space-y-2">
             {m.items.map((item, i) => {

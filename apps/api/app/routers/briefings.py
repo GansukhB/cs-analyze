@@ -30,6 +30,7 @@ from app.services import (
     briefings,
     dbctx,
     decision,
+    drawn_notes,
     forecast,
     gameplan_view,
     lineup,
@@ -114,12 +115,14 @@ def _frozen(db, body, my_team, opponent, my_five, their_five, workspace_id: int)
                     if note and not item.get("note"):
                         item["note"] = note["text"]
             strats = _strats(db, workspace_id, my_team.id, pick.map, pick.strats)
-            if items or strats or pick.note.strip():
+            drawings = drawn_notes.freeze(workspace_id, pick.map, pick.drawings)
+            if items or strats or drawings or pick.note.strip():
                 maps.append(
                     {"map": pick.map, "label": panel.get("label") or pick.map,
-                     "note": pick.note.strip(), "items": items, "strats": strats}
+                     "note": pick.note.strip(), "items": items, "strats": strats,
+                     "drawings": drawings}
                 )  # fmt: skip
-    except briefings.BriefingError as exc:
+    except (briefings.BriefingError, ValueError) as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from None
     return maps, stamp
 

@@ -522,6 +522,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notes/drawn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Drawn
+         * @description VIZ-8: the Workspace's drawn notes on this Map's Match Maps the Team played,
+         *     newest first: what a Briefing can carry.
+         */
+        get: operations["drawn_notes_drawn_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notes/{note_id}": {
         parameters: {
             query?: never;
@@ -2359,6 +2380,8 @@ export interface components {
             picks?: string[];
             /** Strats */
             strats?: number[];
+            /** Drawings */
+            drawings?: number[];
         };
         /** BriefingRead */
         BriefingRead: {
@@ -2659,6 +2682,30 @@ export interface components {
             reasons: {
                 [key: string]: number;
             };
+        };
+        /**
+         * DrawnNote
+         * @description A drawn Review note on a Match Map of the Map (VIZ-8), as a Briefing keeps it.
+         */
+        DrawnNote: {
+            /** Id */
+            id: number;
+            /** Text */
+            text: string;
+            /** Round */
+            round: number | null;
+            /** T */
+            t: number | null;
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Played At */
+            played_at: string | null;
+            /** Teams */
+            teams: string;
+            /** Shapes */
+            shapes: components["schemas"]["NoteShape"][];
         };
         /** FixtureStyle */
         FixtureStyle: {
@@ -6825,6 +6872,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NoteRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    drawn_notes_drawn_get: {
+        parameters: {
+            query: {
+                team_id: number;
+                map_name: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DrawnNote"][];
                 };
             };
             /** @description Validation Error */

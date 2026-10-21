@@ -960,6 +960,20 @@ class NoteShape(BaseModel):
     text: str = Field(default="", max_length=80)
 
 
+class DrawnNote(BaseModel):
+    """A drawn Review note on a Match Map of the Map (VIZ-8), as a Briefing keeps it."""
+
+    id: int
+    text: str
+    round: int | None
+    t: float | None
+    match_id: int
+    map_number: int
+    played_at: str | None
+    teams: str
+    shapes: list[NoteShape]
+
+
 class NoteRead(BaseModel):
     id: int
     kind: str
@@ -1763,6 +1777,8 @@ class BriefingMapPick(BaseModel):
     picks: list[str] = Field(default_factory=list, max_length=40)
     # SB-6: the my team's Strats for this Map to read with it (active, shared).
     strats: list[int] = Field(default_factory=list, max_length=20)
+    # VIZ-8: Staff's drawn Review notes on this Map to show with it.
+    drawings: list[int] = Field(default_factory=list, max_length=6)
 
 
 class BriefingCreate(BaseModel):

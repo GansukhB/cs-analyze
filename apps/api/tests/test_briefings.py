@@ -237,3 +237,35 @@ def test_a_player_line_carries_what_the_reviews_settle():
     panel = {"players": [{"player": "x", "tags": ["AWP"], "lines": ["l1"], "duels": "",
                           "card": card}]}  # fmt: skip
     assert briefings.freeze(panel, "players.0")["lines"] == ["l1", *card]
+
+
+def test_a_briefing_carries_the_drawn_notes_on_its_map(client, db, auth, user, league):
+    """VIZ-8: a note drawn on the Bravo's Mirage Replay is listed for that Map and
+    frozen into the Briefing; a note without a drawing is refused."""
+    from app.models import GameMap, MatchMap, ReviewNote
+
+    a, b = league["a"], league["b"]
+    mm = db.scalars(
+        select(MatchMap).join(GameMap).join(Match)
+        .where(GameMap.name == "de_mirage", (Match.team1_id == b.id) | (Match.team2_id == b.id))
+    ).first()  # fmt: skip
+    arrow = [{"kind": "arrow", "points": [[-300.0, 200.0], [-900.0, 400.0]], "text": ""}]
+    drawn = ReviewNote(workspace_id=user.workspace_id, match_map_id=mm.id, round=3, t=21.5,
+                       text="Ramp-аас B руу", drawing=arrow)  # fmt: skip
+    plain = ReviewNote(workspace_id=user.workspace_id, match_map_id=mm.id, round=4, text="x")
+    db.add_all([drawn, plain])
+    db.commit()
+    listed = client.get(f"/notes/drawn?team_id={b.id}&map_name=de_mirage", headers=auth).json()
+    assert [n["id"] for n in listed] == [drawn.id] and listed[0]["shapes"][0]["kind"] == "arrow"
+    panel = client.get(f"/gameplan/{a.id}/vs/{b.id}/playbook/de_mirage", headers=auth).json()
+    base = {"my_team_id": a.id, "opponent_id": b.id, "title": "x", "stamp": panel["stamp"]}
+    made = client.post("/briefings", headers=auth, json={
+        **base, "maps": [{"map": "de_mirage", "picks": [], "drawings": [drawn.id]}],
+    })  # fmt: skip
+    assert made.status_code == 201, made.text
+    (part,) = made.json()["content"]["maps"]
+    assert part["drawings"][0]["text"] == "Ramp-аас B руу" and part["drawings"][0]["round"] == 3
+    refused = client.post("/briefings", headers=auth, json={
+        **base, "maps": [{"map": "de_mirage", "picks": [], "drawings": [plain.id]}],
+    })  # fmt: skip
+    assert refused.status_code == 400

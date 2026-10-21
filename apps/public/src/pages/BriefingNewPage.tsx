@@ -29,6 +29,8 @@ export default function BriefingNewPage() {
   const [notes, setNotes] = useState<Record<string, string>>({})
   // SB-6: the my team's Strats each Map's section links to.
   const [strats, setStrats] = useState<Record<string, number[]>>({})
+  // VIZ-8: Staff's drawn Review notes each Map's section shows.
+  const [drawings, setDrawings] = useState<Record<string, number[]>>({})
   const [open, setOpen] = useState<string | null>(null)
   const save = $api.useMutation('post', '/briefings', {
     onSuccess: (b) => navigate(`/briefings/${b.id}`),
@@ -59,8 +61,14 @@ export default function BriefingNewPage() {
       stamp: header.data!.stamp,
       share,
       maps: maps
-        .map((m) => ({ map: m.map, note: notes[m.map] ?? '', picks: picks[m.map] ?? [], strats: strats[m.map] ?? [] }))
-        .filter((m) => m.picks.length || m.strats.length || m.note.trim()),
+        .map((m) => ({
+          map: m.map,
+          note: notes[m.map] ?? '',
+          picks: picks[m.map] ?? [],
+          strats: strats[m.map] ?? [],
+          drawings: drawings[m.map] ?? [],
+        }))
+        .filter((m) => m.picks.length || m.strats.length || m.drawings.length || m.note.trim()),
     }
   }
   function submit(share: boolean) {
@@ -120,6 +128,8 @@ export default function BriefingNewPage() {
             onNote={(text) => setNotes({ ...notes, [m.map]: text })}
             strats={strats[m.map] ?? []}
             onStrats={(list) => setStrats({ ...strats, [m.map]: list })}
+            drawings={drawings[m.map] ?? []}
+            onDrawings={(list) => setDrawings({ ...drawings, [m.map]: list })}
           />
         ))}
       </div>
@@ -175,6 +185,8 @@ function MapPicker(props: {
   onNote: (text: string) => void
   strats: number[]
   onStrats: (list: number[]) => void
+  drawings: number[]
+  onDrawings: (list: number[]) => void
 }) {
   const { map, mine, theirs, query, open, picked } = props
   // Only a Strat its readers can open: active and shared with the team.
@@ -182,6 +194,9 @@ function MapPicker(props: {
   const shared = (book.data ?? []).filter((s) => s.status === 'active' && s.visibility === 'team')
   const flip = (id: number) =>
     props.onStrats(props.strats.includes(id) ? props.strats.filter((x) => x !== id) : [...props.strats, id])
+  const drawn = $api.useQuery('get', '/notes/drawn', { params: { query: { team_id: theirs, map_name: map.map } } }, { enabled: open })
+  const flipDrawing = (id: number) =>
+    props.onDrawings(props.drawings.includes(id) ? props.drawings.filter((x) => x !== id) : [...props.drawings, id])
   const panel = useQuery({
     ...$api.queryOptions('get', '/gameplan/{mine}/vs/{theirs}/playbook/{map_name}', {
       params: { path: { mine, theirs, map_name: map.map }, query },
@@ -202,7 +217,13 @@ function MapPicker(props: {
         <span className="font-medium text-ink">{map.label}</span>
         <span className="text-xs text-ink-3">{map.call_label}</span>
         <span className="ml-auto text-xs text-ink-3">
-          {[picked.length ? `${picked.length} мөр` : '', props.strats.length ? `${props.strats.length} strat` : ''].filter(Boolean).join(' · ')}
+          {[
+            picked.length ? `${picked.length} мөр` : '',
+            props.strats.length ? `${props.strats.length} strat` : '',
+            props.drawings.length ? `${props.drawings.length} зураг` : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
         </span>
       </button>
       {open && (
@@ -245,6 +266,28 @@ function MapPicker(props: {
               ))
             )}
           </div>
+          {(drawn.data ?? []).length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-wide text-ink-3">Replay дээр зурсан</p>
+              {(drawn.data ?? []).map((d) => (
+                <label key={d.id} className="flex gap-2 text-ink-2">
+                  <input
+                    type="checkbox"
+                    checked={props.drawings.includes(d.id)}
+                    onChange={() => flipDrawing(d.id)}
+                    disabled={!props.drawings.includes(d.id) && props.drawings.length >= 6}
+                  />
+                  <span>
+                    <span className="text-ink">{d.text || `${d.shapes.length} тэмдэг`}</span>{' '}
+                    <span className="text-xs text-ink-3">
+                      {d.teams}
+                      {d.round ? `, раунд ${d.round}` : ''}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
           <label className="block space-y-1">
             <span className="text-ink-3">{map.label}-ийн тэмдэглэл</span>
             <textarea
