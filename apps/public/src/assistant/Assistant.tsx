@@ -478,7 +478,7 @@ export default function Assistant() {
         }}
         aria-expanded={open}
         aria-label={open ? 'AI туслахыг хаах' : 'AI туслахаас асуух'}
-        className={`fixed right-5 bottom-5 z-50 flex items-center gap-2.5 rounded-full border border-line bg-raised py-1.5 pr-4 pl-1.5 text-sm font-semibold text-ink shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition hover:-translate-y-0.5 hover:border-[#4a4f8a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ct ${open ? 'max-sm:hidden' : ''}`}
+        className={`fixed right-5 bottom-5 z-50 flex items-center gap-2.5 rounded-full border border-line bg-raised py-1.5 pr-4 pl-1.5 text-sm font-semibold text-ink shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition hover:-translate-y-0.5 hover:border-assist-line-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ct ${open ? 'max-sm:hidden' : ''}`}
       >
         <Orb state={orb} size="h-9 w-9" />
         <span>Ask</span>
@@ -555,9 +555,9 @@ function Welcome(props: {
               key={q}
               onClick={() => props.onPick(q)}
               disabled={!props.configured}
-              className="group flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-left text-sm text-ink-2 transition hover:border-[#5d63b8] hover:text-ink disabled:opacity-50"
+              className="group flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-left text-sm text-ink-2 transition hover:border-assist-line hover:text-ink disabled:opacity-50"
             >
-              <Sparkle width={14} height={14} className="shrink-0 text-[#9a86f0] opacity-70 group-hover:opacity-100" />
+              <Sparkle width={14} height={14} className="shrink-0 text-assist-2 opacity-70 group-hover:opacity-100" />
               {q}
             </button>
           ))}
@@ -630,7 +630,7 @@ function Reply({ turn, speaker, onRetry }: { turn: Turn; speaker: SpeakerApi; on
                       title={speaking ? 'Зогсоох' : 'Энэ хэсгийг сонсох'}
                       className={`absolute top-1.5 right-1.5 grid h-6 w-6 place-items-center rounded-full transition ${
                         speaking
-                          ? 'bg-[#8c6cf2] text-white'
+                          ? 'bg-assist text-white'
                           : 'text-ink-3 opacity-60 group-hover:opacity-100 hover:bg-raised hover:text-ink max-sm:opacity-100'
                       }`}
                     >
@@ -780,7 +780,7 @@ function Composer(props: {
         </div>
       ) : (
         <form
-          className="flex items-end gap-2 rounded-2xl border border-line bg-ground py-1.5 pr-1.5 pl-3.5 transition focus-within:border-[#5d63b8]"
+          className="flex items-end gap-2 rounded-2xl border border-line bg-ground py-1.5 pr-1.5 pl-3.5 transition focus-within:border-assist-line"
           onSubmit={(e) => {
             e.preventDefault()
             if (canSend && !props.busy) props.onSend()

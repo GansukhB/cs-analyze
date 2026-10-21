@@ -2,7 +2,7 @@
    palette tokens. Class names start with as- so none collides with a utility. */
 
 :root {
-  --as-violet: #8c6cf2;
+  --as-violet: var(--assist);
   --as-orchid: #c46ad6;
   --as-gradient: linear-gradient(135deg, var(--ct) 0%, var(--as-violet) 55%, var(--as-orchid) 100%);
 }

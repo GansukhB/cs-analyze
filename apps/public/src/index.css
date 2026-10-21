@@ -31,6 +31,11 @@
   --mark-mine: #6e8ef3;
   --mark-theirs: #b0902f;
   --mark-h2h: #d1495b;
+  /* The Assistant's own violet, apart from both Sides and the two Teams (OPS-10). */
+  --assist: #8c6cf2;
+  --assist-2: #9a86f0;
+  --assist-line: #5d63b8;
+  --assist-line-2: #4a4f8a;
 }
 
 @theme inline {
@@ -50,6 +55,10 @@
   --color-crit: var(--crit);
   --color-mine: var(--mine);
   --color-theirs: var(--theirs);
+  --color-assist: var(--assist);
+  --color-assist-2: var(--assist-2);
+  --color-assist-line: var(--assist-line);
+  --color-assist-line-2: var(--assist-line-2);
 }
 
 body {
