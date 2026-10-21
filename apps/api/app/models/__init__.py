@@ -58,7 +58,7 @@ from app.models.jobs import (
     JobStatus,
     analysis_job_matches,
 )
-from app.models.notes import NoteKind, Playlist, ReviewNote
+from app.models.notes import NoteKind, PlaybookNote, Playlist, ReviewNote
 from app.models.results import SeriesResult, VrsStanding
 from app.models.source import Demo, Match, MatchKind, MatchSource, Team, Tournament
 from app.models.strat import (
@@ -105,6 +105,7 @@ __all__ = [
     # analysis
     "Side",
     "Player",
+    "PlaybookNote",
     "Playlist",
     "PlayerAlias",
     "TeamAlias",

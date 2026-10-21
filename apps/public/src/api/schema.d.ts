@@ -616,6 +616,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/playbook-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Playbook Note List
+         * @description ``{habit key: note}`` for one Team's Playbook on one Map.
+         */
+        get: operations["playbook_note_list_playbook_notes_get"];
+        /**
+         * Playbook Note Put
+         * @description Write or change a note on a habit line; empty text removes it.
+         */
+        put: operations["playbook_note_put_playbook_notes_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gameplan/teams": {
         parameters: {
             query?: never;
@@ -3756,6 +3780,32 @@ export interface components {
             /** Extent */
             extent: number[];
         };
+        /** PlaybookNoteRead */
+        PlaybookNoteRead: {
+            /** Text */
+            text: string;
+            /** By */
+            by: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** PlaybookNoteWrite */
+        PlaybookNoteWrite: {
+            /** Team Id */
+            team_id: number;
+            /** Map Name */
+            map_name: string;
+            /** Key */
+            key: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
         /**
          * PlayerAim
          * @description Aim from his engagements (PL-5); ``rank`` 0-100 among every Player past the bar.
@@ -6728,6 +6778,71 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playbook_note_list_playbook_notes_get: {
+        parameters: {
+            query: {
+                team_id: number;
+                map_name: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["PlaybookNoteRead"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playbook_note_put_playbook_notes_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybookNoteWrite"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {

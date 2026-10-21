@@ -180,6 +180,15 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
     },
     { staleTime: STALE },
   )
+  // GP-13: Staff's notes on the lines, theirs and our own, kept across parses.
+  const theirNotes = $api.useQuery('get', '/playbook-notes', { params: { query: { team_id: fixture.theirs.id, map_name: map } } })
+  const ourNotes = $api.useQuery('get', '/playbook-notes', { params: { query: { team_id: fixture.mine.id, map_name: map } } })
+  const noted = (team: number): NoteBook => ({
+    team,
+    map,
+    notes: (team === fixture.mine.id ? ourNotes.data : theirNotes.data) ?? {},
+    refresh: () => void (team === fixture.mine.id ? ourNotes : theirNotes).refetch(),
+  })
   if (query.isError) return <p className="caveat">Энэ map-ын Playbook-ийг тооцоолж чадсангүй.</p>
   if (!query.data) return <p className="none">Playbook-ийг тооцоолж байна…</p>
   const d = query.data.data as unknown as PlaybookPanel
@@ -289,7 +298,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
       {d.sections.map((s) => (
         <div key={s.key}>
           <h3 className="pb-section">{s.title}</h3>
-          <Habits habits={s.habits} strat={{ whose: 'theirs', team: fixture.mine.id, map }} />
+          <Habits habits={s.habits} strat={{ whose: 'theirs', team: fixture.mine.id, map }} book={noted(fixture.theirs.id)} />
         </div>
       ))}
 
@@ -378,7 +387,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
               </span>
             ))}
           </p>
-          <Habits habits={d.economy.habits} />
+          <Habits habits={d.economy.habits} book={noted(fixture.theirs.id)} />
           {d.economy.choices && d.economy.choices.length > 0 && (
             <ul className="pb-rows">
               {d.economy.choices.map((c) => (
@@ -440,7 +449,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
             <h4>
               <span className={`tag ${s.side}`}>{s.label}</span>
             </h4>
-            <Habits habits={s.habits} strat={{ whose: 'mine', team: fixture.mine.id, map }} />
+            <Habits habits={s.habits} strat={{ whose: 'mine', team: fixture.mine.id, map }} book={noted(fixture.mine.id)} />
           </div>
         ))}
       </div>
@@ -448,7 +457,65 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
   )
 }
 
-function Habits({ habits, strat }: { habits: Habit[]; strat?: StratFrom }) {
+// GP-13: where a habit line's note is read and written.
+interface NoteBook {
+  team: number
+  map: string
+  notes: Record<string, { text: string; by: string }>
+  refresh: () => void
+}
+
+function HabitNote({ habit, book }: { habit: Habit; book: NoteBook }) {
+  const key = habit.key ?? ''
+  const note = book.notes[key]
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState(note?.text ?? '')
+  const save = $api.useMutation('put', '/playbook-notes', {
+    onSuccess: () => {
+      setOpen(false)
+      book.refresh()
+    },
+  })
+  if (!key) return null
+  if (!open)
+    return (
+      <p className="pb-detail">
+        {note && (
+          <span>
+            <b>Манай тэмдэглэл:</b> {note.text} <small>— {note.by}</small>{' '}
+          </span>
+        )}
+        <button
+          type="button"
+          className="chip"
+          onClick={() => {
+            setText(note?.text ?? '')
+            setOpen(true)
+          }}
+        >
+          {note ? 'засах' : '+ тэмдэглэл'}
+        </button>
+      </p>
+    )
+  return (
+    <div className="pb-detail">
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} maxLength={1000} style={{ width: '100%' }} />
+      <button
+        type="button"
+        className="chip on"
+        disabled={save.isPending}
+        onClick={() => save.mutate({ body: { team_id: book.team, map_name: book.map, key, text } })}
+      >
+        Хадгалах
+      </button>{' '}
+      <button type="button" className="chip" onClick={() => setOpen(false)}>
+        Болих
+      </button>
+    </div>
+  )
+}
+
+function Habits({ habits, strat, book }: { habits: Habit[]; strat?: StratFrom; book?: NoteBook }) {
   if (!habits.length) return <p className="none">4-өөс доошгүй раундад давтагдсан хэв маяг алга.</p>
   return (
     <div className="pb-list">
@@ -460,6 +527,7 @@ function Habits({ habits, strat }: { habits: Habit[]; strat?: StratFrom }) {
           {h.review && <p className="pb-review">{h.review}</p>}
           {h.evidence && <Proof e={h.evidence} />}
           {strat && h.kind === 'set_play' && <StratButton habit={h} from={strat} />}
+          {book && <HabitNote habit={h} book={book} />}
         </div>
       ))}
     </div>

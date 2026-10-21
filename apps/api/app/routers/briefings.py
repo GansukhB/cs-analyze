@@ -35,6 +35,7 @@ from app.services import (
     lineup,
     mn,
     plan_check,
+    playbook_notes,
     scope,
 )
 
@@ -105,6 +106,13 @@ def _frozen(db, body, my_team, opponent, my_five, their_five, workspace_id: int)
                 db, my_team, opponent, my_five, their_five, pick.map, stamp
             )
             items = [briefings.freeze(panel, path) for path in pick.picks]
+            # GP-13: each habit line takes Staff's note on it, theirs or our own.
+            for team_id in (opponent.id, my_team.id):
+                written = playbook_notes.notes(db, workspace_id, team_id, pick.map)
+                for item in items:
+                    note = written.get(item.get("key") or "")
+                    if note and not item.get("note"):
+                        item["note"] = note["text"]
             strats = _strats(db, workspace_id, my_team.id, pick.map, pick.strats)
             if items or strats or pick.note.strip():
                 maps.append(

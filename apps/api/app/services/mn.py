@@ -1516,7 +1516,16 @@ def _pb(title: str, detail: str, counter: str, h: dict) -> dict:
         "evidence": h.get("evidence"),
         # The habit as found, kept by a Briefing so the Match can check it (GP-8).
         "spec": _plain({k: v for k, v in h.items() if k not in ("evidence", "review")}),
-    }
+    } | {"key": _habit_key(h)}
+
+
+def _habit_key(h: dict) -> str:
+    """GP-13: what Staff's note on this line hangs on, across parses."""
+    from app.services import playbook_notes
+
+    return playbook_notes.habit_key(
+        _plain({k: v for k, v in h.items() if k not in ("evidence", "review")})
+    )
 
 
 def _plain(value):

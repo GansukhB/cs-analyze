@@ -98,6 +98,8 @@ export interface Habit {
   // What the Reviews add about this Player or place, when they tie to it exactly.
   review?: string
   evidence: Evidence
+  /** What Staff's note on this line hangs on, across parses (GP-13). */
+  key?: string
   /** The habit as found (GP-8); a Set play's carries its grenades (SB-2). */
   spec?: { kind?: string; side?: 'ct' | 't'; grenades?: { type: string; place: string; at: number }[] }
 }

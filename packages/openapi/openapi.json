@@ -1705,6 +1705,105 @@
         }
       }
     },
+    "/playbook-notes": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Playbook Note List",
+        "description": "``{habit key: note}`` for one Team's Playbook on one Map.",
+        "operationId": "playbook_note_list_playbook_notes_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "map_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Map Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/PlaybookNoteRead"
+                  },
+                  "title": "Response Playbook Note List Playbook Notes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Playbook Note Put",
+        "description": "Write or change a note on a habit line; empty text removes it.",
+        "operationId": "playbook_note_put_playbook_notes_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaybookNoteWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/gameplan/teams": {
       "get": {
         "tags": [
@@ -10806,6 +10905,61 @@
           "extent"
         ],
         "title": "Plate"
+      },
+      "PlaybookNoteRead": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "by": {
+            "type": "string",
+            "title": "By"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "by",
+          "at"
+        ],
+        "title": "PlaybookNoteRead"
+      },
+      "PlaybookNoteWrite": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "map_name": {
+            "type": "string",
+            "pattern": "^de_[a-z0-9_]{2,30}$",
+            "title": "Map Name"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{16}$",
+            "title": "Key"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Text",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "map_name",
+          "key"
+        ],
+        "title": "PlaybookNoteWrite"
       },
       "PlayerAim": {
         "properties": {

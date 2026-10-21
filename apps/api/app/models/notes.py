@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -60,4 +60,24 @@ class Playlist(TimestampMixin, Base):
     # [{match_id, map_number, round, t, sid, text}], in watching order
     items: Mapped[list] = mapped_column(JSON, default=list)
     shared: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+
+class PlaybookNote(TimestampMixin, Base):
+    """Staff's note on one habit line of a Team's Playbook on a Map (GP-13), kept
+    across parses by the habit's key (``playbook_notes.habit_key``)."""
+
+    __tablename__ = "playbook_notes"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "team_id", "map_name", "key", name="uq_playbook_note"),
+    )
+
+    id: Mapped[int] = mapped_column(BigId, primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        BigId, ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    team_id: Mapped[int] = mapped_column(BigId, ForeignKey("teams.id", ondelete="CASCADE"))
+    map_name: Mapped[str] = mapped_column(String(32))
+    key: Mapped[str] = mapped_column(String(16))
+    text: Mapped[str] = mapped_column(Text, default="")
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

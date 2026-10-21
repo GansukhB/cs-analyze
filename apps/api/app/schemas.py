@@ -1436,6 +1436,20 @@ class Coverage(BaseModel):
     queued: int
 
 
+# -- Staff's notes on Playbook lines (docs/plans/06 GP-13) ---------------------------
+class PlaybookNoteRead(BaseModel):
+    text: str
+    by: str
+    at: dt.datetime
+
+
+class PlaybookNoteWrite(BaseModel):
+    team_id: int
+    map_name: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")
+    key: str = Field(pattern=r"^[0-9a-f]{16}$")
+    text: str = Field(default="", max_length=1000)
+
+
 # -- The Workspace's audit log (docs/plans/01 WS-7) ---------------------------------
 class AuditLine(BaseModel):
     id: int

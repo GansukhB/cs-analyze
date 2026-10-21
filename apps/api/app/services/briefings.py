@@ -34,6 +34,8 @@ def _habit(h: dict, section: str) -> dict:
         # What was found and how often, for checking it on the Match (GP-8).
         "spec": h.get("spec") or {},
         "seen": {k: (h.get("evidence") or {}).get(k) for k in ("n", "of")},
+        # GP-13: Staff's note on it, attached by the Briefing as it is made.
+        "key": h.get("key") or "",
     }
 
 

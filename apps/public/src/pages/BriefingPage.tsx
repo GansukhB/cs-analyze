@@ -19,6 +19,8 @@ interface Item {
   lines: string[]
   counter: string
   refs: Ref[]
+  // GP-13: Staff's note on the line when the Briefing was made.
+  note?: string
 }
 interface MapPart {
   map: string
@@ -145,6 +147,7 @@ export default function BriefingPage() {
                     </p>
                   ))}
                   {item.counter && <p className="mt-1 text-ink">→ {item.counter}</p>}
+                  {item.note && <p className="mt-1 text-ink-2">Тэмдэглэл: {item.note}</p>}
                   {item.refs.length > 0 && (
                     <p className="mt-1 flex flex-wrap gap-2 text-xs print:hidden">
                       {item.refs.map((r, j) => (

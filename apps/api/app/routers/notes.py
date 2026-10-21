@@ -13,19 +13,21 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from app.deps import CurrentUser, DbSession, StaffUser
-from app.models import Match, MatchMap, NoteKind, Playlist, ReviewNote, User
+from app.models import Match, MatchMap, NoteKind, Playlist, ReviewNote, Team, User
 from app.routers.matches import _map
 from app.schemas import (
     DisputeRate,
     NoteCreate,
     NoteList,
     NoteRead,
+    PlaybookNoteRead,
+    PlaybookNoteWrite,
     PlaylistItemRead,
     PlaylistRead,
     PlaylistSummary,
     PlaylistWrite,
 )
-from app.services import audit_log, dbctx, mn, review, review_pool, scope
+from app.services import audit_log, dbctx, mn, playbook_notes, review, review_pool, scope
 
 router = APIRouter(tags=["notes"])
 LIMIT = 50
@@ -251,4 +253,23 @@ def delete_playlist(playlist_id: int, db: DbSession, user: StaffUser) -> None:
     playlist = _playlist(db, playlist_id, user)
     audit_log.record(db, user, "playlist.delete", playlist.title)
     db.delete(playlist)
+    db.commit()
+
+
+# -- Staff's notes on Playbook lines (docs/plans/06 GP-13) ---------------------------
+@router.get("/playbook-notes")
+def playbook_note_list(
+    team_id: int, map_name: str, db: DbSession, user: StaffUser
+) -> dict[str, PlaybookNoteRead]:
+    """``{habit key: note}`` for one Team's Playbook on one Map."""
+    found = playbook_notes.notes(db, user.workspace_id, team_id, map_name)
+    return {k: PlaybookNoteRead(**v) for k, v in found.items()}
+
+
+@router.put("/playbook-notes", status_code=status.HTTP_204_NO_CONTENT)
+def playbook_note_put(body: PlaybookNoteWrite, db: DbSession, user: StaffUser) -> None:
+    """Write or change a note on a habit line; empty text removes it."""
+    if db.get(Team, body.team_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such team")
+    playbook_notes.put(db, user, body.team_id, body.map_name, body.key, body.text)
     db.commit()
