@@ -110,7 +110,7 @@ HLTV Rating 3.0-ийн 2025–26 оны өөрчлөлт ба Leetify-ээс (`1
 
 #### RV-3. Тестийн хамрах хүрээ (P0/P1, M)
 
-> **Төлөв:** 🟡 `1de4855` (improvement-01). Swing zero-sum invariant; team_flash, team_flashed_death, saw_first_lost-ийн fixture тест. Үлдсэн 10 detector-ийн тест.
+> **Төлөв:** 🟡 `39c3bdc` (improvement-01). Swing zero-sum invariant ба team_flash, team_flashed_death, saw_first_lost (`1de4855`); time_out, kitless, defuse_chance, advantage_lost, unfinished, blind_unpunished, late_execute, early_rotate, lurker. Entry, multikill, retake, bomb_lost, unscoped_awp, nade_damage_kill, fire_delay, empty_utility үлдсэн.
 
 - 32 detector бүрт нэг fixture Round.
 - Defuse-ийн timeline, Swing-ийн нийлбэрийн invariant.
