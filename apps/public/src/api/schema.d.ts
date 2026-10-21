@@ -179,6 +179,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/teams/{team_id}/after-contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Team After Contact
+         * @description What the Team does after the first contact on one Map (TM-7): its most
+         *     played Map unless one is named.
+         */
+        get: operations["team_after_contact_teams__team_id__after_contact_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/teams/{team_id}/style": {
         parameters: {
             query?: never;
@@ -1593,6 +1614,106 @@ export interface components {
             at?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** AfterBranch */
+        AfterBranch: {
+            /** Then */
+            then: string;
+            /** N */
+            n: number;
+            /** Won */
+            won: number;
+            /** Refs */
+            refs: components["schemas"]["CheckRef"][];
+        };
+        /** AfterCT */
+        AfterCT: {
+            /** Rounds */
+            rounds: number;
+            /** Openings */
+            openings: components["schemas"]["AfterNode"][];
+            /** Retakes */
+            retakes: components["schemas"]["AfterRetake"][];
+        };
+        /** AfterContact */
+        AfterContact: {
+            /** Map */
+            map: string;
+            t: components["schemas"]["AfterT"];
+            ct: components["schemas"]["AfterCT"];
+        };
+        /** AfterContactView */
+        AfterContactView: {
+            /** Maps */
+            maps: string[];
+            after: components["schemas"]["AfterContact"] | null;
+        };
+        /** AfterNode */
+        AfterNode: {
+            /** Won */
+            won: boolean | null;
+            /** Where */
+            where: string;
+            /** N */
+            n: number;
+            /** Wins */
+            wins: number;
+            /** Then */
+            then: components["schemas"]["AfterBranch"][];
+            /**
+             * Looked
+             * @default 0
+             */
+            looked: number;
+            /**
+             * Reinforced
+             * @default 0
+             */
+            reinforced: number;
+        };
+        /** AfterPlantSpots */
+        AfterPlantSpots: {
+            /** Site */
+            site: string;
+            /** Rounds */
+            rounds: number;
+            /** Places */
+            places: [
+                string,
+                number
+            ][];
+        };
+        /** AfterRetake */
+        AfterRetake: {
+            /** Site */
+            site: string;
+            /** Situation */
+            situation: string;
+            /** N */
+            n: number;
+            /** Won */
+            won: number;
+            /** Refs */
+            refs: components["schemas"]["CheckRef"][];
+        };
+        /** AfterT */
+        AfterT: {
+            /** Rounds */
+            rounds: number;
+            /** Openings */
+            openings: components["schemas"]["AfterNode"][];
+            /** Setups */
+            setups: components["schemas"]["AfterNode"][];
+            /** Plants */
+            plants: number;
+            /** Plant Median */
+            plant_median: number | null;
+            /** Late */
+            late: number;
+            /** Late Won */
+            late_won: number;
+            /** Post Plant */
+            post_plant: components["schemas"]["AfterPlantSpots"][];
         };
         /** Agenda */
         Agenda: {
@@ -5442,6 +5563,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    team_after_contact_teams__team_id__after_contact_get: {
+        parameters: {
+            query?: {
+                map?: string | null;
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AfterContactView"];
                 };
             };
             /** @description Validation Error */

@@ -1116,6 +1116,67 @@ class CheckRef(BaseModel):
     round: int
 
 
+# -- After the first contact (docs/plans/05 TM-7) -----------------------------------
+class AfterBranch(BaseModel):
+    then: str  # the plant: "A", "B" or "none"
+    n: int
+    won: int
+    refs: list[CheckRef]
+
+
+class AfterNode(BaseModel):
+    won: bool | None  # the opening was the Team's (None: a Setup, not an opening)
+    where: str  # "A", "mid" or "B"
+    n: int
+    # Named "wins": "won" says whose opening it was.
+    wins: int
+    then: list[AfterBranch]
+    looked: int = 0  # CT, opening lost at a site: Rounds with tokens to look at
+    reinforced: int = 0  # ... of which another CT reached that site within 10 s
+
+
+class AfterPlantSpots(BaseModel):
+    site: str
+    rounds: int
+    places: list[tuple[str, int]]
+
+
+class AfterRetake(BaseModel):
+    site: str
+    situation: str  # CT alive at the plant against T: "ahead", "even", "behind"
+    n: int
+    won: int
+    refs: list[CheckRef]
+
+
+class AfterT(BaseModel):
+    rounds: int
+    openings: list[AfterNode]
+    setups: list[AfterNode]
+    plants: int
+    plant_median: float | None
+    late: int
+    late_won: int
+    post_plant: list[AfterPlantSpots]
+
+
+class AfterCT(BaseModel):
+    rounds: int
+    openings: list[AfterNode]
+    retakes: list[AfterRetake]
+
+
+class AfterContact(BaseModel):
+    map: str
+    t: AfterT
+    ct: AfterCT
+
+
+class AfterContactView(BaseModel):
+    maps: list[str]
+    after: AfterContact | None
+
+
 class CheckResult(BaseModel):
     judged: bool
     showed: bool

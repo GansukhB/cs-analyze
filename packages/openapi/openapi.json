@@ -387,6 +387,70 @@
         }
       }
     },
+    "/teams/{team_id}/after-contact": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Team After Contact",
+        "description": "What the Team does after the first contact on one Map (TM-7): its most\nplayed Map unless one is named.",
+        "operationId": "team_after_contact_teams__team_id__after_contact_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Map"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AfterContactView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/teams/{team_id}/style": {
       "get": {
         "tags": [
@@ -4928,6 +4992,303 @@
         "type": "object",
         "title": "Activity",
         "description": "What the current step is doing right now; empty when nothing is."
+      },
+      "AfterBranch": {
+        "properties": {
+          "then": {
+            "type": "string",
+            "title": "Then"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/CheckRef"
+            },
+            "type": "array",
+            "title": "Refs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "then",
+          "n",
+          "won",
+          "refs"
+        ],
+        "title": "AfterBranch"
+      },
+      "AfterCT": {
+        "properties": {
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "openings": {
+            "items": {
+              "$ref": "#/components/schemas/AfterNode"
+            },
+            "type": "array",
+            "title": "Openings"
+          },
+          "retakes": {
+            "items": {
+              "$ref": "#/components/schemas/AfterRetake"
+            },
+            "type": "array",
+            "title": "Retakes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rounds",
+          "openings",
+          "retakes"
+        ],
+        "title": "AfterCT"
+      },
+      "AfterContact": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "t": {
+            "$ref": "#/components/schemas/AfterT"
+          },
+          "ct": {
+            "$ref": "#/components/schemas/AfterCT"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "t",
+          "ct"
+        ],
+        "title": "AfterContact"
+      },
+      "AfterContactView": {
+        "properties": {
+          "maps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AfterContact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "after"
+        ],
+        "title": "AfterContactView"
+      },
+      "AfterNode": {
+        "properties": {
+          "won": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Won"
+          },
+          "where": {
+            "type": "string",
+            "title": "Where"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "wins": {
+            "type": "integer",
+            "title": "Wins"
+          },
+          "then": {
+            "items": {
+              "$ref": "#/components/schemas/AfterBranch"
+            },
+            "type": "array",
+            "title": "Then"
+          },
+          "looked": {
+            "type": "integer",
+            "title": "Looked",
+            "default": 0
+          },
+          "reinforced": {
+            "type": "integer",
+            "title": "Reinforced",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "won",
+          "where",
+          "n",
+          "wins",
+          "then"
+        ],
+        "title": "AfterNode"
+      },
+      "AfterPlantSpots": {
+        "properties": {
+          "site": {
+            "type": "string",
+            "title": "Site"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "places": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Places"
+          }
+        },
+        "type": "object",
+        "required": [
+          "site",
+          "rounds",
+          "places"
+        ],
+        "title": "AfterPlantSpots"
+      },
+      "AfterRetake": {
+        "properties": {
+          "site": {
+            "type": "string",
+            "title": "Site"
+          },
+          "situation": {
+            "type": "string",
+            "title": "Situation"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/CheckRef"
+            },
+            "type": "array",
+            "title": "Refs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "site",
+          "situation",
+          "n",
+          "won",
+          "refs"
+        ],
+        "title": "AfterRetake"
+      },
+      "AfterT": {
+        "properties": {
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "openings": {
+            "items": {
+              "$ref": "#/components/schemas/AfterNode"
+            },
+            "type": "array",
+            "title": "Openings"
+          },
+          "setups": {
+            "items": {
+              "$ref": "#/components/schemas/AfterNode"
+            },
+            "type": "array",
+            "title": "Setups"
+          },
+          "plants": {
+            "type": "integer",
+            "title": "Plants"
+          },
+          "plant_median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plant Median"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "late_won": {
+            "type": "integer",
+            "title": "Late Won"
+          },
+          "post_plant": {
+            "items": {
+              "$ref": "#/components/schemas/AfterPlantSpots"
+            },
+            "type": "array",
+            "title": "Post Plant"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rounds",
+          "openings",
+          "setups",
+          "plants",
+          "plant_median",
+          "late",
+          "late_won",
+          "post_plant"
+        ],
+        "title": "AfterT"
       },
       "Agenda": {
         "properties": {

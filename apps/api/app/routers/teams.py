@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.deps import DbSession, StaffUser
 from app.models import MapRoster, Match, MatchMap, Player, Round, Team
 from app.schemas import (
+    AfterContactView,
     DemoState,
     MapRecordRow,
     MatchRecord,
@@ -29,7 +30,7 @@ from app.schemas import (
     TeamStrength,
     TeamStyleView,
 )
-from app.services import dbctx, map_pool, style, team_strength
+from app.services import after_contact, dbctx, map_pool, style, team_strength
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -282,6 +283,22 @@ def _players(db: Session, team: Team) -> list[TeamPlayer]:
         TeamPlayer(steamid=str(sid), name=name, maps=maps, rounds=int(rounds or 0), last=seen)
         for sid, name, maps, rounds, seen in rows
     ]
+
+
+@router.get("/{team_id}/after-contact")
+def team_after_contact(
+    team_id: int, db: DbSession, _: StaffUser, map: str | None = None
+) -> AfterContactView:
+    """What the Team does after the first contact on one Map (TM-7): its most
+    played Map unless one is named."""
+    team = db.get(Team, team_id)
+    if team is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such team")
+    with dbctx.using(db):
+        maps = style.maps_of(team_id)
+        chosen = map if map in maps else (maps[0] if maps else None)
+        after = after_contact.team(team_id, chosen) if chosen else None
+        return AfterContactView(maps=maps, after=after)
 
 
 @router.get("/{team_id}/style")
