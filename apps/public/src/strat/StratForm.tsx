@@ -1,6 +1,7 @@
 // Writing a Strat (docs/plans/08 SB-1): its name and kind, who does what in
 // each slot, its grenades with their timing, and the calls. Staff only.
 import { useState } from 'react'
+import { $api } from '../api/client'
 import type { components } from '../api/schema'
 
 import { KINDS, type StratWrite } from './kinds'
@@ -23,6 +24,10 @@ export default function StratForm(props: {
   const setRole = (slot: number, patch: Partial<Role>) =>
     setS({ ...s, roles: roles.map((r) => (r.slot === slot ? { ...r, ...patch } : r)).filter((r) => r.role || r.does || r.player) })
   const grenades = s.grenades ?? []
+  // SB-3/SB-6: a grenade can point at a lineup of the library, on this Map and Side.
+  const library = $api.useQuery('get', '/lineups/{map_name}', {
+    params: { path: { map_name: s.map_name }, query: { side: s.side } },
+  })
   const setNade = (i: number, patch: Partial<Grenade>) =>
     setS({ ...s, grenades: grenades.map((g, k) => (k === i ? { ...g, ...patch } : g)) })
   return (
@@ -112,7 +117,7 @@ export default function StratForm(props: {
       <div className="space-y-1">
         <p className="text-xs uppercase tracking-wide text-ink-3">Граната</p>
         {grenades.map((g, i) => (
-          <div key={i} className="grid grid-cols-[4rem_7rem_1fr_5rem_1fr_2rem] gap-2">
+          <div key={i} className="grid grid-cols-[4rem_7rem_1fr_5rem_1fr_12rem_2rem] gap-2">
             <input
               type="number"
               min={1}
@@ -140,6 +145,25 @@ export default function StratForm(props: {
               className={field}
             />
             <input placeholder="тэмдэглэл" value={g.note} onChange={(e) => setNade(i, { note: e.target.value })} className={field} />
+            <select
+              value={g.lineup ?? ''}
+              onChange={(e) => {
+                const lu = library.data?.find((x) => x.key === e.target.value)
+                setNade(i, lu ? { lineup: lu.key, place: g.place || lu.to } : { lineup: null })
+              }}
+              className={field}
+              title="Lineup-ийн сангаас"
+            >
+              <option value="">lineup —</option>
+              {(library.data ?? [])
+                .filter((lu) => lu.type === g.type)
+                .slice(0, 40)
+                .map((lu) => (
+                  <option key={lu.key} value={lu.key}>
+                    {lu.from} → {lu.to} ({lu.throws})
+                  </option>
+                ))}
+            </select>
             <button type="button" onClick={() => setS({ ...s, grenades: grenades.filter((_x, k) => k !== i) })} className="text-ink-3 hover:text-crit">
               ✕
             </button>

@@ -157,6 +157,12 @@ export function StratPage() {
     },
   })
   const printed = $api.useMutation('post', '/strats/{strat_id}/print')
+  const library = $api.useQuery(
+    'get',
+    '/lineups/{map_name}',
+    { params: { path: { map_name: strat.data?.map_name ?? '' } } },
+    { enabled: !!strat.data?.grenades.some((g) => g.lineup) },
+  )
   if (strat.isError) return <p className="text-ink-2">Ийм Strat алга.</p>
   if (!strat.data) return <p className="text-ink-3">Уншиж байна…</p>
   const s = strat.data
@@ -233,6 +239,12 @@ export function StratPage() {
                   <span className="mr-2 font-mono text-ink-3">{g.at != null ? `${g.at}с` : '—'}</span>
                   {g.slot ? `slot ${g.slot}: ` : ''}
                   <b className="text-ink">{g.type}</b> → {g.place || '?'} {g.note && <span className="text-ink-3">({g.note})</span>}
+                  {g.lineup && library.data?.find((lu) => lu.key === g.lineup) && (
+                    // The practice-server spot, printed on the card (SB-6).
+                    <span className="ml-2 font-mono text-xs text-ink-3">
+                      {library.data.find((lu) => lu.key === g.lineup)!.setpos}
+                    </span>
+                  )}
                 </li>
               ))}
           </ul>
