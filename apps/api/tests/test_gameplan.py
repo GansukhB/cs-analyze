@@ -395,3 +395,22 @@ def test_heatmap_by_phase_and_buy_and_against_the_pool(client, auth, league, db)
     against = client.get(url + "&compare=true", headers=auth).json()
     assert against["pool"] and len(against["pool"]) > 0
     assert client.get(url + "&phase=nope", headers=auth).status_code == 422
+
+
+def test_where_a_team_stands_twenty_seconds_in(client, auth, league, db):
+    """VIZ-9: the Setup snapshots are the third kind, counted in the index too."""
+    from app.models import RoundSnapshot, SnapshotMoment
+
+    a, b = league["a"], league["b"]
+    rounds = db.scalars(select(Round).where(Round.t_team_id == a.id)).all()
+    me = league["players"][a.id][0]
+    for i, r in enumerate(rounds):
+        spot = {"side": "t", "place": "Middle", "x": -400.0 + 10 * i, "y": 300.0, "z": 0.0}
+        db.add(RoundSnapshot(round_id=r.id, player_id=me.id, moment=SnapshotMoment.SETUP, **spot))
+    db.commit()
+    url = f"/gameplan/{a.id}/vs/{b.id}/heatmap?team={a.id}&map=de_mirage&side=t&kind=positions"
+    body = client.get(url, headers=auth).json()
+    assert len(body["points"]) == len(rounds) and "stand 20 s in" in body["title"]
+    grid = client.get(f"/gameplan/{a.id}/vs/{b.id}/s/heatmaps", headers=auth).json()["data"]
+    assert [k["key"] for k in grid["index"]["kinds"]] == ["kills", "deaths", "positions"]
+    assert grid["index"]["available"][f"de_mirage|{a.id}|all|t|positions"] == len(rounds)

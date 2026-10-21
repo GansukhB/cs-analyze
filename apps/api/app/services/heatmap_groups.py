@@ -19,7 +19,18 @@ from collections.abc import Iterable
 
 from sqlalchemy import and_, func, or_, select
 
-from app.models import GameMap, KillEvent, MapRoster, MatchMap, Player, Round, Team, TickDataset
+from app.models import (
+    GameMap,
+    KillEvent,
+    MapRoster,
+    MatchMap,
+    Player,
+    Round,
+    RoundSnapshot,
+    SnapshotMoment,
+    Team,
+    TickDataset,
+)
 from app.services import radar, scouting
 from app.services.dbctx import db
 
@@ -43,6 +54,9 @@ KINDS = [
         "cmap": "viridis",
         "fields": ("victim_x", "victim_y", "victim_z"),
     },
+    # VIZ-9: where they stand, not where they fight: every living Player 20 s
+    # after freeze end (the Round's Setup snapshot).
+    {"key": "positions", "label": "Stands at 20 s", "cmap": "inferno", "fields": ("x", "y", "z")},
 ]
 _KIND = {k["key"]: k for k in KINDS}
 
@@ -104,13 +118,18 @@ def build_index(my_team: Team, opponent: Team) -> dict:
     for kind, actor, side_col, x_col in (
         ("kills", KillEvent.attacker_id, KillEvent.attacker_side, KillEvent.attacker_x),
         ("deaths", KillEvent.victim_id, KillEvent.victim_side, KillEvent.victim_x),
+        ("positions", RoundSnapshot.player_id, RoundSnapshot.side, RoundSnapshot.x),
     ):
-        for map_id, player_id, side, n in session.execute(
-            select(Round.match_map_id, actor, side_col, func.count(KillEvent.id))
-            .join(Round, Round.id == KillEvent.round_id)
+        source = RoundSnapshot if kind == "positions" else KillEvent
+        query = (
+            select(Round.match_map_id, actor, side_col, func.count(source.id))
+            .join(Round, Round.id == source.round_id)
             .where(Round.match_map_id.in_(map_ids), actor.is_not(None), x_col.is_not(None))
             .group_by(Round.match_map_id, actor, side_col)
-        ):
+        )
+        if kind == "positions":
+            query = query.where(RoundSnapshot.moment == SnapshotMoment.SETUP)
+        for map_id, player_id, side, n in session.execute(query):
             team_id = team_of.get((map_id, player_id))
             map_name = map_names.get(map_id)
             if team_id not in wanted or not map_name:
@@ -245,16 +264,24 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
         level = ALL_LEVELS
     who = str(player_id)
 
-    actor_id = KillEvent.attacker_id if kind == "kills" else KillEvent.victim_id
-    actor_side = KillEvent.attacker_side if kind == "kills" else KillEvent.victim_side
-    fx, fy, fz = (getattr(KillEvent, f) for f in spec["fields"])
+    standing = kind == "positions"
+    source = RoundSnapshot if standing else KillEvent
+    if standing:
+        actor_id, actor_side = RoundSnapshot.player_id, RoundSnapshot.side
+        phase = "all"  # the snapshot is one moment, 20 s in
+    else:
+        actor_id = KillEvent.attacker_id if kind == "kills" else KillEvent.victim_id
+        actor_side = KillEvent.attacker_side if kind == "kills" else KillEvent.victim_side
+    fx, fy, fz = (getattr(source, f) for f in spec["fields"])
     map_ids = [m.id for m in maps]
     query = (
         select(fx, fy, fz)
-        .join(Round, Round.id == KillEvent.round_id)
+        .join(Round, Round.id == source.round_id)
         .where(Round.match_map_id.in_(map_ids), fx.is_not(None), fy.is_not(None))
-        .order_by(KillEvent.id)
+        .order_by(source.id)
     )
+    if standing:
+        query = query.where(RoundSnapshot.moment == SnapshotMoment.SETUP)
     if who == ALL_PLAYERS:
         roster = select(MapRoster.player_id).where(
             MapRoster.match_map_id.in_(map_ids), MapRoster.team_id == team.id
@@ -288,7 +315,8 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
         if level == ALL_LEVELS
         else (geometry.get("level_labels") or {}).get(level)
     ) or []
-    verb = "where they get their kills" if kind == "kills" else "where they die"
+    verb = {"kills": "where they get their kills", "deaths": "where they die",
+            "positions": "where they stand 20 s in"}[kind]  # fmt: skip
     side_label = {"ct": "CT side", "t": "T side"}.get(side, "both sides")
     floor_label = "" if level == ALL_LEVELS else f" · {level} floor"
     count = f"{len(rows)} position{'' if len(rows) == 1 else 's'}"
@@ -299,7 +327,7 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
         # Every other Team's on this Map, the same way: what is usual here (VIZ-9).
         others = (
             select(fx, fy)
-            .join(Round, Round.id == KillEvent.round_id)
+            .join(Round, Round.id == source.round_id)
             .join(MatchMap, MatchMap.id == Round.match_map_id)
             .join(GameMap, GameMap.id == MatchMap.game_map_id)
             .where(GameMap.name == map_name, fx.is_not(None), fy.is_not(None))
@@ -309,6 +337,8 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
         )  # fmt: skip
         if side in ("ct", "t"):
             others = others.where(actor_side == side)
+        if standing:
+            others = others.where(RoundSnapshot.moment == SnapshotMoment.SETUP)
         others = _narrow(others, actor_side, phase, buy, joined=True)
         pool = [[round(x, 1), round(y, 1)] for x, y in session.execute(others).all()]
     return {

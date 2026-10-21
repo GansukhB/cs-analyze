@@ -63,7 +63,7 @@ router = APIRouter(prefix="/gameplan", tags=["gameplan"])
 
 # Cached panels outlive a deploy: the stamp moves on a parse or a Review rebuilt,
 # not when the code that words a panel changes. Bump with any such change.
-CACHE_VERSION = 30
+CACHE_VERSION = 31
 
 CACHE_TTL = 7 * 24 * 3600
 LEVELS = {heatmap_groups.ALL_LEVELS, radar.UPPER, radar.LOWER}
@@ -398,7 +398,7 @@ def heatmap(
     """One heatmap cell for a fixture: the positions and the map they go on (the page
     draws it); by phase of the Round and buy, against every other Team's (VIZ-9)."""
     _grid_team(mine, theirs, team, side, level)
-    if kind not in {"kills", "deaths"}:
+    if kind not in {"kills", "deaths", "positions"}:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Bad selection")
     try:
         with dbctx.using(db):
