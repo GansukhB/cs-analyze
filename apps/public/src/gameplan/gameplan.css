@@ -199,6 +199,10 @@
 .pb-refs a, .pb-rows a { color: var(--ct); }
 .pb-refs a:hover, .pb-rows a:hover { text-decoration: underline; }
 .pb-rows { margin: 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--ink-2); }
+/* PL-4: four small lists of five slots, two a row from tablet width. */
+.pb-slots { display: grid; gap: 14px 28px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.pb-slot-head { margin: 0 0 4px; font-size: 13px; color: var(--ink); }
+.pb-note { margin: 8px 0 0; font-size: 12px; color: var(--ink-3); }
 .pb-rows li { padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
 .pb-rows small { color: var(--ink-3); }
 .pb-review { font-size: 12.5px; color: var(--ink-3); margin: 6px 0 0; }

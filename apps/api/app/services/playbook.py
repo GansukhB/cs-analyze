@@ -41,7 +41,7 @@ from app.models import (
     Team,
 )
 from app.models.base import utcnow
-from app.services import lineup, mapstrategy, stats
+from app.services import lineup, mapstrategy, slots, stats
 from app.services.analysis_store import PISTOL_ROUNDS
 from app.services.dbctx import db, memo
 
@@ -1366,4 +1366,23 @@ def build(my_team: Team, opponent: Team, map_name: str, view: dict | None = None
         },
         "predictability": predictability(my_team.id, mine, detail, sites, map_name),
         "beaten_by": beaten_by(opponent.id, theirs, detail, sites),
+        # PL-4: who fills which of the five spots 20 s in, Round after Round.
+        "slots": {
+            whose: {
+                side: _slots(team, rounds, side, detail, map_name, sites) for side in ("ct", "t")
+            }
+            for whose, team, rounds in (("theirs", opponent, theirs), ("mine", my_team, mine))
+        },
     }
+
+
+def _slots(team: Team, rounds: list[_Round], side: str, detail: _Detail, map_name: str, sites):
+    setups = [
+        [
+            (pid, place, x, y, z)
+            for pid, s, place, x, y, z in detail.setup.get(r.id, ())
+            if s == side
+        ]
+        for r in _side_rounds(team.id, rounds, side)
+    ]
+    return slots.team_slots(map_name, setups, detail.names, lambda p: lean(p, sites))

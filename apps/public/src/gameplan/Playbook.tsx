@@ -324,6 +324,41 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
         </>
       )}
 
+      {d.slots && (
+        <>
+          <h3 className="pb-section">Хэн хаана: 20 с-д таван slot</h3>
+          <div className="pb-slots">
+            {(['theirs', 'mine'] as const).flatMap((whose) =>
+              (['ct', 't'] as const).map((side) => {
+                const list = d.slots?.[whose]?.[side]
+                if (!list) return null
+                return (
+                  <div key={`${whose}-${side}`}>
+                    <p className="pb-slot-head">
+                      <span className={`tag ${side}`}>{side.toUpperCase()}</span>{' '}
+                      {whose === 'theirs' ? fixture.theirs.name : fixture.mine.name}
+                    </p>
+                    <ul className="pb-rows">
+                      {list.map((s, i) => (
+                        <li key={i}>
+                          <b>{s.name || '?'}</b>
+                          {s.lean && s.lean !== 'mid' ? <small> ({s.lean})</small> : null} —{' '}
+                          {s.players.map((p) => `${p.name} ${Math.round(p.share * 100)}%`).join(', ')}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              }),
+            )}
+          </div>
+          <p className="pb-note">
+            Раунд бүрийн таван тоглогчийг багийн таван байрлалд Hungarian аргаар тааруулав (20 с-д бүгд амьд раундууд).
+            Хувь нь тухайн slot-ыг хэн хэдэн раундад эзэлснийг заана.
+          </p>
+        </>
+      )}
+
       <h3 className="pb-section">Utility-ийн зураг</h3>
       <UtilityMap mine={fixture.mine.id} theirs={fixture.theirs.id} map={map} />
 

@@ -166,6 +166,17 @@ export interface PlaybookPanel {
   beaten_by: { side: 'ct' | 't'; text: string; evidence: Evidence }[]
   /** GP-11: how readable our first moves are, official Matches only. */
   predictability: { side: 'ct' | 't'; text: string; predictable: boolean }[]
+  /** PL-4: each Team's five slots 20 s in per Side (null under 8 full Rounds). */
+  slots?: Record<'theirs' | 'mine', Record<'ct' | 't', Slot[] | null>>
+}
+
+export interface Slot {
+  name: string
+  lean: string
+  at: [number, number]
+  /** Share of the slot's Rounds that stood in the named Spot. */
+  here: number
+  players: { player_id: number; name: string; share: number }[]
 }
 
 export interface MetricRow {
