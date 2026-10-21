@@ -1698,6 +1698,25 @@ class StratCoverage(BaseModel):
     recent: int
 
 
+class BoardShape(BaseModel):
+    """One mark on a Strat's board (SB-8), in world units."""
+
+    kind: Literal["ct", "t", "smoke", "molotov", "flash", "arrow", "text"]
+    points: list[tuple[float, float]] = Field(min_length=1, max_length=2)
+    text: str = Field(default="", max_length=60)
+
+
+class StratBoard(BaseModel):
+    shapes: list[BoardShape] = Field(default_factory=list, max_length=80)
+
+
+class BoardPlate(BaseModel):
+    """What the board draws on: the overview and its Callout labels."""
+
+    plate: dict[str, Any] | None
+    labels: list[dict[str, Any]]
+
+
 class StratRead(StratRow):
     description: str
     roles: list[StratRole]
@@ -1710,6 +1729,7 @@ class StratRead(StratRow):
     versions: int
     can_edit: bool
     report: StratReport
+    board: list[BoardShape] = []
 
 
 class StratEventRead(BaseModel):

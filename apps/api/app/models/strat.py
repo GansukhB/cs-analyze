@@ -62,6 +62,9 @@ class Strat(TimestampMixin, Base):
     variations: Mapped[str] = mapped_column(Text, default="")
     calls: Mapped[str] = mapped_column(Text, default="")
     tags: Mapped[list] = mapped_column(JSON, default=list)
+    # SB-8: the board drawn on the radar, in world units:
+    # [{kind: ct|t|smoke|molotov|flash|arrow|text, points: [[x, y], ...], text}]
+    board: Mapped[list | None] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(12), default=StratStatus.DRAFT)
     visibility: Mapped[str] = mapped_column(String(8), default=StratVisibility.STAFF)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

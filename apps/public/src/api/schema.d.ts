@@ -1332,6 +1332,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/strats/plate/{map_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Board Plate
+         * @description SB-8: the overview a Strat's board is drawn on, and the Map's Callout labels.
+         */
+        get: operations["board_plate_strats_plate__map_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/{strat_id}/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Board
+         * @description SB-8: keep what was drawn on the Strat's board.
+         */
+        put: operations["save_board_strats__strat_id__board_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/strats/{strat_id}/elsewhere": {
         parameters: {
             query?: never;
@@ -2177,6 +2217,41 @@ export interface components {
             won_next: boolean;
             /** Expected */
             expected: number | null;
+        };
+        /**
+         * BoardPlate
+         * @description What the board draws on: the overview and its Callout labels.
+         */
+        BoardPlate: {
+            /** Plate */
+            plate: {
+                [key: string]: unknown;
+            } | null;
+            /** Labels */
+            labels: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * BoardShape
+         * @description One mark on a Strat's board (SB-8), in world units.
+         */
+        BoardShape: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ct" | "t" | "smoke" | "molotov" | "flash" | "arrow" | "text";
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+            /**
+             * Text
+             * @default
+             */
+            text: string;
         };
         /** Body_login_auth_token_post */
         Body_login_auth_token_post: {
@@ -4826,6 +4901,11 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** StratBoard */
+        StratBoard: {
+            /** Shapes */
+            shapes?: components["schemas"]["BoardShape"][];
+        };
         /** StratCoverage */
         StratCoverage: {
             /** Active */
@@ -4978,6 +5058,11 @@ export interface components {
             /** Can Edit */
             can_edit: boolean;
             report: components["schemas"]["StratReport"];
+            /**
+             * Board
+             * @default []
+             */
+            board: components["schemas"]["BoardShape"][];
         };
         /**
          * StratReport
@@ -8411,6 +8496,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    board_plate_strats_plate__map_name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                map_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardPlate"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_board_strats__strat_id__board_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StratBoard"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratRead"];
+                };
             };
             /** @description Validation Error */
             422: {

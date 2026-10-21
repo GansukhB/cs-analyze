@@ -4337,6 +4337,112 @@
         }
       }
     },
+    "/strats/plate/{map_name}": {
+      "get": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Board Plate",
+        "description": "SB-8: the overview a Strat's board is drawn on, and the Map's Callout labels.",
+        "operationId": "board_plate_strats_plate__map_name__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "map_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Map Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardPlate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strats/{strat_id}/board": {
+      "put": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Save Board",
+        "description": "SB-8: keep what was drawn on the Strat's board.",
+        "operationId": "save_board_strats__strat_id__board_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StratBoard"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StratRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/strats/{strat_id}/elsewhere": {
       "get": {
         "tags": [
@@ -6386,6 +6492,86 @@
           "expected"
         ],
         "title": "AuditTimeout"
+      },
+      "BoardPlate": {
+        "properties": {
+          "plate": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plate"
+          },
+          "labels": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Labels"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plate",
+          "labels"
+        ],
+        "title": "BoardPlate",
+        "description": "What the board draws on: the overview and its Callout labels."
+      },
+      "BoardShape": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ct",
+              "t",
+              "smoke",
+              "molotov",
+              "flash",
+              "arrow",
+              "text"
+            ],
+            "title": "Kind"
+          },
+          "points": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Points"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 60,
+            "title": "Text",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "points"
+        ],
+        "title": "BoardShape",
+        "description": "One mark on a Strat's board (SB-8), in world units."
       },
       "Body_login_auth_token_post": {
         "properties": {
@@ -13946,6 +14132,20 @@
         ],
         "title": "StageRow"
       },
+      "StratBoard": {
+        "properties": {
+          "shapes": {
+            "items": {
+              "$ref": "#/components/schemas/BoardShape"
+            },
+            "type": "array",
+            "maxItems": 80,
+            "title": "Shapes"
+          }
+        },
+        "type": "object",
+        "title": "StratBoard"
+      },
       "StratCoverage": {
         "properties": {
           "active": {
@@ -14313,6 +14513,14 @@
           },
           "report": {
             "$ref": "#/components/schemas/StratReport"
+          },
+          "board": {
+            "items": {
+              "$ref": "#/components/schemas/BoardShape"
+            },
+            "type": "array",
+            "title": "Board",
+            "default": []
           }
         },
         "type": "object",

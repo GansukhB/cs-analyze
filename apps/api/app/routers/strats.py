@@ -7,6 +7,7 @@ print and change is logged, and every save keeps the Strat as it was before.
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 
 from fastapi import APIRouter, HTTPException, status
@@ -14,6 +15,7 @@ from sqlalchemy import select
 
 from app.deps import CurrentUser, DbSession, StaffUser
 from app.models import (
+    GameMap,
     Match,
     MatchMap,
     Strat,
@@ -28,6 +30,8 @@ from app.models import (
 )
 from app.routers.matches import _map
 from app.schemas import (
+    BoardPlate,
+    StratBoard,
     StratCoverage,
     StratElsewhere,
     StratEventRead,
@@ -40,7 +44,7 @@ from app.schemas import (
     StratWrite,
     TeamRef,
 )
-from app.services import audit_log, dbctx, map_pool, scope, strat_match
+from app.services import audit_log, dbctx, heatmap_groups, map_pool, scope, strat_match
 
 router = APIRouter(prefix="/strats", tags=["strats"])
 FIELDS = ("map_name", "side", "name", "kind", "description", "timings", "variations", "calls",
@@ -128,6 +132,7 @@ def _read_bound(db, strat: Strat, user: User) -> StratRead:
         versions=versions,
         can_edit=user.is_staff,
         report=StratReport(**strat_match.report(strat)),
+        board=strat.board or [],
     )
 
 
@@ -229,6 +234,33 @@ def delete_strat(strat_id: int, db: DbSession, user: StaffUser) -> None:
     audit_log.record(db, user, "strat.delete", strat.name, map=strat.map_name, side=strat.side)
     db.delete(strat)
     db.commit()
+
+
+@router.get("/plate/{map_name}")
+def board_plate(map_name: str, db: DbSession, _: CurrentUser) -> BoardPlate:
+    """SB-8: the overview a Strat's board is drawn on, and the Map's Callout labels."""
+    if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
+    with dbctx.using(db):
+        maps = db.scalars(
+            select(MatchMap)
+            .join(GameMap, GameMap.id == MatchMap.game_map_id)
+            .where(GameMap.name == map_name, MatchMap.parsed_at.is_not(None))
+            .order_by(MatchMap.id.desc())
+            .limit(10)
+        ).all()
+        labels = heatmap_groups.map_geometry(maps).get("labels") or []
+        return BoardPlate(plate=heatmap_groups.plate(map_name), labels=labels)
+
+
+@router.put("/{strat_id}/board")
+def save_board(strat_id: int, body: StratBoard, db: DbSession, user: StaffUser) -> StratRead:
+    """SB-8: keep what was drawn on the Strat's board."""
+    strat = _get(db, user, strat_id)
+    strat.board = [s.model_dump() for s in body.shapes]
+    _log(db, strat, user, "edit")
+    db.commit()
+    return _read(db, strat, user)
 
 
 @router.get("/{strat_id}/elsewhere")

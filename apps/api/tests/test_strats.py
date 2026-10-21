@@ -142,3 +142,25 @@ def test_a_strat_is_searched_in_every_other_teams_rounds(client, db, auth, works
     assert len(found["refs"]) == 3
     # Alpha's own Rounds are the Strat's report, never "elsewhere".
     assert client.post(f"/strats/{sid}/match", headers=auth).json()["report"]["played"] == 0
+
+
+def test_a_strats_board_is_kept_with_it(client, db, auth, workspace, league):
+    """SB-8: two of our five, a smoke and a move, in world units."""
+    a = league["a"]
+    _ours(db, workspace, a)
+    sid = client.post("/strats", json=_body(a.id), headers=auth).json()["id"]
+    shapes = [
+        {"kind": "t", "points": [[-500.0, 200.0]]},
+        {"kind": "t", "points": [[-480.0, 210.0]]},
+        {"kind": "smoke", "points": [[-100.0, 400.0]]},
+        {"kind": "arrow", "points": [[-500.0, 200.0], [-150.0, 380.0]], "text": ""},
+    ]
+    saved = client.put(f"/strats/{sid}/board", headers=auth, json={"shapes": shapes})
+    assert saved.status_code == 200, saved.text
+    board = client.get(f"/strats/{sid}", headers=auth).json()["board"]
+    assert [s["kind"] for s in board] == ["t", "t", "smoke", "arrow"]
+    assert board[3]["points"][1] == [-150.0, 380.0]
+    bad = {"shapes": [{"kind": "decoy", "points": [[0, 0]]}]}
+    assert client.put(f"/strats/{sid}/board", headers=auth, json=bad).status_code == 422
+    plate = client.get("/strats/plate/de_mirage", headers=auth).json()
+    assert plate["plate"]["url"] == "/radars/de_mirage.png" and "labels" in plate

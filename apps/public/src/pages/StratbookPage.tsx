@@ -9,6 +9,10 @@ import { useMe, useMyTeams } from '../auth/useMe'
 import { day } from '../jobs/format'
 import { KINDS, type StratWrite } from '../strat/kinds'
 import StratForm from '../strat/StratForm'
+import Board from '../strat/Board'
+import type { components } from '../api/schema'
+
+type BoardShape = components['schemas']['BoardShape']
 
 const kindLabel = (k: string) => KINDS.find(([key]) => key === k)?.[1] ?? k
 const label = (m: string) => m.replace(/^de_/, '').replace(/^\w/, (c) => c.toUpperCase())
@@ -275,6 +279,17 @@ export function StratPage() {
         ) : null,
       )}
       <Report s={s} onMatch={s.can_edit ? () => match.mutate(path) : undefined} busy={match.isPending} />
+      <section className="space-y-2">
+        <h2 className="font-medium text-ink">Самбар</h2>
+        <Board
+          key={`${s.id}-${s.board.length}`}
+          stratId={s.id}
+          map={s.map_name}
+          shapes={s.board as BoardShape[]}
+          canEdit={s.can_edit}
+          onSaved={() => void strat.refetch()}
+        />
+      </section>
       {s.can_edit && <Elsewhere id={s.id} side={s.side} />}
       <section className="space-y-1">
         <h2 className="font-medium text-ink">Жишээ раундууд</h2>
