@@ -55,6 +55,9 @@ function Header({ p }: { p: Page }) {
   return (
     <div className="space-y-2">
       <h1 className="text-2xl font-semibold text-ink">{p.player.name}</h1>
+      <Link to={`/compare?a=${p.player.steamid}`} className="text-sm text-ct hover:underline">
+        Өөр тоглогчтой харьцуулах →
+      </Link>
       {p.player.aliases.length > 0 && (
         <p className="text-sm text-ink-3">Өөр нэрс: {p.player.aliases.join(', ')}</p>
       )}
