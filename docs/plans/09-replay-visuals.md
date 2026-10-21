@@ -51,6 +51,8 @@ Coach, analyst ажлынхаа ихэнх цагийг раунд үзэхэд 
 
 ### VIZ-1. `player.ts`-ийг модуль болгох (P1, M, VIZ-2..8-аас өмнө)
 
+> **Төлөв:** 🟡 `d4442d2` (improvement-01). Replay-ийн тооцоолол `replay/motion.ts` (interpolation, чиглэл, сохролт, камер, анхны контакт) Vitest-тэй. Canvas/controls/bridge-ийн хуваалт үлдсэн.
+
 `state` (раунд, цаг, тоглогчид), `renderer` (canvas давхаргууд), `controls` (гар, хулгана, touch), `bridge` (`goto`, `onRound`, шинээр `onTime`) гэсэн хэсгүүдэд хуваана. Element id-ийн уялдааг props/refs болгоно. Vitest-ээр state-ийн interpolate, цагийн тооцоог шалгана. Ингэхгүй бол дараагийн функц бүр 1,253 мөртэй closure-ийг улам томруулна.
 
 ### VIZ-2. Deep link ба хуваалцах (P1, S)
@@ -70,7 +72,7 @@ Coach, analyst ажлынхаа ихэнх цагийг раунд үзэхэд 
 
 ### VIZ-4. Харах чиглэл ба Sighting (P1, M)
 
-> **Төлөв:** 🟡 `5b3a466` (improvement-01). Харах конус ба Sighting-ийн шугам (`REPLAY_SCHEMA` 6); Sighting-гүй Map дээр зөвхөн конус, шалтгааныг хэлнэ. Раунд бүрийн анхны контактын тэмдэг үлдсэн.
+> **Төлөв:** ✅ `a9eb22a` (improvement-01). Харах конус ба Sighting-ийн шугам; Sighting-гүй Map дээр шалтгааныг хэлнэ; раундын анхны контакт цагийн шугам дээр.
 
 - Ticks-ийн yaw-аас харах конус (90°) зурна. Toggle-тэй.
 - Sighting байгаа Match Map дээр "хэн хэнийг харж байгаа" гэсэн шугамыг зурж, раунд бүрийн анхны контактыг тэмдэглэнэ. Sighting-гүй Map дээр toggle идэвхгүй байж, шалтгаанаа хэлнэ (ADR 0006).
@@ -97,7 +99,7 @@ Anti-strat-ийн хамгийн их хэрэглэгддэг харагдац:
 
 ### VIZ-7. Раунд хайх: "ийм раунд олж өг" (P1, L)
 
-> **Төлөв:** 🟡 `1a799c6` (improvement-01). Токеныг `round_states` биш `replay_rounds.tokens`-д (Replay-тэй хамт, `REPLAY_SCHEMA` 7), Callout-оор; ±2 s цонх, Team ба buy шүүлт, үр дүн ghost горимд. Spot-оор хайх, үр дүнгийн нийт heatmap үлдсэн.
+> **Төлөв:** 🟡 `d05a3bb` (improvement-01). Токеныг `replay_rounds.tokens`-д (Replay-тэй хамт), Callout-оор; ±2 s, Team ба buy, ghost горим, үр дүнгийн heatmap (үхсэн/kill авсан газар). Spot-оор хайх үлдсэн.pot-оор хайх, үр дүнгийн нийт heatmap үлдсэн.
 
 ggViz-ийн арга (Xenopoulos нар, CHI PLAY 2022, `12-research-sources.md`):
 

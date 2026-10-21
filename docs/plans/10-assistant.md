@@ -104,7 +104,7 @@ Coach монголоор, бичгээр эсвэл дуугаар асууна.
 
 ### AS-3. Tool-ийн хамрах хүрээ (P1, M; бүр нь холбогдох функц бэлэн болсны дараа)
 
-> **Төлөв:** 🟡 `3b41467` (improvement-01). `team_matches`, `player_form`, `forecast`, `rating`, `gameplan_section` decision/playbook нэмэгдсэн. `find_rounds`, Stratbook, Scrim, хуваарийн tool-ууд нь тэдгээр функц хийгдэх үед.
+> **Төлөв:** 🟡 `da894c2` (improvement-01). `team_matches`, `player_form`, `forecast`, `rating`, `gameplan_section` decision/playbook; `find_rounds`, `after_contact`, `stratbook`, `scrims` (Workspace-ийн). Хуваарийн tool DATA-3-ийг хүлээнэ. тэдгээр функц хийгдэх үед.
 
 | Tool | Хэзээ | Тайлбар |
 |---|---|---|

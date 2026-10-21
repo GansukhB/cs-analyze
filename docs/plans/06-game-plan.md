@@ -113,7 +113,7 @@ Briefing-ийн Map бүрийн нэгж. Хэвлэхэд тохиромжто
 
 ### GP-5. Pistol ба хувиргалт (conversion) (P1, M)
 
-> **Төлөв:** 🟡 `a41ceaf` (improvement-01). Pistol хожил, хувиргалт, break, хоёр pistol → map (Pool-той). Pistol Setup/execute ба 2–3 дахь Round-ын buy үлдсэн.
+> **Төлөв:** ✅ `f323755` (improvement-01). Pistol хожил, хувиргалт, break, хоёр pistol → map (Pool-той); CT Setup, T site, pistol-ийн дараах 2–3 дахь раундын buy ба үр дүн.
 
 - **Pistol:**
   - CT-ийн pistol Setup, T-ийн pistol execute.
@@ -155,7 +155,7 @@ Briefing (бидний таамаглал) ба тоглолтын Review (бо�
 
 ### GP-9. Бүх хэсэгт шүүлтүүр (P1, M)
 
-> **Төлөв:** 🟡 `594ac0f` (improvement-01). Playbook-ийн buy ба хугацааны шүүлтүүр (URL-д). Онооны байдал, LAN/online үлдсэн.
+> **Төлөв:** 🟡 `f814971` (improvement-01). Playbook-ийн buy, хугацаа, patch-аас хойш, онооны байдал (тэргүүлж/ойр/хоцорч). LAN/online үлдсэн (датанд алга).
 
 - Habit ба KPI бүрт Buy type, онооны байдал. Pro-ууд тоо бүрийг buy type ба байрлалаар задалж уншдаг. Задаргаагүй тоо төөрөгдүүлдэг (`12-research-sources.md`).
 - Recency, roster-ийн үе (TM-3), LAN эсвэл online, Lineup.

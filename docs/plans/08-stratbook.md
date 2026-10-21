@@ -115,7 +115,7 @@
 
 ### SB-6. Хуваалцах ба танилцуулах (P1, S–M)
 
-> **Төлөв:** 🟡 `2265412` (improvement-01). Strat-ийн граната lineup-тай, хэвлэх картад setpos. Briefing-ээс Strat руу линк үлдсэн.
+> **Төлөв:** ✅ `86d0a18` (improvement-01). Strat-ийн граната lineup-тай, хэвлэх картад setpos; Briefing-д Map бүрийн хуваалцсан идэвхтэй Strat-ын линк.
 
 - Strat-ийг багтаа хуваалцана. Player User read-only уншина (WS-4).
 - Хэвлэх карт: Map, Side, slot бүрийн үүрэг, lineup.

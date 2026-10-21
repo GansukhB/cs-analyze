@@ -110,7 +110,7 @@ HLTV Rating 3.0-ийн 2025–26 оны өөрчлөлт ба Leetify-ээс (`1
 
 #### RV-3. Тестийн хамрах хүрээ (P0/P1, M)
 
-> **Төлөв:** 🟡 `fbc0ffe` (improvement-01). Эхний хэсэг: Swing-ийн zero-sum invariant. Detector бүрийн тест үлдсэн.
+> **Төлөв:** 🟡 `1de4855` (improvement-01). Swing zero-sum invariant; team_flash, team_flashed_death, saw_first_lost-ийн fixture тест. Үлдсэн 10 detector-ийн тест.
 
 - 32 detector бүрт нэг fixture Round.
 - Defuse-ийн timeline, Swing-ийн нийлбэрийн invariant.
