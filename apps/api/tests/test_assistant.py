@@ -509,3 +509,36 @@ def test_the_golden_set_resolves_its_pages(db, league):  # noqa: F811
     found = assistant_eval.resolve(db, {"match": ["Alpha", "Bravo"], "map": 1})
     assert found["map"] == 1 and found["match"]
     assert assistant_eval.resolve(db, {"picker": True}) == {"picker": True}
+
+
+def test_the_round_search_strats_and_scrims_tools(db, league, workspace):  # noqa: F811
+    """AS-3: the tools over the Round search, TM-7, the Stratbook and Scrims."""
+    from app.models import Strat, WorkspaceTeam
+
+    a = league["a"]
+    ctx = assistant.Context(workspace_id=workspace.id)
+
+    def run(name, tool_input):
+        return json.loads(assistant._execute_tool(db, ctx, name, tool_input))
+
+    # No Replay tokens in the fixture: the Callouts list is empty and says so.
+    assert run("find_rounds", {"map_name": "de_mirage", "side": "t"}) == {
+        "map": "de_mirage", "places": []
+    }  # fmt: skip
+    missing = run("find_rounds", {"map_name": "de_mirage", "side": "t",
+                                  "conditions": [{"place": "B"}]})  # fmt: skip
+    assert missing["error"].startswith("no Callout")
+    assert "error" in run("find_rounds", {"map_name": "mirage", "side": "t"})
+    after = run("after_contact", {"team_id": a.id, "map_name": "de_mirage"})
+    assert after["team"] == "Alpha" and after["t"]["rounds"] > 0
+    assert run("stratbook", {}) == {"strats": [], "note": "no strat written yet"}
+    db.add(WorkspaceTeam(workspace_id=workspace.id, team_id=a.id))
+    db.add(Strat(workspace_id=workspace.id, team_id=a.id, map_name="de_mirage", side="t",
+                 name="B split", kind="execute"))  # fmt: skip
+    db.commit()
+    strats = run("stratbook", {"map_name": "de_mirage"})["strats"]
+    assert [s["name"] for s in strats] == ["B split"] and strats[0]["played"] == 0
+    assert run("scrims", {}) == {"team": "Alpha", "scrims": []}
+    assert "error" in run("scrims", {"team_id": league["b"].id})
+    nobody = json.loads(assistant._execute_tool(db, assistant.Context(), "scrims", {}))
+    assert nobody["error"] == "the user has no Workspace"

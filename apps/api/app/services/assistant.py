@@ -39,6 +39,7 @@ import re
 import uuid
 from collections.abc import Iterable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 
 from sqlalchemy import func, or_, select
@@ -47,6 +48,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.config import get_settings
 from app.models import AnalysisJob, JobStatus, MapRoster, Match, MatchMap, Player, Round, Team
 from app.services import (
+    after_contact,
     dbctx,
     decision,
     forecast,
@@ -59,7 +61,10 @@ from app.services import (
     player_page,
     review_view,
     roles,
+    round_search,
     scouting,
+    scrim_log,
+    strat_match,
     voice,
 )
 from app.services import gameplan as gameplan_service
@@ -169,7 +174,9 @@ exploit / watch out for / how do we beat them on <map>", read \
 gameplan_section 'levers' first: it is the Playbook's own list of Levers and \
 Cautions, ranked, with the numbers behind each. For "can we win / what are our \
 chances" use forecast, and for one player player_form; team_matches finds a \
-team's latest Match ids.
+team's latest Match ids. "What do they do after the opening / do they rotate / \
+how do they retake" is after_contact; "find rounds where..." is find_rounds; \
+the user's own strats are stratbook, their practice matches scrims.
 - Write the reply as short paragraphs (2-4 sentences each) separated by a \
 blank line. Each paragraph is read aloud as its own unit by a text-to-speech \
 voice, so keep one idea per paragraph and avoid bullet lists, headings, or \
@@ -442,6 +449,86 @@ TOOLS = [
             "type": "object",
             "properties": {"team_id": {"type": "integer"}},
             "required": ["team_id"],
+        },
+    },
+    {
+        "name": "find_rounds",
+        "description": (
+            "Find Rounds where one side stood a certain way: e.g. 'T with 2+ in Apartments "
+            "between 15 and 30 s'. Each condition is a Callout (the game's place name), how "
+            "many of that side were there (min, max) and a window of seconds after freeze "
+            "end; every condition must hold at some second of its window (give or take 2 s). "
+            "Returns how many Rounds were looked at, matched and won by that side, and the "
+            "newest Rounds with their match id and map number. Call it with no conditions to "
+            "get the map's Callout names first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "map_name": {"type": "string", "description": "e.g. de_mirage"},
+                "side": {"type": "string", "enum": ["t", "ct"]},
+                "team_id": {"type": "integer", "description": "Only this team's Rounds."},
+                "buy": {"type": "string", "enum": ["full", "light"]},
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "place": {"type": "string"},
+                            "min": {"type": "integer"},
+                            "max": {"type": "integer"},
+                            "start": {"type": "integer"},
+                            "end": {"type": "integer"},
+                        },
+                        "required": ["place"],
+                    },
+                },
+            },
+            "required": ["map_name", "side"],
+        },
+    },
+    {
+        "name": "after_contact",
+        "description": (
+            "What a team does after the first contact on one map: for each opening (the "
+            "round's first kill, won or lost, at A, mid or B) where the bomb then went down "
+            "(A, B or not at all) and how many of those rounds it won; on T where most of "
+            "them stood at 20 s and whether they planted the other site (a rotate), plant "
+            "timing, and where they sat after the plant; on CT, after losing the opening at "
+            "a site, how often another CT reached it within 10 s, and retakes by the numbers "
+            "left at the plant."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"team_id": {"type": "integer"}, "map_name": {"type": "string"}},
+            "required": ["team_id", "map_name"],
+        },
+    },
+    {
+        "name": "stratbook",
+        "description": (
+            "The user's own Stratbook: the strats their staff wrote (name, map, side, kind, "
+            "status) and how each did in the rounds it was found in (played, won, a range). "
+            "Optionally one of their teams or one map."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"team_id": {"type": "integer"}, "map_name": {"type": "string"}},
+        },
+    },
+    {
+        "name": "scrims",
+        "description": (
+            "The user's own team's Scrim log, newest first: the partner, each map's score "
+            "and what its Summary says to work on. Scrims are private practice: never "
+            "compare them with official results as if they were the same."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "team_id": {"type": "integer", "description": "Defaults to the first own team."},
+                "limit": {"type": "integer", "description": "At most 10; 5 by default."},
+            },
         },
     },
 ]
@@ -995,6 +1082,89 @@ def _tool_rating(team_id: int) -> dict:
     return {"team": team.name, **forecast._standing_json(found)}
 
 
+# AS-3: the user's Workspace, bound around each tool call, for the tools that
+# read its private data (the Stratbook, Scrims).
+_WORKSPACE: ContextVar[int | None] = ContextVar("assistant_workspace", default=None)
+FIND_ROUNDS_LIMIT = 15
+
+
+def _tool_find_rounds(
+    map_name: str, side: str, conditions: list | None = None, team_id: int | None = None,
+    buy: str | None = None,
+) -> dict:  # fmt: skip
+    if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name or ""):
+        return {"error": "map_name like de_mirage"}
+    if side not in ("t", "ct"):
+        return {"error": "side is t or ct"}
+    places = round_search.places(map_name)
+    if not conditions:
+        return {"map": map_name, "places": places}
+    cleaned = []
+    for c in conditions[:6]:
+        place = str(c.get("place") or "")
+        if place not in places:
+            return {"error": f"no Callout {place!r} on this map", "places": places}
+        cleaned.append({
+            "place": place, "min": int(c.get("min", 1)),
+            "max": None if c.get("max") is None else int(c["max"]),
+            "start": int(c.get("start", 0)), "end": int(c.get("end", 180)),
+        })  # fmt: skip
+    if team_id is not None:
+        _team(team_id)
+    found = round_search.search(map_name, side, cleaned, team_id, buy)
+    return {**found, "rounds": found["rounds"][:FIND_ROUNDS_LIMIT]}
+
+
+def _tool_after_contact(team_id: int, map_name: str) -> dict:
+    team = _team(team_id)
+    after = after_contact.team(team.id, map_name)
+    return {"team": team.name, **after}
+
+
+def _tool_stratbook(team_id: int | None = None, map_name: str | None = None) -> dict:
+    from app.models import Strat
+
+    workspace = _WORKSPACE.get()
+    if workspace is None:
+        return {"error": "the user has no Workspace"}
+    session = dbctx.db()
+    query = select(Strat).where(Strat.workspace_id == workspace)
+    if team_id:
+        query = query.where(Strat.team_id == team_id)
+    if map_name:
+        query = query.where(Strat.map_name == map_name)
+    out = []
+    for strat in session.scalars(query.order_by(Strat.map_name, Strat.side, Strat.name)):
+        report = strat_match.report(strat)
+        out.append({
+            "name": strat.name, "map": strat.map_name, "side": strat.side, "kind": strat.kind,
+            "status": strat.status, "played": report.get("played"), "won": report.get("won"),
+            "won_range": [report.get("low"), report.get("high")],
+        })  # fmt: skip
+    return {"strats": out} if out else {"strats": [], "note": "no strat written yet"}
+
+
+def _tool_scrims(team_id: int | None = None, limit: int = 5) -> dict:
+    from app.models import WorkspaceTeam
+
+    workspace = _WORKSPACE.get()
+    if workspace is None:
+        return {"error": "the user has no Workspace"}
+    session = dbctx.db()
+    mine = list(
+        session.scalars(
+            select(WorkspaceTeam.team_id).where(WorkspaceTeam.workspace_id == workspace)
+        )
+    )
+    if not mine:
+        return {"error": "the user's Workspace names no team of its own"}
+    team_id = team_id or mine[0]
+    if team_id not in mine:
+        return {"error": "scrims are only kept for the user's own teams"}
+    rows = scrim_log.log(session, workspace, team_id, max(1, min(int(limit or 5), 10)))
+    return {"team": _team(team_id).name, "scrims": rows}
+
+
 DISPATCH = {
     "list_teams": _tool_list_teams,
     "team_overview": _tool_team_overview,
@@ -1008,6 +1178,10 @@ DISPATCH = {
     "player_form": _tool_player_form,
     "forecast": _tool_forecast,
     "rating": _tool_rating,
+    "find_rounds": _tool_find_rounds,
+    "after_contact": _tool_after_contact,
+    "stratbook": _tool_stratbook,
+    "scrims": _tool_scrims,
 }
 
 
@@ -1035,6 +1209,7 @@ class Context:
     picker: bool = False
     # The signed-in User's Workspace's my teams (CONTEXT.md): who "we" are.
     my_teams: list[Team] = field(default_factory=list)
+    workspace_id: int | None = None
 
     def note(self) -> str:
         """A preface for the system prompt: standing knowledge, not something the user said."""
@@ -1166,6 +1341,7 @@ def clean_context(session: Session, raw, user=None) -> Context:
     ctx = _page_context(session, raw)
     if user is not None and user.workspace is not None:
         ctx.my_teams = [wt.team for wt in user.workspace.teams]
+        ctx.workspace_id = user.workspace_id
     return ctx
 
 
@@ -1309,10 +1485,14 @@ def _execute_tool(session: Session, ctx: Context, name: str, tool_input: dict) -
         result = {"error": f"no such tool: {name}"}
     else:
         try:
-            with dbctx.using(session):
-                picked = {team_id: lineup.resolve(ids) for team_id, ids in ctx.lineups.items()}
-                with lineup.using(picked):
-                    result = fn(**tool_input)
+            token = _WORKSPACE.set(ctx.workspace_id)
+            try:
+                with dbctx.using(session):
+                    picked = {team_id: lineup.resolve(ids) for team_id, ids in ctx.lineups.items()}
+                    with lineup.using(picked):
+                        result = fn(**tool_input)
+            finally:
+                _WORKSPACE.reset(token)
         except UnknownTeam:
             result = {"error": "no team with that id"}
         except TypeError as exc:
