@@ -45,7 +45,7 @@ import json
 import logging
 import math
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 from sqlalchemy import select
@@ -53,6 +53,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models import (
     BombEvent,
+    BombEventType,
+    GameMap,
     MapRoster,
     MatchMap,
     MatchMapReview,
@@ -71,7 +73,8 @@ logger = logging.getLogger(__name__)
 # 5: Swing v2 (RV-2): every Round settled to its Win probability's move.
 # 6: each Player's engagements (PL-5): time to damage, crosshair, counter-strafe.
 # 7: a lurker's lone death on T is not untraded (RV-12).
-REVIEW_SCHEMA = 7
+# 8: a late execute and an early rotate (RV-12).
+REVIEW_SCHEMA = 8
 
 # RV-12: a T who stands this far from every living teammate LURK_AT seconds in,
 # in LURK_SHARE of their T Rounds (LURK_ROUNDS or more), lurks: their lone
@@ -80,6 +83,22 @@ LURK_AT = 30
 LURK_DIST = 1400.0
 LURK_SHARE = 0.4
 LURK_ROUNDS = 6
+# RV-12: a bomb site is where the Map's plants were (their median, across every
+# stored Round with SITE_PLANTS or more there), and a Player within SITE_REACH
+# of it stands on it. Ts who first reached a site with under LATE_EXECUTE_LEFT
+# seconds on the clock, not outnumbered, and lost, executed late: the Swing is
+# what LATE_EXECUTE_GAIN seconds more were worth then. A CT on the bombed site
+# SETUP_AT seconds in who was ROTATE_AWAY from it, nearer the other site,
+# ROTATE_LEAD to ROTATE_LEAD_MAX seconds before the first T reached it, and
+# still away then, rotated early (left any sooner, it was the setup, not a read).
+SITE_REACH = 700.0
+SITE_PLANTS = 5
+LATE_EXECUTE_LEFT = 20.0
+LATE_EXECUTE_GAIN = 20.0
+SETUP_AT = 20
+ROTATE_AWAY = 1500.0
+ROTATE_LEAD = 5.0
+ROTATE_LEAD_MAX = 20.0
 
 # CONTEXT.md: a Trade is killing the killer within 5 seconds.
 TRADE_SECONDS = 5.0
@@ -233,6 +252,8 @@ CODE_KIND = {
             "unscoped_awp",
             "time_out",
             "kitless",
+            "late_execute",
+            "early_rotate",
         ),
         "mistake",
     ),  # fmt: skip
@@ -411,6 +432,10 @@ def _dist(a, b) -> tuple[float, float]:
     return math.hypot(a[0] - b[0], a[1] - b[1]), abs(a[2] - b[2])
 
 
+def _known(pos) -> bool:
+    return pos is not None and None not in pos and not any(v != v for v in pos)
+
+
 def _near(a, b, reach: float = REACH) -> bool:
     d, dz = _dist(a, b)
     return d <= reach and dz <= REACH_DZ
@@ -428,8 +453,10 @@ class _Inputs:
             name in frames and not frames[name].is_empty() for name in ("sightings", "aim")
         )
         self.has_loadout = "loadout" in frames and not frames["loadout"].is_empty()
-        # Who lurks on T on this Map (RV-12); filled by build() before the Rounds.
+        # Who lurks on T on this Map, and where its bomb sites are (RV-12);
+        # filled by build() before the Rounds.
         self.lurkers: set[str] = set()
+        self.sites: dict[str, tuple[float, float, float]] = {}
 
         roster = list(
             db.scalars(
@@ -1654,6 +1681,85 @@ class _RoundReview:
         )
         return True
 
+    # -- RV-12: when a site was hit, and who had left it ---------------------
+    def _first_on_site(self, only: str | None = None) -> tuple[int, str] | None:
+        """The first second a living T stood on a bomb site (``only`` that one),
+        up to the plant; and which site."""
+        sites = {k: v for k, v in self.i.sites.items() if only is None or k == only}
+        if not sites:
+            return None
+        ts = [s for s, sd in self.side.items() if sd == "t"]
+        last = self.plant if self.plant is not None else self.end
+        for tick in range(self.start, last + 1, self.rate):
+            alive = self.alive_at(tick)
+            for sid in ts:
+                here = self.pos(sid, tick) if sid in alive else None
+                if not _known(here):
+                    continue
+                for name, middle in sites.items():
+                    if _near(here, middle, SITE_REACH):
+                        return tick, name
+        return None
+
+    def late_execute(self) -> None:
+        """The Ts reached a site with the clock nearly out, still even or up, and lost."""
+        if self.won("t") or any(f["code"] == "time_out" for f in self.findings):
+            return
+        first = self._first_on_site()
+        if first is None:
+            return
+        tick, site = first
+        left = winprob.ROUND_SECONDS - (tick - self.start) / self.rate
+        if left >= LATE_EXECUTE_LEFT:
+            return
+        alive = self.alive_at(tick)
+        ts = sorted(s for s in alive if self.side.get(s) == "t")
+        cts = [s for s in alive if self.side.get(s) == "ct"]
+        if not ts or len(ts) < len(cts):
+            return
+        now = self.state(alive, tick)
+        sooner = replace(now, seconds_left=now.seconds_left + LATE_EXECUTE_GAIN)
+        swing = min(0.0, winprob.ct_win(sooner) - winprob.ct_win(now))
+        self.add("mistake", "late_execute", tick, ts, swing, side="t", site=site,
+                 left=round(left, 1), ts=len(ts), cts=len(cts))  # fmt: skip
+
+    def early_rotate(self) -> None:
+        """A CT left the site the Ts then hit, well before they reached it."""
+        site = self.rnd.bomb_site
+        if self.plant is None or not self.won("t") or site not in self.i.sites:
+            return
+        others = [v for k, v in self.i.sites.items() if k != site]
+        hit = self._first_on_site(site)
+        setup = self.start + SETUP_AT * self.rate
+        if not others or hit is None or hit[0] <= setup:
+            return
+        middle, hit_tick = self.i.sites[site], hit[0]
+        for sid in sorted(self.alive_at(setup)):
+            start = self.pos(sid, setup)
+            if (
+                self.side.get(sid) != "ct"
+                or not _known(start)
+                or not _near(start, middle, SITE_REACH)
+            ):
+                continue
+            gone = None
+            for tick in range(setup, hit_tick, self.rate):
+                here = self.pos(sid, tick)
+                if _known(here) and _dist(here, middle)[0] > ROTATE_AWAY:
+                    gone = tick
+                    break
+            if gone is None or not ROTATE_LEAD <= (hit_tick - gone) / self.rate <= ROTATE_LEAD_MAX:
+                continue
+            there = self.pos(sid, hit_tick)
+            if sid not in self.alive_at(hit_tick) or not _known(there):
+                continue
+            nearest_other = min(_dist(there, o)[0] for o in others)
+            if _dist(there, middle)[0] <= ROTATE_AWAY or nearest_other >= _dist(there, middle)[0]:
+                continue
+            self.add("mistake", "early_rotate", gone, [sid], -0.0, site=site,
+                     lead=round((hit_tick - gone) / self.rate, 1),
+                     spot=self.spot(sid, hit_tick))  # fmt: skip
+
     def _last_t_death(self) -> int | None:
         if self.plant is None:
             return None
@@ -2409,6 +2515,8 @@ class _RoundReview:
         self.trades()
         self.key_plays()
         self.mistakes()
+        self.late_execute()
+        self.early_rotate()
         self.missed_chances()
         self.settle()
         tally = self.utility()
@@ -2510,10 +2618,30 @@ def _lurkers(inputs: _Inputs) -> set[str]:
     return {sid for sid, n in played.items() if n >= LURK_ROUNDS and alone[sid] / n >= LURK_SHARE}
 
 
+def _sites(db: Session, map_name: str) -> dict[str, tuple[float, float, float]]:
+    """RV-12: each bomb site's middle on this Map, the median of its plants."""
+    plants: dict[str, list] = defaultdict(list)
+    for site, x, y, z in db.execute(
+        select(Round.bomb_site, BombEvent.x, BombEvent.y, BombEvent.z)
+        .join(Round, Round.id == BombEvent.round_id)
+        .join(MatchMap, MatchMap.id == Round.match_map_id)
+        .join(GameMap, GameMap.id == MatchMap.game_map_id)
+        .where(GameMap.name == map_name, BombEvent.event == BombEventType.PLANT,
+               Round.bomb_site.in_(("A", "B")), BombEvent.x.is_not(None))
+    ):  # fmt: skip
+        plants[site].append((x, y, z if z is not None else 0.0))
+    return {
+        site: tuple(float(v) for v in np.median(np.array(xyz), axis=0))
+        for site, xyz in plants.items()
+        if len(xyz) >= SITE_PLANTS
+    }
+
+
 def build(db: Session, match_map: MatchMap, bundle) -> dict:
     """The whole Review of one Match Map, as stored."""
     inputs = _Inputs(db, match_map, bundle)
     inputs.lurkers = _lurkers(inputs)
+    inputs.sites = _sites(db, inputs.map_name)
     rounds, findings = [], []
     tallies: dict[str, dict] = defaultdict(lambda: defaultdict(float))
     aims: dict[str, dict] = {}

@@ -86,7 +86,7 @@ export function isActive(f: Filters): boolean {
 }
 
 // A Team's Findings: every Player listed shares them, not just the first.
-const TEAM_CODES = new Set(['time_out', 'kitless', 'advantage_lost'])
+const TEAM_CODES = new Set(['time_out', 'kitless', 'advantage_lost', 'late_execute'])
 export const isAbout = (f: Finding, sid: string) =>
   f.sids[0] === sid || (TEAM_CODES.has(f.code) && f.sids.includes(sid))
 

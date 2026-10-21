@@ -1916,6 +1916,8 @@ REVIEW_CODE = {
     "unscoped_awp": "Scope-гүй AWP",
     "time_out": "Хугацаа алдсан",
     "kitless": "Kit-гүй retake",
+    "late_execute": "Хожуу execute",
+    "early_rotate": "Эрт rotate",
     "no_trade": "Trade хийгээгүй",
     "unfinished": "Дуусгаагүй дайсан",
     "blind_unpunished": "Цайрсан дайсныг ашиглаагүй",
@@ -2162,6 +2164,20 @@ def review_finding(finding: dict, who) -> dict:
             f"{f.get('ts')} T амьд байсан хэдий ч ({f.get('cts')} CT-тэй) бөмбөг тавилгүй "
             "хугацаа дуусав."
         )
+    elif code == "late_execute":
+        title = f"T {f.get('site')} руу хожуу орсон"
+        text = (
+            f"Эхний T {f.get('site')} site-д хүрэхэд раундын цагт {_secs(f.get('left', 0))} "
+            f"үлдсэн байв ({f.get('ts')} T, {f.get('cts')} CT): тоо хангалттай байсан ч цаг "
+            f"хүрэлцсэнгүй. Swing {swing}."
+        )
+    elif code == "early_rotate":
+        title = f"{main} — {f.get('site')}-г эрт орхисон"
+        there = f" T ирэхэд {f.get('spot')}-д байв;" if f.get("spot") else ""
+        text = (
+            f"T {f.get('site')} site-д хүрэхээс {_secs(f.get('lead', 0))}-ийн өмнө {main} "
+            f"тэндээс гарсан.{there} T тэр site-д бөмбөг тавьж раундыг хожив."
+        )
     elif code == "kitless":
         title = "Kit-гүй retake"
         text = (
@@ -2338,6 +2354,9 @@ SUMMARY_ADVICE = {
     "bomb_lost": "Бөмбөгтэй тоглогчийг ганцааранг нь бүү үлдээ; бөмбөгөө багийн дунд авч яв.",
     "time_out": "Раундын цагийг хяна: 40 секунд үлдэхэд шийдвэрээ гарга.",
     "kitless": "Kit-ээ авч, retake-д kit-тэй тоглогч эхэлж defuse хийх ёстой.",
+    "late_execute": "Default-аа 40 секунд үлдэхэд дуусгаж, 30 секундэд site руу орсон байх ёстой.",
+    "early_rotate": "Мэдээлэлгүйгээр site-аа бүү орхи: хоёр дахь мэдээллийг хүлээж, эсвэл "
+    "дуудаж байж rotate хий.",
     "unused_utility": "Худалдаж авсан utility-гаа үхэхээсээ өмнө ашигла.",
     "no_gun_in_hand": "Дайсантай таарч болох газар буугаа гартаа барьж яв.",
     "crosshair": "Crosshair-ээ дайсан гарч ирэх өнцөг, толгойн өндөрт урьдчилан байрлуул.",

@@ -32,7 +32,7 @@ FOCUS_MAPS = 5  # the Focus points are read from this many
 FOCUS = 8
 KEEP_UP = 3  # Key plays shown as what to keep doing
 # Findings about a whole side, as the Review's filters treat them (src/review/filters.ts).
-TEAM_CODES = {"time_out", "kitless", "advantage_lost"}
+TEAM_CODES = {"time_out", "kitless", "advantage_lost", "late_execute"}
 
 
 def _own_swing(finding: dict, sid: str) -> float | None:
