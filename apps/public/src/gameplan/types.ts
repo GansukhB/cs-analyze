@@ -132,6 +132,8 @@ export interface PlaybookPanel {
   my_team: string
   opponent: string
   sample: { theirs: TeamSample; mine: TeamSample }
+  /** GP-9: the Rounds the habits were read over, of all of theirs on this Map. */
+  view?: { buy?: string; days?: number; rounds: number; of: number }
   sites_known: boolean
   plan: { side: 'ct' | 't'; title: string; counter: string; strength: Strength }[]
   advice: { limits: string[]; sides: AdviceSide[] }

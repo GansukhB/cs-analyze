@@ -3,9 +3,11 @@
 from collections import defaultdict
 
 import pytest
+from sqlalchemy import select
 
+from app.models import Round
 from app.routers import gameplan as gameplan_router
-from app.services import playbook
+from app.services import dbctx, playbook
 from tests.test_gameplan import league  # noqa: F401 -- the shared three-team fixture
 
 
@@ -178,3 +180,23 @@ def test_a_spread_says_how_many_moves_it_is_worth():
     one = playbook._spread(Counter({"a": 12, "b": 2}))
     assert one["top"] == "a" and one["predictable"] and one["options"] < 2
     assert playbook._spread(Counter())["rounds"] == 0
+
+
+def test_a_view_reads_the_habits_over_some_rounds_only(client, auth, db, league):  # noqa: F811
+    """GP-9: the opponent's Rounds read by its buy; its eco Rounds set apart."""
+    a, b = league["a"], league["b"]
+    for r in db.scalars(select(Round)):
+        r.ct_buy, r.t_buy = ("eco", "eco") if r.number in (2, 8) else ("full", "full")
+    db.commit()
+    with dbctx.using(db):
+        every = playbook.build(a, b, "de_mirage")
+        full = playbook.build(a, b, "de_mirage", {"buy": "full"})
+        light = playbook.build(a, b, "de_mirage", {"buy": "light"})
+    assert every["view"] == {"rounds": every["view"]["of"], "of": every["view"]["of"]}
+    assert full["view"]["rounds"] + light["view"]["rounds"] == full["view"]["of"]
+    assert light["view"]["rounds"] > 0 and full["view"]["buy"] == "full"
+    # Pistols keep every Round, whatever the view.
+    assert full["pistols"] == every["pistols"]
+    url = f"/gameplan/{a.id}/vs/{b.id}/playbook/de_mirage"
+    assert client.get(url + "?buy=full", headers=auth).status_code == 200
+    assert client.get(url + "?buy=nope", headers=auth).status_code == 422

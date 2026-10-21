@@ -279,16 +279,22 @@ def playbook(
     _: StaffUser,
     my_lineup: str = _lineup_query(),
     their_lineup: str = _lineup_query(),
+    buy: str = Query("", pattern="^(|full|light)$"),
+    days: int = Query(0, ge=0, le=3650),
 ) -> GameplanPanel:
-    """One Map's Playbook for the «Юу хийх» tab, computed once per parse stamp."""
+    """One Map's Playbook for the «Юу хийх» tab, computed once per parse stamp.
+    ``buy`` and ``days`` read the habits over those Rounds only (GP-9)."""
     if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
     my_team, opponent = _fixture(db, mine, theirs)
     my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
+    view = {k: v for k, v in (("buy", buy), ("days", days)) if v}
     started = time.perf_counter()
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()
-        data, hit = playbook_data(db, my_team, opponent, my_five, their_five, map_name, stamp)
+        data, hit = playbook_data(
+            db, my_team, opponent, my_five, their_five, map_name, stamp, view or None
+        )
     return GameplanPanel(
         tab="todo",
         stamp=stamp,
@@ -298,15 +304,21 @@ def playbook(
     )
 
 
-def playbook_data(db, my_team, opponent, my_five, their_five, map_name: str, stamp: str):
+def playbook_data(
+    db, my_team, opponent, my_five, their_five, map_name: str, stamp: str, view: dict | None = None
+):
     """One Map's Playbook panel and whether it came from the cache. The caller has
-    bound ``dbctx`` and the Lineups; a Briefing freezes its lines from the same."""
+    bound ``dbctx`` and the Lineups; a Briefing freezes its lines from the same.
+    ``view`` reads the habits over some Rounds only (GP-9)."""
     part = lineup.cache_part(my_five, their_five) + scope.cache_part(db)
+    if view:
+        part += ":" + ",".join(f"{k}={v}" for k, v in sorted(view.items()))
     key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:playbook:{map_name}:{stamp}"
     data = _cache_get(key)
     if data is not None:
         return data, True
-    data = json.loads(json.dumps(playbook_view.panel(my_team, opponent, map_name), default=str))
+    built = playbook_view.panel(my_team, opponent, map_name, view)
+    data = json.loads(json.dumps(built, default=str))
     _cache_set(key, data)
     return data, False
 

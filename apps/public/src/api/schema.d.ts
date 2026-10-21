@@ -685,6 +685,7 @@ export interface paths {
         /**
          * Playbook
          * @description One Map's Playbook for the «Юу хийх» tab, computed once per parse stamp.
+         *     ``buy`` and ``days`` read the habits over those Rounds only (GP-9).
          */
         get: operations["playbook_gameplan__mine__vs__theirs__playbook__map_name__get"];
         put?: never;
@@ -5492,6 +5493,8 @@ export interface operations {
                 my_lineup?: string;
                 /** @description Up to five Steam ids, comma-separated; empty for the most recent five. */
                 their_lineup?: string;
+                buy?: string;
+                days?: number;
             };
             header?: never;
             path: {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { $api } from '../api/client'
 import { StyleTable } from '../team/Style'
 import { type Fixture, Todo } from './panels'
@@ -134,11 +134,38 @@ function FixtureStyle(props: { fixture: Fixture; map: string; mine: string; thei
   )
 }
 
+// GP-9: read the habits over some Rounds only; the choice rides in the URL.
+const BUY_VIEW: [string, string][] = [
+  ['', 'Бүх buy'],
+  ['full', 'Full buy'],
+  ['light', 'Eco/force'],
+]
+const DAYS_VIEW: [number, string][] = [
+  [0, 'Бүх хугацаа'],
+  [180, '180 хоног'],
+  [90, '90 хоног'],
+  [30, '30 хоног'],
+]
+
 function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
+  const [search, setSearch] = useSearchParams()
+  const buy = search.get('buy') ?? ''
+  const days = Number(search.get('days') ?? 0)
+  const pick = (key: string, value: string | number) => {
+    const next = new URLSearchParams(search)
+    if (value) next.set(key, String(value))
+    else next.delete(key)
+    setSearch(next, { replace: true })
+  }
   const query = $api.useQuery(
     'get',
     '/gameplan/{mine}/vs/{theirs}/playbook/{map_name}',
-    { params: { path: { mine: fixture.mine.id, theirs: fixture.theirs.id, map_name: map }, query: fixture.query } },
+    {
+      params: {
+        path: { mine: fixture.mine.id, theirs: fixture.theirs.id, map_name: map },
+        query: { ...fixture.query, ...(buy ? { buy } : {}), ...(days ? { days } : {}) },
+      },
+    },
     { staleTime: STALE },
   )
   if (query.isError) return <p className="caveat">Энэ map-ын Playbook-ийг тооцоолж чадсангүй.</p>
@@ -167,6 +194,24 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
           бүрэлдэхүүнтэй {them.all_maps - them.maps} map тооцогдоогүй.
         </p>
       )}
+      <div className="filters">
+        <span className="cap">Раунд</span>
+        {BUY_VIEW.map(([value, label]) => (
+          <button key={value} type="button" className={`chip ${buy === value ? 'on' : ''}`} onClick={() => pick('buy', value)}>
+            {label}
+          </button>
+        ))}
+        {DAYS_VIEW.map(([value, label]) => (
+          <button key={value} type="button" className={`chip ${days === value ? 'on' : ''}`} onClick={() => pick('days', value)}>
+            {label}
+          </button>
+        ))}
+        {(buy || days > 0) && d.view && (
+          <small className="mono">
+            {d.view.rounds}/{d.view.of} раунд — эдийн засаг, pistol бүх раундаар
+          </small>
+        )}
+      </div>
       {!them.maps && <p className="caveat">{d.opponent} энэ map-ыг тоглоогүй — зөвхөн Self-scout харагдана.</p>}
       {them.maps > 0 && !them.economy && (
         <p className="caveat">

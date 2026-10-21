@@ -58,8 +58,8 @@ def advice(my_team: Team, opponent: Team, map_name: str) -> dict:
     }
 
 
-def panel(my_team: Team, opponent: Team, map_name: str) -> dict:
-    raw = playbook.build(my_team, opponent, map_name)
+def panel(my_team: Team, opponent: Team, map_name: str, view: dict | None = None) -> dict:
+    raw = playbook.build(my_team, opponent, map_name, view)
     for key in ("their_t", "their_ct"):
         levers.annotate(raw[key], opponent, map_name)
     for habits in raw["self_scout"].values():
@@ -83,6 +83,7 @@ def panel(my_team: Team, opponent: Team, map_name: str) -> dict:
         "my_team": my_team.name,
         "opponent": opponent.name,
         "sample": raw["sample"],
+        "view": raw["view"],
         "sites_known": raw["sites_known"],
         "plan": plan,
         "advice": advice(my_team, opponent, map_name),

@@ -19,6 +19,7 @@ import statistics
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import timedelta
 from itertools import combinations
 
 from sqlalchemy import func, or_, select
@@ -39,6 +40,7 @@ from app.models import (
     SnapshotMoment,
     Team,
 )
+from app.models.base import utcnow
 from app.services import lineup, mapstrategy, stats
 from app.services.analysis_store import PISTOL_ROUNDS
 from app.services.dbctx import db, memo
@@ -1210,12 +1212,37 @@ def _fielded_only(team: Team, habits: list[dict]) -> list[dict]:
     return [h for h in habits if h["kind"] != "spot" or h["player_id"] in fielded]
 
 
-def build(my_team: Team, opponent: Team, map_name: str) -> dict:
-    """One Map's Playbook, structured: what they do, what we do, and the evidence."""
-    theirs = _team_rounds(opponent, my_team, map_name)
-    mine = _team_rounds(my_team, opponent, map_name)
+# GP-9: a Playbook read over some Rounds only. "full" a full buy of the Team's
+# own, "light" an eco or a force; "days" the Matches played that recently.
+BUY_VIEWS = {"full": ("full",), "light": ("eco", "force")}
+VIEW_DAYS = (30, 90, 180)
+
+
+def _viewed(team: Team, rounds: list[_Round], view: dict | None) -> list[_Round]:
+    if not view:
+        return rounds
+    out = rounds
+    buys = BUY_VIEWS.get(view.get("buy") or "")
+    if buys:
+        out = [r for r in out if r.buy(team.id) in buys]
+    days = view.get("days")
+    if days:
+        since = utcnow() - timedelta(days=int(days))
+        played = {m.id: m.match.played_at for m in mapstrategy.maps_in_window(team)}
+        out = [r for r in out if (played.get(r.match_map_id) or since) >= since]
+    return out
+
+
+def build(my_team: Team, opponent: Team, map_name: str, view: dict | None = None) -> dict:
+    """One Map's Playbook, structured: what they do, what we do, and the evidence.
+    ``view`` reads the habits over some Rounds only (GP-9); the economy, pistols
+    and conversion keep every Round, which they need for what comes next."""
+    every_theirs = _team_rounds(opponent, my_team, map_name)
+    every_mine = _team_rounds(my_team, opponent, map_name)
+    theirs = _viewed(opponent, every_theirs, view)
+    mine = _viewed(my_team, every_mine, view)
     sites = site_centroids(map_name)
-    detail = _detail(list({r.id: r for r in (*theirs, *mine)}.values()))
+    detail = _detail(list({r.id: r for r in (*every_theirs, *every_mine)}.values()))
     all_theirs = _team_rounds(opponent, my_team, None)
     pools = map_pools(map_name)
 
@@ -1245,10 +1272,15 @@ def build(my_team: Team, opponent: Team, map_name: str) -> dict:
         "their_ct": _fielded_only(
             opponent, side_habits(opponent.id, theirs, "ct", detail, sites, pools)
         ),
-        "pistols": pistols(opponent.id, theirs, detail, sites),
+        "view": {
+            **(view or {}),
+            "rounds": len(theirs),
+            "of": len(every_theirs),
+        },
+        "pistols": pistols(opponent.id, every_theirs, detail, sites),
         "conversion": {
-            "theirs": conversion(opponent.id, theirs),
-            "mine": conversion(my_team.id, mine),
+            "theirs": conversion(opponent.id, every_theirs),
+            "mine": conversion(my_team.id, every_mine),
             "pool": conversion_pool(map_name),
         },
         "economy": economy(opponent.id, all_theirs),

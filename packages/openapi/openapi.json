@@ -1904,7 +1904,7 @@
           "gameplan"
         ],
         "summary": "Playbook",
-        "description": "One Map's Playbook for the \u00ab\u042e\u0443 \u0445\u0438\u0439\u0445\u00bb tab, computed once per parse stamp.",
+        "description": "One Map's Playbook for the \u00ab\u042e\u0443 \u0445\u0438\u0439\u0445\u00bb tab, computed once per parse stamp.\n``buy`` and ``days`` read the habits over those Rounds only (GP-9).",
         "operationId": "playbook_gameplan__mine__vs__theirs__playbook__map_name__get",
         "security": [
           {
@@ -1964,6 +1964,29 @@
               "title": "Their Lineup"
             },
             "description": "Up to five Steam ids, comma-separated; empty for the most recent five."
+          },
+          {
+            "name": "buy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(|full|light)$",
+              "default": "",
+              "title": "Buy"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 3650,
+              "minimum": 0,
+              "default": 0,
+              "title": "Days"
+            }
           }
         ],
         "responses": {
