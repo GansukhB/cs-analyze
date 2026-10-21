@@ -8,7 +8,7 @@ import { $api, fetchClient } from '../api/client'
 import type { components } from '../api/schema'
 import type { ReplayBridge, Shape } from '../replay/player'
 import type { PenHooks } from './notesContext'
-import { clock } from './format'
+import { CLIP_SECONDS, clock } from './format'
 import { type Actions, NotesContext, useNotes } from './notesContext'
 import type { Goto } from './MapReview'
 
@@ -240,6 +240,7 @@ export function RoundNotes(props: {
               </span>
             )}
           </p>
+          <NoteClip note={n} staff={ctx.staff} bridge={bridge} onGoto={onGoto} refresh={ctx.refresh} />
           <p className="text-xs text-ink-3">
             {n.tag && <span className="mr-2 rounded border border-line px-1">{n.tag}</span>}
             {n.sids.map((s) => names[s] ?? '?').join(', ')}
@@ -376,5 +377,82 @@ export function MyNotes() {
         </div>
       )}
     </section>
+  )
+}
+
+// VIZ-13: ten seconds of the Replay from the note's moment, kept with it. Staff
+// record it here (the Replay jumps to the moment and plays while it records);
+// whoever may read the note plays it back.
+function NoteClip(props: {
+  note: components['schemas']['NoteRead']
+  staff: boolean
+  bridge: ReplayBridge
+  onGoto: Goto
+  refresh: () => void
+}) {
+  const { note, staff, bridge, onGoto, refresh } = props
+  const [url, setUrl] = useState<string | null>(null)
+  const [busy, setBusy] = useState<'' | 'recording' | 'saving'>('')
+  const [error, setError] = useState('')
+  useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url])
+
+  async function play() {
+    if (url) return setUrl(null)
+    const got = await fetchClient.GET('/notes/{note_id}/clip', {
+      params: { path: { note_id: note.id } },
+      parseAs: 'blob',
+    })
+    if (got.data) setUrl(URL.createObjectURL(got.data as Blob))
+    else setError('Клипийг уншиж чадсангүй.')
+  }
+  function record() {
+    if (note.t === null || busy) return
+    setError('')
+    onGoto(note.round ?? 1, note.t, note.sids[0] ?? null, false)
+    window.setTimeout(() => {
+      const ok = bridge.record?.(CLIP_SECONDS, async (blob) => {
+        setBusy('saving')
+        const sent = await fetchClient.PUT('/notes/{note_id}/clip', {
+          params: { path: { note_id: note.id } },
+          body: { data: blob as unknown as string },
+          bodySerializer: (body) => {
+            const form = new FormData()
+            form.append('data', body.data as unknown as Blob, 'clip.webm')
+            return form
+          },
+        })
+        setBusy('')
+        if (sent.error) setError('Клипийг хадгалж чадсангүй.')
+        else refresh()
+      })
+      if (ok) setBusy('recording')
+      else setError('Энэ browser Replay-ийг бичиж чадахгүй.')
+    }, 300)
+  }
+
+  if (!note.has_clip && !(staff && note.t !== null)) return null
+  return (
+    <div className="space-y-1 text-xs">
+      <p className="flex flex-wrap gap-3">
+        {note.has_clip && (
+          <button type="button" onClick={play} className="text-ct hover:underline">
+            {url ? '■ Клипийг хаах' : '🎬 Клип үзэх'}
+          </button>
+        )}
+        {staff && note.t !== null && (
+          <button type="button" onClick={record} disabled={!!busy} className="text-ink-3 hover:text-ct disabled:opacity-60">
+            {busy === 'recording'
+              ? '● Бичиж байна…'
+              : busy === 'saving'
+                ? 'Хадгалж байна…'
+                : note.has_clip
+                  ? '● Клипийг дахин бичих'
+                  : `● ${CLIP_SECONDS} с клип хавсаргах`}
+          </button>
+        )}
+        {error && <span className="text-crit">{error}</span>}
+      </p>
+      {url && <video src={url} controls autoPlay className="w-full max-w-md rounded-md border border-line" />}
+    </div>
   )
 }

@@ -998,6 +998,8 @@ class NoteRead(BaseModel):
     tag: str
     reason: str
     drawing: list[NoteShape] | None = None
+    # VIZ-13: a clip of the Replay is kept with it (GET /notes/{id}/clip).
+    has_clip: bool = False
     created_by: str
     created_at: dt.datetime
 

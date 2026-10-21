@@ -1450,6 +1450,95 @@
         }
       }
     },
+    "/notes/{note_id}/clip": {
+      "put": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Put Clip",
+        "description": "VIZ-13: ten seconds of the Replay recorded at the note's moment, as WebM;\nsending one again replaces it.",
+        "operationId": "put_clip_notes__note_id__clip_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_put_clip_notes__note_id__clip_put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Get Clip",
+        "operationId": "get_clip_notes__note_id__clip_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/notes/{note_id}": {
       "delete": {
         "tags": [
@@ -7063,6 +7152,20 @@
         ],
         "title": "Body_login_auth_token_post"
       },
+      "Body_put_clip_notes__note_id__clip_put": {
+        "properties": {
+          "data": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Body_put_clip_notes__note_id__clip_put"
+      },
       "Body_put_part_uploads__public_id__parts__n__put": {
         "properties": {
           "data": {
@@ -11458,6 +11561,11 @@
               }
             ],
             "title": "Drawing"
+          },
+          "has_clip": {
+            "type": "boolean",
+            "title": "Has Clip",
+            "default": false
           },
           "created_by": {
             "type": "string",

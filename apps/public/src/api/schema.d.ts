@@ -543,6 +543,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notes/{note_id}/clip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Clip */
+        get: operations["get_clip_notes__note_id__clip_get"];
+        /**
+         * Put Clip
+         * @description VIZ-13: ten seconds of the Replay recorded at the note's moment, as WebM;
+         *     sending one again replaces it.
+         */
+        put: operations["put_clip_notes__note_id__clip_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notes/{note_id}": {
         parameters: {
             query?: never;
@@ -2422,6 +2444,11 @@ export interface components {
              */
             client_secret?: string | null;
         };
+        /** Body_put_clip_notes__note_id__clip_put */
+        Body_put_clip_notes__note_id__clip_put: {
+            /** Data */
+            data: string;
+        };
         /** Body_put_part_uploads__public_id__parts__n__put */
         Body_put_part_uploads__public_id__parts__n__put: {
             /** Data */
@@ -3988,6 +4015,11 @@ export interface components {
             reason: string;
             /** Drawing */
             drawing?: components["schemas"]["NoteShape"][] | null;
+            /**
+             * Has Clip
+             * @default false
+             */
+            has_clip: boolean;
             /** Created By */
             created_by: string;
             /**
@@ -7088,6 +7120,68 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DrawnNote"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_clip_notes__note_id__clip_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                note_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_clip_notes__note_id__clip_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                note_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_put_clip_notes__note_id__clip_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

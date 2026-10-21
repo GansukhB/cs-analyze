@@ -8,12 +8,14 @@ disputed is on the Workspace page."""
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 from sqlalchemy import select
 
 from app.deps import CurrentUser, DbSession, StaffUser
-from app.models import Match, MatchMap, NoteKind, Playlist, ReviewNote, Team, User
+from app.models import Match, MatchMap, NoteClip, NoteKind, Playlist, ReviewNote, Team, User
+from app.models.notes import CLIP_BYTES
 from app.routers.matches import _map
 from app.schemas import (
     DisputeRate,
@@ -59,6 +61,7 @@ def _read(db, n: ReviewNote) -> NoteRead:
         tag=n.tag,
         reason=n.reason,
         drawing=n.drawing,
+        has_clip=db.scalar(select(NoteClip.id).where(NoteClip.note_id == n.id)) is not None,
         created_by=by.username if by else "",
         created_at=n.created_at,
     )
@@ -123,6 +126,47 @@ def drawn(team_id: int, map_name: str, db: DbSession, user: StaffUser) -> list[D
         return [
             DrawnNote(**row) for row in drawn_notes.on_map(user.workspace_id, team_id, map_name)
         ]
+
+
+def _note(db, user: User, note_id: int) -> ReviewNote:
+    """The Workspace's note, as its reader may see it: Staff any, a Player those naming them."""
+    note = db.get(ReviewNote, note_id)
+    if note is None or note.workspace_id != user.workspace_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such note")
+    if not user.is_staff and (note.kind != NoteKind.NOTE or _mine(user) not in (note.sids or [])):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such note")
+    return note
+
+
+@router.put("/notes/{note_id}/clip", status_code=status.HTTP_204_NO_CONTENT)
+def put_clip(
+    note_id: int, db: DbSession, user: StaffUser, data: Annotated[UploadFile, File()]
+) -> None:
+    """VIZ-13: ten seconds of the Replay recorded at the note's moment, as WebM;
+    sending one again replaces it."""
+    note = _note(db, user, note_id)
+    if (data.content_type or "").split(";")[0] != "video/webm":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "A clip is a WebM video")
+    blob = data.file.read(CLIP_BYTES + 1)
+    if not blob or len(blob) > CLIP_BYTES:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"A clip is 1 to {CLIP_BYTES} bytes")
+    clip = db.scalar(select(NoteClip).where(NoteClip.note_id == note.id))
+    if clip is None:
+        db.add(NoteClip(note_id=note.id, content_type="video/webm", data=blob))
+    else:
+        clip.data = blob
+    db.commit()
+
+
+@router.get("/notes/{note_id}/clip", response_class=Response)
+def get_clip(note_id: int, db: DbSession, user: CurrentUser) -> Response:
+    note = _note(db, user, note_id)
+    clip = db.scalar(select(NoteClip).where(NoteClip.note_id == note.id))
+    if clip is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No clip")
+    return Response(
+        clip.data, media_type=clip.content_type, headers={"Cache-Control": "private, max-age=3600"}
+    )
 
 
 @router.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)

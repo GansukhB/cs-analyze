@@ -1,5 +1,8 @@
 /** The Review's numbers as the page writes them. */
 
+/** How long a clip of the Replay runs, in Round seconds (VIZ-13). */
+export const CLIP_SECONDS = 10
+
 /** Seconds from freeze end as the Replay's clock: 83.4 → '1:23'. */
 export function clock(t: number | null | undefined): string {
   const s = Math.max(0, Math.floor(t ?? 0))

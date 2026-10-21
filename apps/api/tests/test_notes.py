@@ -56,6 +56,29 @@ def test_a_note_can_be_only_a_drawing_on_the_replay(client, db, auth, league):
     assert client.post(url, json=three, headers=auth).status_code == 422
 
 
+def test_a_clip_of_the_notes_moment_is_kept_and_played_back(client, db, auth, league, player_login):
+    """VIZ-13: WebM only; the Player the note names plays it, another gets nothing."""
+    them, me = player_login
+    match = _match(db, league["a"], league["b"])
+    url = f"/matches/{match.id}/maps/1/notes"
+    named = client.post(url, json={"round": 2, "t": 9.0, "sids": [str(me.steamid)], "text": "x"},
+                        headers=auth).json()  # fmt: skip
+    other = client.post(url, json={"round": 2, "t": 9.0, "text": "y"}, headers=auth).json()
+    webm = b"\x1aE\xdf\xa3" + b"\x00" * 64
+    clip = {"data": ("clip.webm", webm, "video/webm")}
+    assert client.put(f"/notes/{named['id']}/clip", files=clip, headers=auth).status_code == 204
+    assert client.put(f"/notes/{other['id']}/clip", files=clip, headers=auth).status_code == 204
+    gif = {"data": ("x.gif", b"GIF89a", "image/gif")}
+    assert client.put(f"/notes/{named['id']}/clip", files=gif, headers=auth).status_code == 400
+    assert client.put(f"/notes/{named['id']}/clip", files=clip, headers=them).status_code == 403
+    back = client.get(f"/notes/{named['id']}/clip", headers=them)
+    assert back.status_code == 200 and back.content == webm
+    assert back.headers["content-type"] == "video/webm"
+    assert client.get(f"/notes/{other['id']}/clip", headers=them).status_code == 404
+    listed = {n["id"]: n["has_clip"] for n in client.get(url, headers=auth).json()["notes"]}
+    assert listed[named["id"]] and listed[other["id"]]
+
+
 def test_a_shared_playlist_opens_its_rounds_to_the_players(client, db, auth, league, player_login):
     them, _me = player_login
     elsewhere = _match(db, league["b"], league["c"])  # A0 never played it

@@ -10,14 +10,13 @@ import { applyFilters, type Filters, isActive, useFilters } from './filters'
 import FilterBar from './FilterBar'
 import { NotesProvider, RoundNotes } from './Notes'
 import type { PenHooks } from './notesContext'
-import { TEAM_DOT } from './format'
+import { CLIP_SECONDS, TEAM_DOT } from './format'
 import PlayersTable, { PlayerFocus } from './PlayersTable'
 import RoundPanel from './RoundPanel'
 import { TeamSummaryCard } from './Summary'
 
 type Review = components['schemas']['Review']
 
-const CLIP_SECONDS = 10
 
 export type Goto = (round: number, t: number, sid: string | null, play?: boolean) => void
 

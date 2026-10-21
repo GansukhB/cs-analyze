@@ -16,7 +16,7 @@ from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, UniqueC
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
-from app.models.base import BigId, Float, TimestampMixin
+from app.models.base import BigId, Float, MediumBlob, TimestampMixin
 
 
 class NoteKind(StrEnum):
@@ -46,6 +46,25 @@ class ReviewNote(TimestampMixin, Base):
     # [{kind: arrow|circle|text, points: [[x, y], ...], text}]
     drawing: Mapped[list | None] = mapped_column(JSON)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+
+# VIZ-13: a clip under one MEDIUMBLOB (16 MiB); ten seconds of WebM is a few MB.
+CLIP_BYTES = 15 * 1024 * 1024
+
+
+class NoteClip(TimestampMixin, Base):
+    """Ten seconds of the Replay recorded in the browser at a note's moment (VIZ-13).
+
+    Kept apart from the note so listing notes never reads the video."""
+
+    __tablename__ = "note_clips"
+
+    id: Mapped[int] = mapped_column(BigId, primary_key=True)
+    note_id: Mapped[int] = mapped_column(
+        BigId, ForeignKey("review_notes.id", ondelete="CASCADE"), unique=True
+    )
+    content_type: Mapped[str] = mapped_column(String(64), default="video/webm")
+    data: Mapped[bytes] = mapped_column(MediumBlob)
 
 
 class Playlist(TimestampMixin, Base):
