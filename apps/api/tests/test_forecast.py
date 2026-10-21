@@ -188,3 +188,30 @@ def test_the_lab_needs_ratings_for_a_veto(client, auth, db):
     assert out.status_code == 200, out.text
     body = out.json()
     assert body["veto"] is None and len(body["maps"]) == 7
+
+
+def test_one_player_in_for_another_moves_the_rating_a_fifth(db):
+    """FC-9: "s1 in for p5" moves the Huns a fifth of the way to s1's Team."""
+    a, b = _teams(db)
+    huns, rivals, stars = ([f"{c}{i}" for i in range(1, 6)] for c in "pqs")
+    day = date(2026, 1, 1)
+    games = [("Stars", stars, "Rivals", rivals, True)] * 6 + [
+        ("The Huns", huns, "Rivals", rivals, True)
+    ] * 4
+    for i, (x, rx, y, ry, x_won) in enumerate(games):
+        first, second = sorted((x, y), key=str.casefold)
+        flip = first != x
+        db.add(SeriesResult(source="vrs", key=f"{day}|{first}|{second}|{i}", played_on=day,
+                            team_a=first, team_b=second, a_won=x_won != flip,
+                            roster_a=ry if flip else rx, roster_b=rx if flip else ry))  # fmt: skip
+        day += timedelta(days=1)
+    db.commit()
+    with dbctx.using(db):
+        base = forecast.standing(a)
+        moved = forecast.standing(a, ["p1", "p2", "p3", "p4", "s1"])
+        out = forecast.build(a, b, my_lineup=["p1", "p2", "p3", "p4", "s1"], today=day)
+        stars_rating = rating.current().teams[rating._key("Stars")].rating
+    assert moved.swapped == 1 and not moved.lineup_changed
+    assert moved.rating == pytest.approx(base.rating + (stars_rating - base.rating) / 5, abs=0.1)
+    assert "swap" in {x["code"] for x in out["limits"]}
+    assert out["why"][0]["code"] == "gap"

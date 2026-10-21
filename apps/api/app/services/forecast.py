@@ -74,6 +74,10 @@ class Standing:
     last: date | None
     region: str | None = None
     lineup_changed: bool = False
+    # FC-9: Players in the Lineup who are not of the five its results were won
+    # with, and how far their Teams' Ratings moved this one (a fifth each).
+    swapped: int = 0
+    swap_shift: float = 0.0
 
     @property
     def cold(self) -> bool:
@@ -108,6 +112,14 @@ def standing(team: Team, lineup: list[str] | None = None) -> Standing | None:
         if len(known) >= p.keep_core:
             mean = sum(known) / len(known)
             return Standing(name, mean, t.series, t.last, region, lineup_changed=True)
+    if picked and t.roster:
+        # One or two in for the five: each moves the Rating a fifth of the way
+        # toward his last Team's (FC-9, "X in for Y"); an unknown one moves nothing.
+        newcomers = [n for n in picked if n not in t.roster]
+        shift = sum(snap.players[n] - t.rating for n in newcomers if n in snap.players) / 5
+        if newcomers:
+            return Standing(name, t.rating + shift, t.series, t.last, region,
+                            swapped=len(newcomers), swap_shift=round(shift, 1))  # fmt: skip
     return Standing(name, t.rating, t.series, t.last, region)
 
 
@@ -469,6 +481,9 @@ def build(
             limits.append({"code": "stale", "who": who, "team": team.name, "last": s.last})
         if s.lineup_changed:
             limits.append({"code": "lineup", "who": who, "team": team.name})
+        elif s.swapped:
+            limits.append({"code": "swap", "who": who, "team": team.name, "n": s.swapped,
+                           "shift": f"{s.swap_shift:+.0f}"})  # fmt: skip
     out = {
         "ratings": {
             "mine": _standing_json(a),
@@ -482,6 +497,7 @@ def build(
     }
     if a is None or b is None:
         return out
+    out["why"] = why(a, b, today)
 
     pool = list(map_pool.active_duty())
     edge = gap(a, b)
@@ -534,6 +550,25 @@ def build(
             "minimax": round(minimax, 4),
             "reliability": reliability(expected),
         }
+    return out
+
+
+TREND_DAYS = 60
+
+
+def why(a: Standing, b: Standing, today: date) -> list[dict]:
+    """What the series chance rests on (FC-6): the Ratings' gap and where each
+    Team's Rating went over the last :data:`TREND_DAYS`."""
+    snap = rating.current()
+    out = [{"code": "gap", "mine": round(a.rating), "theirs": round(b.rating),
+            "gap": f"{a.rating - b.rating:+.0f}"}]  # fmt: skip
+    since = today - timedelta(days=TREND_DAYS)
+    for who, s in (("mine", a), ("theirs", b)):
+        history = snap.history.get(rating._key(s.name)) or []
+        before = [r for d, r in history if d <= since]
+        if before and history:
+            out.append({"code": "trend", "who": who, "team": s.name, "days": TREND_DAYS,
+                        "change": f"{history[-1][1] - before[-1]:+.0f}"})  # fmt: skip
     return out
 
 

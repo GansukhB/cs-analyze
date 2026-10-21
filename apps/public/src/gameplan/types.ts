@@ -27,6 +27,8 @@ export interface DecisionForecast {
   maps: { map: string; pct: number; played_mine: number; played_theirs: number }[]
   maps_used: boolean
   limits: string[]
+  /** FC-6: what the chance rests on, the Ratings' gap and their trend. */
+  why?: string[]
   model: string
 }
 export interface DecisionPanel {

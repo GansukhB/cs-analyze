@@ -111,6 +111,7 @@ def _forecast(fc: dict, my_team, opponent) -> dict:
         ],
         "maps_used": bool(fc.get("offsets_used")),
         "limits": [mn.forecast_limit(item) for item in fc.get("limits") or []],
+        "why": [mn.forecast_why(item) for item in fc.get("why") or []],
         "model": fc.get("model") or "",
     }
 

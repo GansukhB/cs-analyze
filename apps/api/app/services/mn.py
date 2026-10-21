@@ -3127,7 +3127,21 @@ FORECAST_LIMIT = {
         "offset таамгийг сайжруулсангүй (log loss {with_offsets}, Rating дангаараа "
         "{rating_only}). Map-аа Map-ын хүснэгт ба Playbook-оор сонго."
     ),
+    "swap": (
+        "{team}-ийн Lineup-д үр дүнгийн тавд ороогүй {n} тоглогч бий: Rating-ийг тэдний "
+        "сүүлийн багийнхаар {shift} оноо хөдөлгөв (тоглогч бүр тавны нэг жинтэй)."
+    ),
 }
+
+# FC-6: what the series chance rests on.
+FORECAST_WHY = {
+    "gap": "Rating: {mine} vs {theirs} ({gap} оноо).",
+    "trend": "{team}-ийн Rating сүүлийн {days} хоногт {change}.",
+}
+
+
+def forecast_why(item: dict) -> str:
+    return FORECAST_WHY.get(item["code"], item["code"]).format(**item)
 
 
 def forecast_limit(item: dict) -> str:

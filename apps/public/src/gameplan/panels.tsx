@@ -154,6 +154,7 @@ function ForecastBlock({ forecast, fixture }: { forecast: DecisionForecast; fixt
           .join(' · ')}
         {bo3?.trust ? ` ${bo3.trust}` : ''}
       </p>
+      {(forecast.why ?? []).length > 0 && <p className="fc-note">Яагаад: {forecast.why!.join(' ')}</p>}
       {forecast.maps.length > 0 && (
         <table className="setup fc-maps">
           <thead>
