@@ -6,9 +6,10 @@ from sqlalchemy import func, select
 from app.config import get_settings
 from app.deps import DbSession, StaffUser
 from app.models import AnalysisJob, JobStatus
-from app.schemas import HostStats, JobCycle, ScoutNow, SystemState
+from app.schemas import HostStats, JobCycle, PatchList, PatchRef, ScoutNow, SystemState
 from app.services import jobs as job_service
-from app.services import system
+from app.services import map_pool, patches, system
+from app.services.dbctx import using
 
 router = APIRouter(tags=["system"])
 
@@ -41,3 +42,11 @@ def system_state(db: DbSession, _: StaffUser) -> SystemState:
         queued=queued or 0,
         version=get_settings().deployed_commit,
     )
+
+
+@router.get("/patches")
+def patch_list(db: DbSession, _: StaffUser) -> PatchList:
+    """The patches that start an era, newest first, and today's Active Duty (DATA-7)."""
+    with using(db):
+        active = list(map_pool.active_duty())
+    return PatchList(patches=[PatchRef(**p) for p in reversed(patches.every())], active=active)

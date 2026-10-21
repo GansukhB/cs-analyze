@@ -68,6 +68,11 @@ function Header({ info }: { info: MatchInfo }) {
         {info.played_at
           ? new Date(info.played_at).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
           : 'date unknown'}{' '}
+        {info.patch && (
+          <span title={info.patch.note}>
+            · patch {info.patch.date} ({info.patch.name}){' '}
+          </span>
+        )}
         {info.hltv_url ? (
           <>
             ·{' '}

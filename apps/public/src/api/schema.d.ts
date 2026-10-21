@@ -746,7 +746,8 @@ export interface paths {
         /**
          * Playbook
          * @description One Map's Playbook for the «Юу хийх» tab, computed once per parse stamp.
-         *     ``buy`` and ``days`` read the habits over those Rounds only (GP-9).
+         *     ``buy``, ``days`` and ``since`` (a patch's day, DATA-7) read the habits over
+         *     those Rounds only (GP-9).
          */
         get: operations["playbook_gameplan__mine__vs__theirs__playbook__map_name__get"];
         put?: never;
@@ -1555,6 +1556,26 @@ export interface paths {
         };
         /** System State */
         get: operations["system_state_system_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/patches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Patch List
+         * @description The patches that start an era, newest first, and today's Active Duty (DATA-7).
+         */
+        get: operations["patch_list_patches_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3019,6 +3040,7 @@ export interface components {
             maps: components["schemas"]["MatchMapTab"][];
             /** Default Map */
             default_map: number | null;
+            patch?: components["schemas"]["PatchRef"] | null;
         };
         /** MatchMapDetail */
         MatchMapDetail: {
@@ -3425,6 +3447,28 @@ export interface components {
             after_kill_won_pct: number | null;
             /** After Death Won Pct */
             after_death_won_pct: number | null;
+        };
+        /** PatchList */
+        PatchList: {
+            /** Patches */
+            patches: components["schemas"]["PatchRef"][];
+            /** Active */
+            active: string[];
+        };
+        /**
+         * PatchRef
+         * @description A CS2 patch that starts an era (DATA-7).
+         */
+        PatchRef: {
+            /** Date */
+            date: string;
+            /** Name */
+            name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
         };
         /** PlanCheck */
         PlanCheck: {
@@ -6571,6 +6615,7 @@ export interface operations {
                 their_lineup?: string;
                 buy?: string;
                 days?: number;
+                since?: string;
             };
             header?: never;
             path: {
@@ -8171,6 +8216,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemState"];
+                };
+            };
+        };
+    };
+    patch_list_patches_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatchList"];
                 };
             };
         };

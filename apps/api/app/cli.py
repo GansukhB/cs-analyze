@@ -196,11 +196,13 @@ def rebuild_tickdata() -> None:
     print(f"Rebuilt {len(datasets)} maps (version {tickdata.derived_version()}).")
 
 
-def fit_winprob() -> None:
+def fit_winprob(since: str | None = None, dry_run: bool = False) -> None:
     """Fit the Win probability model on every parsed Round and commit-ready write it.
 
     docs/adr/0007: the model only changes here, never on a parse. Its version
     moves with the data it was fitted on, which marks every stored Review stale.
+    ``since`` fits on the Match Maps played from that day (a patch's, DATA-7);
+    ``dry_run`` prints the metrics and writes nothing.
     """
     import hashlib
     import json
@@ -208,12 +210,20 @@ def fit_winprob() -> None:
 
     from app.services import winprob
 
+    day = datetime.fromisoformat(since) if since else None
     with SessionLocal() as db:
         # The states as the Review reads them, from the Tick Data (RV-4).
         samples = winprob.samples_from_reviews(
-            db, progress=lambda i, n: print(f"\r  reading {i}/{n} maps", end="", flush=True)
+            db,
+            progress=lambda i, n: print(f"\r  reading {i}/{n} maps", end="", flush=True),
+            since=day,
         )
     print()
+    if day is not None:
+        print(f"Match Maps played since {since} only.")
+    if not samples:
+        print("No states to fit on.")
+        return
     rounds = sum(1 for s in samples if s.state.seconds_left >= winprob.ROUND_SECONDS - 0.1)
     print(f"{len(samples)} states from {len({s.group for s in samples})} maps ({rounds} rounds).")
     before = winprob.fit(samples, version=1)
@@ -223,6 +233,9 @@ def fit_winprob() -> None:
         print(f"  {phase}: " + ", ".join(
             f"{k} {old.get(k)} -> {new.get(k)}" for k in ("cv_logloss", "brier", "auc", "ece")
         ))  # fmt: skip
+    if dry_run:
+        print("Dry run: nothing written.")
+        return
     stamp = datetime.now(UTC)
     digest = hashlib.sha1(
         json.dumps([spec["pre"], spec["post"]], sort_keys=True).encode(), usedforsecurity=False
@@ -231,6 +244,7 @@ def fit_winprob() -> None:
         "version": f"{stamp:%Y%m%d}.{digest}",
         "fitted_at": stamp.isoformat(timespec="seconds"),
         "match_maps": len({s.group for s in samples}),
+        **({"since": since} if since else {}),
         **spec,
     }
     winprob.MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -370,7 +384,9 @@ def main() -> None:
     sub.add_parser("import-vrs").add_argument(
         "root", nargs="?", help="A checkout of the repo; cloned into scratch if omitted."
     )
-    sub.add_parser("fit-winprob")
+    fit = sub.add_parser("fit-winprob")
+    fit.add_argument("--since", help="Only Match Maps played on or after this day (YYYY-MM-DD).")
+    fit.add_argument("--dry-run", action="store_true", help="Print the metrics, write nothing.")
     sub.add_parser("forecast-backtest")
     sub.add_parser("rebuild-reviews").add_argument("--map", type=int, help="One Match Map id.")
     sub.add_parser("summary-thresholds")
@@ -408,7 +424,7 @@ def main() -> None:
         forecast_backtest()
         return
     if args.command == "fit-winprob":
-        fit_winprob()
+        fit_winprob(args.since, args.dry_run)
         return
     if args.command == "rebuild-reviews":
         rebuild_reviews(args.map)

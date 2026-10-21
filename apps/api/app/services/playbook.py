@@ -19,7 +19,7 @@ import statistics
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from itertools import combinations
 
 from sqlalchemy import func, or_, select
@@ -1213,7 +1213,8 @@ def _fielded_only(team: Team, habits: list[dict]) -> list[dict]:
 
 
 # GP-9: a Playbook read over some Rounds only. "full" a full buy of the Team's
-# own, "light" an eco or a force; "days" the Matches played that recently.
+# own, "light" an eco or a force; "days" the Matches played that recently;
+# "since" those played on or after a day, a patch's (DATA-7).
 BUY_VIEWS = {"full": ("full",), "light": ("eco", "force")}
 VIEW_DAYS = (30, 90, 180)
 
@@ -1226,8 +1227,11 @@ def _viewed(team: Team, rounds: list[_Round], view: dict | None) -> list[_Round]
     if buys:
         out = [r for r in out if r.buy(team.id) in buys]
     days = view.get("days")
-    if days:
-        since = utcnow() - timedelta(days=int(days))
+    since = utcnow() - timedelta(days=int(days)) if days else None
+    if view.get("since"):
+        day = datetime.fromisoformat(view["since"])
+        since = max(since, day) if since else day
+    if since is not None:
         played = {m.id: m.match.played_at for m in mapstrategy.maps_in_window(team)}
         out = [r for r in out if (played.get(r.match_map_id) or since) >= since]
     return out

@@ -221,14 +221,15 @@ class Sample:
     group: int  # the Match Map, for cross-validation
 
 
-def samples_from_reviews(db, progress=None) -> list[Sample]:
+def samples_from_reviews(db, progress=None, since=None) -> list[Sample]:
     """Every Match Map's states as its Review reads them (version 2, RV-4):
     health, utility and positions come from the Tick Data. Each Round weighs the
     same. Only Tick Data with the economy and the Loadout counts: without them
-    the buys and the grenades read as nothing, which no live state is."""
+    the buys and the grenades read as nothing, which no live state is.
+    ``since`` keeps the Match Maps played on or after that day (a patch's, DATA-7)."""
     from sqlalchemy import select
 
-    from app.models import MatchMap, TickDataset
+    from app.models import Match, MatchMap, TickDataset
     from app.services import review, tickdata
 
     out: list[Sample] = []
@@ -239,6 +240,15 @@ def samples_from_reviews(db, progress=None) -> list[Sample]:
         )
         if tickdata.reparseable(d)
     ]
+    if since is not None:
+        recent = set(
+            db.scalars(
+                select(MatchMap.id)
+                .join(Match, Match.id == MatchMap.match_id)
+                .where(MatchMap.id.in_(ids), Match.played_at >= since)
+            )
+        )
+        ids = [i for i in ids if i in recent]
     for i, mid in enumerate(ids):
         match_map = db.get(MatchMap, mid)
         for timeline, ct_won in review.states(db, match_map):

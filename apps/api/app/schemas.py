@@ -479,6 +479,19 @@ class MatchMapTab(BaseModel):
     playable: bool
 
 
+class PatchRef(BaseModel):
+    """A CS2 patch that starts an era (DATA-7)."""
+
+    date: str
+    name: str
+    note: str = ""
+
+
+class PatchList(BaseModel):
+    patches: list[PatchRef]
+    active: list[str]  # the Active Duty Maps today
+
+
 class MatchInfo(BaseModel):
     id: int
     hltv_id: int | None  # None for a Match a Workspace uploaded
@@ -492,6 +505,7 @@ class MatchInfo(BaseModel):
     played_at: dt.datetime | None
     maps: list[MatchMapTab]
     default_map: int | None
+    patch: PatchRef | None = None  # the era it was played in
 
     @field_validator("played_at")
     @classmethod

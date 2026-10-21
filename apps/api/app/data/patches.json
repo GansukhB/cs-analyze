@@ -1,0 +1,25 @@
+{
+ "note": "CS2 patches that change how Rounds play, and the Active Duty Map pool by date (docs/plans/02 DATA-7). From Valve's patch notes, docs/plans/12-research-sources.md section 5. A Map's periods are [from, until), null for open; edit by hand and commit.",
+ "patches": [
+  {"date": "2024-04-25", "name": "Dust II", "note": "Dust II in, Overpass out"},
+  {"date": "2025-01-28", "name": "Train", "note": "Train in, Vertigo out"},
+  {"date": "2025-07-16", "name": "Overpass, CT $50", "note": "Overpass in, Anubis out; CT $50 per T"},
+  {"date": "2026-01-21", "name": "SMG, subtick", "note": "Anubis in, Train out; SMG changes, subtick landing"},
+  {"date": "2026-03-18", "name": "Reload", "note": "Reload changes"},
+  {"date": "2026-04-20", "name": "Animgraph 2", "note": "Animgraph 2"},
+  {"date": "2026-07-08", "name": "Cache, C4", "note": "Cache in, Overpass out; C4 damage (follow-ups 2026-07-09, 2026-07-20)"},
+  {"date": "2026-09-22", "name": "Silent reload", "note": "Silent reload, grenade purchase limit"}
+ ],
+ "pool": {
+  "de_ancient": [[null, null]],
+  "de_anubis": [[null, "2025-07-16"], ["2026-01-21", null]],
+  "de_cache": [["2026-07-08", null]],
+  "de_dust2": [["2024-04-25", null]],
+  "de_inferno": [[null, null]],
+  "de_mirage": [[null, null]],
+  "de_nuke": [[null, null]],
+  "de_overpass": [[null, "2024-04-25"], ["2025-07-16", "2026-07-08"]],
+  "de_train": [["2025-01-28", "2026-01-21"]],
+  "de_vertigo": [[null, "2025-01-28"]]
+ }
+}

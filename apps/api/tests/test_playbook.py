@@ -5,7 +5,7 @@ from collections import defaultdict
 import pytest
 from sqlalchemy import select
 
-from app.models import Round
+from app.models import Match, Round
 from app.routers import gameplan as gameplan_router
 from app.services import dbctx, playbook
 from tests.test_gameplan import league  # noqa: F401 -- the shared three-team fixture
@@ -200,3 +200,22 @@ def test_a_view_reads_the_habits_over_some_rounds_only(client, auth, db, league)
     url = f"/gameplan/{a.id}/vs/{b.id}/playbook/de_mirage"
     assert client.get(url + "?buy=full", headers=auth).status_code == 200
     assert client.get(url + "?buy=nope", headers=auth).status_code == 422
+
+
+def test_a_view_since_a_patch_keeps_the_maps_played_after_it(client, auth, db, league):  # noqa: F811
+    """DATA-7: Bravo played Alpha on Sep 3 and Charlie on Sep 1."""
+    a, b = league["a"], league["b"]
+    with dbctx.using(db):
+        every = playbook.build(a, b, "de_mirage")
+        later = playbook.build(a, b, "de_mirage", {"since": "2026-09-02"})
+        none = playbook.build(a, b, "de_mirage", {"since": "2026-10-01"})
+    assert 0 < later["view"]["rounds"] < every["view"]["of"]
+    assert none["view"]["rounds"] == 0
+    url = f"/gameplan/{a.id}/vs/{b.id}/playbook/de_mirage"
+    assert client.get(url + "?since=2026-09-02", headers=auth).status_code == 200
+    assert client.get(url + "?since=yesterday", headers=auth).status_code == 422
+    listed = client.get("/patches", headers=auth).json()
+    assert listed["patches"][0]["date"] > listed["patches"][-1]["date"]
+    assert len(listed["active"]) == 7
+    match = client.get(f"/matches/{db.scalar(select(Match.id).limit(1))}", headers=auth).json()
+    assert match["patch"]["date"] == "2026-07-08"

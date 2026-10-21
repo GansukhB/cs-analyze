@@ -2135,7 +2135,7 @@
           "gameplan"
         ],
         "summary": "Playbook",
-        "description": "One Map's Playbook for the \u00ab\u042e\u0443 \u0445\u0438\u0439\u0445\u00bb tab, computed once per parse stamp.\n``buy`` and ``days`` read the habits over those Rounds only (GP-9).",
+        "description": "One Map's Playbook for the \u00ab\u042e\u0443 \u0445\u0438\u0439\u0445\u00bb tab, computed once per parse stamp.\n``buy``, ``days`` and ``since`` (a patch's day, DATA-7) read the habits over\nthose Rounds only (GP-9).",
         "operationId": "playbook_gameplan__mine__vs__theirs__playbook__map_name__get",
         "security": [
           {
@@ -2217,6 +2217,17 @@
               "minimum": 0,
               "default": 0,
               "title": "Days"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(|\\d{4}-\\d{2}-\\d{2})$",
+              "default": "",
+              "title": "Since"
             }
           }
         ],
@@ -4831,6 +4842,33 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SystemState"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/patches": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Patch List",
+        "description": "The patches that start an era, newest first, and today's Active Duty (DATA-7).",
+        "operationId": "patch_list_patches_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchList"
                 }
               }
             }
@@ -8790,6 +8828,16 @@
               }
             ],
             "title": "Default Map"
+          },
+          "patch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PatchRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -10019,6 +10067,54 @@
           "after_death_won_pct"
         ],
         "title": "OpeningLine"
+      },
+      "PatchList": {
+        "properties": {
+          "patches": {
+            "items": {
+              "$ref": "#/components/schemas/PatchRef"
+            },
+            "type": "array",
+            "title": "Patches"
+          },
+          "active": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "patches",
+          "active"
+        ],
+        "title": "PatchList"
+      },
+      "PatchRef": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "name"
+        ],
+        "title": "PatchRef",
+        "description": "A CS2 patch that starts an era (DATA-7)."
       },
       "PlanCheck": {
         "properties": {

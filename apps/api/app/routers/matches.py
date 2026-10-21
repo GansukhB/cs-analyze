@@ -31,7 +31,7 @@ from app.schemas import (
     ScoreboardSide,
     TeamRef,
 )
-from app.services import agenda, audit, dbctx, replay, review_view, scope
+from app.services import agenda, audit, dbctx, patches, replay, review_view, scope
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +105,7 @@ def get_match(match_id: int, db: DbSession, user: CurrentUser) -> MatchInfo:
         score=match.score,
         tournament=match.tournament.name if match.tournament else "",
         played_at=match.played_at,
+        patch=patches.era(match.played_at),
         maps=[
             MatchMapTab(
                 map_number=m.map_number,

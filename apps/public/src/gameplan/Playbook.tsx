@@ -151,6 +151,9 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
   const [search, setSearch] = useSearchParams()
   const buy = search.get('buy') ?? ''
   const days = Number(search.get('days') ?? 0)
+  // DATA-7: the habits since the latest patch that changed how Rounds play.
+  const since = search.get('since') ?? ''
+  const latest = $api.useQuery('get', '/patches', {}, { staleTime: Infinity }).data?.patches[0]
   const pick = (key: string, value: string | number) => {
     const next = new URLSearchParams(search)
     if (value) next.set(key, String(value))
@@ -163,7 +166,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
     {
       params: {
         path: { mine: fixture.mine.id, theirs: fixture.theirs.id, map_name: map },
-        query: { ...fixture.query, ...(buy ? { buy } : {}), ...(days ? { days } : {}) },
+        query: { ...fixture.query, ...(buy ? { buy } : {}), ...(days ? { days } : {}), ...(since ? { since } : {}) },
       },
     },
     { staleTime: STALE },
@@ -206,7 +209,17 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
             {label}
           </button>
         ))}
-        {(buy || days > 0) && d.view && (
+        {latest && (
+          <button
+            type="button"
+            className={`chip ${since === latest.date ? 'on' : ''}`}
+            title={latest.note}
+            onClick={() => pick('since', since === latest.date ? '' : latest.date)}
+          >
+            {latest.name} patch-аас хойш
+          </button>
+        )}
+        {(buy || days > 0 || since) && d.view && (
           <small className="mono">
             {d.view.rounds}/{d.view.of} раунд — эдийн засаг, pistol бүх раундаар
           </small>

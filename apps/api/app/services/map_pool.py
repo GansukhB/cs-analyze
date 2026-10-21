@@ -1,9 +1,10 @@
 """A Team's map pool: how strong it is on each Map and how deep (docs/plans/05 TM-6).
 
-The Active Duty Maps are read from the data: the :data:`ACTIVE_SIZE` Maps
-played most in the :data:`ACTIVE_WINDOW_DAYS` before the latest Match, each at
-least :data:`ACTIVE_MIN_MAPS` times, topped up from ``mapstrategy.ACTIVE_DUTY``
-when the data names fewer. Each Map's strength is the Team's share of Rounds
+The Active Duty Maps are Valve's on the day, as ``app/data/patches.json`` has
+them (DATA-7). Only when the file names fewer than :data:`ACTIVE_SIZE` are they
+read from the data: the Maps played most in the :data:`ACTIVE_WINDOW_DAYS`
+before the latest Match, each at least :data:`ACTIVE_MIN_MAPS` times, topped up
+from the file's. Each Map's strength is the Team's share of Rounds
 won there, pulled toward its own share over every Map by :data:`PRIOR_ROUNDS`
 (one Map's worth), so two lucky Maps don't read as a pocket pick. The pool's
 depth is how many Active Maps it has played at least :data:`MIN_MAPS` times
@@ -18,7 +19,7 @@ from datetime import timedelta
 from sqlalchemy import func, select
 
 from app.models import GameMap, Match, MatchKind, MatchMap, Team
-from app.services import mapstrategy, mn
+from app.services import mapstrategy, mn, patches
 from app.services.dbctx import db, memo
 
 ACTIVE_SIZE = 7
@@ -31,7 +32,10 @@ RECENT_DAYS = 90
 
 
 def active_duty() -> tuple[str, ...]:
-    """The Maps in the competitive pool now, as the data has them."""
+    """The Maps in the competitive pool now."""
+    configured = patches.pool_on()
+    if len(configured) >= ACTIVE_SIZE:
+        return configured
 
     def compute():
         latest = db().scalar(
@@ -51,7 +55,7 @@ def active_duty() -> tuple[str, ...]:
             ):
                 counts[name] = n
         found = [name for name, n in counts.most_common() if n >= ACTIVE_MIN_MAPS][:ACTIVE_SIZE]
-        for name in mapstrategy.ACTIVE_DUTY:
+        for name in configured:
             if len(found) >= ACTIVE_SIZE:
                 break
             if name not in found:
