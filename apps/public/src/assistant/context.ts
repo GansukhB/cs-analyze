@@ -6,7 +6,7 @@ import { $api } from '../api/client'
 import { lineupQuery, readLineups } from '../gameplan/lineup'
 import type { ChatContext } from './api'
 
-export type Scope = 'fixture' | 'team' | 'match' | 'general'
+export type Scope = 'fixture' | 'team' | 'match' | 'player' | 'job' | 'picker' | 'general'
 
 export interface PageContext {
   scope: Scope
@@ -26,6 +26,10 @@ export function usePageContext(): PageContext {
   const team = matchPath('/teams/:teamId', pathname)
   const match = matchPath('/matches/:matchId/*', pathname)
   const matchMap = matchPath('/matches/:matchId/m/:mapNumber', pathname)
+  // AS-7: a Player page, a Scout's job page, the Game Plan picker.
+  const playerPath = matchPath('/players/:steamid', pathname)
+  const jobPath = matchPath('/jobs/:publicId', pathname)
+  const isPicker = matchPath('/gameplan', pathname) !== null
 
   const mine = Number(fixture?.params.mine)
   const theirs = Number(fixture?.params.theirs)
@@ -54,6 +58,10 @@ export function usePageContext(): PageContext {
     { params: { path: { match_id: matchId || 0 } } },
     { ...KEEP, enabled: isMatch },
   )
+  const steamid = playerPath?.params.steamid ?? ''
+  const publicId = jobPath?.params.publicId ?? ''
+  const playerPage = $api.useQuery('get', '/players/{steamid}', { params: { path: { steamid } } }, { ...KEEP, enabled: !!steamid })
+  const jobPage = $api.useQuery('get', '/jobs/{public_id}', { params: { path: { public_id: publicId } } }, { enabled: !!publicId })
 
   if (isFixture) {
     const h = header.data
@@ -83,6 +91,15 @@ export function usePageContext(): PageContext {
     const round = map ? Number(searchParams.get('round')) || null : null
     return { scope: 'match', context: { match: matchId, map, round, page: label }, label, key: `m:${matchId}:${map ?? ''}` }
   }
+  if (steamid) {
+    const name = playerPage.data?.player.name ?? ''
+    return { scope: 'player', context: { player: steamid, page: name }, label: name, key: `p:${steamid}` }
+  }
+  if (publicId) {
+    const label = jobPage.data?.job.label ?? ''
+    return { scope: 'job', context: { job: publicId, page: label }, label, key: `j:${publicId}` }
+  }
+  if (isPicker) return { scope: 'picker', context: { picker: true, page: 'Game Plan' }, label: 'Game Plan', key: 'pick' }
   return { scope: 'general', context: null, label: '', key: 'g' }
 }
 
@@ -97,6 +114,12 @@ export function suggestions(scope: Scope): string[] {
       ]
     case 'team':
       return ['Энэ багийн map pool ямар вэ?', 'Хэн ямар үүрэгтэй тоглодог вэ?', 'Хамгийн сул тоглогч нь хэн бэ?']
+    case 'player':
+      return ['Энэ тоглогчийн хүчтэй, сул тал юу вэ?', 'Аль map дээр хамгийн сайн тоглодог вэ?', 'Сүүлийн үеийн form ямар байна?']
+    case 'job':
+      return ['Энэ Scout хаана явж байна?', 'Дууссаны дараа юу хийх вэ?']
+    case 'picker':
+      return ['Манай одоогийн тав хэн бэ?', 'Шинэ тоглогч авбал хэнийг Lineup-д оруулах вэ?']
     case 'match':
       return [
         'Энэ map-ийг юунаас болж алдсан бэ?',

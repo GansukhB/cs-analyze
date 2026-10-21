@@ -5647,6 +5647,42 @@
             "title": "Round",
             "description": "The Round open on the Replay."
           },
+          "player": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player",
+            "description": "A Player page's Steam id."
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "A Scout's job page (its public id)."
+          },
+          "picker": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Picker",
+            "description": "The Game Plan picker."
+          },
           "page": {
             "type": "string",
             "title": "Page",

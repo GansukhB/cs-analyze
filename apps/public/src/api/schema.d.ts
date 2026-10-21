@@ -1876,6 +1876,21 @@ export interface components {
              */
             round?: number | null;
             /**
+             * Player
+             * @description A Player page's Steam id.
+             */
+            player?: string | null;
+            /**
+             * Job
+             * @description A Scout's job page (its public id).
+             */
+            job?: string | null;
+            /**
+             * Picker
+             * @description The Game Plan picker.
+             */
+            picker?: boolean | null;
+            /**
              * Page
              * @description This page's label, as the history's turns name theirs.
              * @default

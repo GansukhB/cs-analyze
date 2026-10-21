@@ -113,6 +113,12 @@ function scopeText(page: PageContext): string {
       return page.label || 'Баг'
     case 'match':
       return page.label || 'Тоглолт'
+    case 'player':
+      return page.label || 'Тоглогч'
+    case 'job':
+      return page.label || 'Scout'
+    case 'picker':
+      return 'Game Plan сонголт'
     default:
       return 'Ерөнхий — дурын багийн талаар'
   }
@@ -127,6 +133,12 @@ function greeting(page: PageContext): string {
       return `${page.label || 'Энэ баг'}-ийн map pool, тоглогчдын үүрэг, хүчтэй сул талын талаар асуу. ${tail}`
     case 'match':
       return `${page.label || 'Энэ тоглолт'}: хоёр багийн талаар асуу. ${tail}`
+    case 'player':
+      return `${page.label || 'Энэ тоглогч'}-ийн form, map, үүрэг, алдааны талаар асуу. ${tail}`
+    case 'job':
+      return `${page.label || 'Энэ Scout'}-ийн явц, дууссаны дараа юу хийхийг асуу.`
+    case 'picker':
+      return `Хоёр баг, тэдний Lineup сонгоход туслана: хэн одоо тоглож байна, хэн шинэ вэ. ${tail}`
     default:
       return `Дурын багийн map pool, тоглогчид, H2H, скаутын дүгнэлтийн талаар асуу. ${tail}`
   }

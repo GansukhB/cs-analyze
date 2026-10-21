@@ -444,3 +444,22 @@ def test_round_tokens_are_read_aloud_as_rounds():
         "Тэр 10 дугаар Round, 11 дүгээр Round, 40 дүгээр Round, 9 дүгээр Round"
     )
     assert spoken("[R14 нэг]") == "[R14 нэг]"
+
+
+def test_a_player_a_scout_and_the_picker_are_pages_too(db, league):  # noqa: F811
+    """AS-7: each named in the system prompt; an unknown id is dropped."""
+    from app.models import AnalysisJob, JobStatus
+
+    a, b = league["a"], league["b"]
+    player = league["players"][a.id][0]
+    ctx = assistant.clean_context(db, {"player": str(player.steamid)})
+    assert f"steamid '{player.steamid}'" in ctx.note() and ctx.label() == player.name
+    assert assistant.clean_context(db, {"player": "1"}).note() == ""
+    job = AnalysisJob(my_team_name=a.name, opponent_name=b.name, my_team_id=a.id,
+                      opponent_id=b.id, status=JobStatus.SUCCESS)  # fmt: skip
+    db.add(job)
+    db.commit()
+    done = assistant.clean_context(db, {"job": str(job.public_id)}).note()
+    assert f"team_id {a.id} versus {b.id}" in done and "gameplan_section" in done
+    assert assistant.clean_context(db, {"job": "not-a-uuid"}).note() == ""
+    assert "Game Plan picker" in assistant.clean_context(db, {"picker": True}).note()

@@ -36,6 +36,7 @@ import base64
 import json
 import logging
 import re
+import uuid
 from collections.abc import Iterable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -44,11 +45,12 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.config import get_settings
-from app.models import MapRoster, Match, MatchMap, Player, Round, Team
+from app.models import AnalysisJob, JobStatus, MapRoster, Match, MatchMap, Player, Round, Team
 from app.services import (
     dbctx,
     decision,
     forecast,
+    jobs,
     lineup,
     mapstrategy,
     mn,
@@ -1023,6 +1025,10 @@ class Context:
     map_number: int | None = None
     # The Round open on the Replay, on a match page.
     round_number: int | None = None
+    # AS-7: a Player page, a Scout's job page, or the Game Plan picker.
+    player: Player | None = None
+    job: AnalysisJob | None = None
+    picker: bool = False
     # The signed-in User's Workspace's my teams (CONTEXT.md): who "we" are.
     my_teams: list[Team] = field(default_factory=list)
 
@@ -1061,7 +1067,37 @@ class Context:
         if self.team:
             return (
                 f"\n\nThe user is currently on the team page for {self.team.name!r} "
-                f"(team_id {self.team.id})."
+                f"(team_id {self.team.id}). Use rating for its Rating and team_matches "
+                "for its latest Matches."
+            )
+        if self.player:
+            p = self.player
+            return (
+                f"\n\nThe user is currently on the player page for {p.name!r} (Steam id "
+                f"{p.steamid}). 'This player' means them: use player_form with steamid "
+                f"'{p.steamid}'."
+            )
+        if self.job:
+            j = self.job
+            text = f"\n\nThe user is currently on the page of a Scout, {j.label!r}: {j.status}"
+            if j.status == JobStatus.RUNNING:
+                text += f", at {jobs.STAGE_LABELS.get(j.stage, j.stage)} ({j.progress}%)"
+            if j.error:
+                text += f", with the error {j.error[:200]!r}"
+            text += ". A Scout downloads and parses the Teams' Matches; the analysis is on the "
+            if j.status == JobStatus.SUCCESS and j.my_team_id and j.opponent_id:
+                text += (
+                    f"Game Plan page for team_id {j.my_team_id} versus {j.opponent_id}: send "
+                    "the user there, and use gameplan_section with those ids for questions."
+                )
+            else:
+                text += "Game Plan page once it succeeds."
+            return text
+        if self.picker:
+            return (
+                "\n\nThe user is on the Game Plan picker, choosing two Teams and, for each, "
+                "a Lineup of up to five players. For who plays for a Team now use "
+                "team_overview, and for one player's form player_form."
             )
         if self.match:
             m = self.match
@@ -1102,6 +1138,10 @@ class Context:
             return self.team.name
         if self.match and self.match.team1 and self.match.team2:
             return f"{self.match.team1.name} vs {self.match.team2.name}"
+        if self.player:
+            return self.player.name
+        if self.job:
+            return self.job.label
         return ""
 
 
@@ -1163,6 +1203,16 @@ def _page_context(session: Session, raw) -> Context:
             if match is None:
                 return Context()
             return Context(match=match, map_number=number, round_number=rnd)
+        if raw.get("player") not in (None, ""):
+            player = session.scalar(select(Player).where(Player.steamid == int(raw["player"])))
+            return Context(player=player) if player else Context()
+        if raw.get("job") not in (None, ""):
+            job = session.scalar(
+                select(AnalysisJob).where(AnalysisJob.public_id == uuid.UUID(str(raw["job"])))
+            )
+            return Context(job=job) if job else Context()
+        if raw.get("picker"):
+            return Context(picker=True)
     except (TypeError, ValueError):
         return Context()
     return Context()

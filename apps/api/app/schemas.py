@@ -1780,6 +1780,9 @@ class AssistantContext(BaseModel):
     match: int | None = None
     map: int | None = Field(default=None, description="The Match Map open on a match page.")
     round: int | None = Field(default=None, description="The Round open on the Replay.")
+    player: str | None = Field(default=None, description="A Player page's Steam id.")
+    job: str | None = Field(default=None, description="A Scout's job page (its public id).")
+    picker: bool | None = Field(default=None, description="The Game Plan picker.")
     page: str = Field("", description="This page's label, as the history's turns name theirs.")
 
 
