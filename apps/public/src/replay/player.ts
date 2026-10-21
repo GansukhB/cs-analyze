@@ -8,7 +8,7 @@
  */
 
 import { canvasIcon, equipmentUrl, iconEl, iconHtml, KILL_ICONS } from './icons'
-import { blindAt, changeAt, clock, paleTint, positionAt, toWorld, under as underCamera, weaponAt, zoomedAt } from './motion'
+import { blindAt, changeAt, clock, firstContact, paleTint, positionAt, toWorld, under as underCamera, weaponAt, zoomedAt } from './motion'
 
 export interface Label {
   name: string
@@ -503,6 +503,16 @@ export function mountReplay(
       i.title = describe(e)
       marks.append(i)
     })
+    // VIZ-4: where the Round's first contact was, with Sightings.
+    const contact = firstContact(d.sights)
+    if (contact) {
+      const name = (sid: string) => d.players.find((p) => p.sid === sid)?.name ?? '?'
+      const i = document.createElement('i')
+      i.className = 'contact'
+      i.style.left = `${(100 * contact.t) / d.seconds}%`
+      i.title = `${clock(contact.t)} анхны контакт: ${name(contact.spotter)} → ${name(contact.seen)}`
+      marks.append(i)
+    }
   }
 
   function describe(e: ReplayEvent) {

@@ -114,3 +114,14 @@ export function zoomedAt(cam: Camera, p: { x: number; y: number }, factor: numbe
 export function toWorld(u: { x: number; y: number }, ext: readonly number[], W: number, H: number): [number, number] {
   return [ext[0] + (u.x / W) * (ext[1] - ext[0]), ext[2] + (1 - u.y / H) * (ext[3] - ext[2])]
 }
+
+// -- Sightings (VIZ-4) -------------------------------------------------------------
+/** The Round's first contact: the earliest stretch of anyone having an enemy
+ *  in sight, from the Replay's `sights` ([spotter, seen, t0, t1]). */
+export function firstContact(sights: [string, string, number, number][] | null | undefined) {
+  let first: { spotter: string; seen: string; t: number } | null = null
+  for (const [spotter, seen, t0] of sights ?? []) {
+    if (t0 >= 0 && (first === null || t0 < first.t)) first = { spotter, seen, t: t0 }
+  }
+  return first
+}

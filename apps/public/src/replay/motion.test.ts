@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blindAt, changeAt, clock, lerpAngle, paleTint, positionAt, toWorld, under, weaponAt, zoomedAt } from './motion'
+import { blindAt, changeAt, clock, firstContact, lerpAngle, paleTint, positionAt, toWorld, under, weaponAt, zoomedAt } from './motion'
 
 const track = {
   x: [0, 10, null, 30],
@@ -45,5 +45,18 @@ describe('Replay motion', () => {
     expect(zoomedAt(zoomed, p, 0.1, 100, 100)).toEqual({ zoom: 1, cx: 50, cy: 50 })
     expect(zoomedAt(cam, p, 100, 100, 100).zoom).toBe(6)
     expect(toWorld({ x: 0, y: 100 }, [-1000, 1000, -500, 500], 100, 100)).toEqual([-1000, -500])
+  })
+})
+
+describe('Sightings', () => {
+  it('finds the Round\'s first contact', () => {
+    expect(firstContact(null)).toBeNull()
+    expect(
+      firstContact([
+        ['a', 'b', 30, 31],
+        ['c', 'd', 22.5, 24],
+        ['e', 'f', -3, 1],
+      ]),
+    ).toEqual({ spotter: 'c', seen: 'd', t: 22.5 })
   })
 })
