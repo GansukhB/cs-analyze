@@ -8,6 +8,7 @@
  */
 
 import { canvasIcon, equipmentUrl, iconEl, iconHtml, KILL_ICONS } from './icons'
+import { blindAt, changeAt, clock, paleTint, positionAt, toWorld, under as underCamera, weaponAt, zoomedAt } from './motion'
 
 export interface Label {
   name: string
@@ -163,16 +164,6 @@ interface Chip {
 // The Loadout's grenade labels.
 const NADES = new Set(['flash', 'smoke', 'HE', 'molotov', 'incendiary', 'decoy'])
 const PISTOLS = new Set(['Glock', 'USP-S', 'P2000', 'P250', 'Five-SeveN', 'Tec-9', 'CZ', 'Deagle', 'Duals', 'R8'])
-
-// The last change at or before frame `f` of a change list.
-function changeAt<T extends [number, ...unknown[]]>(list: T[] | undefined, f: number): T | null {
-  let found: T | null = null
-  for (const c of list || []) {
-    if (c[0] <= f) found = c
-    else break
-  }
-  return found
-}
 
 const WEAPONS: Record<string, string> = {
   ak47: 'AK-47', m4a1: 'M4', awp: 'AWP', 'usp/p2000': 'USP', glock: 'Glock',
@@ -627,36 +618,8 @@ export function mountReplay(
     if (feedPinned) feedBox.scrollTop = feedBox.scrollHeight
   }
 
-  function clock(t: number) {
-    const s = Math.max(0, Math.floor(t))
-    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-  }
-
   // ---- drawing --------------------------------------------------------------
-  // Shortest-path interpolation between two headings (350° → 10° turns 20°).
-  function lerpAngle(a: number | null | undefined, b: number | null | undefined, k: number) {
-    if (a === null || a === undefined) return b === null || b === undefined ? null : b
-    if (b === null || b === undefined) return a
-    const delta = ((((b - a + 180) % 360) + 360) % 360) - 180
-    return a + delta * k
-  }
-
-  function at(p: Player, f: number) {
-    // Linear interpolation between the two 8 Hz frames either side of `f`.
-    const i = Math.floor(f)
-    const j = Math.min(i + 1, p.x.length - 1)
-    if (i < 0 || i >= p.x.length) return null
-    const a = p.x[i]
-    const b = p.y[i]
-    if (a === null || b === null) return null
-    const c = p.x[j]
-    const d = p.y[j]
-    const dirA = p.dir ? p.dir[i] : null
-    if (c === null || d === null) return { x: a, y: b, hp: p.hp[i], dir: dirA }
-    const k = f - i
-    const dirB = p.dir ? p.dir[j] : null
-    return { x: a + (c - a) * k, y: b + (d - b) * k, hp: p.hp[i], dir: lerpAngle(dirA, dirB, k) }
-  }
+  const at = positionAt
 
   // What a player holds at frame `f`: the Loadout's Held weapon, or without one
   // the last weapon they fired.
@@ -709,37 +672,6 @@ export function mountReplay(
     if (kit) add('rp-icon kit', iconHtml('defuser', 'defuse kit'))
     rest.append(...parts.splice(2))
     chip.kit.replaceChildren(...parts, rest)
-  }
-
-  function weaponAt(p: Player, t: number) {
-    let held = ''
-    for (const w of p.weapons) {
-      if (w[0] <= t) held = w[1]
-      else break
-    }
-    return held
-  }
-
-  // Blindness 0..1: 1 the instant the flash lands, fading over the player's
-  // own blind duration (from the demo's flash_duration).
-  function blindAt(p: Player, f: number, hz: number) {
-    let onset: [number, number] | null = null
-    for (const b of p.blind || []) {
-      if (b[0] <= f) onset = b
-      else break
-    }
-    if (!onset) return 0
-    const elapsed = (f - onset[0]) / hz
-    return elapsed >= 0 && elapsed < onset[1] ? 1 - elapsed / onset[1] : 0
-  }
-
-  // A blinded dot pales toward white rather than losing its side colour.
-  function paleTint(hex: string, k: number) {
-    const n = parseInt(hex.slice(1), 16)
-    const r = (n >> 16) & 255
-    const g = (n >> 8) & 255
-    const b = n & 255
-    return `rgb(${Math.round(r + (255 - r) * k)},${Math.round(g + (255 - g) * k)},${Math.round(b + (255 - b) * k)})`
   }
 
   function drawPlate(floor: Floor) {
@@ -1400,27 +1332,16 @@ export function mountReplay(
   // -- VIZ-3: zoom, pan, follow, touch -----------------------------------
   state.cx = W / 2
   state.cy = H / 2
-  const MAX_ZOOM = 6
   // A point of the canvas element, in plate units on screen (before the camera).
   function screen(e: { clientX: number; clientY: number }) {
     const r = canvas.getBoundingClientRect()
     return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H }
   }
   // That point under the camera: where on the plate it is.
-  function under(p: { x: number; y: number }) {
-    return { x: state.cx + (p.x - W / 2) / state.zoom, y: state.cy + (p.y - H / 2) / state.zoom }
-  }
+  const under = (p: { x: number; y: number }) => underCamera(state, p, W, H)
   function zoomAt(p: { x: number; y: number }, factor: number) {
-    const before = under(p)
-    state.zoom = Math.max(1, Math.min(MAX_ZOOM, state.zoom * factor))
-    if (state.zoom === 1) {
-      state.cx = W / 2
-      state.cy = H / 2
-    } else {
-      // Keep the point under the cursor where it was.
-      state.cx = before.x - (p.x - W / 2) / state.zoom
-      state.cy = before.y - (p.y - H / 2) / state.zoom
-    }
+    // The point under the cursor stays where it was.
+    Object.assign(state, zoomedAt(state, p, factor, W, H))
     draw()
   }
   // Not passive: the wheel zooms the Map instead of scrolling the page.
@@ -1440,10 +1361,7 @@ export function mountReplay(
     draw()
   })
   // A point of the plate (after the camera) in world units, for a coach's mark.
-  function world(p: { x: number; y: number }): [number, number] {
-    const u = under(p)
-    return [EXT[0] + (u.x / W) * (EXT[1] - EXT[0]), EXT[2] + (1 - u.y / H) * (EXT[3] - EXT[2])]
-  }
+  const world = (p: { x: number; y: number }) => toWorld(under(p), EXT, W, H)
   // Pointers: one drags (pans when zoomed in, seeks on a phone when not), two pinch;
   // with a pen in the page's hand, one draws instead (VIZ-8).
   const down = new Map<number, { x: number; y: number }>()
