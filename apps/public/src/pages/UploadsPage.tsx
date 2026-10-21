@@ -67,6 +67,8 @@ function UploadForm() {
   const [opponent, setOpponent] = useState('')
   const [note, setNote] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  // DATA-1: or a link (a scrim server's demo, a shared Drive file) the worker fetches.
+  const [link, setLink] = useState('')
   const [progress, setProgress] = useState<{ done: number; of: number } | null>(null)
   const [error, setError] = useState('')
   const mine = myTeam ?? myTeams[0]?.id ?? null
@@ -77,9 +79,28 @@ function UploadForm() {
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (!file || mine === null) return
+    if ((!file && !link.trim()) || mine === null) return
     setError('')
     const opponentId = byName.get(opponent.trim().toLowerCase()) ?? null
+    if (!file) {
+      setProgress({ done: 0, of: 0 })
+      const fetched = await fetchClient.POST('/uploads/from-url', {
+        body: {
+          kind,
+          played_on: playedOn,
+          my_team_id: mine,
+          opponent_id: opponentId,
+          opponent_name: opponentId ? '' : opponent.trim(),
+          note,
+          url: link.trim(),
+        },
+      })
+      setProgress(null)
+      if (fetched.error) setError(detail(fetched.error) || 'Линкийг хүлээж авсангүй.')
+      else setLink('')
+      queryClient.invalidateQueries({ queryKey: ['get', '/uploads'] })
+      return
+    }
     const made = await fetchClient.POST('/uploads', {
       body: {
         kind,
@@ -198,9 +219,18 @@ function UploadForm() {
           className="text-ink-2"
         />
         {file && <span className="font-mono text-xs text-ink-3">{mb(file.size)}</span>}
+        <span className="text-ink-3">эсвэл</span>
+        <input
+          type="url"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="Линк: scrim server, Google Drive…"
+          disabled={!!file}
+          className="min-w-[16rem] flex-1 rounded-md border border-line bg-surface-2 px-3 py-2 text-ink disabled:opacity-50"
+        />
         <button
           type="submit"
-          disabled={!file || busy}
+          disabled={(!file && !link.trim()) || busy}
           className="rounded-md border border-line bg-raised px-4 py-2 text-ink hover:border-ink-3 disabled:opacity-50"
         >
           Upload
@@ -230,7 +260,9 @@ function UploadCard({ upload: u }: { upload: Upload }) {
         </span>
         <span className="text-ink-3">{u.played_on}</span>
         <span className="font-mono text-xs text-ink-3">
-          {u.filename} · {mb(u.size_bytes)}
+          {u.filename}
+          {u.size_bytes > 0 ? ` · ${mb(u.size_bytes)}` : ''}
+          {u.source_url ? ` · ${hostOf(u.source_url)}-оос` : ''}
         </span>
         <span className={`ml-auto ${s.tone}`}>{s.text}</span>
       </div>
@@ -315,6 +347,14 @@ function MapLine({ upload, map }: { upload: Upload; map: UploadMap }) {
       </div>
     </li>
   )
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return 'линк'
+  }
 }
 
 function detail(error: unknown): string {

@@ -1899,6 +1899,18 @@ class UploadCreate(BaseModel):
     size: int = Field(gt=0)
 
 
+class UploadFromUrl(BaseModel):
+    """Describe the file and give the link the worker fetches it from (DATA-1)."""
+
+    kind: Literal["scrim", "official"]
+    played_on: dt.date
+    my_team_id: int
+    opponent_id: int | None = None
+    opponent_name: str = Field(default="", max_length=120)
+    note: str = Field(default="", max_length=500)
+    url: str = Field(min_length=10, max_length=1000)
+
+
 class UploadPlayer(BaseModel):
     steamid: str
     name: str
@@ -1923,6 +1935,7 @@ class UploadRead(BaseModel):
     opponent_name: str
     note: str
     filename: str
+    source_url: str = ""
     size_bytes: int
     parts_total: int
     part_bytes: int

@@ -51,6 +51,8 @@ class Upload(TimestampMixin, Base):
     opponent_name: Mapped[str] = mapped_column(String(120), default="")
     note: Mapped[str] = mapped_column(String(500), default="")
     filename: Mapped[str] = mapped_column(String(255))
+    # DATA-1: a link the worker fetches the file from, instead of parts.
+    source_url: Mapped[str] = mapped_column(String(1000), default="")
     size_bytes: Mapped[int] = mapped_column(BigId)
     parts_total: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(16), default=UploadStatus.RECEIVING)

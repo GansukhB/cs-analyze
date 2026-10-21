@@ -3,7 +3,8 @@
 
 Staff describe the file (:func:`create`), send it in parts (:func:`put_part`,
 kept in MySQL, docs/adr/0002) and close it (:func:`complete`), which queues a
-job on the parse queue (OPS-6). The job (``tasks.ingest_upload``) puts the
+job on the parse queue (OPS-6); or give a link (:func:`create_from_url`), which
+the job fetches itself (:mod:`app.services.remote`). The job (``tasks.ingest_upload``) puts the
 parts together in its scratch folder, unpacks an archive, parses each Demo under
 the heavy permit and ingests it as a Map of one private Match
 (:func:`match_for`), then drops the parts.
@@ -20,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import math
+import urllib.parse
 from collections import defaultdict
 from datetime import date, datetime, time
 from pathlib import Path
@@ -43,7 +45,7 @@ from app.models import (
     WorkspaceTeam,
 )
 from app.models.upload import MAX_PARTS, PART_BYTES
-from app.services import archive, jobs, store
+from app.services import archive, jobs, remote, store
 
 logger = logging.getLogger(__name__)
 
@@ -85,20 +87,7 @@ def create(
     size: int,
 ) -> Upload:
     check_file(filename, size)
-    mine = db.scalar(
-        select(WorkspaceTeam.team_id).where(
-            WorkspaceTeam.workspace_id == user.workspace_id, WorkspaceTeam.team_id == my_team_id
-        )
-    )
-    if mine is None:
-        raise UploadError("Энэ Workspace-ийн my team биш.")
-    if opponent_id is not None:
-        if opponent_id == my_team_id:
-            raise UploadError("Өрсөлдөгч нь өөр баг байх ёстой.")
-        if db.get(Team, opponent_id) is None:
-            raise UploadError("Ийм баг алга.")
-    elif not opponent_name.strip():
-        raise UploadError("Өрсөлдөгч эсвэл scrim-ийн түншийн нэрийг бичнэ үү.")
+    _check_teams(db, user, my_team_id, opponent_id, opponent_name)
     upload = Upload(
         workspace_id=user.workspace_id,
         created_by_id=user.id,
@@ -117,6 +106,66 @@ def create(
     db.add(upload)
     db.commit()
     return upload
+
+
+def create_from_url(
+    db: Session,
+    user: User,
+    *,
+    url: str,
+    kind: str,
+    played_on: date,
+    my_team_id: int,
+    opponent_id: int | None,
+    opponent_name: str,
+    note: str,
+) -> Upload:
+    """An upload whose file the job fetches from ``url``, queued at once."""
+    link = remote.direct(url)
+    try:
+        remote.check(link)
+    except remote.RemoteError as exc:
+        raise UploadError(str(exc)) from None
+    _check_teams(db, user, my_team_id, opponent_id, opponent_name)
+    upload = Upload(
+        workspace_id=user.workspace_id,
+        created_by_id=user.id,
+        kind=kind,
+        played_on=played_on,
+        my_team_id=my_team_id,
+        opponent_id=opponent_id,
+        opponent_name=opponent_name.strip()[:120],
+        note=note.strip()[:500],
+        filename=(Path(urllib.parse.urlsplit(link).path).name or "demo")[:255],
+        size_bytes=0,
+        parts_total=0,
+        status=UploadStatus.QUEUED,
+        source_url=link[:1000],
+        maps=[],
+    )
+    db.add(upload)
+    db.commit()
+    queue(db, upload, user)
+    return upload
+
+
+def _check_teams(
+    db: Session, user: User, my_team_id: int, opponent_id: int | None, opponent_name: str
+) -> None:
+    mine = db.scalar(
+        select(WorkspaceTeam.team_id).where(
+            WorkspaceTeam.workspace_id == user.workspace_id, WorkspaceTeam.team_id == my_team_id
+        )
+    )
+    if mine is None:
+        raise UploadError("Энэ Workspace-ийн my team биш.")
+    if opponent_id is not None:
+        if opponent_id == my_team_id:
+            raise UploadError("Өрсөлдөгч нь өөр баг байх ёстой.")
+        if db.get(Team, opponent_id) is None:
+            raise UploadError("Ийм баг алга.")
+    elif not opponent_name.strip():
+        raise UploadError("Өрсөлдөгч эсвэл scrim-ийн түншийн нэрийг бичнэ үү.")
 
 
 def put_part(db: Session, upload: Upload, n: int, data: bytes) -> int:

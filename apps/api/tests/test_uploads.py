@@ -332,3 +332,41 @@ def test_a_players_scrims_show_in_his_form_and_not_his_partners(
     assert [r["scrim"] for r in form].count(True) == 1 and len(form) == 3
     partner = client.get(f"/players/{theirs.steamid}", headers=auth).json()["form"]
     assert not any(r["scrim"] for r in partner)
+
+
+def test_a_link_is_queued_then_fetched_by_the_job(
+    client, db, auth, staffed, sent, worker, monkeypatch
+):
+    """DATA-1: no parts, a link; the job fetches it and goes on as with an upload."""
+    from app.services import remote
+
+    team = staffed["a"].id
+    body = {"kind": "scrim", "played_on": "2026-10-20", "my_team_id": team,
+            "opponent_name": "Partner Five"}  # fmt: skip
+    inside = client.post("/uploads/from-url", headers=auth,
+                         json={**body, "url": "http://127.0.0.1/scrim.dem"})  # fmt: skip
+    assert inside.status_code == 400 and not sent
+    monkeypatch.setattr(remote, "check", lambda url, resolve=None: "example.com")
+    made = client.post("/uploads/from-url", headers=auth,
+                       json={**body, "url": "https://example.com/demos/scrim.dem"})  # fmt: skip
+    assert made.status_code == 201, made.text
+    up = made.json()
+    assert up["status"] == "queued" and up["source_url"].endswith("/scrim.dem") and len(sent) == 1
+
+    def fetched(url, folder, max_bytes, resolve=None):
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / "scrim.dem"
+        path.write_bytes(b"PBDEMS2\x00")
+        return path
+
+    monkeypatch.setattr(remote, "fetch", fetched)
+    ours = [p.steamid for p in staffed["players"][team]]
+    parsed = FakeParsed([901, 902, 903, 904, 905], ours)
+    monkeypatch.setattr(
+        tickdata, "parse_parts", lambda *a, **k: tickdata.Parse(parsed=parsed, bundle=b"x")
+    )
+    upload = db.scalar(select(Upload).where(Upload.source_url != ""))
+    tasks.ingest_upload.run(upload.job_id)
+    upload = _unscoped(db).get(Upload, upload.id)
+    assert upload.status == UploadStatus.DONE, upload.error
+    assert upload.size_bytes == 8 and upload.maps[0]["assigned"] is True

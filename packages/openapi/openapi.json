@@ -3843,6 +3843,53 @@
         ]
       }
     },
+    "/uploads/from-url": {
+      "post": {
+        "tags": [
+          "uploads"
+        ],
+        "summary": "Create From Url",
+        "description": "A link (a scrim server's demo, a shared Drive file) the worker fetches and\nparses; the browser carries nothing (DATA-1).",
+        "operationId": "create_from_url_uploads_from_url_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadFromUrl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/uploads/{public_id}/parts/{n}": {
       "put": {
         "tags": [
@@ -16601,6 +16648,65 @@
         "title": "UploadCreate",
         "description": "Describe the file first; its bytes follow in parts."
       },
+      "UploadFromUrl": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "scrim",
+              "official"
+            ],
+            "title": "Kind"
+          },
+          "played_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Played On"
+          },
+          "my_team_id": {
+            "type": "integer",
+            "title": "My Team Id"
+          },
+          "opponent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Id"
+          },
+          "opponent_name": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Opponent Name",
+            "default": ""
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Note",
+            "default": ""
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 10,
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "played_on",
+          "my_team_id",
+          "url"
+        ],
+        "title": "UploadFromUrl",
+        "description": "Describe the file and give the link the worker fetches it from (DATA-1)."
+      },
       "UploadList": {
         "properties": {
           "uploads": {
@@ -16749,6 +16855,11 @@
           "filename": {
             "type": "string",
             "title": "Filename"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "default": ""
           },
           "size_bytes": {
             "type": "integer",

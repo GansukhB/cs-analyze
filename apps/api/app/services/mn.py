@@ -3221,6 +3221,7 @@ HEAVY_WAIT = "Өөр parse ({holder}) дуусахыг хүлээж байна: 
 
 # Uploads (DATA-1)
 UPLOAD_ASSEMBLE = "{name} файлыг хэсгүүдээс нь нийлүүлж байна."
+UPLOAD_FETCH = "{host}-оос demo-г татаж байна."
 UPLOAD_SAME_MAP = (
     "{name}: {map} энэ upload-д аль хэдийн байна. Нэг Map-ыг хоёр удаа тоглосон бол "
     "тусад нь upload хийнэ үү."

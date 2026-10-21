@@ -1187,6 +1187,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/uploads/from-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create From Url
+         * @description A link (a scrim server's demo, a shared Drive file) the worker fetches and
+         *     parses; the browser carries nothing (DATA-1).
+         */
+        post: operations["create_from_url_uploads_from_url_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/uploads/{public_id}/parts/{n}": {
         parameters: {
             query?: never;
@@ -5837,6 +5858,38 @@ export interface components {
             /** Size */
             size: number;
         };
+        /**
+         * UploadFromUrl
+         * @description Describe the file and give the link the worker fetches it from (DATA-1).
+         */
+        UploadFromUrl: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "scrim" | "official";
+            /**
+             * Played On
+             * Format: date
+             */
+            played_on: string;
+            /** My Team Id */
+            my_team_id: number;
+            /** Opponent Id */
+            opponent_id?: number | null;
+            /**
+             * Opponent Name
+             * @default
+             */
+            opponent_name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Url */
+            url: string;
+        };
         /** UploadList */
         UploadList: {
             /** Uploads */
@@ -5898,6 +5951,11 @@ export interface components {
             note: string;
             /** Filename */
             filename: string;
+            /**
+             * Source Url
+             * @default
+             */
+            source_url: string;
             /** Size Bytes */
             size_bytes: number;
             /** Parts Total */
@@ -8321,6 +8379,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UploadCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_from_url_uploads_from_url_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadFromUrl"];
             };
         };
         responses: {

@@ -16,6 +16,7 @@ from app.models.upload import PART_BYTES
 from app.schemas import (
     TeamRef,
     UploadCreate,
+    UploadFromUrl,
     UploadList,
     UploadMap,
     UploadPartAck,
@@ -65,6 +66,7 @@ def _read(db, u: Upload) -> UploadRead:
         opponent_name=u.opponent_name,
         note=u.note,
         filename=u.filename,
+        source_url=u.source_url,
         size_bytes=u.size_bytes,
         parts_total=u.parts_total,
         part_bytes=PART_BYTES,
@@ -96,6 +98,18 @@ def create(body: UploadCreate, db: DbSession, user: StaffUser) -> UploadRead:
         u = uploads.create(db, user, **body.model_dump())
     except uploads.UploadError as exc:
         _fail(exc)
+    return _read(db, u)
+
+
+@router.post("/from-url", status_code=status.HTTP_201_CREATED)
+def create_from_url(body: UploadFromUrl, db: DbSession, user: StaffUser) -> UploadRead:
+    """A link (a scrim server's demo, a shared Drive file) the worker fetches and
+    parses; the browser carries nothing (DATA-1)."""
+    try:
+        u = uploads.create_from_url(db, user, **body.model_dump())
+    except uploads.UploadError as exc:
+        _fail(exc)
+    db.refresh(u)
     return _read(db, u)
 
 

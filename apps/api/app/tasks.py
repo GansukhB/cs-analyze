@@ -35,6 +35,7 @@ import shutil
 import threading
 import time
 import traceback
+import urllib.parse
 import uuid
 from collections import deque
 from pathlib import Path
@@ -62,6 +63,7 @@ from app.models import (
     UploadStatus,
 )
 from app.models.base import utcnow
+from app.models.upload import MAX_PARTS, PART_BYTES
 from app.services import (
     analysis_store,
     dbctx,
@@ -69,6 +71,7 @@ from app.services import (
     heavy,
     jobs,
     mn,
+    remote,
     review,
     review_pool,
     store,
@@ -216,9 +219,13 @@ def ingest_upload(self, job_id: int) -> dict:
         except BaseException as exc:
             logger.exception("upload job %s failed", job.public_id)
             db.rollback()
-            upload.status, upload.error = UploadStatus.FAILED, f"{type(exc).__name__}: {exc}"[:2000]
+            # An UploadError is worded for Staff already; anything else names its type.
+            said = (
+                str(exc) if isinstance(exc, uploads.UploadError) else f"{type(exc).__name__}: {exc}"
+            )
+            upload.status, upload.error = UploadStatus.FAILED, said[:2000]
             db.commit()
-            jobs.fail(job_db, job, f"{type(exc).__name__}: {exc}")
+            jobs.fail(job_db, job, said)
             jobs.log(job_db, job, traceback.format_exc()[-2000:], level=LEVEL.DEBUG)
             raise
         finally:
@@ -233,12 +240,24 @@ def _ingest_upload(job_db, db, job, upload: Upload, scratch: Path) -> dict:
     theirs_known = uploads.known_players(db, match.team2_id)
     entries = list(upload.maps or [])
     has_parts = uploads.received(db, upload)[0] > 0
+    # A link is fetched once: an answer to "who is who" re-runs the job with Maps in.
+    fetch = bool(upload.source_url) and not entries
 
-    if has_parts:
-        jobs.set_stage(
-            job_db, job, STAGE.UNPACKING, 10, mn.UPLOAD_ASSEMBLE.format(name=upload.filename)
-        )
-        whole = uploads.assemble(db, upload, scratch)
+    if has_parts or fetch:
+        if fetch:
+            host = urllib.parse.urlsplit(upload.source_url).hostname or ""
+            jobs.set_stage(job_db, job, STAGE.UNPACKING, 10, mn.UPLOAD_FETCH.format(host=host))
+            try:
+                whole = remote.fetch(upload.source_url, scratch, MAX_PARTS * PART_BYTES)
+            except remote.RemoteError as exc:
+                raise uploads.UploadError(str(exc)) from None
+            upload.filename, upload.size_bytes = whole.name[:255], whole.stat().st_size
+            db.commit()
+        else:
+            jobs.set_stage(
+                job_db, job, STAGE.UNPACKING, 10, mn.UPLOAD_ASSEMBLE.format(name=upload.filename)
+            )
+            whole = uploads.assemble(db, upload, scratch)
         files = uploads.demo_files(whole, scratch)
         jobs.finish_stage(job_db, job, STAGE.UNPACKING, "", {"demos": len(files)})
         jobs.set_stage(job_db, job, STAGE.PARSING, 30)
@@ -254,7 +273,8 @@ def _ingest_upload(job_db, db, job, upload: Upload, scratch: Path) -> dict:
                 entries.append(entry)
                 upload.maps = list(entries)
                 db.commit()
-        uploads.drop_parts(db, upload)
+        if has_parts:
+            uploads.drop_parts(db, upload)
 
     # "Who is who" answered: the Map again from its stored Tick Data, Teams given.
     for i, entry in enumerate(entries):
