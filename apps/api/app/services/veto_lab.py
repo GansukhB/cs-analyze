@@ -3,8 +3,9 @@
 Each Map's chance starts where the Forecast puts it. The Forecast keeps every
 Map at the Rating's chance (map offsets made its walk-forward check worse), so
 the lab shows what Staff can judge by: each side's strength on the Map (its
-share of Rounds won, pulled toward its own), how often it played it, and our
-Scrims there (docs/adr/0010: our own development, read for us only), and lets
+share of Rounds won, pulled toward its own), how often it played it, our
+Scrims there (docs/adr/0010: our own development, read for us only) and our
+active Strats there (SB-4), and lets
 Staff move a Map's chance by hand. The veto is then played from where it
 stands (:func:`forecast.veto_from`): our chance now, every option at the next
 step valued, and the line from there.
@@ -17,7 +18,7 @@ from collections import defaultdict
 from sqlalchemy import select
 
 from app.models import GameMap, Match, MatchKind, MatchMap, Round, Team
-from app.services import forecast, map_pool
+from app.services import forecast, map_pool, strat_match
 from app.services.dbctx import db
 
 MAX_ADJUST = 25.0  # points either way
@@ -62,6 +63,7 @@ def lab(
     mine = {r["map"]: r for r in map_pool.team_pool(my_team)["rows"]}
     theirs = {r["map"]: r for r in map_pool.team_pool(opponent)["rows"]}
     scrims = scrim_shares(my_team.id, workspace_id)
+    strats = strat_match.coverage(workspace_id, my_team.id)
     base = {m["map"]: m["p"] for m in built["maps"]}
     rows, p = [], {}
     for m in pool:
@@ -78,6 +80,7 @@ def lab(
                 "mine": _side(mine.get(m)),
                 "theirs": _side(theirs.get(m)),
                 "scrims": scrims.get(m),
+                "strats": strats.get(m),
             }
         )
     out = {"maps": rows, "limits": built["limits"], "veto": None}

@@ -96,7 +96,8 @@ export default function VetoLabPage() {
               <th className="py-1 pr-5 font-normal" />
               <th className="py-1 pr-5 text-right font-normal">Манай хүч</th>
               <th className="py-1 pr-5 text-right font-normal">Тэдний хүч</th>
-              <th className="py-1 font-normal">Манай Scrim</th>
+              <th className="py-1 pr-5 font-normal">Манай Scrim</th>
+              <th className="py-1 font-normal">Strat</th>
             </tr>
           </thead>
           <tbody className="text-ink-2">
@@ -121,8 +122,11 @@ export default function VetoLabPage() {
                 <td className="py-1 pr-5 text-right font-mono">
                   {m.theirs?.shrunk != null ? `${m.theirs.shrunk}% · ${m.theirs.maps}` : '—'}
                 </td>
-                <td className="py-1 font-mono text-xs">
+                <td className="py-1 pr-5 font-mono text-xs">
                   {m.scrims ? `${m.scrims.share}% · ${m.scrims.maps} map` : '—'}
+                </td>
+                <td className="py-1 font-mono text-xs" title="Идэвхтэй Strat · сүүлийн 30 хоногт тоглогдсон">
+                  {m.strats ? `${m.strats.active} · ${m.strats.recent}` : '—'}
                 </td>
               </tr>
             ))}

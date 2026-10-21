@@ -1171,6 +1171,11 @@ class VetoLabScrims(BaseModel):
     share: float
 
 
+class VetoLabStrats(BaseModel):
+    active: int
+    recent: int
+
+
 class VetoLabMap(BaseModel):
     map: str
     base: float | None
@@ -1179,6 +1184,7 @@ class VetoLabMap(BaseModel):
     mine: VetoLabSide | None
     theirs: VetoLabSide | None
     scrims: VetoLabScrims | None
+    strats: VetoLabStrats | None = None  # our active Strats there (SB-4)
 
 
 class VetoOption(BaseModel):
@@ -1358,6 +1364,30 @@ class StratExampleRead(BaseModel):
     note: str
 
 
+class StratTally(BaseModel):
+    played: int
+    won: int
+
+
+class StratReport(BaseModel):
+    """How the Strat did over its kept Rounds (SB-4)."""
+
+    played: int
+    won: int = 0
+    low: int | None = None  # 80% range of the share won, percent
+    high: int | None = None
+    pending: int = 0  # found Rounds Staff have yet to confirm
+    by_buy: dict[str, StratTally] = {}
+    official: StratTally | None = None
+    scrim: StratTally | None = None
+    last: str | None = None
+
+
+class StratCoverage(BaseModel):
+    active: int
+    recent: int
+
+
 class StratRead(StratRow):
     description: str
     roles: list[StratRole]
@@ -1369,6 +1399,7 @@ class StratRead(StratRow):
     examples_list: list[StratExampleRead]
     versions: int
     can_edit: bool
+    report: StratReport
 
 
 class StratEventRead(BaseModel):

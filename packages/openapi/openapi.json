@@ -3902,6 +3902,7 @@
           "strats"
         ],
         "summary": "Drop Example",
+        "description": "A Round picked by hand goes; one that was found stays, dismissed, so the\nnext search does not find it again (SB-4).",
         "operationId": "drop_example_strats__strat_id__examples__example_id__delete",
         "security": [
           {
@@ -3935,6 +3936,162 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StratRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strats/{strat_id}/examples/{example_id}/confirm": {
+      "post": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Confirm Example",
+        "operationId": "confirm_example_strats__strat_id__examples__example_id__confirm_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          },
+          {
+            "name": "example_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Example Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StratRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strats/{strat_id}/match": {
+      "post": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Match Rounds",
+        "description": "Find the Rounds that played the Strat (SB-4): kept as examples to confirm.",
+        "operationId": "match_rounds_strats__strat_id__match_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "strat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Strat Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StratRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strats/coverage/{team_id}": {
+      "get": {
+        "tags": [
+          "strats"
+        ],
+        "summary": "Coverage",
+        "description": "Per Map: the Team's active Strats and how many were played in the last 30 days.",
+        "operationId": "coverage_strats_coverage__team_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/StratCoverage"
+                  },
+                  "title": "Response Coverage Strats Coverage  Team Id  Get"
                 }
               }
             }
@@ -11703,6 +11860,24 @@
         ],
         "title": "StageRow"
       },
+      "StratCoverage": {
+        "properties": {
+          "active": {
+            "type": "integer",
+            "title": "Active"
+          },
+          "recent": {
+            "type": "integer",
+            "title": "Recent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "active",
+          "recent"
+        ],
+        "title": "StratCoverage"
+      },
       "StratEventRead": {
         "properties": {
           "user": {
@@ -11967,6 +12142,9 @@
           "can_edit": {
             "type": "boolean",
             "title": "Can Edit"
+          },
+          "report": {
+            "$ref": "#/components/schemas/StratReport"
           }
         },
         "type": "object",
@@ -11990,9 +12168,95 @@
           "tags",
           "examples_list",
           "versions",
-          "can_edit"
+          "can_edit",
+          "report"
         ],
         "title": "StratRead"
+      },
+      "StratReport": {
+        "properties": {
+          "played": {
+            "type": "integer",
+            "title": "Played"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won",
+            "default": 0
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending",
+            "default": 0
+          },
+          "by_buy": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StratTally"
+            },
+            "type": "object",
+            "title": "By Buy",
+            "default": {}
+          },
+          "official": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StratTally"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scrim": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StratTally"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "played"
+        ],
+        "title": "StratReport",
+        "description": "How the Strat did over its kept Rounds (SB-4)."
       },
       "StratRole": {
         "properties": {
@@ -12084,6 +12348,24 @@
           "updated_at"
         ],
         "title": "StratRow"
+      },
+      "StratTally": {
+        "properties": {
+          "played": {
+            "type": "integer",
+            "title": "Played"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          }
+        },
+        "type": "object",
+        "required": [
+          "played",
+          "won"
+        ],
+        "title": "StratTally"
       },
       "StratVersionRead": {
         "properties": {
@@ -13905,6 +14187,16 @@
                 "type": "null"
               }
             ]
+          },
+          "strats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VetoLabStrats"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -13981,6 +14273,24 @@
           "status"
         ],
         "title": "VetoLabSide"
+      },
+      "VetoLabStrats": {
+        "properties": {
+          "active": {
+            "type": "integer",
+            "title": "Active"
+          },
+          "recent": {
+            "type": "integer",
+            "title": "Recent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "active",
+          "recent"
+        ],
+        "title": "VetoLabStrats"
       },
       "VetoLine": {
         "properties": {

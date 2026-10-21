@@ -21,6 +21,7 @@ export function StratbookPage() {
   const team = teamId ?? myTeams[0]?.id ?? null
   const maps = $api.useQuery('get', '/strats/maps')
   const strats = $api.useQuery('get', '/strats', { params: { query: team ? { team_id: team } : {} } })
+  const cover = $api.useQuery('get', '/strats/coverage/{team_id}', { params: { path: { team_id: team ?? 0 } } }, { enabled: staff && !!team })
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-4">
@@ -53,7 +54,14 @@ export function StratbookPage() {
           <tbody>
             {maps.data.map((m) => (
               <tr key={m} className="border-t-1 border-line align-top">
-                <td className="py-2 text-ink">{label(m)}</td>
+                <td className="py-2 text-ink">
+                  {label(m)}
+                  {cover.data?.[m] && (
+                    <span className="block text-xs text-ink-3" title="Идэвхтэй Strat · сүүлийн 30 хоногт тоглогдсон">
+                      {cover.data[m].active} идэвхтэй · {cover.data[m].recent} туршсан
+                    </span>
+                  )}
+                </td>
                 {(['t', 'ct'] as const).map((side) => (
                   <td key={side} className="space-y-1 py-2 pr-4">
                     {strats.data
@@ -157,6 +165,8 @@ export function StratPage() {
     },
   })
   const printed = $api.useMutation('post', '/strats/{strat_id}/print')
+  const match = $api.useMutation('post', '/strats/{strat_id}/match', { onSuccess: refresh })
+  const confirm = $api.useMutation('post', '/strats/{strat_id}/examples/{example_id}/confirm', { onSuccess: refresh })
   const library = $api.useQuery(
     'get',
     '/lineups/{map_name}',
@@ -258,6 +268,7 @@ export function StratPage() {
           </section>
         ) : null,
       )}
+      <Report s={s} onMatch={s.can_edit ? () => match.mutate(path) : undefined} busy={match.isPending} />
       <section className="space-y-1">
         <h2 className="font-medium text-ink">Жишээ раундууд</h2>
         <ul className="space-y-0.5 text-sm">
@@ -266,6 +277,20 @@ export function StratPage() {
               <Link to={`/matches/${e.match_id}/m/${e.map_number}?round=${e.round}`} className="text-ct hover:underline">
                 ▶ {e.label}
               </Link>
+              {!e.confirmed && (
+                <span className="ml-2 text-xs text-warn">
+                  олдсон
+                  {s.can_edit && (
+                    <button
+                      type="button"
+                      onClick={() => confirm.mutate({ params: { path: { strat_id: id, example_id: e.id } } })}
+                      className="ml-1 text-ct underline print:hidden"
+                    >
+                      батлах
+                    </button>
+                  )}
+                </span>
+              )}
               {e.note && <span className="ml-2 text-ink-3">{e.note}</span>}
               {s.can_edit && (
                 <button
@@ -318,6 +343,39 @@ export function StratPage() {
       </section>
       {s.can_edit && <StaffTrail id={id} versions={s.versions} onDelete={() => remove.mutate(path)} />}
     </article>
+  )
+}
+
+type Read = NonNullable<ReturnType<typeof useStrat>['data']>
+const useStrat = (id: number) => $api.useQuery('get', '/strats/{strat_id}', { params: { path: { strat_id: id } } })
+
+/** How it did over its kept Rounds (SB-4), and finding more. */
+function Report({ s, onMatch, busy }: { s: Read; onMatch?: () => void; busy: boolean }) {
+  const r = s.report
+  const share = (t?: { played: number; won: number } | null) => (t && t.played ? `${t.won}/${t.played}` : '—')
+  return (
+    <section className="space-y-1 text-sm">
+      <h2 className="font-medium text-ink">Гүйцэтгэл</h2>
+      {r.played === 0 ? (
+        <p className="text-ink-3">Тоглогдсон раунд алга.</p>
+      ) : (
+        <p className="text-ink-2">
+          {r.played} удаа, <b className="text-ink">{r.won}</b> хожил ({Math.round((100 * r.won) / r.played)}%, 80%: {r.low}–{r.high}%)
+          · official {share(r.official)} · Scrim {share(r.scrim)}
+          {r.last && ` · сүүлд ${r.last}`}
+          {r.pending > 0 && <span className="text-warn"> · {r.pending} батлагдаагүй</span>}
+          <br />
+          <span className="text-xs text-ink-3">
+            Buy-аар: {Object.entries(r.by_buy).map(([k, v]) => `${k} ${v.won}/${v.played}`).join(', ')}
+          </span>
+        </p>
+      )}
+      {onMatch && (
+        <button type="button" disabled={busy} onClick={onMatch} className="text-ct underline print:hidden">
+          {busy ? 'Хайж байна…' : 'Тоглогдсон раундыг гранатаар нь хайх'}
+        </button>
+      )}
+    </section>
   )
 }
 

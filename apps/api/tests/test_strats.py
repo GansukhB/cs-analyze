@@ -79,3 +79,40 @@ def test_a_set_play_becomes_a_strat_with_its_rounds(client, db, auth, workspace,
     made = client.post("/strats", headers=auth, json=_body(a.id, examples=refs)).json()
     assert [e["round"] for e in made["examples_list"]] == [3, 6]
     assert {e["source"] for e in made["examples_list"]} == {"setplay"}
+
+
+def test_rounds_that_played_a_strat_are_found_and_counted(client, db, auth, workspace, league):
+    """SB-4: Alpha's T Rounds 7-9 against Bravo threw its two grenades on time."""
+    from app.models import GrenadeThrow, MatchMap, Round
+
+    a, b = league["a"], league["b"]
+    _ours(db, workspace, a)
+    match = db.scalar(select(Match).where(Match.team1_id == a.id, Match.team2_id == b.id))
+    mm = db.scalar(select(MatchMap).where(MatchMap.match_id == match.id))
+    for r in db.scalars(
+        select(Round).where(Round.match_map_id == mm.id, Round.number.in_((7, 8, 9)))
+    ):
+        for i, (kind, secs) in enumerate((("smoke", 15.0), ("inferno", 18.5))):
+            landed = r.freeze_end_tick + int(secs * 64)
+            db.add(GrenadeThrow(round_id=r.id, entity_id=500 + i, type=kind, thrower_side="t",
+                                start_tick=landed, place="BombsiteA"))  # fmt: skip
+    db.commit()
+    nades = [{"type": "smoke", "place": "BombsiteA", "at": 16.0},
+             {"type": "inferno", "place": "BombsiteA", "at": 20.0}]  # fmt: skip
+    sid = client.post("/strats", headers=auth, json=_body(a.id, grenades=nades)).json()["id"]
+    found = client.post(f"/strats/{sid}/match", headers=auth).json()
+    assert sorted(e["round"] for e in found["examples_list"]) == [7, 8, 9]
+    report = found["report"]
+    assert report["played"] == 3 and report["pending"] == 3
+    assert report["official"]["played"] == 3 and report["low"] <= 100 * report["won"] / 3
+    first = found["examples_list"][0]
+    after = client.post(f"/strats/{sid}/examples/{first['id']}/confirm", headers=auth).json()
+    assert after["report"]["pending"] == 2
+    second = after["examples_list"][1]
+    dropped = client.delete(f"/strats/{sid}/examples/{second['id']}", headers=auth).json()
+    assert dropped["report"]["played"] == 2
+    again = client.post(f"/strats/{sid}/match", headers=auth).json()
+    assert again["report"]["played"] == 2  # a dismissed Round is not found again
+    client.put(f"/strats/{sid}", headers=auth, json=_body(a.id, grenades=nades, status="active"))
+    cover = client.get(f"/strats/coverage/{a.id}", headers=auth).json()
+    assert cover["de_mirage"]["active"] == 1

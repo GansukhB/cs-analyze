@@ -1188,8 +1188,69 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Drop Example */
+        /**
+         * Drop Example
+         * @description A Round picked by hand goes; one that was found stays, dismissed, so the
+         *     next search does not find it again (SB-4).
+         */
         delete: operations["drop_example_strats__strat_id__examples__example_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/{strat_id}/examples/{example_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Example */
+        post: operations["confirm_example_strats__strat_id__examples__example_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/{strat_id}/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Match Rounds
+         * @description Find the Rounds that played the Strat (SB-4): kept as examples to confirm.
+         */
+        post: operations["match_rounds_strats__strat_id__match_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strats/coverage/{team_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Coverage
+         * @description Per Map: the Team's active Strats and how many were played in the last 30 days.
+         */
+        get: operations["coverage_strats_coverage__team_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3993,6 +4054,13 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** StratCoverage */
+        StratCoverage: {
+            /** Active */
+            active: number;
+            /** Recent */
+            recent: number;
+        };
         /** StratEventRead */
         StratEventRead: {
             /** User */
@@ -4107,6 +4175,40 @@ export interface components {
             versions: number;
             /** Can Edit */
             can_edit: boolean;
+            report: components["schemas"]["StratReport"];
+        };
+        /**
+         * StratReport
+         * @description How the Strat did over its kept Rounds (SB-4).
+         */
+        StratReport: {
+            /** Played */
+            played: number;
+            /**
+             * Won
+             * @default 0
+             */
+            won: number;
+            /** Low */
+            low?: number | null;
+            /** High */
+            high?: number | null;
+            /**
+             * Pending
+             * @default 0
+             */
+            pending: number;
+            /**
+             * By Buy
+             * @default {}
+             */
+            by_buy: {
+                [key: string]: components["schemas"]["StratTally"];
+            };
+            official?: components["schemas"]["StratTally"] | null;
+            scrim?: components["schemas"]["StratTally"] | null;
+            /** Last */
+            last?: string | null;
         };
         /** StratRole */
         StratRole: {
@@ -4152,6 +4254,13 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** StratTally */
+        StratTally: {
+            /** Played */
+            played: number;
+            /** Won */
+            won: number;
         };
         /** StratVersionRead */
         StratVersionRead: {
@@ -4836,6 +4945,7 @@ export interface components {
             mine: components["schemas"]["VetoLabSide"] | null;
             theirs: components["schemas"]["VetoLabSide"] | null;
             scrims: components["schemas"]["VetoLabScrims"] | null;
+            strats?: components["schemas"]["VetoLabStrats"] | null;
         };
         /** VetoLabScrims */
         VetoLabScrims: {
@@ -4858,6 +4968,13 @@ export interface components {
             recent: number;
             /** Status */
             status: string;
+        };
+        /** VetoLabStrats */
+        VetoLabStrats: {
+            /** Active */
+            active: number;
+            /** Recent */
+            recent: number;
         };
         /** VetoLine */
         VetoLine: {
@@ -7225,6 +7342,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StratRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_example_strats__strat_id__examples__example_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+                example_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    match_rounds_strats__strat_id__match_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                strat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StratRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    coverage_strats_coverage__team_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["StratCoverage"];
+                    };
                 };
             };
             /** @description Validation Error */

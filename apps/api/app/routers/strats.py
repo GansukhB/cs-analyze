@@ -28,16 +28,18 @@ from app.models import (
 )
 from app.routers.matches import _map
 from app.schemas import (
+    StratCoverage,
     StratEventRead,
     StratExampleRead,
     StratExampleWrite,
     StratRead,
+    StratReport,
     StratRow,
     StratVersionRead,
     StratWrite,
     TeamRef,
 )
-from app.services import dbctx, map_pool, scope
+from app.services import dbctx, map_pool, scope, strat_match
 
 router = APIRouter(prefix="/strats", tags=["strats"])
 FIELDS = ("map_name", "side", "name", "kind", "description", "timings", "variations", "calls",
@@ -86,9 +88,16 @@ def _row(db, strat: Strat, examples: int) -> dict:
 
 def _read(db, strat: Strat, user: User) -> StratRead:
     scope.allow_scrims(db)
+    with dbctx.using(db):
+        return _read_bound(db, strat, user)
+
+
+def _read_bound(db, strat: Strat, user: User) -> StratRead:
     examples = []
     for e in db.scalars(
-        select(StratExample).where(StratExample.strat_id == strat.id).order_by(StratExample.id)
+        select(StratExample)
+        .where(StratExample.strat_id == strat.id, StratExample.source != "dismissed")
+        .order_by(StratExample.id)
     ):
         mm = db.get(MatchMap, e.match_map_id)
         if mm is None:
@@ -117,6 +126,7 @@ def _read(db, strat: Strat, user: User) -> StratRead:
         examples_list=examples,
         versions=versions,
         can_edit=user.is_staff,
+        report=StratReport(**strat_match.report(strat)),
     )
 
 
@@ -246,16 +256,56 @@ def add_example(
     return _read(db, strat, user)
 
 
-@router.delete("/{strat_id}/examples/{example_id}")
-def drop_example(strat_id: int, example_id: int, db: DbSession, user: StaffUser) -> StratRead:
-    strat = _get(db, user, strat_id)
+def _example(db, strat: Strat, example_id: int) -> StratExample:
     example = db.get(StratExample, example_id)
     if example is None or example.strat_id != strat.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such example")
-    db.delete(example)
+    return example
+
+
+@router.delete("/{strat_id}/examples/{example_id}")
+def drop_example(strat_id: int, example_id: int, db: DbSession, user: StaffUser) -> StratRead:
+    """A Round picked by hand goes; one that was found stays, dismissed, so the
+    next search does not find it again (SB-4)."""
+    strat = _get(db, user, strat_id)
+    example = _example(db, strat, example_id)
+    if example.source == "auto":
+        example.source = "dismissed"
+    else:
+        db.delete(example)
     _log(db, strat, user, "edit")
     db.commit()
     return _read(db, strat, user)
+
+
+@router.post("/{strat_id}/examples/{example_id}/confirm")
+def confirm_example(strat_id: int, example_id: int, db: DbSession, user: StaffUser) -> StratRead:
+    strat = _get(db, user, strat_id)
+    _example(db, strat, example_id).confirmed = True
+    _log(db, strat, user, "edit")
+    db.commit()
+    return _read(db, strat, user)
+
+
+@router.post("/{strat_id}/match")
+def match_rounds(strat_id: int, db: DbSession, user: StaffUser) -> StratRead:
+    """Find the Rounds that played the Strat (SB-4): kept as examples to confirm."""
+    strat = _get(db, user, strat_id)
+    with dbctx.using(db):
+        strat_match.refresh(strat)
+    db.commit()
+    return _read(db, strat, user)
+
+
+@router.get("/coverage/{team_id}")
+def coverage(team_id: int, db: DbSession, user: StaffUser) -> dict[str, StratCoverage]:
+    """Per Map: the Team's active Strats and how many were played in the last 30 days."""
+    _my_team(db, user, team_id)
+    with dbctx.using(db):
+        return {
+            k: StratCoverage(**v)
+            for k, v in strat_match.coverage(user.workspace_id, team_id).items()
+        }
 
 
 @router.get("/{strat_id}/versions")
