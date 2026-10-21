@@ -12,24 +12,29 @@ Side of the Map, and a Team's number is said as its percentile among them:
   to slow the T inside :data:`DELAY_SECONDS`, and in a post-plant Round lost,
   how often someone saved;
 * both: a force after losing a pistol, the Round won after the first kill and
-  after the first death, and full buys won against a light one.
+  after the first death, and full buys won against a light one;
+* from the Round search's tokens (schema 2): a Side in mid by :data:`MID_AT`,
+  a T lurk (one away from three or more at :data:`LURK_AT`), and how fast
+  another CT reaches a site after losing its opening (:data:`ROTATE_WITHIN`).
 
 The Pool is computed once per parse and Map and shared (:mod:`pool_cache`).
 """
 
 from __future__ import annotations
 
+import gzip
+import json
 import statistics
 from collections import Counter, defaultdict
 
 from sqlalchemy import func, select
 
-from app.models import GameMap, GrenadeThrow, KillEvent, MatchMap, Round
-from app.services import mn, playbook, pool_cache
+from app.models import GameMap, GrenadeThrow, KillEvent, MatchMap, ReplayRound, Round
+from app.services import after_contact, mn, playbook, pool_cache
 from app.services.analysis_store import PISTOL_ROUNDS
 from app.services.dbctx import db
 
-STYLE_SCHEMA = 1
+STYLE_SCHEMA = 2  # 2: lurk, mid control, rotations (from the Round search's tokens)
 MIN_ROUNDS = 12
 EARLY_PLANT = 40.0
 LATE_PLANT = 70.0
@@ -39,6 +44,9 @@ FAKE_WINDOW = 30.0
 EARLY_PICK = 20.0
 DELAY_SECONDS = 25.0
 LIGHT = ("eco", "force")
+MID_AT = 20  # seconds: who holds mid by then
+LURK_AT = 30  # seconds: one T away from three or more on the other site
+ROTATE_WITHIN = 20  # seconds after an opening at a site for another CT to arrive
 # Fewer Rounds behind a number than this and the page marks it thin.
 THIN = 5
 
@@ -50,7 +58,11 @@ METRICS = {
     "late_plant": ("t", f"{int(LATE_PLANT)} s-ээс хойш plant", "%", "удаан"),
     "execute": ("t", "Utility-тэй execute", "%", "олон"),
     "fake": ("t", "Fake", "%", "олон"),
+    "mid_t": ("t", f"{MID_AT} s-д mid-д", "%", "олон"),
+    "lurk": ("t", "Lurk", "%", "олон"),
     "early_pick": ("ct", f"Эхний {int(EARLY_PICK)} s-д pick", "%", "түрэмгий"),
+    "mid_ct": ("ct", f"{MID_AT} s-д mid-д", "%", "олон"),
+    "rotate": ("ct", "Rotate (opening-ийн дараа)", "s", "удаан"),
     "delay": ("ct", "Саатуулах utility", "%", "олон"),
     "saves": ("ct", "Plant-ын дараа хэмнэх", "%", "олон"),
     "force_after_pistol": ("both", "Pistol алдсаны дараа force", "%", "олон"),
@@ -84,13 +96,43 @@ def _first_kills(ids: list[int]) -> dict[int, tuple]:
         .subquery()
     )
     out = {}
-    for rid, tick, side in db().execute(
-        select(KillEvent.round_id, KillEvent.tick, KillEvent.attacker_side).join(
-            first, (first.c.round_id == KillEvent.round_id) & (first.c.tick == KillEvent.tick)
+    for rid, tick, side, x, y, z in db().execute(
+        select(
+            KillEvent.round_id, KillEvent.tick, KillEvent.attacker_side, KillEvent.victim_x,
+            KillEvent.victim_y, KillEvent.victim_z,
+        ).join(first, (first.c.round_id == KillEvent.round_id) & (first.c.tick == KillEvent.tick))
+    ):  # fmt: skip
+        out.setdefault(rid, (tick, side, (x, y, z)))
+    return out
+
+
+def _tokens(rows) -> dict[tuple[int, int], dict]:
+    """The Round search's per-second place counts, by (Match Map, Round)."""
+    maps = {r.match_map_id for r in rows}
+    out = {}
+    for mm, number, blob in db().execute(
+        select(ReplayRound.match_map_id, ReplayRound.number, ReplayRound.tokens).where(
+            ReplayRound.match_map_id.in_(maps), ReplayRound.tokens.is_not(None)
         )
     ):
-        out.setdefault(rid, (tick, side))
+        out[(mm, number)] = json.loads(gzip.decompress(blob))
     return out
+
+
+def _lurked(tk: dict, toward: dict[str, set]) -> bool:
+    """At LURK_AT, one T on a site's side while three or more are on the other."""
+    a = after_contact._at(tk, "t", LURK_AT, toward["A"])
+    b = after_contact._at(tk, "t", LURK_AT, toward["B"])
+    return (a == 1 and b >= 3) or (b == 1 and a >= 3)
+
+
+def _rotated(tk: dict, toward: set, s0: int) -> float | None:
+    """Seconds after an opening at a site until one more CT stands there."""
+    base = after_contact._at(tk, "ct", s0 + 1, toward)
+    for d in range(2, ROTATE_WITHIN + 1):
+        if after_contact._at(tk, "ct", s0 + d, toward) > base:
+            return float(d)
+    return None
 
 
 def _grenades(ids: list[int]) -> dict[int, list]:
@@ -130,6 +172,9 @@ def _values(map_name: str) -> dict[str, dict[str, list]]:
     nades = _grenades(ids)
     ct_deaths = _ct_deaths_after_plant(ids)
     sites = playbook.site_centroids(map_name)
+    tokens = _tokens(rows)
+    leans = after_contact.place_leans(map_name)
+    toward = {w: {p for p, lean in leans.items() if lean == w} for w in ("A", "mid", "B")}
     by_map: dict[int, dict[int, object]] = defaultdict(dict)
     for r in rows:
         by_map[r.match_map_id][r.number] = r
@@ -142,9 +187,13 @@ def _values(map_name: str) -> dict[str, dict[str, list]]:
 
         t, ct = str(r.t_team_id or ""), str(r.ct_team_id or "")
         k = first.get(r.id)
+        tk = tokens.get((r.match_map_id, r.number))
         if t:
             mine = out[t]
             mine["_t_rounds"].append(1)
+            if tk:
+                mine["mid_t"].append(int(after_contact._at(tk, "t", MID_AT, toward["mid"]) > 0))
+                mine["lurk"].append(int(_lurked(tk, toward)))
             if k:
                 mine["contact"].append(secs(k[0]))
             if r.bomb_plant_tick:
@@ -173,6 +222,13 @@ def _values(map_name: str) -> dict[str, dict[str, list]]:
         if ct:
             mine = out[ct]
             mine["_ct_rounds"].append(1)
+            if tk:
+                mine["mid_ct"].append(int(after_contact._at(tk, "ct", MID_AT, toward["mid"]) > 0))
+                where = playbook.lean(k[2], sites) if k and sites and None not in k[2] else ""
+                if k and k[1] == "t" and where in ("A", "B"):
+                    took = _rotated(tk, toward[where], int(secs(k[0])))
+                    if took is not None:
+                        mine["rotate"].append(took)
             mine["early_pick"].append(int(bool(k) and k[1] == "ct" and secs(k[0]) <= EARLY_PICK))
             mine["delay"].append(
                 int(any(side == "ct" and secs(start) <= DELAY_SECONDS

@@ -29,3 +29,18 @@ def test_the_team_page_and_the_game_plan_ask_for_it(client, auth, db, league, me
     assert view["maps"] == ["de_mirage"] and view["style"]["map"] == "de_mirage"
     both = client.get(f"/gameplan/{a.id}/vs/{b.id}/style/de_mirage", headers=auth).json()
     assert both["mine"]["sides"] and both["theirs"]["sides"]
+
+
+def test_lurks_and_rotations_read_from_the_round_tokens():
+    """TM-5 schema 2, on hand-made tokens: places A1, B1, Mid1."""
+    from app.services import style
+
+    toward = {"A": {"A1"}, "B": {"B1"}, "mid": {"Mid1"}}
+    lurk = {"places": ["A1", "B1", "Mid1"], "t": [[30, 0, 1], [30, 1, 3]], "ct": []}
+    stack = {"places": ["A1", "B1", "Mid1"], "t": [[30, 0, 2], [30, 1, 3]], "ct": []}
+    assert style._lurked(lurk, toward) and not style._lurked(stack, toward)
+    # One CT at A from second 11 (after the opening at 10), a second one at 15.
+    ct = {"places": ["A1", "B1"], "t": [],
+          "ct": [[11, 0, 1], [12, 0, 1], [15, 0, 2]]}  # fmt: skip
+    assert style._rotated(ct, {"A1"}, 10) == 5.0
+    assert style._rotated(ct, {"B1"}, 10) is None
