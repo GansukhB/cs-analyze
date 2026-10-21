@@ -1256,6 +1256,35 @@ class TimeoutCard(BaseModel):
     pool: AuditPool
 
 
+# -- The lineup library (docs/plans/08 SB-3) -----------------------------------------
+class LineupRef(BaseModel):
+    match: int
+    map: int
+    round: int
+
+
+class Lineup(BaseModel):
+    key: str
+    type: str
+    side: str
+    throws: int
+    from_: str = Field(alias="from")
+    to: str
+    x: float
+    y: float
+    z: float
+    pitch: float
+    yaw: float
+    land: list[int]
+    flight: float | None
+    teams: list[tuple[str, int]]
+    players: list[tuple[str, int]]
+    setpos: str
+    refs: list[LineupRef]
+
+    model_config = {"populate_by_name": True}
+
+
 # -- The Stratbook (docs/plans/08 SB-1, SB-7) ---------------------------------------
 class StratRole(BaseModel):
     slot: int = Field(ge=1, le=5)
@@ -1270,7 +1299,7 @@ class StratGrenade(BaseModel):
     place: str = Field(default="", max_length=40)
     at: float | None = Field(default=None, ge=0, le=180)
     note: str = Field(default="", max_length=300)
-    lineup: int | None = None
+    lineup: str | None = Field(default=None, max_length=64)  # a Lineup's key (SB-3)
 
 
 class StratExampleWrite(BaseModel):

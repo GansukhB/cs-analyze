@@ -422,6 +422,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lineups/{map_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Library
+         * @description Every lineup on the Map, the most thrown first; by Side, kind or a Team.
+         */
+        get: operations["library_lineups__map_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/matches/{match_id}/maps/{map_number}/notes": {
         parameters: {
             query?: never;
@@ -2590,6 +2610,49 @@ export interface components {
             /** Unit */
             unit: string;
         };
+        /** Lineup */
+        Lineup: {
+            /** Key */
+            key: string;
+            /** Type */
+            type: string;
+            /** Side */
+            side: string;
+            /** Throws */
+            throws: number;
+            /** From */
+            from: string;
+            /** To */
+            to: string;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Z */
+            z: number;
+            /** Pitch */
+            pitch: number;
+            /** Yaw */
+            yaw: number;
+            /** Land */
+            land: number[];
+            /** Flight */
+            flight: number | null;
+            /** Teams */
+            teams: [
+                string,
+                number
+            ][];
+            /** Players */
+            players: [
+                string,
+                number
+            ][];
+            /** Setpos */
+            setpos: string;
+            /** Refs */
+            refs: components["schemas"]["LineupRef"][];
+        };
         /** LineupMember */
         LineupMember: {
             /** Steamid */
@@ -2631,6 +2694,15 @@ export interface components {
         LineupPlayers: {
             /** Players */
             players: components["schemas"]["LineupPlayer"][];
+        };
+        /** LineupRef */
+        LineupRef: {
+            /** Match */
+            match: number;
+            /** Map */
+            map: number;
+            /** Round */
+            round: number;
         };
         /** MapAudit */
         MapAudit: {
@@ -3989,7 +4061,7 @@ export interface components {
              */
             note: string;
             /** Lineup */
-            lineup?: number | null;
+            lineup?: string | null;
         };
         /** StratRead */
         StratRead: {
@@ -5504,6 +5576,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeOverview"];
+                };
+            };
+        };
+    };
+    library_lineups__map_name__get: {
+        parameters: {
+            query?: {
+                side?: string | null;
+                type?: string | null;
+                team?: string | null;
+            };
+            header?: never;
+            path: {
+                map_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lineup"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

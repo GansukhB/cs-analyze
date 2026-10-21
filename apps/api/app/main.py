@@ -13,6 +13,7 @@ from app.routers import (
     forecasts,
     gameplan,
     jobs,
+    lineups,
     matches,
     me,
     notes,
@@ -47,6 +48,7 @@ app.include_router(teams.router)
 app.include_router(matches.router)
 app.include_router(players.router)
 app.include_router(me.router)
+app.include_router(lineups.router)
 app.include_router(notes.router)
 app.include_router(gameplan.router)
 app.include_router(forecasts.router)

@@ -1030,6 +1030,106 @@
         ]
       }
     },
+    "/lineups/{map_name}": {
+      "get": {
+        "tags": [
+          "lineups"
+        ],
+        "summary": "Library",
+        "description": "Every lineup on the Map, the most thrown first; by Side, kind or a Team.",
+        "operationId": "library_lineups__map_name__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "map_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Map Name"
+            }
+          },
+          {
+            "name": "side",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Side"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          },
+          {
+            "name": "team",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Lineup"
+                  },
+                  "title": "Response Library Lineups  Map Name  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/matches/{match_id}/maps/{map_number}/notes": {
       "get": {
         "tags": [
@@ -7512,6 +7612,138 @@
         ],
         "title": "KpiChoice"
       },
+      "Lineup": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "throws": {
+            "type": "integer",
+            "title": "Throws"
+          },
+          "from": {
+            "type": "string",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "title": "To"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "z": {
+            "type": "number",
+            "title": "Z"
+          },
+          "pitch": {
+            "type": "number",
+            "title": "Pitch"
+          },
+          "yaw": {
+            "type": "number",
+            "title": "Yaw"
+          },
+          "land": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Land"
+          },
+          "flight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flight"
+          },
+          "teams": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Teams"
+          },
+          "players": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Players"
+          },
+          "setpos": {
+            "type": "string",
+            "title": "Setpos"
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/LineupRef"
+            },
+            "type": "array",
+            "title": "Refs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "type",
+          "side",
+          "throws",
+          "from",
+          "to",
+          "x",
+          "y",
+          "z",
+          "pitch",
+          "yaw",
+          "land",
+          "flight",
+          "teams",
+          "players",
+          "setpos",
+          "refs"
+        ],
+        "title": "Lineup"
+      },
       "LineupMember": {
         "properties": {
           "steamid": {
@@ -7599,6 +7831,29 @@
           "players"
         ],
         "title": "LineupPlayers"
+      },
+      "LineupRef": {
+        "properties": {
+          "match": {
+            "type": "integer",
+            "title": "Match"
+          },
+          "map": {
+            "type": "integer",
+            "title": "Map"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match",
+          "map",
+          "round"
+        ],
+        "title": "LineupRef"
       },
       "MapAudit": {
         "properties": {
@@ -11606,7 +11861,8 @@
           "lineup": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "string",
+                "maxLength": 64
               },
               {
                 "type": "null"

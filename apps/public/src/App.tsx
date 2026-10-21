@@ -15,6 +15,7 @@ import JobPage from './pages/JobPage'
 import JobsPage from './pages/JobsPage'
 import LoginPage from './pages/LoginPage'
 import MatchPage from './pages/MatchPage'
+import LineupsPage from './pages/LineupsPage'
 import MapSheetPage from './pages/MapSheetPage'
 import MePage from './pages/MePage'
 import PlayerPage from './pages/PlayerPage'
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="scrims" element={<ScrimsPage />} />
         <Route path="playlists" element={<PlaylistsPage />} />
         <Route path="stratbook" element={<StratbookPage />} />
+        <Route path="lineups" element={<LineupsPage />} />
         <Route path="stratbook/new" element={<StratNewPage />} />
         <Route path="stratbook/:stratId" element={<StratPage />} />
         <Route path="playlists/:playlistId" element={<PlaylistPage />} />
