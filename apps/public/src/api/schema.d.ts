@@ -634,6 +634,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/gameplan/{mine}/vs/{theirs}/veto": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Veto Lab Step
+         * @description The veto from where it stands, with each Map's chance as Staff set it (GP-10).
+         */
+        post: operations["veto_lab_step_gameplan__mine__vs__theirs__veto_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gameplan/{mine}/vs/{theirs}/timeout/{map_name}": {
         parameters: {
             query?: never;
@@ -4317,6 +4337,132 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VetoLab */
+        VetoLab: {
+            /** Maps */
+            maps: components["schemas"]["VetoLabMap"][];
+            /** Limits */
+            limits: {
+                [key: string]: unknown;
+            }[];
+            veto: components["schemas"]["VetoState"] | null;
+        };
+        /** VetoLabAsk */
+        VetoLabAsk: {
+            /**
+             * Format
+             * @default bo3
+             * @enum {string}
+             */
+            format: "bo1" | "bo3" | "bo5";
+            /**
+             * We Start
+             * @default true
+             */
+            we_start: boolean;
+            /** Done */
+            done?: string[];
+            /** Adjust */
+            adjust?: {
+                [key: string]: number;
+            };
+        };
+        /** VetoLabMap */
+        VetoLabMap: {
+            /** Map */
+            map: string;
+            /** Base */
+            base: number | null;
+            /** Adjust */
+            adjust: number;
+            /** P */
+            p: number | null;
+            mine: components["schemas"]["VetoLabSide"] | null;
+            theirs: components["schemas"]["VetoLabSide"] | null;
+            scrims: components["schemas"]["VetoLabScrims"] | null;
+        };
+        /** VetoLabScrims */
+        VetoLabScrims: {
+            /** Maps */
+            maps: number;
+            /** Rounds */
+            rounds: number;
+            /** Share */
+            share: number;
+        };
+        /** VetoLabSide */
+        VetoLabSide: {
+            /** Maps */
+            maps: number;
+            /** Won */
+            won: number;
+            /** Shrunk */
+            shrunk: number | null;
+            /** Recent */
+            recent: number;
+            /** Status */
+            status: string;
+        };
+        /** VetoLine */
+        VetoLine: {
+            /** Who */
+            who: string;
+            /** Kind */
+            kind: string;
+            /** Map */
+            map: string;
+            /** Chance */
+            chance?: number | null;
+        };
+        /** VetoNext */
+        VetoNext: {
+            /** Who */
+            who: string;
+            /** Kind */
+            kind: string;
+            /** Options */
+            options: components["schemas"]["VetoOption"][];
+        };
+        /** VetoOption */
+        VetoOption: {
+            /** Map */
+            map: string;
+            /** Expected */
+            expected: number;
+            /** Minimax */
+            minimax: number;
+            /** Chance */
+            chance: number | null;
+        };
+        /** VetoState */
+        VetoState: {
+            /** Format */
+            format: string;
+            /** We Start */
+            we_start: boolean;
+            /** Steps */
+            steps: components["schemas"]["VetoStep"][];
+            /** Done */
+            done: string[];
+            /** Expected */
+            expected: number;
+            /** Minimax */
+            minimax: number;
+            next: components["schemas"]["VetoNext"] | null;
+            /** Line */
+            line: components["schemas"]["VetoLine"][];
+            /** Maps */
+            maps: string[];
+            /** Decider */
+            decider: string | null;
+        };
+        /** VetoStep */
+        VetoStep: {
+            /** Who */
+            who: string;
+            /** Kind */
+            kind: string;
+        };
         /** WorkspaceMembers */
         WorkspaceMembers: {
             /** Members */
@@ -5407,6 +5553,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GameplanPanel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    veto_lab_step_gameplan__mine__vs__theirs__veto_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mine: number;
+                theirs: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VetoLabAsk"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VetoLab"];
                 };
             };
             /** @description Validation Error */

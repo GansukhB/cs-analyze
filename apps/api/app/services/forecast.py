@@ -281,8 +281,10 @@ def _their_policy(options: list[str], kind: str, p: dict[str, float], share: dic
     return {m: w / total for m, w in weights.items()}
 
 
-def veto(p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool) -> dict:
-    """Play the veto out: our options at each of our steps, valued both ways."""
+def _solver(p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool):
+    """``value(left, played, i, mode)``: our series chance from step ``i`` on, with
+    our best answer at our steps and, at theirs, their worst for us ("minimax")
+    or their likely move ("expected")."""
     steps = VETO[fmt]
     best_of = FORMATS[fmt]
     us = "a" if we_start else "b"
@@ -305,10 +307,15 @@ def veto(p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool)
         policy = _their_policy(options, kind, p, share)
         return sum(q * after(m) for m, q in policy.items())
 
-    pool = frozenset(p)
-    # The line: our best answer at each of our steps, their likeliest move at theirs.
-    line, left, played = [], pool, ()
-    for i, (who, kind) in enumerate(steps):
+    return value, steps, best_of, us
+
+
+def _line(value, steps, us, p, share, left: frozenset, played: tuple, start: int) -> list:
+    """From step ``start``: our best answer at each of our steps, their likeliest
+    move at theirs."""
+    line = []
+    for i in range(start, len(steps)):
+        who, kind = steps[i]
         options = sorted(left)
         if who == us:
             scored = []
@@ -328,24 +335,68 @@ def veto(p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool)
             policy = _their_policy(options, kind, p, share)
             choice = max(policy, key=lambda m: (policy[m], m))
             line.append(
-                {
-                    "who": "theirs",
-                    "kind": kind,
-                    "map": choice,
-                    "chance": round(policy[choice], 3),
-                }
+                {"who": "theirs", "kind": kind, "map": choice, "chance": round(policy[choice], 3)}
             )
         left = left - {choice}
         if kind == "pick":
             played = played + (choice,)
-    decider = sorted(left)[: best_of - len(played)]
+    return line
+
+
+def veto(p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool) -> dict:
+    """Play the veto out: our options at each of our steps, valued both ways."""
+    return veto_from(p, share, fmt, we_start, [])
+
+
+def veto_from(
+    p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool, done: list[str]
+) -> dict:
+    """The veto from where it stands, ``done`` the Maps taken at its first steps
+    in order (GP-10): our chance now, every option at the next step valued, and
+    the line played out from there."""
+    value, steps, best_of, us = _solver(p, share, fmt, we_start)
+    left, played = frozenset(p), ()
+    for i, m in enumerate(done):
+        if i >= len(steps) or m not in left:
+            raise ValueError(f"step {i + 1}: {m} is not open")
+        left = left - {m}
+        if steps[i][1] == "pick":
+            played = played + (m,)
+    at = len(done)
+    nxt = None
+    if at < len(steps):
+        who, kind = steps[at]
+        options = []
+        policy = _their_policy(sorted(left), kind, p, share) if who != us else {}
+        for m in sorted(left):
+            nl, np_ = left - {m}, played + ((m,) if kind == "pick" else ())
+            options.append(
+                {
+                    "map": m,
+                    "expected": round(value(nl, np_, at + 1, "expected"), 4),
+                    "minimax": round(value(nl, np_, at + 1, "minimax"), 4),
+                    "chance": round(policy[m], 3) if policy else None,
+                }
+            )
+        options.sort(key=lambda r: (-r["expected"], r["map"]))
+        nxt = {"who": "mine" if who == us else "theirs", "kind": kind, "options": options}
+    line = _line(value, steps, us, p, share, left, played, at)
+    projected_left, projected = left, played
+    for step in line:
+        projected_left = projected_left - {step["map"]}
+        if step["kind"] == "pick":
+            projected = projected + (step["map"],)
+    decider = sorted(projected_left)[: best_of - len(projected)]
     return {
         "format": fmt,
         "we_start": we_start,
-        "expected": round(value(pool, (), 0, "expected"), 4),
-        "minimax": round(value(pool, (), 0, "minimax"), 4),
+        "steps": [{"who": "mine" if w == us else "theirs", "kind": k} for w, k in steps],
+        "done": list(done),
+        "expected": round(value(left, played, at, "expected"), 4),
+        "minimax": round(value(left, played, at, "minimax"), 4),
+        "next": nxt,
         "line": line,
-        "maps": list(played) + decider,
+        "maps": list(projected) + decider,
         "decider": decider[0] if decider else None,
     }
 

@@ -159,3 +159,32 @@ def test_a_team_page_splits_its_maps_by_the_opponents_tier(client, db, auth):
     s = client.get(f"/teams/{a.id}", headers=auth).json()["strength"]
     assert s["name"] == "Alpha" and s["series"] == 12 and len(s["trend"]) >= 2
     assert sum(t["maps"] for t in s["tiers"]) == 1 and s["tiers"][0]["won"] == 1
+
+
+def test_the_veto_plays_on_from_where_it_stands():
+    """GP-10: our chance after their ban, every option at the next step valued."""
+    maps = ["de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage",
+            "de_nuke"]  # fmt: skip
+    p = dict(zip(maps, (0.7, 0.3, 0.5, 0.5, 0.5, 0.5, 0.5), strict=True))
+    share = dict.fromkeys(maps, 1 / 7)
+    fresh = forecast.veto_from(p, share, "bo3", True, [])
+    assert fresh["expected"] == forecast.veto(p, share, "bo3", True)["expected"]
+    # We ban our worst; then it is their ban, with their likely choice per Map.
+    after = forecast.veto_from(p, share, "bo3", True, ["de_anubis"])
+    assert after["next"]["who"] == "theirs" and after["next"]["kind"] == "ban"
+    assert all(o["chance"] is not None for o in after["next"]["options"])
+    assert len(after["line"]) == 5 and len(after["maps"]) == 3
+    with pytest.raises(ValueError):
+        forecast.veto_from(p, share, "bo3", True, ["de_anubis", "de_anubis"])
+
+
+def test_the_lab_needs_ratings_for_a_veto(client, auth, db):
+    from app.models import Team
+
+    a, b = Team(name="Alpha"), Team(name="Bravo")
+    db.add_all([a, b])
+    db.commit()
+    out = client.post(f"/gameplan/{a.id}/vs/{b.id}/veto", headers=auth, json={"format": "bo3"})
+    assert out.status_code == 200, out.text
+    body = out.json()
+    assert body["veto"] is None and len(body["maps"]) == 7

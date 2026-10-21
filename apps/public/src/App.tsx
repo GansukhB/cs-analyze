@@ -23,6 +23,7 @@ import ScrimsPage from './pages/ScrimsPage'
 import TeamPage from './pages/TeamPage'
 import TeamsPage from './pages/TeamsPage'
 import UploadsPage from './pages/UploadsPage'
+import VetoLabPage from './pages/VetoLabPage'
 import WorkspacePage from './pages/WorkspacePage'
 
 export default function App() {
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="briefings/:id" element={<BriefingPage />} />
         <Route path="gameplan/:mine/vs/:theirs/briefing" element={<BriefingNewPage />} />
         <Route path="gameplan/:mine/vs/:theirs/sheet/:map" element={<MapSheetPage />} />
+        <Route path="gameplan/:mine/vs/:theirs/veto" element={<VetoLabPage />} />
         <Route path="uploads" element={<UploadsPage />} />
         <Route path="scrims" element={<ScrimsPage />} />
         <Route path="playlists" element={<PlaylistsPage />} />

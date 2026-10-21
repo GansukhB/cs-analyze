@@ -1156,6 +1156,82 @@ class PlanCheck(BaseModel):
     forecast: CheckForecast | None
 
 
+# -- The veto lab (docs/plans/06 GP-10) ---------------------------------------------
+class VetoLabSide(BaseModel):
+    maps: int
+    won: int
+    shrunk: float | None
+    recent: int
+    status: str
+
+
+class VetoLabScrims(BaseModel):
+    maps: int
+    rounds: int
+    share: float
+
+
+class VetoLabMap(BaseModel):
+    map: str
+    base: float | None
+    adjust: float
+    p: float | None
+    mine: VetoLabSide | None
+    theirs: VetoLabSide | None
+    scrims: VetoLabScrims | None
+
+
+class VetoOption(BaseModel):
+    map: str
+    expected: float
+    minimax: float
+    chance: float | None
+
+
+class VetoNext(BaseModel):
+    who: str
+    kind: str
+    options: list[VetoOption]
+
+
+class VetoStep(BaseModel):
+    who: str
+    kind: str
+
+
+class VetoLine(BaseModel):
+    who: str
+    kind: str
+    map: str
+    chance: float | None = None
+
+
+class VetoState(BaseModel):
+    format: str
+    we_start: bool
+    steps: list[VetoStep]
+    done: list[str]
+    expected: float
+    minimax: float
+    next: VetoNext | None
+    line: list[VetoLine]
+    maps: list[str]
+    decider: str | None
+
+
+class VetoLab(BaseModel):
+    maps: list[VetoLabMap]
+    limits: list[dict]
+    veto: VetoState | None
+
+
+class VetoLabAsk(BaseModel):
+    format: Literal["bo1", "bo3", "bo5"] = "bo3"
+    we_start: bool = True
+    done: list[str] = Field(default_factory=list, max_length=7)
+    adjust: dict[str, float] = Field(default_factory=dict)
+
+
 # -- The timeout card (docs/plans/06 GP-4) ------------------------------------------
 class TimeoutMove(BaseModel):
     key: str

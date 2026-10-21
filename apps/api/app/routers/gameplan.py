@@ -36,6 +36,8 @@ from app.schemas import (
     LineupPlayers,
     TeamRef,
     TimeoutCard,
+    VetoLab,
+    VetoLabAsk,
 )
 from app.services import (
     audit,
@@ -51,6 +53,7 @@ from app.services import (
     scope,
     style,
     timeout_card,
+    veto_lab,
 )
 
 logger = logging.getLogger(__name__)
@@ -241,6 +244,24 @@ def panel(
         ms=round((time.perf_counter() - started) * 1000, 1),
         data=data,
     )
+
+
+@router.post("/{mine}/vs/{theirs}/veto")
+def veto_lab_step(
+    mine: int, theirs: int, body: VetoLabAsk, db: DbSession, user: StaffUser
+) -> VetoLab:
+    """The veto from where it stands, with each Map's chance as Staff set it (GP-10)."""
+    my_team, opponent = _fixture(db, mine, theirs)
+    scope.allow_scrims(db)  # our own Scrims, for our readiness only
+    with dbctx.using(db):
+        try:
+            out = veto_lab.lab(
+                my_team, opponent, user.workspace_id, body.format, body.we_start, body.done,
+                body.adjust,
+            )  # fmt: skip
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from None
+    return VetoLab(**out)
 
 
 @router.get("/{mine}/vs/{theirs}/timeout/{map_name}")

@@ -140,6 +140,9 @@ export default function GameplanPage() {
             хоорондын {header.data.lede.h2h_maps} газрын зураг дээр тулгуурлав.{' '}
             <Link to={`/gameplan/${mine}/vs/${theirs}/briefing${search}`} className="text-ct hover:underline">
               Briefing бэлдэх →
+            </Link>{' '}
+            <Link to={`/gameplan/${mine}/vs/${theirs}/veto`} className="text-ct hover:underline">
+              Veto лаборатори →
             </Link>
           </p>
         </div>

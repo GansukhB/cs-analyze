@@ -1766,6 +1766,73 @@
         }
       }
     },
+    "/gameplan/{mine}/vs/{theirs}/veto": {
+      "post": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Veto Lab Step",
+        "description": "The veto from where it stands, with each Map's chance as Staff set it (GP-10).",
+        "operationId": "veto_lab_step_gameplan__mine__vs__theirs__veto_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VetoLabAsk"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VetoLab"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/gameplan/{mine}/vs/{theirs}/timeout/{map_name}": {
       "get": {
         "tags": [
@@ -12366,6 +12433,412 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VetoLab": {
+        "properties": {
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/VetoLabMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "limits": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Limits"
+          },
+          "veto": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VetoState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "limits",
+          "veto"
+        ],
+        "title": "VetoLab"
+      },
+      "VetoLabAsk": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "bo1",
+              "bo3",
+              "bo5"
+            ],
+            "title": "Format",
+            "default": "bo3"
+          },
+          "we_start": {
+            "type": "boolean",
+            "title": "We Start",
+            "default": true
+          },
+          "done": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 7,
+            "title": "Done"
+          },
+          "adjust": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Adjust"
+          }
+        },
+        "type": "object",
+        "title": "VetoLabAsk"
+      },
+      "VetoLabMap": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base"
+          },
+          "adjust": {
+            "type": "number",
+            "title": "Adjust"
+          },
+          "p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P"
+          },
+          "mine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VetoLabSide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "theirs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VetoLabSide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scrims": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VetoLabScrims"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "base",
+          "adjust",
+          "p",
+          "mine",
+          "theirs",
+          "scrims"
+        ],
+        "title": "VetoLabMap"
+      },
+      "VetoLabScrims": {
+        "properties": {
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "share": {
+            "type": "number",
+            "title": "Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "rounds",
+          "share"
+        ],
+        "title": "VetoLabScrims"
+      },
+      "VetoLabSide": {
+        "properties": {
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "shrunk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shrunk"
+          },
+          "recent": {
+            "type": "integer",
+            "title": "Recent"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "won",
+          "shrunk",
+          "recent",
+          "status"
+        ],
+        "title": "VetoLabSide"
+      },
+      "VetoLine": {
+        "properties": {
+          "who": {
+            "type": "string",
+            "title": "Who"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "chance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "who",
+          "kind",
+          "map"
+        ],
+        "title": "VetoLine"
+      },
+      "VetoNext": {
+        "properties": {
+          "who": {
+            "type": "string",
+            "title": "Who"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/VetoOption"
+            },
+            "type": "array",
+            "title": "Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "who",
+          "kind",
+          "options"
+        ],
+        "title": "VetoNext"
+      },
+      "VetoOption": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "expected": {
+            "type": "number",
+            "title": "Expected"
+          },
+          "minimax": {
+            "type": "number",
+            "title": "Minimax"
+          },
+          "chance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "expected",
+          "minimax",
+          "chance"
+        ],
+        "title": "VetoOption"
+      },
+      "VetoState": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "title": "Format"
+          },
+          "we_start": {
+            "type": "boolean",
+            "title": "We Start"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/VetoStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "done": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Done"
+          },
+          "expected": {
+            "type": "number",
+            "title": "Expected"
+          },
+          "minimax": {
+            "type": "number",
+            "title": "Minimax"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VetoNext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "line": {
+            "items": {
+              "$ref": "#/components/schemas/VetoLine"
+            },
+            "type": "array",
+            "title": "Line"
+          },
+          "maps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "decider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decider"
+          }
+        },
+        "type": "object",
+        "required": [
+          "format",
+          "we_start",
+          "steps",
+          "done",
+          "expected",
+          "minimax",
+          "next",
+          "line",
+          "maps",
+          "decider"
+        ],
+        "title": "VetoState"
+      },
+      "VetoStep": {
+        "properties": {
+          "who": {
+            "type": "string",
+            "title": "Who"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "who",
+          "kind"
+        ],
+        "title": "VetoStep"
       },
       "WorkspaceMembers": {
         "properties": {
