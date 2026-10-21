@@ -3,6 +3,7 @@
 // string app/services/heatmap_groups.key() builds; the two must stay identical.
 import { keepPreviousData, useQueries } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { fetchClient } from '../api/client'
 import { useElapsed } from './useElapsed'
 import { drawHeatmap, type HeatData } from './heatmap'
@@ -50,19 +51,40 @@ export default function MapGrid({
   theirs: number
   kind: Kind
 }) {
+  // VIZ-2: the view rides on the page URL (g-prefixed: the Lineups use mine and
+  // theirs), so a link shows the same Map, Team, Player and filters.
+  const [search, setSearch] = useSearchParams()
   const [sel, setSel] = useState<Selection>(() => {
-    const team = String(index.teams[0]?.id ?? '')
+    const asked = (key: string) => search.get(key) ?? ''
+    const team = index.teams.some((t) => String(t.id) === asked('gt')) ? asked('gt') : String(index.teams[0]?.id ?? '')
+    const map = index.maps.includes(asked('gm')) ? asked('gm') : (firstMap(index, team) ?? index.maps[0] ?? '')
+    const roster = index.teams.find((t) => String(t.id) === team)?.players ?? []
+    const pick = (key: string, ok: string[], fallback: string) => (ok.includes(asked(key)) ? asked(key) : fallback)
     return {
-      map: firstMap(index, team) ?? index.maps[0] ?? '',
+      map,
       team,
-      player: 'all',
-      side: index.sides[0]?.key ?? 'all',
-      level: 'all',
-      phase: 'all',
-      buy: 'all',
-      compare: false,
+      player: pick('gp', roster.map((p) => String(p.id)), 'all'),
+      side: pick('gs', index.sides.map((x) => x.key), index.sides[0]?.key ?? 'all'),
+      level: pick('gl', index.levels[map] ?? [], 'all'),
+      phase: pick('gph', PHASES.map(([k]) => k), 'all'),
+      buy: pick('gb', BUYS.map(([k]) => k), 'all'),
+      compare: asked('gc') === '1',
     }
   })
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search)
+    const put = (key: string, value: string, fallback: string) =>
+      value && value !== fallback ? next.set(key, value) : next.delete(key)
+    put('gm', sel.map, '')
+    put('gt', sel.team, '')
+    put('gp', sel.player, 'all')
+    put('gs', sel.side, '')
+    put('gl', sel.level, 'all')
+    put('gph', sel.phase, 'all')
+    put('gb', sel.buy, 'all')
+    put('gc', sel.compare ? '1' : '', '')
+    if (next.toString() !== window.location.search.replace(/^\?/, '')) setSearch(next, { replace: true })
+  }, [sel, setSearch])
   const played = playedMaps(index, sel.team)
   const levels = index.levels[sel.map] ?? []
   const players = index.teams.find((t) => String(t.id) === sel.team)?.players ?? []
