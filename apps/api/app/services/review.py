@@ -70,7 +70,16 @@ logger = logging.getLogger(__name__)
 # a half's end, moving shots per weapon class, unscoped_awp held long enough.
 # 5: Swing v2 (RV-2): every Round settled to its Win probability's move.
 # 6: each Player's engagements (PL-5): time to damage, crosshair, counter-strafe.
-REVIEW_SCHEMA = 6
+# 7: a lurker's lone death on T is not untraded (RV-12).
+REVIEW_SCHEMA = 7
+
+# RV-12: a T who stands this far from every living teammate LURK_AT seconds in,
+# in LURK_SHARE of their T Rounds (LURK_ROUNDS or more), lurks: their lone
+# deaths are the role's risk, not a Mistake.
+LURK_AT = 30
+LURK_DIST = 1400.0
+LURK_SHARE = 0.4
+LURK_ROUNDS = 6
 
 # CONTEXT.md: a Trade is killing the killer within 5 seconds.
 TRADE_SECONDS = 5.0
@@ -419,6 +428,8 @@ class _Inputs:
             name in frames and not frames[name].is_empty() for name in ("sightings", "aim")
         )
         self.has_loadout = "loadout" in frames and not frames["loadout"].is_empty()
+        # Who lurks on T on this Map (RV-12); filled by build() before the Rounds.
+        self.lurkers: set[str] = set()
 
         roster = list(
             db.scalars(
@@ -1450,11 +1461,12 @@ class _RoundReview:
                 self.add("mistake", "bomb_lost", tick, [victim, killer], loss, **facts)
                 continue
 
-            # Alone and nobody traded.
+            # Alone and nobody traded; a lurker alone is doing the role (RV-12).
             if (
                 mates
                 and not k.get("traded_by")
                 and not any(_near(here, self.pos(m, tick)) for m in mates)
+                and not (v_side == "t" and victim in self.i.lurkers)
             ):
                 nearest = min(
                     (
@@ -2467,9 +2479,41 @@ def v_pos(k: dict):
 
 
 # ---------------------------------------------------------------- the build ---
+def _lurkers(inputs: _Inputs) -> set[str]:
+    """RV-12: the Players who stood far from every living teammate LURK_AT seconds
+    into LURK_SHARE of their T Rounds on this Map."""
+    alone: dict[str, int] = defaultdict(int)
+    played: dict[str, int] = defaultdict(int)
+    for rnd in inputs.rounds:
+        tracks = inputs.tracks.get(rnd.number) or {}
+        tick = rnd.freeze_end_tick + LURK_AT * inputs.rate
+        if tick > rnd.end_tick:
+            continue
+        prs = inputs.player_rounds.get(rnd.number, {})
+        living = {}
+        for sid, track in tracks.items():
+            pr = prs.get(sid)
+            side = pr.side if pr and pr.side in ("ct", "t") else track.side
+            if side != "t" or track.hp[track.at(tick)] <= 0:
+                continue
+            living[sid] = track.pos(tick)
+        if len(living) < 2:
+            continue
+        for sid, here in living.items():
+            played[sid] += 1
+            nearest = min(
+                math.hypot(here[0] - there[0], here[1] - there[1])
+                for other, there in living.items()
+                if other != sid
+            )
+            alone[sid] += nearest > LURK_DIST
+    return {sid for sid, n in played.items() if n >= LURK_ROUNDS and alone[sid] / n >= LURK_SHARE}
+
+
 def build(db: Session, match_map: MatchMap, bundle) -> dict:
     """The whole Review of one Match Map, as stored."""
     inputs = _Inputs(db, match_map, bundle)
+    inputs.lurkers = _lurkers(inputs)
     rounds, findings = [], []
     tallies: dict[str, dict] = defaultdict(lambda: defaultdict(float))
     aims: dict[str, dict] = {}

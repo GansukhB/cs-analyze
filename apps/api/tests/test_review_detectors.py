@@ -42,3 +42,30 @@ def test_seeing_an_enemy_first_and_losing_the_duel_needs_sightings(db, inferno):
     """b1 has a2 in view 1.5 s before a2 kills him, and a2 never saw b1 first."""
     lost = _codes(_review(db, inferno, sightings=True))["saw_first_lost"][0]
     assert lost["sids"][:2] == ["21", "12"] and lost["facts"]["lead"] > 0
+
+
+def test_a_t_who_stands_apart_most_rounds_lurks():
+    """RV-12: three T; one is 2000 units from the others 30 s into 8 of 10 Rounds."""
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    from app.services import review
+
+    def track(x):
+        ticks = np.array([0, 10_000], dtype=np.int64)
+        flat = np.array([x, x], dtype=float)
+        zero = np.zeros(2)
+        return review.Track(ticks, flat, zero, zero, np.array([100, 100]), zero, zero,
+                            ["A", "A"], side="t")  # fmt: skip
+
+    rounds, tracks = [], {}
+    for n in range(1, 11):
+        rounds.append(SimpleNamespace(number=n, freeze_end_tick=0, end_tick=9_000))
+        far = 2000.0 if n <= 8 else 100.0
+        tracks[n] = {"1": track(0.0), "2": track(50.0), "3": track(far)}
+    inputs = SimpleNamespace(rounds=rounds, tracks=tracks, player_rounds={}, rate=64)
+    assert review._lurkers(inputs) == {"3"}
+    # Fewer than six T Rounds says nothing.
+    inputs.rounds = rounds[:5]
+    assert review._lurkers(inputs) == set()
