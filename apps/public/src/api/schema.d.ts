@@ -4474,6 +4474,8 @@ export interface components {
             conditions: components["schemas"]["SearchCondition"][];
             /** Heat */
             heat?: ("deaths" | "kills") | null;
+            /** Score */
+            score?: ("ahead" | "close" | "behind") | null;
         };
         /** SearchCondition */
         SearchCondition: {

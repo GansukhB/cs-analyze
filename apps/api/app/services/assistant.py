@@ -469,6 +469,11 @@ TOOLS = [
                 "side": {"type": "string", "enum": ["t", "ct"]},
                 "team_id": {"type": "integer", "description": "Only this team's Rounds."},
                 "buy": {"type": "string", "enum": ["full", "light"]},
+                "score": {
+                    "type": "string",
+                    "enum": ["ahead", "close", "behind"],
+                    "description": "That side's team 2+ rounds ahead, within 1, or 2+ behind.",
+                },
                 "conditions": {
                     "type": "array",
                     "items": {
@@ -1090,7 +1095,7 @@ FIND_ROUNDS_LIMIT = 15
 
 def _tool_find_rounds(
     map_name: str, side: str, conditions: list | None = None, team_id: int | None = None,
-    buy: str | None = None,
+    buy: str | None = None, score: str | None = None,
 ) -> dict:  # fmt: skip
     if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name or ""):
         return {"error": "map_name like de_mirage"}
@@ -1111,7 +1116,7 @@ def _tool_find_rounds(
         })  # fmt: skip
     if team_id is not None:
         _team(team_id)
-    found = round_search.search(map_name, side, cleaned, team_id, buy)
+    found = round_search.search(map_name, side, cleaned, team_id, buy, score=score)
     return {**found, "rounds": found["rounds"][:FIND_ROUNDS_LIMIT]}
 
 

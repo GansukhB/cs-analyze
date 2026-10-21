@@ -13013,6 +13013,22 @@
               }
             ],
             "title": "Heat"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ahead",
+                  "close",
+                  "behind"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
           }
         },
         "type": "object",

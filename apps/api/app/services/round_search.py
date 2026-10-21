@@ -17,7 +17,7 @@ import json
 from sqlalchemy import select
 
 from app.models import GameMap, KillEvent, Match, MatchMap, ReplayRound, Round, Team
-from app.services import heatmap_groups, scope
+from app.services import heatmap_groups, playbook, scope
 from app.services.dbctx import db
 
 SLACK = 2  # seconds either side of a window
@@ -103,6 +103,28 @@ def _heat(map_name: str, side: str, round_ids: list[int], kind: str) -> dict | N
     }
 
 
+def _leads(match_map_ids: set[int]) -> dict[tuple[int, int], dict[int, int]]:
+    """``{(Match Map, Round): {team: Rounds won minus lost before it}}``."""
+    rows = db().execute(
+        select(Round.match_map_id, Round.number, Round.winner_team_id, Round.ct_team_id,
+               Round.t_team_id)
+        .where(Round.match_map_id.in_(match_map_ids))
+        .order_by(Round.match_map_id, Round.number)
+    ).all()  # fmt: skip
+    out: dict[tuple[int, int], dict[int, int]] = {}
+    won: dict[int, dict[int, int]] = {}
+    for mm, number, winner, ct, t in rows:
+        tally = won.setdefault(mm, {})
+        out[(mm, number)] = {
+            team: tally.get(team, 0) - tally.get(other, 0)
+            for team, other in ((ct, t), (t, ct))
+            if team
+        }  # fmt: skip
+        if winner:
+            tally[winner] = tally.get(winner, 0) + 1
+    return out
+
+
 def search(
     map_name: str,
     side: str,
@@ -110,6 +132,7 @@ def search(
     team_id: int | None = None,
     buy: str | None = None,
     heat: str | None = None,
+    score: str | None = None,
 ) -> dict:
     """Every Round matching all ``conditions`` for ``side``, newest first, and
     with ``heat`` ("deaths" or "kills") where that happened in all of them."""
@@ -134,9 +157,17 @@ def search(
         query = query.where(buy_col == "full")
     elif buy == "light":
         query = query.where(buy_col.in_(("eco", "force", "pistol")))
+    candidates = list(session.execute(query))
+    # VIZ-5: how the Map stood for that Side's Team when the Round began.
+    leads = _leads({c[1].match_map_id for c in candidates}) if score else {}
     looked = 0
     found = []
-    for blob, rnd, match_id, map_number, played in session.execute(query):
+    for blob, rnd, match_id, map_number, played in candidates:
+        if score:
+            team = rnd.ct_team_id if side == "ct" else rnd.t_team_id
+            lead = leads.get((rnd.match_map_id, rnd.number), {}).get(team, 0)
+            if playbook.score_state(lead) != score:
+                continue
         looked += 1
         t = json.loads(gzip.decompress(blob))
         if all(_holds(t, side, c) for c in conditions):

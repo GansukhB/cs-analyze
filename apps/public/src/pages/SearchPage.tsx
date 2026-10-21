@@ -23,6 +23,8 @@ export default function SearchPage() {
   const [conds, setConds] = useState<Condition[]>([{ place: '', min: 2, max: null, start: 15, end: 30 }])
   // VIZ-7: where the side died or got its kills in all the matched Rounds.
   const [heat, setHeat] = useState<'' | 'deaths' | 'kills'>('deaths')
+  // VIZ-5: how the Map stood for the Side's Team when the Round began.
+  const [score, setScore] = useState<'' | 'ahead' | 'close' | 'behind'>('')
   const run = $api.useMutation('post', '/search/rounds')
   const set = (i: number, patch: Partial<Condition>) => setConds(conds.map((c, k) => (k === i ? { ...c, ...patch } : c)))
   const ready = conds.every((c) => c.place)
@@ -59,6 +61,12 @@ export default function SearchPage() {
               {t.name}
             </option>
           ))}
+        </select>
+        <select value={score} onChange={(e) => setScore(e.target.value as '' | 'ahead' | 'close' | 'behind')} className={field}>
+          <option value="">Бүх оноо</option>
+          <option value="ahead">Тэргүүлж (2+)</option>
+          <option value="close">Ойр (±1)</option>
+          <option value="behind">Хоцорч (2+)</option>
         </select>
         <select value={heat} onChange={(e) => setHeat(e.target.value as '' | 'deaths' | 'kills')} className={field}>
           <option value="deaths">Heatmap: үхсэн газар</option>
@@ -121,7 +129,7 @@ export default function SearchPage() {
             disabled={!ready || run.isPending}
             onClick={() =>
               run.mutate({
-                body: { map_name: chosen, side, team_id: team, buy: buy || null, conditions: conds, heat: heat || null },
+                body: { map_name: chosen, side, team_id: team, buy: buy || null, conditions: conds, heat: heat || null, score: score || null },
               })
             }
             className="rounded-md bg-ct px-4 py-1.5 font-medium text-ground disabled:opacity-50"

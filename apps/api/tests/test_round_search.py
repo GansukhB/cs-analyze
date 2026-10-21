@@ -1,6 +1,6 @@
 """The Round search (docs/plans/09 VIZ-7)."""
 
-from app.services import replay, round_search
+from app.services import dbctx, replay, round_search
 from tests.test_gameplan import league  # noqa: F401  (fixture)
 
 
@@ -71,3 +71,23 @@ def test_a_search_finds_a_round_and_draws_where_its_side_died(client, auth, db, 
     assert none["found"] == 0 and none["heat"] is None
     places = client.get("/search/places/de_mirage", headers=auth).json()
     assert places == ["B", "Mid"]
+
+
+def test_the_lead_before_each_round_per_team(db, league):  # noqa: F811
+    """VIZ-5: the score filter's lead, Rounds won minus lost before each Round."""
+    from sqlalchemy import select
+
+    from app.models import MatchMap, Round
+
+    mm = db.scalars(select(MatchMap).order_by(MatchMap.id)).first()
+    rounds = db.scalars(
+        select(Round).where(Round.match_map_id == mm.id).order_by(Round.number)
+    ).all()
+    with dbctx.using(db):
+        leads = round_search._leads({mm.id})
+    first, second = rounds[0], rounds[1]
+    assert leads[(mm.id, 1)] == {first.ct_team_id: 0, first.t_team_id: 0}
+    winner = first.winner_team_id
+    loser = first.t_team_id if winner == first.ct_team_id else first.ct_team_id
+    assert leads[(mm.id, 2)][winner] == 1 and leads[(mm.id, 2)][loser] == -1
+    assert second.number == 2

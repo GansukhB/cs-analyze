@@ -28,6 +28,6 @@ def rounds(body: SearchAsk, db: DbSession, _: StaffUser) -> SearchResult:
     with dbctx.using(db):
         found = round_search.search(
             body.map_name, body.side, [c.model_dump() for c in body.conditions], body.team_id,
-            body.buy, body.heat,
+            body.buy, body.heat, body.score,
         )  # fmt: skip
     return SearchResult(**found)

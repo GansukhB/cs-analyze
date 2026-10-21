@@ -1440,6 +1440,8 @@ class SearchAsk(BaseModel):
     conditions: list[SearchCondition] = Field(min_length=1, max_length=6)
     # Where the side died or got its kills in all the matched Rounds (a heatmap).
     heat: Literal["deaths", "kills"] | None = None
+    # The Side's Team ahead or behind by two or more, or close, when the Round began.
+    score: Literal["ahead", "close", "behind"] | None = None
 
 
 class SearchRound(BaseModel):
