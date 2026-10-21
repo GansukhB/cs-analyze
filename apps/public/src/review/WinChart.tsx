@@ -23,8 +23,11 @@ export default function WinChart(props: {
   ctTeam: string
   tTeam: string
   onGoto: (t: number, sid: string | null) => void
+  // The Replay's second on this Round: a cursor follows it, and a click on the
+  // chart goes there (VIZ-6).
+  now?: number | null
 }) {
-  const { round, names, ctTeam, tTeam, onGoto } = props
+  const { round, names, ctTeam, tTeam, onGoto, now } = props
   const box = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<number | null>(null)
   const end = Math.max(1, round.seconds)
@@ -68,6 +71,11 @@ export default function WinChart(props: {
         aria-label={`Раунд ${round.n}: CT-ийн хожих магадлал раундын туршид`}
         onPointerMove={move}
         onPointerLeave={() => setHover(null)}
+        onClick={(e) => {
+          // A click on the chart, not on a marker, goes to that second.
+          if ((e.target as Element).closest('[role="button"]') || hover === null) return
+          onGoto(hover, null)
+        }}
       >
         <defs>
           <clipPath id={`${clipId}-ct`}>
@@ -94,6 +102,9 @@ export default function WinChart(props: {
         <path d={line} fill="none" stroke="var(--ink-2)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {near && (
           <line x1={x(near[0])} x2={x(near[0])} y1={PAD.top} y2={PAD.top + PLOT_H} stroke="var(--ink-3)" strokeWidth={1} />
+        )}
+        {now != null && (
+          <line x1={x(now)} x2={x(now)} y1={PAD.top} y2={PAD.top + PLOT_H} stroke="var(--ink)" strokeWidth={1.5} />
         )}
         {round.events.map((e, i) => {
           const cx = x(e.t)

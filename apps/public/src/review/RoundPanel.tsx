@@ -28,6 +28,8 @@ export default function RoundPanel(props: {
   teamIndex: Map<number | null, number>
   onGoto: Goto
   onPlayer: (sid: string) => void
+  // The Replay's clock, for the Win probability's cursor (VIZ-6).
+  now?: { round: number; t: number } | null
 }) {
   const { review, round, matching, filters, findings, names, teamIndex, onGoto, onPlayer } = props
   const [scope, setScope] = useState<'round' | 'all'>('round')
@@ -69,6 +71,7 @@ export default function RoundPanel(props: {
             ctTeam={teamName(round.ct_team_id)}
             tTeam={teamName(round.t_team_id)}
             onGoto={(t, sid) => onGoto(round.n, t, sid)}
+            now={props.now?.round === round.n ? props.now.t : null}
           />
           <div className={`grid gap-2 ${teams.length > 1 ? '@xl:grid-cols-2' : ''}`}>
             {teams.map((t) => (

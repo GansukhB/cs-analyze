@@ -40,9 +40,39 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
     retry: false,
     enabled: !!detail.data?.parsed,
   })
-  const startRound = Number(useSearchParams()[0].get('round')) || undefined
+  const [search] = useSearchParams()
+  const startRound = Number(search.get('round')) || undefined
+  // VIZ-2: a link to a moment carries its second and the Player to ring.
+  const startAt = useRef<{ t: number; sid: string | null } | null>(
+    search.get('t') ? { t: Number(search.get('t')) || 0, sid: search.get('player') } : null,
+  )
   const [round, setRound] = useState<number | null>(startRound ?? null)
-  const bridge = useMemo<ReplayBridge>(() => ({ onRound: setRound }), [])
+  const [now, setNow] = useState<{ round: number; t: number } | null>(null)
+  const bridge = useMemo<ReplayBridge>(
+    () => ({
+      onRound: (n: number) => {
+        setRound(n)
+        const at = startAt.current
+        if (at) {
+          startAt.current = null
+          // The canvas is up: go to the moment the link named, paused.
+          setTimeout(() => bridge.goto?.(n, at.t, at.sid, false), 0)
+        }
+      },
+      onTime: (n: number, t: number) => setNow({ round: n, t }),
+    }),
+    [],
+  )
+  const [copied, setCopied] = useState(false)
+  const copyMoment = () => {
+    const at = bridge.now?.()
+    if (!at) return
+    const url = `${window.location.origin}/matches/${matchId}/m/${mapNumber}?round=${at.round}&t=${at.t}`
+    void navigator.clipboard?.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
   const replayBox = useRef<HTMLElement>(null)
   const goto = useCallback<Goto>(
     (n, t, sid, play = true) => {
@@ -114,18 +144,23 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
       <div className={`grid items-start gap-4 ${review ? 'min-[1440px]:grid-cols-[minmax(0,1fr)_400px]' : ''}`}>
         <section className="min-w-0 scroll-mt-4 space-y-2" ref={replayBox}>
           {scene ? (
-            <Replay
-              key={`${matchId}-${mapNumber}`}
-              matchId={matchId}
-              mapNumber={mapNumber}
-              scene={scene}
-              rounds={rounds}
-              startRound={startRound}
-              team1={team1}
-              team2={team2}
-              bridge={bridge}
-              dim={dim}
-            />
+            <>
+              <Replay
+                key={`${matchId}-${mapNumber}`}
+                matchId={matchId}
+                mapNumber={mapNumber}
+                scene={scene}
+                rounds={rounds}
+                startRound={startRound}
+                team1={team1}
+                team2={team2}
+                bridge={bridge}
+                dim={dim}
+              />
+              <button type="button" onClick={copyMoment} className="text-xs text-ct hover:underline">
+                {copied ? 'Холбоос хуулсан ✓' : 'Энэ агшны холбоос хуулах'}
+              </button>
+            </>
           ) : (
             <>
               <p className="rounded-xl border border-line bg-surface p-6 text-ink-2">
@@ -149,6 +184,7 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
               teamIndex={new Map(review.teams.map((t, i) => [t.id, i]))}
               onGoto={goto}
               onPlayer={(sid) => onPlayer(filters.player === sid ? null : sid)}
+              now={now}
             />
             <div className="mt-3">
               <RoundNotes

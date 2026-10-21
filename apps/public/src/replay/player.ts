@@ -37,6 +37,8 @@ export interface ReplayBridge {
   onRound?: (round: number) => void
   // The Round and second on the canvas, for a note pinned to this moment (RV-7).
   now?: () => { round: number; t: number } | null
+  // The second on the canvas as it moves, for the Win probability's cursor (VIZ-6).
+  onTime?: (round: number, t: number) => void
 }
 
 // A Review link opens a little before its moment, and rings its player until
@@ -399,6 +401,7 @@ export function mountReplay(
     state.t = Math.max(0, Math.min(d.seconds, sid ? t - GOTO_LEAD : t))
     seek.value = String(Math.round(state.t * 100))
     markFeed()
+    tell(true)
   }
 
   if (bridge) {
@@ -1126,6 +1129,16 @@ export function mountReplay(
     seek.value = String(Math.round(state.t * 100))
     markFeed()
     draw()
+    tell(true)
+  }
+
+  // VIZ-6: the page follows the clock a few times a second, not every frame.
+  let told = 0
+  function tell(now = false) {
+    const stamp = performance.now()
+    if (!bridge?.onTime || state.round === null || (!now && stamp - told < 200)) return
+    told = stamp
+    bridge.onTime(state.round, state.t)
   }
 
   function tick(now: number) {
@@ -1142,6 +1155,7 @@ export function mountReplay(
       seek.value = String(Math.round(state.t * 100))
       markFeed()
       draw()
+      tell()
     } else {
       state.last = now
     }
@@ -1164,6 +1178,7 @@ export function mountReplay(
     state.t = Number(seek.value) / 100
     markFeed()
     draw()
+    tell(true)
   })
 
   const speedBox = $('rp-speeds')
