@@ -9,6 +9,7 @@ from app.routers import (
     assistant,
     auth,
     briefings,
+    coverage,
     development,
     forecasts,
     gameplan,
@@ -54,6 +55,7 @@ app.include_router(notes.router)
 app.include_router(gameplan.router)
 app.include_router(forecasts.router)
 app.include_router(briefings.router)
+app.include_router(coverage.router)
 app.include_router(development.router)
 app.include_router(uploads.router)
 app.include_router(scrims.router)

@@ -1347,6 +1347,44 @@ class TimeoutCard(BaseModel):
     pool: AuditPool
 
 
+# -- What the data covers (docs/plans/02 DATA-9) -------------------------------------
+class CoverageTeam(BaseModel):
+    id: int
+    name: str
+    mine: bool
+    maps: int
+    by_map: list[tuple[str, int]]
+    # Match Maps per lack: behind, no_tickdata, no_loadout, no_sightings,
+    # no_events, derived_stale, review_stale.
+    flags: dict[str, int]
+    last_played: dt.datetime | None
+    last_parsed: dt.datetime | None
+
+
+class CoverageMap(BaseModel):
+    map: str
+    maps: int
+    teams: int
+
+
+class CoverageQueued(BaseModel):
+    match: int
+    map: int
+    map_name: str
+    teams: str
+    played_at: dt.datetime | None
+    reason: str  # "no_tickdata" or "no_loadout"
+
+
+class Coverage(BaseModel):
+    schema_version: int
+    totals: dict[str, int]
+    teams: list[CoverageTeam]
+    maps: list[CoverageMap]
+    queue: list[CoverageQueued]
+    queued: int
+
+
 # -- The Round search (docs/plans/09 VIZ-7) ------------------------------------------
 class SearchCondition(BaseModel):
     place: str = Field(min_length=1, max_length=40)

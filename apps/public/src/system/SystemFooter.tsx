@@ -110,6 +110,10 @@ export default function SystemFooter({ width }: { width: string }) {
             </span>
             <span>Build</span>
             <span className="font-mono">{data.version || 'dev'}</span>
+            <span>Data</span>
+            <Link to="/data" className="text-ink hover:underline">
+              хамрах хүрээ →
+            </Link>
           </div>
         </section>
       </div>

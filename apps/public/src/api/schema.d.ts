@@ -959,6 +959,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/data/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Data Coverage
+         * @description Each Team's parsed Match Maps and what they lack, each Map's Pool, and the
+         *     Match Maps a Scout would download again. The Workspace's Teams come first.
+         */
+        get: operations["data_coverage_data_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/{steamid}/goals": {
         parameters: {
             query?: never;
@@ -2206,6 +2227,71 @@ export interface components {
             briefed: string[];
             /** Hit */
             hit: number;
+        };
+        /** Coverage */
+        Coverage: {
+            /** Schema Version */
+            schema_version: number;
+            /** Totals */
+            totals: {
+                [key: string]: number;
+            };
+            /** Teams */
+            teams: components["schemas"]["CoverageTeam"][];
+            /** Maps */
+            maps: components["schemas"]["CoverageMap"][];
+            /** Queue */
+            queue: components["schemas"]["CoverageQueued"][];
+            /** Queued */
+            queued: number;
+        };
+        /** CoverageMap */
+        CoverageMap: {
+            /** Map */
+            map: string;
+            /** Maps */
+            maps: number;
+            /** Teams */
+            teams: number;
+        };
+        /** CoverageQueued */
+        CoverageQueued: {
+            /** Match */
+            match: number;
+            /** Map */
+            map: number;
+            /** Map Name */
+            map_name: string;
+            /** Teams */
+            teams: string;
+            /** Played At */
+            played_at: string | null;
+            /** Reason */
+            reason: string;
+        };
+        /** CoverageTeam */
+        CoverageTeam: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Mine */
+            mine: boolean;
+            /** Maps */
+            maps: number;
+            /** By Map */
+            by_map: [
+                string,
+                number
+            ][];
+            /** Flags */
+            flags: {
+                [key: string]: number;
+            };
+            /** Last Played */
+            last_played: string | null;
+            /** Last Parsed */
+            last_parsed: string | null;
         };
         /** DeclaredRolePut */
         DeclaredRolePut: {
@@ -7062,6 +7148,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    data_coverage_data_coverage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Coverage"];
                 };
             };
         };

@@ -3069,6 +3069,33 @@
         }
       }
     },
+    "/data/coverage": {
+      "get": {
+        "tags": [
+          "data"
+        ],
+        "summary": "Data Coverage",
+        "description": "Each Team's parsed Match Maps and what they lack, each Map's Pool, and the\nMatch Maps a Scout would download again. The Workspace's Teams come first.",
+        "operationId": "data_coverage_data_coverage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Coverage"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/players/{steamid}/goals": {
       "get": {
         "tags": [
@@ -6573,6 +6600,205 @@
           "hit"
         ],
         "title": "CheckVeto"
+      },
+      "Coverage": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version"
+          },
+          "totals": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Totals"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageTeam"
+            },
+            "type": "array",
+            "title": "Teams"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "queue": {
+            "items": {
+              "$ref": "#/components/schemas/CoverageQueued"
+            },
+            "type": "array",
+            "title": "Queue"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schema_version",
+          "totals",
+          "teams",
+          "maps",
+          "queue",
+          "queued"
+        ],
+        "title": "Coverage"
+      },
+      "CoverageMap": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "teams": {
+            "type": "integer",
+            "title": "Teams"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "maps",
+          "teams"
+        ],
+        "title": "CoverageMap"
+      },
+      "CoverageQueued": {
+        "properties": {
+          "match": {
+            "type": "integer",
+            "title": "Match"
+          },
+          "map": {
+            "type": "integer",
+            "title": "Map"
+          },
+          "map_name": {
+            "type": "string",
+            "title": "Map Name"
+          },
+          "teams": {
+            "type": "string",
+            "title": "Teams"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match",
+          "map",
+          "map_name",
+          "teams",
+          "played_at",
+          "reason"
+        ],
+        "title": "CoverageQueued"
+      },
+      "CoverageTeam": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "mine": {
+            "type": "boolean",
+            "title": "Mine"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "by_map": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "By Map"
+          },
+          "flags": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Flags"
+          },
+          "last_played": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Played"
+          },
+          "last_parsed": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Parsed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "mine",
+          "maps",
+          "by_map",
+          "flags",
+          "last_played",
+          "last_parsed"
+        ],
+        "title": "CoverageTeam"
       },
       "DeclaredRolePut": {
         "properties": {

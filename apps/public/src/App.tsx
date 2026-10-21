@@ -23,6 +23,7 @@ import PlayerPage from './pages/PlayerPage'
 import { PlaylistPage, PlaylistsPage } from './pages/PlaylistsPage'
 import ScrimsPage from './pages/ScrimsPage'
 import SearchPage from './pages/SearchPage'
+import DataPage from './pages/DataPage'
 import { StratbookPage, StratNewPage, StratPage } from './pages/StratbookPage'
 import TeamPage from './pages/TeamPage'
 import TeamsPage from './pages/TeamsPage'
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="lineups" element={<LineupsPage />} />
         <Route path="ghost" element={<GhostPage />} />
         <Route path="search" element={<SearchPage />} />
+        <Route path="data" element={<DataPage />} />
         <Route path="stratbook/new" element={<StratNewPage />} />
         <Route path="stratbook/:stratId" element={<StratPage />} />
         <Route path="playlists/:playlistId" element={<PlaylistPage />} />
