@@ -47,3 +47,21 @@ def test_without_redis_it_is_computed(monkeypatch):
 
     monkeypatch.setattr(pool_cache, "get_cache", down)
     assert pool_cache.remember("k", lambda: (1,)) == [1]
+
+
+def test_while_another_computes_the_last_one_answers(pool_redis, monkeypatch):
+    # GP-12: a Pool a parse old, of the same family, rather than a wait.
+    pool_cache.remember("pool:x:v1:old", lambda: [5])
+    assert pool_redis.store["pool:x:v1:latest"] == json.dumps([5])
+    pool_redis.store["pool:x:v1:new:lock"] = "1"
+
+    def no_waiting(_seconds):
+        raise AssertionError("it waited")
+
+    monkeypatch.setattr(pool_cache.time, "sleep", no_waiting)
+    assert pool_cache.remember("pool:x:v1:new", lambda: [9]) == [5]
+    # Another schema is another family: nothing to answer from, so it waits.
+    pool_redis.store["pool:x:v2:new:lock"] = "1"
+    monkeypatch.setattr(pool_cache.time, "sleep", lambda _s: pool_redis.store.update(
+        {"pool:x:v2:new": json.dumps([2])}))  # fmt: skip
+    assert pool_cache.remember("pool:x:v2:new", lambda: [0]) == [2]

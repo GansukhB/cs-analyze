@@ -28,12 +28,15 @@ type Tab = components['schemas']['GameplanTab']
 type Header = components['schemas']['GameplanHeader']
 
 const STALE = 5 * 60_000
+// Tabs warmed ahead of the open one: the reader rarely reads all twelve, and each
+// warm-up is the server computing a section nobody asked for yet (GP-12).
+const WARM_AHEAD = 3
 
 // The match-preparation page for one fixture, one panel per URL (cstat's
 // gameplan view). The header comes once; each panel is its own request, so a
 // tab only pays for what it shows. While a panel loads the previous one stays on
-// screen, dimmed, under a progress bar; every other tab is warmed in the
-// background one at a time, and the nav marks which are ready.
+// screen, dimmed, under a progress bar; the next WARM_AHEAD tabs are warmed in
+// the background one at a time (GP-12), and the nav marks which are ready.
 export default function GameplanPage() {
   const params = useParams()
   const mine = Number(params.mine)
@@ -74,15 +77,19 @@ export default function GameplanPage() {
     queries: tabs.map((t) => ({ ...optionsFor(t.key), enabled: false, staleTime: STALE })),
   })
 
-  // Warm the rest once the open panel is in: sequentially, so the server is
+  // Warm the next few once the open panel is in: sequentially, so the server is
   // computing one section at a time and the reader's own clicks are not queued
-  // behind eleven others.
+  // behind the others.
   const settled = panel.isSuccess && !panel.isPlaceholderData
+  const ahead = useMemo(() => {
+    const at = tabs.findIndex((t) => t.key === tab)
+    return tabs.slice(at + 1, at + 1 + WARM_AHEAD)
+  }, [tabs, tab])
   useEffect(() => {
-    if (!settled || !tabs.length) return
+    if (!settled || !ahead.length) return
     let cancelled = false
     ;(async () => {
-      for (const t of tabs) {
+      for (const t of ahead) {
         if (cancelled) return
         const options = optionsFor(t.key)
         if (queryClient.getQueryData(options.queryKey)) continue
@@ -92,7 +99,7 @@ export default function GameplanPage() {
     return () => {
       cancelled = true
     }
-  }, [settled, tabs, optionsFor, queryClient])
+  }, [settled, ahead, optionsFor, queryClient])
 
   useEffect(() => {
     if (header.data) document.title = `${header.data.my_team.name} vs ${header.data.opponent.name} — game plan`
@@ -370,7 +377,7 @@ function Progress({
         ) : null}
         {total > 0 && (
           <span style={{ marginLeft: 'auto' }}>
-            {warming ? `Бусад хэсгийг бэлдэж байна · ${ready}/${total}` : `Бүх ${total} хэсэг бэлэн`}
+            {warming ? `${ready}/${total} хэсэг бэлэн` : `Бүх ${total} хэсэг бэлэн`}
           </span>
         )}
       </div>

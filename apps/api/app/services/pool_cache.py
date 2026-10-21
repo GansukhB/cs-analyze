@@ -10,8 +10,11 @@ Cloudflare's 100 s.
 So each is kept in Redis (DB 2) under a key naming what it was computed from. A
 process that finds it missing computes it under a lock while the others wait for
 that result instead of racing it, and the worker warms both after every Match a
-Scout parses (`gameplan.warm_pool`). A request never answers from an older Pool:
-when the data moved, it waits for the new one.
+Scout parses (`gameplan.warm_pool`). While another process computes a new one,
+a request answers from the last one stored for the same family (the key less its
+stamp, so never one of an older schema) instead of waiting (docs/plans GP-12): a
+Pool a parse old reads almost the same, and a page that waits can run into
+Cloudflare's 100 s. Only with nothing stored yet does it wait.
 """
 
 import json
@@ -56,6 +59,7 @@ def remember(key: str, compute: Callable[[], object]) -> object:
     the caller sees one shape either way. Without Redis it is simply computed.
     """
     lock = f"{key}:lock"
+    latest = f"{key.rsplit(':', 1)[0]}:latest"
     owned = False
     try:
         cache = get_cache()
@@ -67,6 +71,11 @@ def remember(key: str, compute: Callable[[], object]) -> object:
                 # The last holder may have finished between our read and our claim.
                 raw = cache.get(key)
                 break
+            # Someone is computing it: the family's last value will do meanwhile.
+            stale = cache.get(latest)
+            if stale is not None:
+                logger.info("%s: being computed elsewhere; answering from the last one", key)
+                return json.loads(stale)
             if time.monotonic() > deadline:
                 logger.warning("%s: the lock outlived its holder; computing it here", key)
                 break
@@ -81,6 +90,7 @@ def remember(key: str, compute: Callable[[], object]) -> object:
             raw = json.dumps(compute())
             try:
                 cache.set(key, raw, ex=TTL)
+                cache.set(latest, raw, ex=TTL)
             except RedisError:
                 logger.warning("could not cache %s", key)
     finally:
