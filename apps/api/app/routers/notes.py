@@ -46,6 +46,7 @@ def _read(db, n: ReviewNote) -> NoteRead:
         text=n.text,
         tag=n.tag,
         reason=n.reason,
+        drawing=n.drawing,
         created_by=by.username if by else "",
         created_at=n.created_at,
     )
@@ -81,8 +82,8 @@ def add_note(
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "A dispute names a Finding and a reason"
             )
-    elif not body.text.strip():
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "A note needs its text")
+    elif not body.text.strip() and not body.drawing:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "A note needs its text or a drawing")
     note = ReviewNote(
         workspace_id=user.workspace_id,
         match_map_id=match_map.id,
@@ -94,6 +95,7 @@ def add_note(
         text=body.text.strip(),
         tag=body.tag.strip(),
         reason=body.reason,
+        drawing=[d.model_dump() for d in body.drawing] if body.drawing else None,
         created_by_id=user.id,
     )
     db.add(note)

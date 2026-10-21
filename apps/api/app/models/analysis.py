@@ -812,6 +812,9 @@ class ReplayRound(Base):
     match_map_id: Mapped[int] = _match_map_fk()
     number: Mapped[int] = mapped_column(PositiveSmallInt)
     payload: Mapped[bytes] = mapped_column(MediumBlob)
+    # VIZ-7: gzip JSON, each second how many of each Side stood in each Callout,
+    # for the Round search; None until the Replay is cut at REPLAY_SCHEMA 7.
+    tokens: Mapped[bytes | None] = mapped_column(MediumBlob)
 
 
 class MatchMapReview(TimestampMixin, Base):

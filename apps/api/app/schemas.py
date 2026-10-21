@@ -925,6 +925,14 @@ class Agenda(BaseModel):
 
 
 # -- Review notes and disputes (docs/plans/07 RV-7) ---------------------------------
+class NoteShape(BaseModel):
+    """One mark drawn on the Replay (VIZ-8), in world units."""
+
+    kind: Literal["arrow", "circle", "text"]
+    points: list[tuple[float, float]] = Field(min_length=1, max_length=2)
+    text: str = Field(default="", max_length=80)
+
+
 class NoteRead(BaseModel):
     id: int
     kind: str
@@ -937,6 +945,7 @@ class NoteRead(BaseModel):
     text: str
     tag: str
     reason: str
+    drawing: list[NoteShape] | None = None
     created_by: str
     created_at: dt.datetime
 
@@ -955,6 +964,7 @@ class NoteCreate(BaseModel):
     text: str = Field(default="", max_length=4000)
     tag: str = Field(default="", max_length=32)
     reason: str = Field(default="", max_length=32)
+    drawing: list[NoteShape] | None = Field(default=None, max_length=12)
 
 
 class NoteList(BaseModel):
@@ -1260,6 +1270,40 @@ class TimeoutCard(BaseModel):
     pressure: int
     sides: list[TimeoutSide]
     pool: AuditPool
+
+
+# -- The Round search (docs/plans/09 VIZ-7) ------------------------------------------
+class SearchCondition(BaseModel):
+    place: str = Field(min_length=1, max_length=40)
+    min: int = Field(default=1, ge=0, le=5)
+    max: int | None = Field(default=None, ge=0, le=5)
+    start: int = Field(default=0, ge=0, le=180)  # seconds after freeze end
+    end: int = Field(default=180, ge=0, le=180)
+
+
+class SearchAsk(BaseModel):
+    map_name: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")
+    side: Literal["ct", "t"]
+    team_id: int | None = None
+    buy: Literal["full", "light"] | None = None
+    conditions: list[SearchCondition] = Field(min_length=1, max_length=6)
+
+
+class SearchRound(BaseModel):
+    match: int
+    map: int
+    round: int
+    team: str
+    won: bool | None
+    buy: str
+    played_at: str | None
+
+
+class SearchResult(BaseModel):
+    looked: int
+    found: int
+    won: int
+    rounds: list[SearchRound]
 
 
 # -- The lineup library (docs/plans/08 SB-3) -----------------------------------------

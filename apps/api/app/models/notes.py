@@ -42,6 +42,9 @@ class ReviewNote(TimestampMixin, Base):
     text: Mapped[str] = mapped_column(Text, default="")
     tag: Mapped[str] = mapped_column(String(32), default="")
     reason: Mapped[str] = mapped_column(String(32), default="")  # a dispute's DISPUTE_REASONS key
+    # VIZ-8: what Staff drew on the Replay, in world units:
+    # [{kind: arrow|circle|text, points: [[x, y], ...], text}]
+    drawing: Mapped[list | None] = mapped_column(JSON)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
 

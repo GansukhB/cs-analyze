@@ -37,8 +37,22 @@ export interface ReplayBridge {
   onRound?: (round: number) => void
   // The Round and second on the canvas, for a note pinned to this moment (RV-7).
   now?: () => { round: number; t: number } | null
+  // Draw the moment again, paused or not: the marks to show changed (VIZ-8).
+  redraw?: () => void
   // The second on the canvas as it moves, for the Win probability's cursor (VIZ-6).
   onTime?: (round: number, t: number) => void
+  // VIZ-8: the pen the page holds (null: the canvas pans), what a stroke drew,
+  // and the marks to show at a moment (a Note's, or a stroke not saved yet).
+  pen?: () => { kind: 'arrow' | 'circle' | 'text'; text: string } | null
+  onShape?: (shape: Shape) => void
+  shapes?: (round: number, t: number) => Shape[]
+}
+
+/** A coach's mark on the Map, in world units (VIZ-8). */
+export interface Shape {
+  kind: 'arrow' | 'circle' | 'text'
+  points: [number, number][]
+  text?: string
 }
 
 // A Review link opens a little before its moment, and rings its player until
@@ -298,6 +312,8 @@ export function mountReplay(
   }
   // A Review link to a round not yet loaded: where to go once it is.
   let pending: { t: number; sid: string | null; play: boolean } | null = null
+  // VIZ-8: the mark being drawn, shown until the stroke ends.
+  let stroke: Shape | null = null
 
   function playerFloorAt(p: Player, f: number): Floor {
     if (!p.lvl || !p.lvl.length) return null
@@ -431,6 +447,9 @@ export function mountReplay(
     }
     bridge.now = () =>
       state.data && state.round !== null ? { round: state.round, t: Math.round(state.t * 10) / 10 } : null
+    bridge.redraw = () => {
+      if (state.data) draw()
+    }
   }
 
   // Who is on each side is fixed for the round, so it is built once here.
@@ -768,6 +787,7 @@ export function mountReplay(
     if (state.trails) drawTrails(f, floor)
     if (state.vision) drawVision(f, t, floor)
     drawPlayers(f, t, floor)
+    drawShapes([...(bridge?.shapes?.(state.round ?? 0, t) ?? []), ...(stroke ? [stroke] : [])])
 
     $('rp-clock').textContent = clock(t)
     timeEl.textContent = `${clock(t)} / ${clock(d.seconds)}`
@@ -1007,6 +1027,48 @@ export function mountReplay(
       })
       ctx.restore()
     })
+  }
+
+  // VIZ-8: a coach's marks, in a colour no Side wears.
+  const PEN = '#f2c94c'
+  function drawShapes(shapes: Shape[]) {
+    for (const sh of shapes) {
+      const [a, b] = sh.points
+      if (!a) continue
+      const ax = px(a[0])
+      const ay = py(a[1])
+      ctx.save()
+      ctx.strokeStyle = PEN
+      ctx.fillStyle = PEN
+      ctx.lineWidth = 3
+      ctx.lineCap = 'round'
+      if (sh.kind === 'arrow' && b) {
+        const bx = px(b[0])
+        const by = py(b[1])
+        ctx.beginPath()
+        ctx.moveTo(ax, ay)
+        ctx.lineTo(bx, by)
+        ctx.stroke()
+        const angle = Math.atan2(by - ay, bx - ax)
+        ctx.beginPath()
+        ctx.moveTo(bx, by)
+        ctx.lineTo(bx - 14 * Math.cos(angle - 0.45), by - 14 * Math.sin(angle - 0.45))
+        ctx.lineTo(bx - 14 * Math.cos(angle + 0.45), by - 14 * Math.sin(angle + 0.45))
+        ctx.closePath()
+        ctx.fill()
+      } else if (sh.kind === 'circle' && b) {
+        ctx.beginPath()
+        ctx.arc(ax, ay, Math.hypot(px(b[0]) - ax, py(b[1]) - ay), 0, Math.PI * 2)
+        ctx.stroke()
+      } else if (sh.kind === 'text' && sh.text) {
+        ctx.font = 'bold 18px ui-sans-serif, system-ui, sans-serif'
+        ctx.lineWidth = 4
+        ctx.strokeStyle = '#0d1116'
+        ctx.strokeText(sh.text, ax, ay)
+        ctx.fillText(sh.text, ax, ay)
+      }
+      ctx.restore()
+    }
   }
 
   // VIZ-4: where each living Player looks (a 90° cone), and with Sightings,
@@ -1377,12 +1439,25 @@ export function mountReplay(
     state.cy = H / 2
     draw()
   })
-  // Pointers: one drags (pans when zoomed in, seeks on a phone when not), two pinch.
+  // A point of the plate (after the camera) in world units, for a coach's mark.
+  function world(p: { x: number; y: number }): [number, number] {
+    const u = under(p)
+    return [EXT[0] + (u.x / W) * (EXT[1] - EXT[0]), EXT[2] + (1 - u.y / H) * (EXT[3] - EXT[2])]
+  }
+  // Pointers: one drags (pans when zoomed in, seeks on a phone when not), two pinch;
+  // with a pen in the page's hand, one draws instead (VIZ-8).
   const down = new Map<number, { x: number; y: number }>()
   let moved = 0
   let pinch = 0
   on(canvas, 'pointerdown', ((e: PointerEvent) => {
     canvas.setPointerCapture(e.pointerId)
+    const pen = bridge?.pen?.()
+    if (pen) {
+      const at = world(screen(e))
+      stroke = { kind: pen.kind, points: pen.kind === 'text' ? [at] : [at, at], text: pen.text }
+      draw()
+      return
+    }
     down.set(e.pointerId, screen(e))
     moved = 0
     if (down.size === 2) {
@@ -1391,6 +1466,11 @@ export function mountReplay(
     }
   }) as EventListener)
   on(canvas, 'pointermove', ((e: PointerEvent) => {
+    if (stroke) {
+      if (stroke.kind !== 'text') stroke.points = [stroke.points[0], world(screen(e))]
+      draw()
+      return
+    }
     const last = down.get(e.pointerId)
     if (!last) return
     const now = screen(e)
@@ -1417,6 +1497,13 @@ export function mountReplay(
     }
   }) as EventListener)
   const release = ((e: PointerEvent) => {
+    if (stroke) {
+      const done = stroke
+      stroke = null
+      bridge?.onShape?.(done)
+      draw()
+      return
+    }
     if (!down.has(e.pointerId)) return
     down.delete(e.pointerId)
     if (down.size < 2) pinch = 0
@@ -1453,6 +1540,7 @@ export function mountReplay(
     if (bridge) {
       bridge.goto = undefined
       bridge.now = undefined
+      bridge.redraw = undefined
     }
     destroyed = true
     cancelAnimationFrame(frame)

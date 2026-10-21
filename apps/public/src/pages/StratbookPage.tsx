@@ -29,6 +29,9 @@ export function StratbookPage() {
         <Link to="/lineups" className="text-sm text-ct hover:underline">
           Lineup-ийн сан →
         </Link>
+        <Link to="/search" className="text-sm text-ct hover:underline">
+          Раунд хайх →
+        </Link>
         {myTeams.length > 1 && (
           <select
             value={team ?? ''}

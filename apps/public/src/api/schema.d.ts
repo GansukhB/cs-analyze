@@ -1085,6 +1085,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/search/places/{map_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Places
+         * @description The Callouts a condition can name on this Map, the most used first.
+         */
+        get: operations["places_search_places__map_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search/rounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rounds
+         * @description Every Round where all the conditions held for the Side, newest first.
+         */
+        post: operations["rounds_search_rounds_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/strats": {
         parameters: {
             query?: never;
@@ -3173,6 +3213,8 @@ export interface components {
              * @default
              */
             reason: string;
+            /** Drawing */
+            drawing?: components["schemas"]["NoteShape"][] | null;
         };
         /** NoteList */
         NoteList: {
@@ -3207,6 +3249,8 @@ export interface components {
             tag: string;
             /** Reason */
             reason: string;
+            /** Drawing */
+            drawing?: components["schemas"]["NoteShape"][] | null;
             /** Created By */
             created_by: string;
             /**
@@ -3214,6 +3258,27 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * NoteShape
+         * @description One mark drawn on the Replay (VIZ-8), in world units.
+         */
+        NoteShape: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "arrow" | "circle" | "text";
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+            /**
+             * Text
+             * @default
+             */
+            text: string;
         };
         /** OpeningLine */
         OpeningLine: {
@@ -4020,6 +4085,72 @@ export interface components {
             focus: components["schemas"]["ScrimLine"][];
             /** Strengths */
             strengths: components["schemas"]["ScrimLine"][];
+        };
+        /** SearchAsk */
+        SearchAsk: {
+            /** Map Name */
+            map_name: string;
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "ct" | "t";
+            /** Team Id */
+            team_id?: number | null;
+            /** Buy */
+            buy?: ("full" | "light") | null;
+            /** Conditions */
+            conditions: components["schemas"]["SearchCondition"][];
+        };
+        /** SearchCondition */
+        SearchCondition: {
+            /** Place */
+            place: string;
+            /**
+             * Min
+             * @default 1
+             */
+            min: number;
+            /** Max */
+            max?: number | null;
+            /**
+             * Start
+             * @default 0
+             */
+            start: number;
+            /**
+             * End
+             * @default 180
+             */
+            end: number;
+        };
+        /** SearchResult */
+        SearchResult: {
+            /** Looked */
+            looked: number;
+            /** Found */
+            found: number;
+            /** Won */
+            won: number;
+            /** Rounds */
+            rounds: components["schemas"]["SearchRound"][];
+        };
+        /** SearchRound */
+        SearchRound: {
+            /** Match */
+            match: number;
+            /** Map */
+            map: number;
+            /** Round */
+            round: number;
+            /** Team */
+            team: string;
+            /** Won */
+            won: boolean | null;
+            /** Buy */
+            buy: string;
+            /** Played At */
+            played_at: string | null;
         };
         /**
          * SpotLabel
@@ -7070,6 +7201,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScrimLog"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    places_search_places__map_name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                map_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rounds_search_rounds_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchAsk"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResult"];
                 };
             };
             /** @description Validation Error */

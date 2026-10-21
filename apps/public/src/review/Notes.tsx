@@ -2,11 +2,12 @@
 // Playlist (docs/plans/07 RV-7). The match page provides the context; a Finding
 // card shows its actions only under it, and only to Staff.
 import { useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { $api, fetchClient } from '../api/client'
 import type { components } from '../api/schema'
-import type { ReplayBridge } from '../replay/player'
+import type { ReplayBridge, Shape } from '../replay/player'
+import type { PenHooks } from './notesContext'
 import { clock } from './format'
 import { type Actions, NotesContext, useNotes } from './notesContext'
 import type { Goto } from './MapReview'
@@ -27,7 +28,7 @@ export function NotesProvider(props: { matchId: number; mapNumber: number; staff
     staff,
     matchId,
     mapNumber,
-    notes: query.data?.notes ?? [],
+    notes: (query.data?.notes ?? []) as Actions['notes'],
     reasons: query.data?.reasons ?? {},
     refresh: () =>
       void queryClient.invalidateQueries({
@@ -165,19 +166,44 @@ export function PlaylistPicker({ item, done }: { item: Item; done: () => void })
 export function RoundNotes(props: {
   round: number | null
   bridge: ReplayBridge
+  // VIZ-8: hands the page (which owns the Replay) this box's pen and marks.
+  onPens: (hooks: PenHooks | null) => void
   names: Record<string, string>
   onGoto: Goto
 }) {
-  const { round, bridge, names, onGoto } = props
+  const { round, bridge, onPens, names, onGoto } = props
   const ctx = useNotes()
   const [text, setText] = useState('')
   const [tag, setTag] = useState('')
   const [who, setWho] = useState<string[]>([])
   const [atMoment, setAtMoment] = useState(true)
+  // VIZ-8: a pen for the Replay; strokes wait here until the Note is saved.
+  const [pen, setPen] = useState<'arrow' | 'circle' | 'text' | null>(null)
+  const [penText, setPenText] = useState('')
+  const [marks, setMarks] = useState<Shape[]>([])
+  const notes = ctx?.notes
+  useEffect(() => {
+    const all = notes ?? []
+    onPens({
+      pen: () => (pen && (pen !== 'text' || penText) ? { kind: pen, text: penText } : null),
+      onShape: (shape) => setMarks((m) => [...m, shape]),
+      // A Note's marks show in its Round, around its moment.
+      shapes: (n, t) => [
+        ...(n === round ? marks : []),
+        ...all
+          .filter((x) => x.drawing && x.round === n && (x.t === null || Math.abs(t - (x.t ?? 0)) <= 4))
+          .flatMap((x) => (x.drawing ?? []) as Shape[]),
+      ],
+    })
+    bridge.redraw?.()
+    return () => onPens(null)
+  }, [onPens, bridge, pen, penText, marks, round, notes])
   const add = $api.useMutation('post', '/matches/{match_id}/maps/{map_number}/notes', {
     onSuccess: () => {
       setText('')
       setWho([])
+      setMarks([])
+      setPen(null)
       ctx?.refresh()
     },
   })
@@ -186,11 +212,14 @@ export function RoundNotes(props: {
   const here = ctx.notes.filter((n) => n.kind === 'note' && n.round === round)
   if (!ctx.staff && here.length === 0) return null
   function submit() {
-    if (!ctx || !text.trim()) return
+    if (!ctx || (!text.trim() && !marks.length)) return
     const now = atMoment ? bridge.now?.() : null
     add.mutate({
       params: { path: { match_id: ctx.matchId, map_number: ctx.mapNumber } },
-      body: { kind: 'note', round: now?.round ?? round, t: now?.t ?? null, sids: who, text, tag, code: '', reason: '' },
+      body: {
+        kind: 'note', round: now?.round ?? round, t: now?.t ?? null, sids: who, text, tag, code: '', reason: '',
+        drawing: marks.length ? marks.map((m) => ({ kind: m.kind, points: m.points, text: m.text ?? '' })) : null,
+      },
     })
   }
   return (
@@ -205,6 +234,11 @@ export function RoundNotes(props: {
               </button>
             )}
             {n.text}
+            {n.drawing && n.drawing.length > 0 && (
+              <span className="ml-1 text-xs text-warn" title="Replay дээр тэр агшинд харагдана">
+                ✎ {n.drawing.length}
+              </span>
+            )}
           </p>
           <p className="text-xs text-ink-3">
             {n.tag && <span className="mr-2 rounded border border-line px-1">{n.tag}</span>}
@@ -240,6 +274,39 @@ export function RoundNotes(props: {
               </button>
             ))}
           </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-ink-3">Зурах:</span>
+            {(
+              [
+                ['arrow', '➚ сум'],
+                ['circle', '◯ тойрог'],
+                ['text', 'T текст'],
+              ] as const
+            ).map(([k, l]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setPen(pen === k ? null : k)}
+                className={`rounded px-1.5 py-0.5 ${pen === k ? 'bg-raised text-ink' : 'text-ink-3 hover:text-ink'}`}
+              >
+                {l}
+              </button>
+            ))}
+            {pen === 'text' && (
+              <input
+                value={penText}
+                onChange={(e) => setPenText(e.target.value)}
+                maxLength={80}
+                placeholder="бичих үг"
+                className="w-28 rounded-md border border-line bg-surface-2 px-2 py-0.5 text-ink"
+              />
+            )}
+            {marks.length > 0 && (
+              <button type="button" onClick={() => setMarks([])} className="text-ink-3 hover:text-crit">
+                {marks.length} зураас арилгах
+              </button>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <input
               value={tag}
@@ -254,7 +321,7 @@ export function RoundNotes(props: {
             </label>
             <button
               type="button"
-              disabled={add.isPending || !text.trim()}
+              disabled={add.isPending || (!text.trim() && !marks.length)}
               onClick={submit}
               className="ml-auto rounded-md bg-ct px-3 py-1 font-medium text-ground disabled:opacity-50"
             >

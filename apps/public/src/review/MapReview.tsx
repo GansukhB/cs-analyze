@@ -9,6 +9,7 @@ import Audit from './Audit'
 import { applyFilters, type Filters, isActive, useFilters } from './filters'
 import FilterBar from './FilterBar'
 import { NotesProvider, RoundNotes } from './Notes'
+import type { PenHooks } from './notesContext'
 import { TEAM_DOT } from './format'
 import PlayersTable, { PlayerFocus } from './PlayersTable'
 import RoundPanel from './RoundPanel'
@@ -48,8 +49,16 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
   )
   const [round, setRound] = useState<number | null>(startRound ?? null)
   const [now, setNow] = useState<{ round: number; t: number } | null>(null)
+  const pens = useRef<PenHooks | null>(null)
+  const onPens = useCallback((hooks: PenHooks | null) => {
+    pens.current = hooks
+  }, [])
   const bridge = useMemo<ReplayBridge>(
     () => ({
+      // VIZ-8: the Round's notes box holds the pen and the marks.
+      pen: () => pens.current?.pen() ?? null,
+      onShape: (shape) => pens.current?.onShape(shape),
+      shapes: (n, t) => pens.current?.shapes(n, t) ?? [],
       onRound: (n: number) => {
         setRound(n)
         const at = startAt.current
@@ -190,6 +199,7 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
               <RoundNotes
                 round={round ?? review.rounds[0]?.n ?? null}
                 bridge={bridge}
+                onPens={onPens}
                 names={Object.fromEntries(review.players.map((p) => [p.sid, p.name]))}
                 onGoto={goto}
               />

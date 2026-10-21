@@ -36,6 +36,26 @@ def test_a_note_reaches_the_player_it_names_and_a_dispute_does_not(
     assert rates[0]["code"] == "untraded" and rates[0]["reasons"] == {"lurk": 1}
 
 
+def test_a_note_can_be_only_a_drawing_on_the_replay(client, db, auth, league):
+    """VIZ-8: an arrow and a word, in world units, kept with the Note."""
+    match = _match(db, league["a"], league["b"])
+    url = f"/matches/{match.id}/maps/1/notes"
+    marks = [
+        {"kind": "arrow", "points": [[-1200.5, 300.0], [-900.0, 640.0]]},
+        {"kind": "text", "points": [[-500.0, 100.0]], "text": "flash энд"},
+    ]
+    made = client.post(url, json={"round": 4, "t": 22.0, "drawing": marks}, headers=auth)
+    assert made.status_code == 201, made.text
+    back = client.get(url, headers=auth).json()["notes"][0]
+    assert back["text"] == "" and back["drawing"][0]["points"][1] == [-900.0, 640.0]
+    assert back["drawing"][1]["text"] == "flash энд" and back["drawing"][0]["text"] == ""
+    assert client.post(url, json={"round": 4}, headers=auth).status_code == 400
+    many = {"round": 4, "drawing": [marks[0]] * 13}
+    assert client.post(url, json=many, headers=auth).status_code == 422
+    three = {"round": 4, "drawing": [{"kind": "arrow", "points": [[0, 0], [1, 1], [2, 2]]}]}
+    assert client.post(url, json=three, headers=auth).status_code == 422
+
+
 def test_a_shared_playlist_opens_its_rounds_to_the_players(client, db, auth, league, player_login):
     them, _me = player_login
     elsewhere = _match(db, league["b"], league["c"])  # A0 never played it

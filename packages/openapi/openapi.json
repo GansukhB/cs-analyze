@@ -3541,6 +3541,105 @@
         }
       }
     },
+    "/search/places/{map_name}": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Places",
+        "description": "The Callouts a condition can name on this Map, the most used first.",
+        "operationId": "places_search_places__map_name__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "map_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Map Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Places Search Places  Map Name  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/rounds": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Rounds",
+        "description": "Every Round where all the conditions held for the Side, newest first.",
+        "operationId": "rounds_search_rounds_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/strats": {
       "get": {
         "tags": [
@@ -9268,6 +9367,21 @@
             "maxLength": 32,
             "title": "Reason",
             "default": ""
+          },
+          "drawing": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/NoteShape"
+                },
+                "type": "array",
+                "maxItems": 12
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawing"
           }
         },
         "type": "object",
@@ -9360,6 +9474,20 @@
             "type": "string",
             "title": "Reason"
           },
+          "drawing": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/NoteShape"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawing"
+          },
           "created_by": {
             "type": "string",
             "title": "Created By"
@@ -9387,6 +9515,51 @@
           "created_at"
         ],
         "title": "NoteRead"
+      },
+      "NoteShape": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "arrow",
+              "circle",
+              "text"
+            ],
+            "title": "Kind"
+          },
+          "points": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Points"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Text",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "points"
+        ],
+        "title": "NoteShape",
+        "description": "One mark drawn on the Replay (VIZ-8), in world units."
       },
       "OpeningLine": {
         "properties": {
@@ -11806,6 +11979,202 @@
           "strengths"
         ],
         "title": "ScrimRow"
+      },
+      "SearchAsk": {
+        "properties": {
+          "map_name": {
+            "type": "string",
+            "pattern": "^de_[a-z0-9_]{2,30}$",
+            "title": "Map Name"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "ct",
+              "t"
+            ],
+            "title": "Side"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "buy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "full",
+                  "light"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buy"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/SearchCondition"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "minItems": 1,
+            "title": "Conditions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_name",
+          "side",
+          "conditions"
+        ],
+        "title": "SearchAsk"
+      },
+      "SearchCondition": {
+        "properties": {
+          "place": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Place"
+          },
+          "min": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Min",
+            "default": 1
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "start": {
+            "type": "integer",
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "Start",
+            "default": 0
+          },
+          "end": {
+            "type": "integer",
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "End",
+            "default": 180
+          }
+        },
+        "type": "object",
+        "required": [
+          "place"
+        ],
+        "title": "SearchCondition"
+      },
+      "SearchResult": {
+        "properties": {
+          "looked": {
+            "type": "integer",
+            "title": "Looked"
+          },
+          "found": {
+            "type": "integer",
+            "title": "Found"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/SearchRound"
+            },
+            "type": "array",
+            "title": "Rounds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "looked",
+          "found",
+          "won",
+          "rounds"
+        ],
+        "title": "SearchResult"
+      },
+      "SearchRound": {
+        "properties": {
+          "match": {
+            "type": "integer",
+            "title": "Match"
+          },
+          "map": {
+            "type": "integer",
+            "title": "Map"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "won": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Won"
+          },
+          "buy": {
+            "type": "string",
+            "title": "Buy"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match",
+          "map",
+          "round",
+          "team",
+          "won",
+          "buy",
+          "played_at"
+        ],
+        "title": "SearchRound"
       },
       "SpotLabel": {
         "properties": {
