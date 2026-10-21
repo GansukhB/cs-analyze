@@ -219,3 +219,20 @@ def test_a_view_since_a_patch_keeps_the_maps_played_after_it(client, auth, db, l
     assert len(listed["active"]) == 7
     match = client.get(f"/matches/{db.scalar(select(Match.id).limit(1))}", headers=auth).json()
     assert match["patch"]["date"] == "2026-07-08"
+
+
+def test_a_view_by_the_score_when_the_round_began(client, auth, db, league):  # noqa: F811
+    """GP-9: Alpha's lead before each Round, per Match Map; the three views split them."""
+    a, b = league["a"], league["b"]
+    with dbctx.using(db):
+        rounds = playbook._team_rounds(a, b, "de_mirage")
+        leads = playbook._leads(a.id, rounds)
+        every = playbook.build(a, b, "de_mirage")
+        views = [playbook.build(a, b, "de_mirage", {"score": s}) for s in playbook.SCORE_VIEWS]
+    first = min(rounds, key=lambda r: (r.match_map_id, r.number))
+    assert leads[first.id] == 0 and playbook.score_state(0) == "close"
+    assert playbook.score_state(2) == "ahead" and playbook.score_state(-3) == "behind"
+    assert sum(v["view"]["rounds"] for v in views) == every["view"]["of"]
+    url = f"/gameplan/{a.id}/vs/{b.id}/playbook/de_mirage"
+    assert client.get(url + "?score=ahead", headers=auth).status_code == 200
+    assert client.get(url + "?score=winning", headers=auth).status_code == 422

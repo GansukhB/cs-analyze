@@ -6784,6 +6784,7 @@ export interface operations {
                 buy?: string;
                 days?: number;
                 since?: string;
+                score?: string;
             };
             header?: never;
             path: {

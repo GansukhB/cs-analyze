@@ -303,6 +303,7 @@ def playbook(
     buy: str = Query("", pattern="^(|full|light)$"),
     days: int = Query(0, ge=0, le=3650),
     since: str = Query("", pattern=r"^(|\d{4}-\d{2}-\d{2})$"),
+    score: str = Query("", pattern="^(|ahead|close|behind)$"),
 ) -> GameplanPanel:
     """One Map's Playbook for the «Юу хийх» tab, computed once per parse stamp.
     ``buy``, ``days`` and ``since`` (a patch's day, DATA-7) read the habits over
@@ -311,7 +312,9 @@ def playbook(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
     my_team, opponent = _fixture(db, mine, theirs)
     my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
-    view = {k: v for k, v in (("buy", buy), ("days", days), ("since", since)) if v}
+    view = {
+        k: v for k, v in (("buy", buy), ("days", days), ("since", since), ("score", score)) if v
+    }
     started = time.perf_counter()
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
         stamp = gameplan_view.stamp()

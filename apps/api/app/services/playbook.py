@@ -1214,9 +1214,29 @@ def _fielded_only(team: Team, habits: list[dict]) -> list[dict]:
 
 # GP-9: a Playbook read over some Rounds only. "full" a full buy of the Team's
 # own, "light" an eco or a force; "days" the Matches played that recently;
-# "since" those played on or after a day, a patch's (DATA-7).
+# "since" those played on or after a day, a patch's (DATA-7); "score" how the
+# Map stood when the Round began.
 BUY_VIEWS = {"full": ("full",), "light": ("eco", "force")}
 VIEW_DAYS = (30, 90, 180)
+# "score": the Team's lead before the Round, by its Match Map's Rounds so far:
+# ahead or behind by LEAD or more, close within it.
+SCORE_VIEWS = ("ahead", "close", "behind")
+LEAD = 2
+
+
+def _leads(team_id: int, rounds: list[_Round]) -> dict[int, int]:
+    """``{round id: the Team's Rounds won minus lost before it}``, per Match Map."""
+    out: dict[int, int] = {}
+    lead: dict[int, int] = defaultdict(int)
+    for r in sorted(rounds, key=lambda r: (r.match_map_id, r.number)):
+        out[r.id] = lead[r.match_map_id]
+        if r.winner is not None:
+            lead[r.match_map_id] += 1 if r.winner == team_id else -1
+    return out
+
+
+def score_state(lead: int) -> str:
+    return "ahead" if lead >= LEAD else "behind" if lead <= -LEAD else "close"
 
 
 def _viewed(team: Team, rounds: list[_Round], view: dict | None) -> list[_Round]:
@@ -1234,6 +1254,10 @@ def _viewed(team: Team, rounds: list[_Round], view: dict | None) -> list[_Round]
     if since is not None:
         played = {m.id: m.match.played_at for m in mapstrategy.maps_in_window(team)}
         out = [r for r in out if (played.get(r.match_map_id) or since) >= since]
+    if view.get("score") in SCORE_VIEWS:
+        # Counted over every Round of the Map, not only those the other views kept.
+        leads = _leads(team.id, rounds)
+        out = [r for r in out if score_state(leads[r.id]) == view["score"]]
     return out
 
 

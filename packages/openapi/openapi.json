@@ -2256,6 +2256,17 @@
               "default": "",
               "title": "Since"
             }
+          },
+          {
+            "name": "score",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(|ahead|close|behind)$",
+              "default": "",
+              "title": "Score"
+            }
           }
         ],
         "responses": {

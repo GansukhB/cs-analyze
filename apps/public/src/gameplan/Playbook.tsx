@@ -140,6 +140,14 @@ const BUY_VIEW: [string, string][] = [
   ['full', 'Full buy'],
   ['light', 'Eco/force'],
 ]
+// GP-9: how the Map stood when the Round began, by the Team's own Rounds.
+const SCORE_VIEW: [string, string][] = [
+  ['', 'Бүх оноо'],
+  ['ahead', 'Тэргүүлж (2+)'],
+  ['close', 'Ойр (±1)'],
+  ['behind', 'Хоцорч (2+)'],
+]
+
 const DAYS_VIEW: [number, string][] = [
   [0, 'Бүх хугацаа'],
   [180, '180 хоног'],
@@ -153,6 +161,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
   const days = Number(search.get('days') ?? 0)
   // DATA-7: the habits since the latest patch that changed how Rounds play.
   const since = search.get('since') ?? ''
+  const score = search.get('score') ?? ''
   const latest = $api.useQuery('get', '/patches', {}, { staleTime: Infinity }).data?.patches[0]
   const pick = (key: string, value: string | number) => {
     const next = new URLSearchParams(search)
@@ -166,7 +175,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
     {
       params: {
         path: { mine: fixture.mine.id, theirs: fixture.theirs.id, map_name: map },
-        query: { ...fixture.query, ...(buy ? { buy } : {}), ...(days ? { days } : {}), ...(since ? { since } : {}) },
+        query: { ...fixture.query, ...(buy ? { buy } : {}), ...(days ? { days } : {}), ...(since ? { since } : {}), ...(score ? { score } : {}) },
       },
     },
     { staleTime: STALE },
@@ -209,6 +218,11 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
             {label}
           </button>
         ))}
+        {SCORE_VIEW.map(([value, label]) => (
+          <button key={value || 'all'} type="button" className={`chip ${score === value ? 'on' : ''}`} onClick={() => pick('score', value)}>
+            {label}
+          </button>
+        ))}
         {latest && (
           <button
             type="button"
@@ -219,7 +233,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
             {latest.name} patch-аас хойш
           </button>
         )}
-        {(buy || days > 0 || since) && d.view && (
+        {(buy || days > 0 || since || score) && d.view && (
           <small className="mono">
             {d.view.rounds}/{d.view.of} раунд — эдийн засаг, pistol бүх раундаар
           </small>
