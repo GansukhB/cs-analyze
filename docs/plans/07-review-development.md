@@ -239,6 +239,8 @@ Match-ийн Summary ба Focus point-оос 45–60 минутын хуралд
 
 #### RV-12. Үүргийг тооцсон ба ахисан түвшний detector (P2, M тус бүр)
 
+> **Төлөв:** 🟡 `4c14eb4` (improvement-01). Lurker-ийг (T, 30 с-д 1400+ unit хол, 40%+ раунд) Review танина, түүний ганцаарчилсан үхэл untraded биш. Smoke-ийн LOS, rotate-ийн хугацаа, хожуу execute detector үлдсэн.
+
 - **Үүргийг тооцох (PL-4):** lurker-ийн ганц үхлийг default-аар `untraded` Mistake гэж үзэхгүй.
 - **Шинэ detector-ууд:**
   - харах шугамыг таслаагүй smoke

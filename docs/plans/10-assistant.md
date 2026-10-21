@@ -167,6 +167,8 @@ Tool бүр `Viewer`-ийн scope-оор уншина (ADR 0011). Player User-д
 
 ### AS-8. Тоглогчийн Assistant (P2, M)
 
+> **Төлөв:** ✅ `cf34c95` (improvement-01). Player login: зөвхөн өөрийн форм, тоглолтын Review (өөрийн мөр), Development зорилго, хуваалцсан Briefing; tool бүр сервер дээр хязгаарлагдана.
+
 Player User зөвхөн өөрийн Review, Focus point, Development plan, хуваалцсан Briefing-ийн тухай асууна. Tool-ийн жагсаалтыг role-оор нь шүүнэ. Forecast-ыг Staff хуваалцаагүй бол харуулахгүй.
 
 ### AS-9. Дууны UX (P2, S)

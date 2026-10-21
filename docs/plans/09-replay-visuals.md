@@ -128,11 +128,13 @@ ggViz-ийн арга (Xenopoulos нар, CHI PLAY 2022, `12-research-sources.md
 
 ### VIZ-10. Utility-ийн газрын зураг (P2, M, SB-3-тай хамт)
 
+> **Төлөв:** ✅ `63f6d24` (improvement-01). Playbook-д utility-ийн зураг: тэдний эсвэл манай, Side бүрээр буусан цэг, 2+ давтагдсан lineup шугамаар, хугацаа, setpos, ghost.
+
 Өрсөлдөгчийн Map ба Side бүрийн smoke, molotov, flash буусан цэгүүдийг харуулна. Шидсэн байрлалаар нь (trajectory-ийн эхний цэг) lineup болгон бүлэглэж, хугацааг нь харуулна. Set play болон Strat руу линктэй.
 
 ### VIZ-11. Map-ийн хамрах хүрээ ба pool-ийн солигдол (P1, S)
 
-> **Төлөв:** 🟡 `b5c5e70` (improvement-01). Spot-ийн хувилбар Map бүрээр (`match_map_reviews.spots_version`). Map pool-ийн огноотой тохиргоо TM-6-д (`36ec17f`). Шинэ Map-ийн checklist, patch-ийн дараах Spot шалгалт үлдсэн.
+> **Төлөв:** ✅ `5d4c169` (improvement-01). Spot-ийн хувилбар Map бүрээр (`b5c5e70`); Map pool-ийн огноо `patches.json`-д (DATA-7); шинэ Map-ийн checklist `docs/new-map.md`.ах Spot шалгалт үлдсэн.
 
 - **Map pool-ийн тохиргоо:** hard-code хийсэн `ACTIVE_DUTY`-г (`mapstrategy.py:53`) огноотой тохиргоогоор солино. Жишээ нь `de_cache: 2026-07-08–`, `de_overpass: 2025-07-16–2026-07-08` (TM-6, DATA-7).
 - **Шинэ Map:** pool-д Map орж ирэх бүрт radar PNG, Valve-ийн calibration (`radar.py`), Spot polygon-ыг бэлдэх checklist. Одоогийн 7 Map бүгд бэлэн.
