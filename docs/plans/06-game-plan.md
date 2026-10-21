@@ -71,7 +71,7 @@
 
 ### GP-2. Decision → Forecast (P0/P1, M; FC-3, FC-4-ийн дараа)
 
-> **Төлөв:** 🟡 `5d19413` (improvement-01). Call ба lead нь Bo3 Forecast. Бүх Map-ын шилдэг 3 Lever/Caution үлдсэн.
+> **Төлөв:** ✅ `ef6f078` (improvement-01). Call ба lead нь Bo3 Forecast; Decision tab-д бүх Map-аас шилдэг 3 Lever ба 3 Caution.
 
 Decision tab-д дараах зүйлс харагдана:
 

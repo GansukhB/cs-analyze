@@ -143,7 +143,7 @@ Leetify-ийн тодорхойлолтыг өөрийн датанд таару
 
 ### PL-7. Өрсөлдөгчийн тоглогчийн карт (P1, M)
 
-> **Төлөв:** 🟡 `9c1bd2e` (improvement-01). Players tab-ийн картад: батлагдсан KPI, Swing-ийн хүрээ, Finding-ийн давтамж. Playbook-ийн matchup болон Briefing-д оруулах нь үлдсэн.
+> **Төлөв:** ✅ `893a30c` (improvement-01). Players tab-ийн картад KPI, Swing-ийн хүрээ, Finding-ийн давтамж; Playbook-ийн тоглогч бүрт Review-ийн мөр, Briefing-д хамт.
 
 Өрсөлдөгчийн Lineup-ийн тоглогч бүрт "X-ийн эсрэг яаж тоглох вэ":
 

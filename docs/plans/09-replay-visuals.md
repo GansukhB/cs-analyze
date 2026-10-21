@@ -57,7 +57,7 @@ Coach, analyst ажлынхаа ихэнх цагийг раунд үзэхэд 
 
 ### VIZ-2. Deep link ба хуваалцах (P1, S)
 
-> **Төлөв:** 🟡 `fa46c05` (improvement-01). `?round&t&player` линк, «Энэ агшны холбоос хуулах» товч. Game Plan-ийн сонголтыг URL-д оруулах нь үлдсэн.
+> **Төлөв:** ✅ `a188b55` (improvement-01). `?round&t&player` линк, агшны холбоос хуулах; Game Plan-ийн heatmap/movement сонголт URL-д (g-угтвар).
 
 - URL: `/matches/:id/m/:n?round=14&t=63.5&player=<steamid>`. "Энэ агшны линк хуулах" товч нэмнэ.
 - Game Plan-ийн map/side, тоглогч, heatmap-ийн сонголтыг URL-д оруулна.
@@ -80,7 +80,7 @@ Coach, analyst ажлынхаа ихэнх цагийг раунд үзэхэд 
 
 ### VIZ-5. Олон раундыг давхарлах ("ghost" горим) (P1, M)
 
-> **Төлөв:** 🟡 `dfd0efb` (improvement-01). `/ghost`: сонгосон раундуудыг freeze end-ээс синк хийж давхарлана, Playbook-ийн evidence-ээс «⧉ давхар». Онооны байдал, Setup, Set play-ээр шүүх нь үлдсэн.
+> **Төлөв:** ✅ `e23fb8c` (improvement-01). `/ghost`: раундуудыг freeze end-ээс синк хийж давхарлана; Playbook-ийн habit/Set play-ийн evidence-ээс «⧉ давхар», Round search-ээс (Map, Side, Team, buy, онооны байдал, Callout).
 
 Anti-strat-ийн хамгийн их хэрэглэгддэг харагдац: сонгосон N раундыг (жишээ нь өрсөлдөгчийн Inferno-гийн бүх Full buy T раунд) freeze end-ээс эхлэн синк хийж тоглуулна. Тоглогч бүр бүдэг цэг, мөрөөр харагдана.
 

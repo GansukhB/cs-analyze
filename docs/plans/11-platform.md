@@ -115,6 +115,8 @@ Celery-ийн `task_routes`, worker бүрт `-Q`. Одоогийн `--pool=thre
 
 ### OPS-7. Хадгалалтын өсөлт (P1 төлөвлөгөө, P2 хэрэгжүүлэлт, M)
 
+> **Төлөв:** 🟡 `8985393` (improvement-01). Хэмжилт (2026-10-21, локал): 113 map, `tick_datasets` 1.25 GB (bundle дундаж 11.2 MB, walks ~150 KB), `replay_rounds` 90 MB (раунд бүр ~29 KB + токен 1.3 KB), Review ~19 KB/map; бусад хүснэгт нийт <150 MB. Bundle-ийг зөвхөн `tickdata.load_bundle`/`store`-оор уншиж бичдэг болсон. Object storage руу шилжүүлэлт босго хүрэхэд (P2).
+
 - **Тооцоо:**
   - Одоо ~12.8 MB/map.
   - Scrim: долоо хоногт 15–25 map гэвэл сард ~1 GB.

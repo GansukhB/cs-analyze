@@ -116,7 +116,7 @@ Playbook-ийн habit бүрийг тогтмол босгоор биш, тух�
 
 ### TM-5. Хэв маягийн хурууны хээ (style fingerprint) (P1, M)
 
-> **Төлөв:** 🟡 `58b2e32` (improvement-01). T/CT/хоёр талын 13 хэмжүүр Pool-ын percentile-аар; Team page ба Playbook. Rotate-ийн хурд, lurk, mid control үлдсэн.
+> **Төлөв:** 🟡 `65f3bee` (improvement-01). T/CT/хоёр талын хэмжүүр Pool-ын percentile-аар; schema 2: mid control (20 s), lurk (30 s), CT rotate-ийн хурд (токеноос). Team page ба Playbook.
 
 Map, Side бүрээр хэмжигдэх хэмжүүрүүд. Бүгд Pool-тай percentile-аар харьцуулагдаж, Evidence-тэй байна.
 
