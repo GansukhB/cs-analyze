@@ -128,3 +128,16 @@ def test_the_forecasts_reliability_by_band_of_our_chance():
     assert stats.wilson(0, 0) == (0.0, 1.0)
     low, high = stats.wilson(50, 100)
     assert round(low, 2) == 0.44 and round(high, 2) == 0.56
+
+
+def test_a_round_is_pistol_match_point_close_or_other():
+    """PL-10's kinds of Round, from the score before it."""
+    from app.services import pressure
+
+    assert pressure._kind(1, 0, 0) == "pistol" and pressure._kind(13, 6, 6) == "pistol"
+    assert (
+        pressure._kind(20, 12, 7) == "match_point" and pressure._kind(24, 11, 12) == "match_point"
+    )
+    assert pressure._kind(21, 10, 10) == "close" and pressure._kind(19, 9, 9) == "close"
+    assert pressure._kind(18, 9, 8) == "other" and pressure._kind(20, 12, 5) == "match_point"
+    assert pressure._kind(28, 14, 13) == "close"  # overtime: no match point counted

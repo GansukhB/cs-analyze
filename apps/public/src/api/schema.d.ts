@@ -2326,6 +2326,17 @@ export interface components {
             /** Hit */
             hit: number;
         };
+        /** Consistency */
+        Consistency: {
+            /** Maps */
+            maps: number;
+            /** Sd */
+            sd: number;
+            /** Pct */
+            pct: number;
+            /** Players */
+            players: number;
+        };
         /** Coverage */
         Coverage: {
             /** Schema Version */
@@ -3874,6 +3885,12 @@ export interface components {
              */
             by_tier: components["schemas"]["PlayerTierLine"][];
             aim?: components["schemas"]["PlayerAim"] | null;
+            /**
+             * Pressure
+             * @default []
+             */
+            pressure: components["schemas"]["PressureLine"][];
+            consistency?: components["schemas"]["Consistency"] | null;
         };
         /** PlayerRef */
         PlayerRef: {
@@ -4054,6 +4071,19 @@ export interface components {
              * @default false
              */
             shared: boolean;
+        };
+        /** PressureLine */
+        PressureLine: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Rounds */
+            rounds: number;
+            /** Per Round */
+            per_round: number | null;
+            /** Pool Per Round */
+            pool_per_round: number | null;
         };
         /** ReliabilityBand */
         ReliabilityBand: {

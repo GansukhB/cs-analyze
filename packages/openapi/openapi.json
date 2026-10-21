@@ -6802,6 +6802,34 @@
         ],
         "title": "CheckVeto"
       },
+      "Consistency": {
+        "properties": {
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "sd": {
+            "type": "number",
+            "title": "Sd"
+          },
+          "pct": {
+            "type": "integer",
+            "title": "Pct"
+          },
+          "players": {
+            "type": "integer",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "sd",
+          "pct",
+          "players"
+        ],
+        "title": "Consistency"
+      },
       "Coverage": {
         "properties": {
           "schema_version": {
@@ -11252,6 +11280,24 @@
                 "type": "null"
               }
             ]
+          },
+          "pressure": {
+            "items": {
+              "$ref": "#/components/schemas/PressureLine"
+            },
+            "type": "array",
+            "title": "Pressure",
+            "default": []
+          },
+          "consistency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Consistency"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -11789,6 +11835,53 @@
           "title"
         ],
         "title": "PlaylistWrite"
+      },
+      "PressureLine": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "per_round": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Round"
+          },
+          "pool_per_round": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Per Round"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "rounds",
+          "per_round",
+          "pool_per_round"
+        ],
+        "title": "PressureLine"
       },
       "ReliabilityBand": {
         "properties": {

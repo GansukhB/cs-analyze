@@ -106,6 +106,7 @@ function Tiles({ p }: { p: Page }) {
       </dl>
       <Duels p={p} />
       <Aim p={p} />
+      <Pressure p={p} />
       {o && o.attempts > 0 && (
         // What his Team made of his opening duels (RV-8).
         <p className="text-sm text-ink-2">
@@ -118,6 +119,47 @@ function Tiles({ p }: { p: Page }) {
 }
 
 /** Aim from his engagements on Match Maps with Sightings (PL-5), each against every Player's. */
+// PL-10: Swing per Round when it matters most, beside every Player's, and how
+// much their Maps differ from each other.
+const pp = (v: number | null | undefined) => (v == null ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v * 100).toFixed(1)}%`)
+
+function Pressure({ p }: { p: Page }) {
+  if (!p.pressure.length || p.pressure.every((r) => !r.rounds)) return null
+  const c = p.consistency
+  return (
+    <section className="space-y-2">
+      <h2 className="font-medium text-ink">Дарамттай раунд ба тогтвортой байдал</h2>
+      <table className="text-sm">
+        <thead className="text-left text-xs text-ink-3">
+          <tr>
+            <th className="py-1 pr-6 font-normal">Раунд</th>
+            <th className="py-1 pr-6 text-right font-normal">Тоо</th>
+            <th className="py-1 pr-6 text-right font-normal">Swing/раунд</th>
+            <th className="py-1 text-right font-normal">Бусад тоглогч</th>
+          </tr>
+        </thead>
+        <tbody>
+          {p.pressure.map((r) => (
+            <tr key={r.key} className="border-t-1 border-line">
+              <td className="py-1 pr-6 text-ink-2">{r.label}</td>
+              <td className="py-1 pr-6 text-right font-mono text-ink-3">{r.rounds}</td>
+              <td className="py-1 pr-6 text-right font-mono text-ink">{pp(r.per_round)}</td>
+              <td className="py-1 text-right font-mono text-ink-3">{pp(r.pool_per_round)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {c && (
+        <p className="max-w-2xl text-sm text-ink-2">
+          Map хоорондын хэлбэлзэл: Swing/раунд-ын стандарт хазайлт {(c.sd * 100).toFixed(1)} пункт ({c.maps} map);{' '}
+          {c.players} тоглогчийн {c.pct}-р percentile, {c.pct >= 70 ? 'бусдаас тогтворгүй' : c.pct <= 30 ? 'бусдаас тогтвортой' : 'дунджийн орчим'}.
+        </p>
+      )}
+      <p className="text-xs text-ink-3">Цөөн раундтай мөр (30-аас доош) нь азаас их хамаарна.</p>
+    </section>
+  )
+}
+
 function Aim({ p }: { p: Page }) {
   const a = p.aim
   if (!a) return null

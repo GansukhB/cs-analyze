@@ -29,7 +29,7 @@ from app.models import (
     SnapshotMoment,
     Team,
 )
-from app.services import aim, audit, duels, mn, review, review_pool, team_strength
+from app.services import aim, audit, duels, mn, pressure, review, review_pool, team_strength
 from app.services.dbctx import count_if, db, total
 from app.services.stats import bootstrap
 
@@ -262,6 +262,8 @@ def build(steamid: int) -> dict | None:
         "by_tier": _by_tier(rows, swing_by_map, names),
         # Aim from his engagements on Match Maps with Sightings (PL-5).
         "aim": aim.player(sid, {mm.id for mm, *_ in rows}),
+        # How steady they are from Map to Map, and the Rounds that matter most (PL-10).
+        **pressure.player(player.steamid),
     }
 
 

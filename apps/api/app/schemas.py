@@ -2224,6 +2224,21 @@ class PlayerTierLine(BaseModel):
     swing_per_round: float
 
 
+class PressureLine(BaseModel):
+    key: str  # pistol, match_point, close, other
+    label: str
+    rounds: int
+    per_round: float | None  # Swing per Round
+    pool_per_round: float | None
+
+
+class Consistency(BaseModel):
+    maps: int
+    sd: float  # the spread of per-Map Swing per Round
+    pct: int  # high: their Maps differ more than most Players'
+    players: int
+
+
 class PlayerPage(BaseModel):
     player: PlayerRef
     teams: list[PlayerTeamSpan]
@@ -2239,3 +2254,5 @@ class PlayerPage(BaseModel):
     duels: PlayerDuels | None = None
     by_tier: list[PlayerTierLine] = []
     aim: PlayerAim | None = None
+    pressure: list[PressureLine] = []
+    consistency: Consistency | None = None
