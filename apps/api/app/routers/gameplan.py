@@ -25,6 +25,7 @@ from app.cache import get_cache
 from app.deps import DbSession, StaffUser
 from app.models import Player, Team
 from app.schemas import (
+    Between,
     FixtureStyle,
     GameplanHeader,
     GameplanLineup,
@@ -41,6 +42,7 @@ from app.schemas import (
 )
 from app.services import (
     audit,
+    between,
     dbctx,
     gameplan,
     gameplan_view,
@@ -276,6 +278,17 @@ def fixture_timeout(
     my_team, opponent = _fixture(db, mine, theirs)
     with dbctx.using(db):
         return TimeoutCard(**timeout_card.card(opponent, my_team, map_name), pool=audit.pool())
+
+
+@router.get("/{mine}/vs/{theirs}/between")
+def fixture_between(
+    mine: int, theirs: int, db: DbSession, _: StaffUser, played: int | None = None
+) -> Between:
+    """What the opponent did differently on a Map they just played (default their
+    newest reviewed), against their other Maps: for the break before the next (GP-4)."""
+    _my_team, opponent = _fixture(db, mine, theirs)
+    with dbctx.using(db):
+        return Between(**between.changes(opponent, played))
 
 
 @router.get("/{mine}/vs/{theirs}/style/{map_name}")

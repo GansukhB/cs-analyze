@@ -802,6 +802,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/gameplan/{mine}/vs/{theirs}/between": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fixture Between
+         * @description What the opponent did differently on a Map they just played (default their
+         *     newest reviewed), against their other Maps: for the break before the next (GP-4).
+         */
+        get: operations["fixture_between_gameplan__mine__vs__theirs__between_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gameplan/{mine}/vs/{theirs}/style/{map_name}": {
         parameters: {
             query?: never;
@@ -2239,6 +2260,87 @@ export interface components {
             won_next: boolean;
             /** Expected */
             expected: number | null;
+        };
+        /**
+         * Between
+         * @description GP-4: what the opponent did differently on a Map they just played.
+         */
+        Between: {
+            /** Recent */
+            recent: components["schemas"]["BetweenMap"][];
+            played: components["schemas"]["BetweenMap"] | null;
+            /** Lines */
+            lines: components["schemas"]["BetweenLine"][];
+            /** Players */
+            players: components["schemas"]["BetweenPlayer"][];
+            /** Usual Maps */
+            usual_maps: number;
+        };
+        /** BetweenLine */
+        BetweenLine: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "rate" | "force_share" | "code";
+            /** Key */
+            key: string;
+            /** Side */
+            side: string;
+            /** K */
+            k: number;
+            /** N */
+            n: number;
+            /** Usual */
+            usual: number;
+            /** More */
+            more: boolean;
+            /** Chance */
+            chance: number;
+            /** Good */
+            good?: boolean | null;
+            /** Text */
+            text: string;
+        };
+        /** BetweenMap */
+        BetweenMap: {
+            /** Mm */
+            mm: number;
+            /** Match */
+            match: number;
+            /** Num */
+            num: number;
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** Against */
+            against: string;
+            /** Played At */
+            played_at: string | null;
+        };
+        /** BetweenPlayer */
+        BetweenPlayer: {
+            /** Sid */
+            sid: string;
+            /** Name */
+            name: string;
+            /** Rounds */
+            rounds: number;
+            /**
+             * Here
+             * @description Swing per Round on the played Map.
+             */
+            here: number;
+            /**
+             * Usual
+             * @description Swing per Round on their other Maps.
+             */
+            usual: number;
+            /** Hot */
+            hot: boolean;
+            /** Cold */
+            cold: boolean;
         };
         /**
          * BoardPlate
@@ -7412,6 +7514,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TimeoutCard"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fixture_between_gameplan__mine__vs__theirs__between_get: {
+        parameters: {
+            query?: {
+                played?: number | null;
+            };
+            header?: never;
+            path: {
+                mine: number;
+                theirs: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Between"];
                 };
             };
             /** @description Validation Error */

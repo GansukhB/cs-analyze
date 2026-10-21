@@ -1391,6 +1391,49 @@ class TimeoutSide(BaseModel):
     moves: list[TimeoutMove]
 
 
+class BetweenMap(BaseModel):
+    mm: int
+    match: int
+    num: int
+    map: str
+    label: str
+    against: str
+    played_at: str | None
+
+
+class BetweenLine(BaseModel):
+    kind: Literal["rate", "force_share", "code"]
+    key: str
+    side: str
+    k: int
+    n: int
+    usual: float
+    more: bool
+    chance: float
+    good: bool | None = None
+    text: str
+
+
+class BetweenPlayer(BaseModel):
+    sid: str
+    name: str
+    rounds: int
+    here: float = Field(description="Swing per Round on the played Map.")
+    usual: float = Field(description="Swing per Round on their other Maps.")
+    hot: bool
+    cold: bool
+
+
+class Between(BaseModel):
+    """GP-4: what the opponent did differently on a Map they just played."""
+
+    recent: list[BetweenMap]
+    played: BetweenMap | None
+    lines: list[BetweenLine]
+    players: list[BetweenPlayer]
+    usual_maps: int
+
+
 class TimeoutCard(BaseModel):
     map: str
     rounds: int

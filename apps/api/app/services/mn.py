@@ -3403,6 +3403,32 @@ DISPUTE_REASONS = {
 
 # -- GP-4: what the opponent changes when a Map goes against them ----------------
 # key -> (label, our answer when it rises, our answer when it falls)
+# GP-4: what the opponent did differently on the Map they just played.
+BETWEEN_RATE = {
+    "opening": "opening duel хожсон",
+    "trade": "үхлээ trade хийлгэсэн",
+    "post_plant": "plant-ын дараа хожсон",
+    "retake": "retake хожсон",
+    "force_share": "force buy хийсэн",
+}
+
+
+def between_line(x: dict) -> str:
+    """Нэг ялгааг нэг өгүүлбэрээр: энэ Map-д хэд, ихэвчлэн хэд."""
+    side = SIDE_SHORT.get(x["side"], "")
+    usual = x["usual"]
+    if x["kind"] == "code":
+        label = REVIEW_CODE.get(x["key"], x["key"])
+        per24 = 24 * x["k"] / x["n"] if x["n"] else 0.0
+        return (
+            f"{side}: {label} {x['k']} удаа ({x['n']} раунд, 24-т {per24:.1f}; "
+            f"ихэвчлэн {24 * usual:.1f})."
+        )
+    verb = BETWEEN_RATE.get(x["key"], x["key"])
+    word = "илүү" if x["more"] else "бага"
+    return f"{side}: {x['k']}/{x['n']} {verb} — ихэвчлэн {round(100 * usual)}%, энэ удаа {word}."
+
+
 TIMEOUT_SIGNALS = {
     "site_a": ("A цэг рүү plant", "A-г хүчирхэгжүүл: B-ээс нэгийг A руу ойртуул.",
                "B-г хүчирхэгжүүл: A-гаас нэгийг B руу ойртуул."),

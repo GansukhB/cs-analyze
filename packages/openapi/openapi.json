@@ -2298,6 +2298,79 @@
         }
       }
     },
+    "/gameplan/{mine}/vs/{theirs}/between": {
+      "get": {
+        "tags": [
+          "gameplan"
+        ],
+        "summary": "Fixture Between",
+        "description": "What the opponent did differently on a Map they just played (default their\nnewest reviewed), against their other Maps: for the break before the next (GP-4).",
+        "operationId": "fixture_between_gameplan__mine__vs__theirs__between_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mine",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "theirs",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Theirs"
+            }
+          },
+          {
+            "name": "played",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Played"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Between"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/gameplan/{mine}/vs/{theirs}/style/{map_name}": {
       "get": {
         "tags": [
@@ -6564,6 +6637,219 @@
           "expected"
         ],
         "title": "AuditTimeout"
+      },
+      "Between": {
+        "properties": {
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/BetweenMap"
+            },
+            "type": "array",
+            "title": "Recent"
+          },
+          "played": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BetweenMap"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/BetweenLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/BetweenPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          },
+          "usual_maps": {
+            "type": "integer",
+            "title": "Usual Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recent",
+          "played",
+          "lines",
+          "players",
+          "usual_maps"
+        ],
+        "title": "Between",
+        "description": "GP-4: what the opponent did differently on a Map they just played."
+      },
+      "BetweenLine": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rate",
+              "force_share",
+              "code"
+            ],
+            "title": "Kind"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "k": {
+            "type": "integer",
+            "title": "K"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "usual": {
+            "type": "number",
+            "title": "Usual"
+          },
+          "more": {
+            "type": "boolean",
+            "title": "More"
+          },
+          "chance": {
+            "type": "number",
+            "title": "Chance"
+          },
+          "good": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Good"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "key",
+          "side",
+          "k",
+          "n",
+          "usual",
+          "more",
+          "chance",
+          "text"
+        ],
+        "title": "BetweenLine"
+      },
+      "BetweenMap": {
+        "properties": {
+          "mm": {
+            "type": "integer",
+            "title": "Mm"
+          },
+          "match": {
+            "type": "integer",
+            "title": "Match"
+          },
+          "num": {
+            "type": "integer",
+            "title": "Num"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "against": {
+            "type": "string",
+            "title": "Against"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mm",
+          "match",
+          "num",
+          "map",
+          "label",
+          "against",
+          "played_at"
+        ],
+        "title": "BetweenMap"
+      },
+      "BetweenPlayer": {
+        "properties": {
+          "sid": {
+            "type": "string",
+            "title": "Sid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "here": {
+            "type": "number",
+            "title": "Here",
+            "description": "Swing per Round on the played Map."
+          },
+          "usual": {
+            "type": "number",
+            "title": "Usual",
+            "description": "Swing per Round on their other Maps."
+          },
+          "hot": {
+            "type": "boolean",
+            "title": "Hot"
+          },
+          "cold": {
+            "type": "boolean",
+            "title": "Cold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sid",
+          "name",
+          "rounds",
+          "here",
+          "usual",
+          "hot",
+          "cold"
+        ],
+        "title": "BetweenPlayer"
       },
       "BoardPlate": {
         "properties": {

@@ -4,6 +4,7 @@
 import { useMemo } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { $api } from '../api/client'
+import Between from '../gameplan/Between'
 import { lineupQuery, readLineups } from '../gameplan/lineup'
 import type { Habit, PlaybookPanel, Strength } from '../gameplan/types'
 
@@ -98,6 +99,8 @@ export default function MapSheetPage() {
           </button>
         </span>
       </header>
+
+      <Between mine={mine} theirs={theirs} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Block title={`Тэдний T → манай CT`}>
