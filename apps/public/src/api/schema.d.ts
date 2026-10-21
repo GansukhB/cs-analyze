@@ -4154,6 +4154,8 @@ export interface components {
              * @enum {string}
              */
             visibility: "staff" | "team";
+            /** Examples */
+            examples?: components["schemas"]["StratExampleWrite"][];
         };
         /** StyleMetric */
         StyleMetric: {

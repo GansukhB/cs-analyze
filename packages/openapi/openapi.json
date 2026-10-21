@@ -11965,6 +11965,14 @@
             ],
             "title": "Visibility",
             "default": "staff"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/StratExampleWrite"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Examples"
           }
         },
         "type": "object",

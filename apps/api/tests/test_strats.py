@@ -67,3 +67,15 @@ def test_an_example_round_links_the_strat_to_a_match(client, db, auth, workspace
     assert gone.json()["examples"] == 0
     rows = client.get("/strats?map_name=de_mirage", headers=auth).json()
     assert [r["id"] for r in rows] == [sid]
+
+
+def test_a_set_play_becomes_a_strat_with_its_rounds(client, db, auth, workspace, league):
+    """SB-2: the Rounds a Set play was found in come with it; one not visible is left out."""
+    a, b = league["a"], league["b"]
+    _ours(db, workspace, a)
+    match = db.scalar(select(Match).where(Match.team1_id == a.id, Match.team2_id == b.id))
+    refs = [{"match_id": match.id, "map_number": 1, "round": n} for n in (3, 6, 6)]
+    refs.append({"match_id": 999999, "map_number": 1, "round": 1})
+    made = client.post("/strats", headers=auth, json=_body(a.id, examples=refs)).json()
+    assert [e["round"] for e in made["examples_list"]] == [3, 6]
+    assert {e["source"] for e in made["examples_list"]} == {"setplay"}

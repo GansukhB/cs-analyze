@@ -168,6 +168,16 @@ def create_strat(body: StratWrite, db: DbSession, user: StaffUser) -> StratRead:
     _apply(strat, body)
     db.add(strat)
     db.flush()
+    seen = set()
+    for e in body.examples:
+        try:
+            match_map = _map(db, e.match_id, e.map_number, user)
+        except HTTPException:
+            continue  # a Round this login can't see is left out, not an error
+        if (match_map.id, e.round) not in seen:
+            seen.add((match_map.id, e.round))
+            db.add(StratExample(strat_id=strat.id, match_map_id=match_map.id, round=e.round,
+                                source="setplay", note=e.note.strip()))  # fmt: skip
     _log(db, strat, user, "edit")
     db.commit()
     return _read(db, strat, user)

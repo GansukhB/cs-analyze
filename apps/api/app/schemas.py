@@ -1273,6 +1273,13 @@ class StratGrenade(BaseModel):
     lineup: int | None = None
 
 
+class StratExampleWrite(BaseModel):
+    match_id: int
+    map_number: int
+    round: int = Field(ge=1, le=60)
+    note: str = Field(default="", max_length=300)
+
+
 class StratWrite(BaseModel):
     team_id: int
     map_name: str = Field(pattern=r"^de_[a-z0-9_]{2,30}$")
@@ -1289,6 +1296,8 @@ class StratWrite(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=12)
     status: Literal["draft", "active", "retired"] = "draft"
     visibility: Literal["staff", "team"] = "staff"
+    # On creation only: example Rounds to keep with it (a Set play's, SB-2).
+    examples: list[StratExampleWrite] = Field(default_factory=list, max_length=12)
 
 
 class StratRow(BaseModel):
@@ -1318,13 +1327,6 @@ class StratExampleRead(BaseModel):
     source: str
     confirmed: bool
     note: str
-
-
-class StratExampleWrite(BaseModel):
-    match_id: int
-    map_number: int
-    round: int = Field(ge=1, le=60)
-    note: str = Field(default="", max_length=300)
 
 
 class StratRead(StratRow):

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { $api } from '../api/client'
 import { StyleTable } from '../team/Style'
 import { type Fixture, Todo } from './panels'
@@ -262,7 +262,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
       {d.sections.map((s) => (
         <div key={s.key}>
           <h3 className="pb-section">{s.title}</h3>
-          <Habits habits={s.habits} />
+          <Habits habits={s.habits} strat={{ whose: 'theirs', team: fixture.mine.id, map }} />
         </div>
       ))}
 
@@ -392,7 +392,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
             <h4>
               <span className={`tag ${s.side}`}>{s.label}</span>
             </h4>
-            <Habits habits={s.habits} />
+            <Habits habits={s.habits} strat={{ whose: 'mine', team: fixture.mine.id, map }} />
           </div>
         ))}
       </div>
@@ -400,7 +400,7 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
   )
 }
 
-function Habits({ habits }: { habits: Habit[] }) {
+function Habits({ habits, strat }: { habits: Habit[]; strat?: StratFrom }) {
   if (!habits.length) return <p className="none">4-өөс доошгүй раундад давтагдсан хэв маяг алга.</p>
   return (
     <div className="pb-list">
@@ -411,9 +411,64 @@ function Habits({ habits }: { habits: Habit[] }) {
           {h.counter && <p className="pb-counter">{h.counter}</p>}
           {h.review && <p className="pb-review">{h.review}</p>}
           {h.evidence && <Proof e={h.evidence} />}
+          {strat && h.kind === 'set_play' && <StratButton habit={h} from={strat} />}
         </div>
       ))}
     </div>
+  )
+}
+
+// SB-2: a Set play found in the data becomes a written Strat. Ours keeps its
+// grenades and Rounds; theirs becomes our answer on the other Side, with their
+// Rounds to study.
+interface StratFrom {
+  whose: 'mine' | 'theirs'
+  team: number
+  map: string
+}
+
+function StratButton({ habit, from }: { habit: Habit; from: StratFrom }) {
+  const navigate = useNavigate()
+  const create = $api.useMutation('post', '/strats', { onSuccess: (s) => navigate(`/stratbook/${s.id}`) })
+  const side = habit.spec?.side ?? 't'
+  const ours = from.whose === 'mine'
+  const mySide = ours ? side : side === 't' ? 'ct' : 't'
+  const make = () =>
+    create.mutate({
+      body: {
+        team_id: from.team,
+        map_name: from.map,
+        side: mySide,
+        name: (ours ? habit.title : `Эсрэг: ${habit.title}`).slice(0, 120),
+        kind: ours ? (side === 't' ? 'execute' : 'setup') : mySide === 'ct' ? 'setup' : 'default',
+        description: ours ? habit.detail : `Тэдний set play: ${habit.title}. ${habit.counter}`,
+        roles: [],
+        grenades: ours
+          ? (habit.spec?.grenades ?? []).map((g) => ({
+              slot: null,
+              type: (['smoke', 'flash', 'he', 'inferno', 'decoy'].includes(g.type) ? g.type : 'smoke') as 'smoke',
+              place: g.place,
+              at: g.at,
+              note: '',
+              lineup: null,
+            }))
+          : [],
+        timings: '',
+        variations: '',
+        calls: '',
+        tags: ['set play'],
+        status: 'draft',
+        visibility: 'staff',
+        examples: habit.evidence.refs.slice(0, 8).map((r) => ({ match_id: r.match, map_number: r.map, round: r.round, note: '' })),
+      },
+    })
+  return (
+    <p className="pb-review">
+      <button type="button" className="underline" disabled={create.isPending} onClick={make}>
+        {ours ? 'Strat болгох' : 'Эсрэг Strat бичих'}
+      </button>
+      {create.isError && <span className="crit-text"> Зөвхөн манай багийн Strat бичнэ.</span>}
+    </p>
   )
 }
 
