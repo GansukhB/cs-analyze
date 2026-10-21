@@ -19,6 +19,7 @@ from app.schemas import (
     DemoState,
     MapRecordRow,
     MatchRecord,
+    RosterTimeline,
     TeamDetail,
     TeamList,
     TeamMapPool,
@@ -30,7 +31,7 @@ from app.schemas import (
     TeamStrength,
     TeamStyleView,
 )
-from app.services import after_contact, dbctx, map_pool, style, team_strength
+from app.services import after_contact, dbctx, map_pool, roster, style, team_strength
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -283,6 +284,15 @@ def _players(db: Session, team: Team) -> list[TeamPlayer]:
         TeamPlayer(steamid=str(sid), name=name, maps=maps, rounds=int(rounds or 0), last=seen)
         for sid, name, maps, rounds, seen in rows
     ]
+
+
+@router.get("/{team_id}/roster", response_model_by_alias=True)
+def team_roster(team_id: int, db: DbSession, _: StaffUser) -> RosterTimeline:
+    """Who played for the Team when, in stretches (TM-10)."""
+    if db.get(Team, team_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such team")
+    with dbctx.using(db):
+        return RosterTimeline.model_validate(roster.timeline(team_id))
 
 
 @router.get("/{team_id}/after-contact")

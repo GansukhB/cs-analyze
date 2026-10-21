@@ -414,6 +414,54 @@
         }
       }
     },
+    "/teams/{team_id}/roster": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Team Roster",
+        "description": "Who played for the Team when, in stretches (TM-10).",
+        "operationId": "team_roster_teams__team_id__roster_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterTimeline"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/teams/{team_id}/after-contact": {
       "get": {
         "tags": [
@@ -12184,6 +12232,105 @@
           "name"
         ],
         "title": "ReviewTeam"
+      },
+      "RosterPlayer": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "spans": {
+            "items": {
+              "$ref": "#/components/schemas/RosterSpan"
+            },
+            "type": "array",
+            "title": "Spans"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "maps",
+          "spans"
+        ],
+        "title": "RosterPlayer"
+      },
+      "RosterSpan": {
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "title": "To"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "maps"
+        ],
+        "title": "RosterSpan"
+      },
+      "RosterTimeline": {
+        "properties": {
+          "from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/RosterPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "players"
+        ],
+        "title": "RosterTimeline",
+        "description": "Who played for a Team when (TM-10): each Player's stretches of Match Maps."
       },
       "RoundBullet": {
         "properties": {

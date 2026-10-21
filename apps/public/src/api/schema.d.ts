@@ -200,6 +200,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/teams/{team_id}/roster": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Team Roster
+         * @description Who played for the Team when, in stretches (TM-10).
+         */
+        get: operations["team_roster_teams__team_id__roster_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/teams/{team_id}/after-contact": {
         parameters: {
             query?: never;
@@ -4197,6 +4217,44 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** RosterPlayer */
+        RosterPlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Maps */
+            maps: number;
+            /** Spans */
+            spans: components["schemas"]["RosterSpan"][];
+        };
+        /** RosterSpan */
+        RosterSpan: {
+            /**
+             * From
+             * Format: date
+             */
+            from: string;
+            /**
+             * To
+             * Format: date
+             */
+            to: string;
+            /** Maps */
+            maps: number;
+        };
+        /**
+         * RosterTimeline
+         * @description Who played for a Team when (TM-10): each Player's stretches of Match Maps.
+         */
+        RosterTimeline: {
+            /** From */
+            from: string | null;
+            /** To */
+            to: string | null;
+            /** Players */
+            players: components["schemas"]["RosterPlayer"][];
+        };
         /** RoundBullet */
         RoundBullet: {
             /** Text */
@@ -5781,6 +5839,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    team_roster_teams__team_id__roster_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterTimeline"];
                 };
             };
             /** @description Validation Error */

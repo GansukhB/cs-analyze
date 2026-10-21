@@ -4,6 +4,7 @@ import MapPool from '../team/MapPool'
 import StrengthSection from '../team/Strength'
 import StyleSection from '../team/Style'
 import AfterContactSection from '../team/AfterContact'
+import RosterSection from '../team/Roster'
 import type { components } from '../api/schema'
 import Count from '../components/Count'
 import { day, PILL } from '../jobs/format'
@@ -60,6 +61,7 @@ export default function TeamPage() {
       {map_pool && <MapPool pool={map_pool} />}
       {n_parsed_maps > 0 && <StyleSection teamId={info.id} name={info.name} />}
       {n_parsed_maps > 0 && <AfterContactSection teamId={info.id} name={info.name} />}
+      {n_parsed_maps > 0 && <RosterSection teamId={info.id} />}
 
       {plannable.length > 0 && (
         <section className="space-y-2">

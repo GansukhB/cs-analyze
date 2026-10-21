@@ -1126,6 +1126,31 @@ class TeamStyle(BaseModel):
     sides: list[StyleSide]
 
 
+class RosterSpan(BaseModel):
+    from_: dt.date = Field(alias="from")
+    to: dt.date
+    maps: int
+
+    model_config = {"populate_by_name": True}
+
+
+class RosterPlayer(BaseModel):
+    steamid: str
+    name: str
+    maps: int
+    spans: list[RosterSpan]
+
+
+class RosterTimeline(BaseModel):
+    """Who played for a Team when (TM-10): each Player's stretches of Match Maps."""
+
+    from_: dt.date | None = Field(alias="from")
+    to: dt.date | None
+    players: list[RosterPlayer]
+
+    model_config = {"populate_by_name": True}
+
+
 class TeamStyleView(BaseModel):
     maps: list[str]
     style: TeamStyle | None
