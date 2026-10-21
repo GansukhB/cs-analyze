@@ -121,6 +121,49 @@ export default function DataPage() {
           </ul>
         </section>
       </div>
+      <Momentum />
     </div>
+  )
+}
+
+// TM-11: momentum on the Pool only, never said of one Team.
+const pts = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v * 100).toFixed(1)}`
+
+function Momentum() {
+  const q = $api.useQuery('get', '/data/momentum')
+  if (!q.data?.length) return null
+  return (
+    <section className="space-y-2">
+      <h2 className="font-medium text-ink">Momentum (бүх баг)</h2>
+      <p className="max-w-3xl text-sm text-ink-3">
+        3+ раунд дараалан хожсон багийн дараагийн раунд: бодит хожил ба хоёр багийн buy-аас хүлээгдэх хожил. Үлдэгдэл нь
+        эдийн засгаар тайлбарлагдахгүй хэсэг (багийн хүчийг тооцоогүй тул хүчтэй баг илүү streak хийдэг нь ч орсон). Нэг
+        багийн тухай «tilt» гэж дүгнэхгүй: цөөн дээж.
+      </p>
+      <table className="text-sm">
+        <thead className="text-left text-xs text-ink-3">
+          <tr>
+            <th className="py-1 pr-6 font-normal">Нөхцөл</th>
+            <th className="py-1 pr-6 text-right font-normal">Раунд</th>
+            <th className="py-1 pr-6 text-right font-normal">Хожсон</th>
+            <th className="py-1 pr-6 text-right font-normal">Buy-аас хүлээгдэх</th>
+            <th className="py-1 text-right font-normal">Үлдэгдэл (80%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {q.data.map((r) => (
+            <tr key={r.key} className="border-t-1 border-line">
+              <td className="py-1 pr-6 text-ink-2">{r.label}</td>
+              <td className="py-1 pr-6 text-right font-mono text-ink-3">{r.n}</td>
+              <td className="py-1 pr-6 text-right font-mono">{(r.observed * 100).toFixed(1)}%</td>
+              <td className="py-1 pr-6 text-right font-mono text-ink-3">{(r.expected * 100).toFixed(1)}%</td>
+              <td className="py-1 text-right font-mono text-ink">
+                {pts(r.residual)} <span className="text-xs text-ink-3">({pts(r.low)}…{pts(r.high)})</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   )
 }

@@ -165,3 +165,23 @@ def test_a_buy_decision_is_worth_the_rounds_it_wins_over_two():
     assert ("after_pistol_loss", 20, "force", 1) in spots
     assert ("after_full_loss", 10, "eco", 1) in spots
     assert all(s[2] in economy_model.CHOICES for s in spots)
+
+
+def test_a_streaks_next_round_is_set_against_its_buys():
+    """TM-11: Team 10 wins Rounds 2-4, then plays Round 5 with the other side's timeout."""
+    from types import SimpleNamespace as R
+
+    from app.services import momentum
+
+    def rnd(n, winner, ct_to=None, t_to=None):
+        return R(match_map_id=1, number=n, winner_team_id=winner, ct_team_id=10, t_team_id=20,
+                 ct_buy="full", t_buy="full", ct_timeout=ct_to, t_timeout=t_to)  # fmt: skip
+
+    rows = [rnd(1, 20), rnd(2, 10), rnd(3, 10), rnd(4, 10), rnd(5, 10, t_to=True), rnd(6, 20)]
+    cases = momentum._situations(rows, momentum._pairs(rows))
+    assert [(c["streak"], c["won"], c["timeout"]) for c in cases] == [(3, True, True),
+                                                                      (4, False, None)]  # fmt: skip
+    # full v full on CT: 4 of 6 won by CT here, pulled toward 50% by 10 pseudo-Rounds.
+    assert round(cases[0]["expected"], 3) == round((4 + 5) / (6 + 10), 3)
+    row = momentum._row("all", cases)
+    assert row["n"] == 2 and row["observed"] == 0.5 and row["low"] < row["residual"] < row["high"]

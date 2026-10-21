@@ -1021,6 +1021,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/data/momentum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Data Momentum
+         * @description TM-11, on the Pool only: after a streak of three or more, the next Round won
+         *     against what the two buys expected, and with the other Team's timeout or not.
+         */
+        get: operations["data_momentum_data_momentum_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/{steamid}/goals": {
         parameters: {
             query?: never;
@@ -3528,6 +3549,28 @@ export interface components {
             created_at: string | null;
             /** Last Login At */
             last_login_at: string | null;
+        };
+        /**
+         * MomentumRow
+         * @description TM-11: Rounds after a streak, observed against what the buys expected.
+         */
+        MomentumRow: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** N */
+            n: number;
+            /** Observed */
+            observed: number;
+            /** Expected */
+            expected: number;
+            /** Residual */
+            residual: number;
+            /** Low */
+            low: number;
+            /** High */
+            high: number;
         };
         /**
          * MyTeamRef
@@ -7440,6 +7483,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Coverage"];
+                };
+            };
+        };
+    };
+    data_momentum_data_momentum_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MomentumRow"][];
                 };
             };
         };

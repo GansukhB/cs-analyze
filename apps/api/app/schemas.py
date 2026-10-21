@@ -1414,6 +1414,19 @@ class CoverageQueued(BaseModel):
     reason: str  # "no_tickdata" or "no_loadout"
 
 
+class MomentumRow(BaseModel):
+    """TM-11: Rounds after a streak, observed against what the buys expected."""
+
+    key: str
+    label: str
+    n: int
+    observed: float
+    expected: float
+    residual: float
+    low: float  # the residual's 80% range
+    high: float
+
+
 class Coverage(BaseModel):
     schema_version: int
     totals: dict[str, int]

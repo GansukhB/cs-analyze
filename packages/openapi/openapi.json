@@ -3182,6 +3182,37 @@
         ]
       }
     },
+    "/data/momentum": {
+      "get": {
+        "tags": [
+          "data"
+        ],
+        "summary": "Data Momentum",
+        "description": "TM-11, on the Pool only: after a streak of three or more, the next Round won\nagainst what the two buys expected, and with the other Team's timeout or not.",
+        "operationId": "data_momentum_data_momentum_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MomentumRow"
+                  },
+                  "type": "array",
+                  "title": "Response Data Momentum Data Momentum Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/players/{steamid}/goals": {
       "get": {
         "tags": [
@@ -10202,6 +10233,55 @@
           "last_login_at"
         ],
         "title": "MemberRead"
+      },
+      "MomentumRow": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "observed": {
+            "type": "number",
+            "title": "Observed"
+          },
+          "expected": {
+            "type": "number",
+            "title": "Expected"
+          },
+          "residual": {
+            "type": "number",
+            "title": "Residual"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "n",
+          "observed",
+          "expected",
+          "residual",
+          "low",
+          "high"
+        ],
+        "title": "MomentumRow",
+        "description": "TM-11: Rounds after a streak, observed against what the buys expected."
       },
       "MyTeamRef": {
         "properties": {
