@@ -78,6 +78,7 @@ def freeze(panel: dict, path: str) -> dict:
         if head == "players":
             p = panel["players"][int(parts[1])]
             lines = list(p.get("lines") or []) + ([p["duels"]] if p.get("duels") else [])
+            lines += list(p.get("card") or [])  # PL-7: what the Reviews settle
             return {
                 "kind": "player", "section": ", ".join(p.get("tags") or []),
                 "title": p.get("player") or "", "lines": lines, "counter": "", "refs": [],

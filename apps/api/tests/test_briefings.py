@@ -217,3 +217,23 @@ def test_a_briefing_links_the_my_teams_shared_strats(client, db, auth, user, lea
         **base, "maps": [{"map": "de_mirage", "picks": [], "strats": [draft.id]}],
     })  # fmt: skip
     assert refused.status_code == 400
+
+
+def test_a_player_line_carries_what_the_reviews_settle():
+    """PL-7 in the Playbook and a Briefing: Swing first, then what passed its test."""
+    from app.services import playbook_view
+
+    reviewed = {
+        "maps": 6, "rounds": 140,
+        "swing": {"per_round": -0.013, "low": -0.026, "high": -0.001, "clear": True},
+        "weaknesses": [{"label": "Utility үлдээсэн", "per24": 0.74, "pool_per24": 0.36,
+                        "count": 12}],
+        "tendencies": [],
+    }  # fmt: skip
+    card = playbook_view._card(reviewed)
+    assert card[0].startswith("Swing/раунд -1.3%") and "бусдаас доогуур" in card[0]
+    assert card[1].startswith("Utility үлдээсэн") and len(card) == 2
+    assert playbook_view._card(None) == []
+    panel = {"players": [{"player": "x", "tags": ["AWP"], "lines": ["l1"], "duels": "",
+                          "card": card}]}  # fmt: skip
+    assert briefings.freeze(panel, "players.0")["lines"] == ["l1", *card]

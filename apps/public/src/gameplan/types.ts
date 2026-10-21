@@ -155,7 +155,8 @@ export interface PlaybookPanel {
     after_pistol_loss?: Record<string, number>
     habits: Habit[]
   }
-  players: { player: string; tags: string[]; lines: string[]; duels: string }[]
+  /** card: PL-7's lines from the Reviews (Swing with its range, Findings past their test). */
+  players: { player: string; tags: string[]; lines: string[]; duels: string; card?: string[] }[]
   self_scout: { side: 'ct' | 't'; label: string; habits: Habit[] }[]
   /** GP-6: the answers that held them below their usual on this Map, with Replay refs. */
   beaten_by: { side: 'ct' | 't'; text: string; evidence: Evidence }[]

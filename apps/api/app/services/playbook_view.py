@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from app.models import Team
-from app.services import levers, mn, playbook
+from app.services import levers, mn, playbook, player_cards
 
 # How many counters the plan at the top of a Map takes from each side.
 PLAN_PER_SIDE = 2
@@ -58,8 +58,20 @@ def advice(my_team: Team, opponent: Team, map_name: str) -> dict:
     }
 
 
+def _card(reviewed: dict | None) -> list[str]:
+    """PL-7's lines from the Reviews (Swing with its range, Findings past their
+    test), short for a Playbook row: weaknesses first, then tendencies."""
+    worded = mn.card_lines([], reviewed)
+    lines = worded["weaknesses"] + worded["tendencies"]
+    if worded["swing"] and not any(line.startswith(worded["swing"]) for line in lines):
+        lines.insert(0, worded["swing"])
+    return lines[:4]
+
+
 def panel(my_team: Team, opponent: Team, map_name: str, view: dict | None = None) -> dict:
     raw = playbook.build(my_team, opponent, map_name, view)
+    # PL-7: what the Reviews settle about each of their fielded Players.
+    cards = player_cards.lines(opponent, [p["player_id"] for p in raw["matchups"]])
     for key in ("their_t", "their_ct"):
         levers.annotate(raw[key], opponent, map_name)
     for habits in raw["self_scout"].values():
@@ -108,7 +120,10 @@ def panel(my_team: Team, opponent: Team, map_name: str, view: dict | None = None
             "after_pistol_loss": economy.get("after_pistol_loss"),
             "habits": mn.playbook_habits(economy["habits"]),
         },
-        "players": [mn.playbook_player(p) for p in raw["matchups"]],
+        "players": [
+            {**mn.playbook_player(p), "card": _card(cards.get(p["player_id"]))}
+            for p in raw["matchups"]
+        ],
         "self_scout": [
             {
                 "side": side,

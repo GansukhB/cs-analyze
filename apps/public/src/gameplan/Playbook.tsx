@@ -403,6 +403,11 @@ function Playbook({ fixture, map }: { fixture: Fixture; map: string }) {
                 </p>
               ))}
               {p.duels && <p className="pb-detail">{p.duels}</p>}
+              {p.card?.map((l) => (
+                <p key={l} className="pb-detail">
+                  <small>Review: {l}</small>
+                </p>
+              ))}
             </div>
           ))}
         </div>
