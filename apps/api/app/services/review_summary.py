@@ -56,7 +56,7 @@ GOOD_UTILITY = {"flash_kill", "nade_damage_kill", "fire_delay"}
 ZERO_SWING_VALUE = {
     "time_out": 0.5, "kitless": 0.5, "defuse_chance": 0.5, "fire_delay": 0.2,
     "lost_weapon_save": 0.15, "team_flash": 0.05, "blind_unpunished": 0.05,
-    "late_execute": 0.3, "early_rotate": 0.3,
+    "late_execute": 0.3, "early_rotate": 0.3, "into_stack": 0.3, "stack_read": 0.3,
 }  # fmt: skip
 LOST_SAVE_BY_NEXT_BUY = {"full": 0.05, "force": 0.25, "eco": 0.25}
 

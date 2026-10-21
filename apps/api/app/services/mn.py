@@ -1918,6 +1918,8 @@ REVIEW_CODE = {
     "kitless": "Kit-гүй retake",
     "late_execute": "Хожуу execute",
     "early_rotate": "Эрт rotate",
+    "into_stack": "Stack руу орсон",
+    "stack_read": "Stack-ээр уншсан",
     "no_trade": "Trade хийгээгүй",
     "unfinished": "Дуусгаагүй дайсан",
     "blind_unpunished": "Цайрсан дайсныг ашиглаагүй",
@@ -2171,6 +2173,18 @@ def review_finding(finding: dict, who) -> dict:
             f"үлдсэн байв ({f.get('ts')} T, {f.get('cts')} CT): тоо хангалттай байсан ч цаг "
             f"хүрэлцсэнгүй. Swing {swing}."
         )
+    elif code == "into_stack":
+        title = f"T {f.get('site')} дээрх stack руу орсон"
+        text = (
+            f"T {_secs(f.get('t', 0))}-д {f.get('site')} site-д хүрэхэд тэнд {f.get('cts')} CT "
+            f"хүлээж байв ({f.get('ts')} T); раундыг алдав."
+        )
+    elif code == "stack_read":
+        title = f"CT {f.get('site')}-г зөв уншиж stack хийсэн"
+        text = (
+            f"{f.get('cts')} CT {f.get('site')} site-д байхад T тийшээ {_secs(f.get('t', 0))}-д "
+            "орж ирэв; CT раундыг хожив."
+        )
     elif code == "early_rotate":
         title = f"{main} — {f.get('site')}-г эрт орхисон"
         there = f" T ирэхэд {f.get('spot')}-д байв;" if f.get("spot") else ""
@@ -2355,6 +2369,8 @@ SUMMARY_ADVICE = {
     "time_out": "Раундын цагийг хяна: 40 секунд үлдэхэд шийдвэрээ гарга.",
     "kitless": "Kit-ээ авч, retake-д kit-тэй тоглогч эхэлж defuse хийх ёстой.",
     "late_execute": "Default-аа 40 секунд үлдэхэд дуусгаж, 30 секундэд site руу орсон байх ёстой.",
+    "into_stack": "Execute-ээс өмнө мэдээлэл ав: site дээр хэдэн CT байгааг шалгаад, stack байвал "
+    "нөгөө site руу эргэ.",
     "early_rotate": "Мэдээлэлгүйгээр site-аа бүү орхи: хоёр дахь мэдээллийг хүлээж, эсвэл "
     "дуудаж байж rotate хий.",
     "unused_utility": "Худалдаж авсан utility-гаа үхэхээсээ өмнө ашигла.",

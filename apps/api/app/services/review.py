@@ -74,7 +74,8 @@ logger = logging.getLogger(__name__)
 # 6: each Player's engagements (PL-5): time to damage, crosshair, counter-strafe.
 # 7: a lurker's lone death on T is not untraded (RV-12).
 # 8: a late execute and an early rotate (RV-12).
-REVIEW_SCHEMA = 8
+# 9: an execute into a stack, and the stack that read it (RV-12).
+REVIEW_SCHEMA = 9
 
 # RV-12: a T who stands this far from every living teammate LURK_AT seconds in,
 # in LURK_SHARE of their T Rounds (LURK_ROUNDS or more), lurks: their lone
@@ -99,6 +100,15 @@ SETUP_AT = 20
 ROTATE_AWAY = 1500.0
 ROTATE_LEAD = 5.0
 ROTATE_LEAD_MAX = 20.0
+# RV-12: a stack is more living CTs on the site the Ts first reached than that
+# CT Team usually keeps there on this Match Map (its median at the Setup), and
+# at least STACK_MEN: counted at the Setup (SETUP_AT s in), before the Ts showed
+# anything, or STACK_LEAD s before a rush that reached it sooner. CTs who
+# gathered there on a read during the Round are a rotation, not a stack, and
+# Nuke's three on A is a setup, not a read.
+STACK_MEN = 3
+STACK_REACH = SITE_REACH
+STACK_LEAD = 3.0
 
 # CONTEXT.md: a Trade is killing the killer within 5 seconds.
 TRADE_SECONDS = 5.0
@@ -235,7 +245,8 @@ OT_HALF = 3
 # Which kind of Finding each code is (CONTEXT.md), for readers that hold only codes.
 CODE_KIND = {
     **dict.fromkeys(
-        ("entry", "big_frag", "multikill", "clutch", "plant", "defuse", "retake"), "key_play"
+        ("entry", "big_frag", "multikill", "clutch", "plant", "defuse", "retake", "stack_read"),
+        "key_play",
     ),
     **dict.fromkeys(
         (
@@ -254,6 +265,7 @@ CODE_KIND = {
             "kitless",
             "late_execute",
             "early_rotate",
+            "into_stack",
         ),
         "mistake",
     ),  # fmt: skip
@@ -457,6 +469,8 @@ class _Inputs:
         # filled by build() before the Rounds.
         self.lurkers: set[str] = set()
         self.sites: dict[str, tuple[float, float, float]] = {}
+        # (CT team id, site) -> how many it usually keeps there at the Setup.
+        self.usual_on_site: dict[tuple, float] = {}
 
         roster = list(
             db.scalars(
@@ -1763,6 +1777,33 @@ class _RoundReview:
                      lead=round((hit_tick - gone) / self.rate, 1),
                      spot=self.spot(sid, hit_tick))  # fmt: skip
 
+    def stack(self) -> None:
+        """The Ts went into a stack: 3+ CTs held the site they first reached; the
+        side that won it read it (the CTs) or walked into it (the Ts, when they lost)."""
+        first = self._first_on_site()
+        if first is None:
+            return
+        tick, site = first
+        setup = self.start + SETUP_AT * self.rate
+        before = setup if tick > setup else max(self.start, tick - int(STACK_LEAD * self.rate))
+        middle = self.i.sites[site]
+        alive = self.alive_at(before)
+        cts = sorted(
+            s for s in alive
+            if self.side.get(s) == "ct" and _known(self.pos(s, before))
+            and _near(self.pos(s, before), middle, STACK_REACH)
+        )  # fmt: skip
+        usual = self.i.usual_on_site.get((self.rnd.ct_team_id, site), 0.0)
+        if len(cts) < max(STACK_MEN, usual + 1):
+            return
+        ts = sorted(s for s in self.alive_at(tick) if self.side.get(s) == "t")
+        facts = {"site": site, "cts": len(cts), "ts": len(ts),
+                 "t": round((tick - self.start) / self.rate, 1)}  # fmt: skip
+        if self.won("ct"):
+            self.add("key_play", "stack_read", before, cts, 0.0, side="ct", **facts)
+            if ts:
+                self.add("mistake", "into_stack", tick, ts, -0.0, side="t", **facts)
+
     def _last_t_death(self) -> int | None:
         if self.plant is None:
             return None
@@ -2525,6 +2566,7 @@ class _RoundReview:
         self.mistakes()
         self.late_execute()
         self.early_rotate()
+        self.stack()
         self.missed_chances()
         self.settle()
         tally = self.utility()
@@ -2626,6 +2668,28 @@ def _lurkers(inputs: _Inputs) -> set[str]:
     return {sid for sid, n in played.items() if n >= LURK_ROUNDS and alone[sid] / n >= LURK_SHARE}
 
 
+def _usual_on_site(inputs: _Inputs) -> dict[tuple, float]:
+    """RV-12: per CT Team and site, the median of its living CTs on the site at
+    the Setup over its CT Rounds of this Match Map."""
+    counts: dict[tuple, list[int]] = defaultdict(list)
+    for rnd in inputs.rounds:
+        tracks = inputs.tracks.get(rnd.number) or {}
+        tick = rnd.freeze_end_tick + SETUP_AT * inputs.rate
+        if tick > rnd.end_tick or rnd.ct_team_id is None:
+            continue
+        prs = inputs.player_rounds.get(rnd.number, {})
+        here = []
+        for sid, track in tracks.items():
+            pr = prs.get(sid)
+            side = pr.side if pr and pr.side in ("ct", "t") else track.side
+            if side == "ct" and track.hp[track.at(tick)] > 0:
+                here.append(track.pos(tick))
+        for site, middle in inputs.sites.items():
+            n = sum(1 for p in here if _known(p) and _near(p, middle, STACK_REACH))
+            counts[(rnd.ct_team_id, site)].append(n)
+    return {key: float(np.median(ns)) for key, ns in counts.items() if ns}
+
+
 def _sites(db: Session, map_name: str) -> dict[str, tuple[float, float, float]]:
     """RV-12: each bomb site's middle on this Map, the median of its plants."""
     plants: dict[str, list] = defaultdict(list)
@@ -2650,6 +2714,7 @@ def build(db: Session, match_map: MatchMap, bundle) -> dict:
     inputs = _Inputs(db, match_map, bundle)
     inputs.lurkers = _lurkers(inputs)
     inputs.sites = _sites(db, inputs.map_name)
+    inputs.usual_on_site = _usual_on_site(inputs)
     rounds, findings = [], []
     tallies: dict[str, dict] = defaultdict(lambda: defaultdict(float))
     aims: dict[str, dict] = {}

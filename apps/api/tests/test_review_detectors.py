@@ -80,8 +80,9 @@ def _bare_round(tracks, sides, *, won, plant=None, site=""):
     from app.services import review
 
     r = object.__new__(review._RoundReview)
-    r.i = SimpleNamespace(sites={"A": (0.0, 0.0, 0.0), "B": (3000.0, 0.0, 0.0)},
-                          map_name="de_mirage", callout=lambda pos: "")  # fmt: skip
+    sites = {"A": (0.0, 0.0, 0.0), "B": (3000.0, 0.0, 0.0)}
+    r.i = SimpleNamespace(sites=sites, map_name="de_mirage", callout=lambda pos: "",
+                          usual_on_site={})  # fmt: skip
     r.rnd = SimpleNamespace(winner_side=won, bomb_site=site, ct_team_id=1, t_team_id=2)
     r.n, r.rate, r.start, r.end = 1, 10, 0, 1150
     r.tracks, r.side, r.kills, r.plant, r.findings = tracks, sides, [], plant, []
@@ -266,3 +267,29 @@ def test_he_damage_that_lets_a_teammate_finish_is_a_utility_kill(db, inferno):  
     f = _codes(_review(db, inferno, tweak=he))["nade_damage_kill"][0]
     assert f["sids"] == ["11", "12", "21"] and f["facts"]["nade"] == "he"
     assert f["facts"]["dealt"] == 40 and f["facts"]["killer"] == "12"
+
+
+@pytest.mark.parametrize(
+    ("held_by", "won", "found"), [(3, "ct", True), (2, "ct", False), (3, "t", False)]
+)
+def test_ts_walking_into_a_stack_and_the_cts_who_read_it(held_by, won, found):
+    """Three CTs hold A (the other two at B) when two Ts reach A at 80 s."""
+    tracks = {
+        f"c{i}": _walk((0, 100 * i if i <= held_by else 3000, 200), side="ct") for i in range(1, 6)
+    }
+    tracks |= {"t1": _walk((0, 1500, 3000), (800, 0, 0), side="t"),
+               "t2": _walk((0, 1500, 3100), (800, 50, 0), side="t")}  # fmt: skip
+    sides = {sid: ("ct" if sid.startswith("c") else "t") for sid in tracks}
+    r = _bare_round(tracks, sides, won=won)
+    r.stack()
+    codes = {f["code"]: f for f in r.findings}
+    assert ("stack_read" in codes) is found and ("into_stack" in codes) is found
+    if found:
+        assert codes["stack_read"]["sids"] == ["c1", "c2", "c3"]
+        facts = codes["into_stack"]["facts"]
+        assert facts == {"side": "t", "site": "A", "cts": 3, "ts": 2, "t": 80.0}
+        # A Team that keeps three on A as its setup (Nuke) has not stacked it.
+        r = _bare_round(tracks, sides, won=won)
+        r.rnd.ct_team_id, r.i.usual_on_site = 1, {(1, "A"): 3.0}
+        r.stack()
+        assert not r.findings

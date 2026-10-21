@@ -137,6 +137,8 @@ MEASURES: tuple[Measure, ...] = (
     _bad("kitless", sides=("ct",)),
     _bad("late_execute", sides=("t",)),
     _bad("early_rotate", sides=("ct",)),
+    _bad("into_stack", sides=("t",)),
+    _good("stack_read", sides=("ct",)),
     _bad("defuse_chance", sides=("ct",)),
     _bad("crosshair"),
     _bad("unscoped_awp"),
