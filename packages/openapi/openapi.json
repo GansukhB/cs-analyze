@@ -6193,6 +6193,14 @@
             "type": "array",
             "maxItems": 40,
             "title": "Picks"
+          },
+          "strats": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Strats"
           }
         },
         "type": "object",

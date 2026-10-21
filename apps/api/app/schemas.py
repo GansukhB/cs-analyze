@@ -1601,6 +1601,8 @@ class BriefingMapPick(BaseModel):
     note: str = Field(default="", max_length=2000)
     # Each line's place in that Map's Playbook panel, e.g. "advice.ct.levers.0".
     picks: list[str] = Field(default_factory=list, max_length=40)
+    # SB-6: the my team's Strats for this Map to read with it (active, shared).
+    strats: list[int] = Field(default_factory=list, max_length=20)
 
 
 class BriefingCreate(BaseModel):

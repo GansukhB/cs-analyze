@@ -190,3 +190,30 @@ def test_after_the_match_each_habit_is_checked(client, db, auth, user, league):
     assert body["veto"] == {"played": ["de_mirage"], "briefed": ["de_mirage", "de_nuke"], "hit": 1}
     other = client.get(f"/briefings/{row.public_id}/check?match_id=999999", headers=auth)
     assert other.status_code == 404
+
+
+def test_a_briefing_links_the_my_teams_shared_strats(client, db, auth, user, league):
+    """SB-6: an active shared Strat on that Map goes in; a draft one is refused."""
+    from app.models import Strat, StratStatus, StratVisibility
+
+    a = league["a"]
+    shared = Strat(workspace_id=user.workspace_id, team_id=a.id, map_name="de_mirage", side="t",
+                   name="B split", kind="execute", status=StratStatus.ACTIVE,
+                   visibility=StratVisibility.TEAM)  # fmt: skip
+    draft = Strat(workspace_id=user.workspace_id, team_id=a.id, map_name="de_mirage", side="ct",
+                  name="Stack A", kind="setup")  # fmt: skip
+    db.add_all([shared, draft])
+    db.commit()
+    panel = client.get(f"/gameplan/{a.id}/vs/{league['b'].id}/playbook/de_mirage", headers=auth)
+    base = {"my_team_id": a.id, "opponent_id": league["b"].id, "title": "x",
+            "stamp": panel.json()["stamp"]}  # fmt: skip
+    made = client.post("/briefings", headers=auth, json={
+        **base, "maps": [{"map": "de_mirage", "picks": [], "strats": [shared.id]}],
+    })  # fmt: skip
+    assert made.status_code == 201, made.text
+    (part,) = made.json()["content"]["maps"]
+    assert part["strats"] == [{"id": shared.id, "name": "B split", "side": "t", "kind": "execute"}]
+    refused = client.post("/briefings", headers=auth, json={
+        **base, "maps": [{"map": "de_mirage", "picks": [], "strats": [draft.id]}],
+    })  # fmt: skip
+    assert refused.status_code == 400

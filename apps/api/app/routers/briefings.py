@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.deps import CurrentUser, DbSession, StaffUser
-from app.models import Briefing, Match, Team, User
+from app.models import Briefing, Match, Strat, StratStatus, StratVisibility, Team, User
 from app.models.base import utcnow
 from app.routers import assistant as assistant_router
 from app.routers import gameplan as gp
@@ -71,7 +71,25 @@ def _get(db, user: User, public_id: uuid.UUID) -> Briefing:
     return found
 
 
-def _frozen(db, body, my_team, opponent, my_five, their_five) -> tuple[list[dict], str]:
+def _strats(db, workspace_id: int, team_id: int, map_name: str, ids: list[int]) -> list[dict]:
+    """SB-6: the picked Strats as the Briefing names them; 400 for one that is not
+    the my team's, on this Map, active and shared (its readers could not open it)."""
+    out = []
+    for strat_id in dict.fromkeys(ids):
+        strat = db.get(Strat, strat_id)
+        if (
+            strat is None or strat.workspace_id != workspace_id or strat.team_id != team_id
+            or strat.map_name != map_name or strat.status != StratStatus.ACTIVE
+            or strat.visibility != StratVisibility.TEAM
+        ):  # fmt: skip
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, f"Strat {strat_id} is not an active shared one"
+            )
+        out.append({"id": strat.id, "name": strat.name, "side": strat.side, "kind": strat.kind})
+    return out
+
+
+def _frozen(db, body, my_team, opponent, my_five, their_five, workspace_id: int):
     """Each Map's picked lines frozen from its Playbook as it reads now, and the
     stamp; 409 when a parse moved the Game Plan since the page loaded."""
     stamp = gameplan_view.stamp()
@@ -86,10 +104,11 @@ def _frozen(db, body, my_team, opponent, my_five, their_five) -> tuple[list[dict
                 db, my_team, opponent, my_five, their_five, pick.map, stamp
             )
             items = [briefings.freeze(panel, path) for path in pick.picks]
-            if items or pick.note.strip():
+            strats = _strats(db, workspace_id, my_team.id, pick.map, pick.strats)
+            if items or strats or pick.note.strip():
                 maps.append(
                     {"map": pick.map, "label": panel.get("label") or pick.map,
-                     "note": pick.note.strip(), "items": items}
+                     "note": pick.note.strip(), "items": items, "strats": strats}
                 )  # fmt: skip
     except briefings.BriefingError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from None
@@ -114,7 +133,8 @@ def create(body: BriefingCreate, db: DbSession, user: StaffUser) -> BriefingRead
         db, my_team, opponent, ",".join(body.my_lineup), ",".join(body.their_lineup)
     )
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
-        maps, stamp = _frozen(db, body, my_team, opponent, my_five, their_five)
+        maps, stamp = _frozen(db, body, my_team, opponent, my_five, their_five,
+                              user.workspace_id)  # fmt: skip
         content = {
             "note": body.note.strip(),
             "lineups": {
@@ -158,7 +178,8 @@ def draft(body: BriefingCreate, db: DbSession, user: StaffUser) -> BriefingDraft
         db, my_team, opponent, ",".join(body.my_lineup), ",".join(body.their_lineup)
     )
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
-        maps, _stamp = _frozen(db, body, my_team, opponent, my_five, their_five)
+        maps, _stamp = _frozen(db, body, my_team, opponent, my_five, their_five,
+                               user.workspace_id)  # fmt: skip
         line = ""
         if body.include_forecast:
             series = _forecast_view(my_team, opponent, my_five, their_five)["series"]

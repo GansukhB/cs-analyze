@@ -2114,6 +2114,8 @@ export interface components {
             note: string;
             /** Picks */
             picks?: string[];
+            /** Strats */
+            strats?: number[];
         };
         /** BriefingRead */
         BriefingRead: {

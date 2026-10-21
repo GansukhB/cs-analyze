@@ -25,6 +25,8 @@ interface MapPart {
   label: string
   note: string
   items: Item[]
+  // SB-6: the my team's Strats for this Map (since Briefings made after it).
+  strats?: { id: number; name: string; side: string; kind: string }[]
 }
 interface Series {
   format: string
@@ -117,6 +119,16 @@ export default function BriefingPage() {
         <section key={m.map} className="space-y-3 break-inside-avoid">
           <h2 className="border-b border-line pb-1 text-lg font-semibold text-ink">{m.label}</h2>
           {m.note && <p className="whitespace-pre-line text-ink">{m.note}</p>}
+          {m.strats && m.strats.length > 0 && (
+            <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              <span className="text-ink-3">Stratbook:</span>
+              {m.strats.map((s) => (
+                <Link key={s.id} to={`/stratbook/${s.id}`} className="text-ct hover:underline">
+                  {s.name} <span className="text-xs text-ink-3">{s.side.toUpperCase()}</span>
+                </Link>
+              ))}
+            </p>
+          )}
           <ul className="space-y-2">
             {m.items.map((item, i) => {
               const k = KIND[item.kind] ?? { label: item.kind, tone: 'text-ink-2' }
