@@ -17,7 +17,25 @@ interface Selection {
   player: string
   side: string
   level: string
+  // VIZ-9, heatmaps only: when in the Round, on what buy, against the Pool.
+  phase: string
+  buy: string
+  compare: boolean
 }
+
+const PHASES: [string, string][] = [
+  ['all', 'Бүх хугацаа'],
+  ['0-15', '0–15с'],
+  ['15-30', '15–30с'],
+  ['30-60', '30–60с'],
+  ['60+', '60с+'],
+  ['post', 'Plant-ын дараа'],
+]
+const BUYS: [string, string][] = [
+  ['all', 'Бүх buy'],
+  ['full', 'Full'],
+  ['light', 'Eco/force/pistol'],
+]
 
 export default function MapGrid({
   index,
@@ -34,7 +52,16 @@ export default function MapGrid({
 }) {
   const [sel, setSel] = useState<Selection>(() => {
     const team = String(index.teams[0]?.id ?? '')
-    return { map: firstMap(index, team) ?? index.maps[0] ?? '', team, player: 'all', side: index.sides[0]?.key ?? 'all', level: 'all' }
+    return {
+      map: firstMap(index, team) ?? index.maps[0] ?? '',
+      team,
+      player: 'all',
+      side: index.sides[0]?.key ?? 'all',
+      level: 'all',
+      phase: 'all',
+      buy: 'all',
+      compare: false,
+    }
   })
   const played = playedMaps(index, sel.team)
   const levels = index.levels[sel.map] ?? []
@@ -62,7 +89,7 @@ export default function MapGrid({
       const n = index.available[[sel.map, sel.team, sel.player, sel.side, k.key].join('|')] ?? 0
       return {
         // Each cell is fetched at most once; re-selecting a view is free.
-        queryKey: ['gameplan-grid', kind, mine, theirs, sel.map, sel.team, sel.player, sel.side, k.key, sel.level],
+        queryKey: ['gameplan-grid', kind, mine, theirs, sel.map, sel.team, sel.player, sel.side, k.key, sel.level, sel.phase, sel.buy, sel.compare],
         queryFn: () => drawCell(kind, mine, theirs, sel, k.key),
         enabled: n > 0,
         staleTime: Infinity,
@@ -121,7 +148,31 @@ export default function MapGrid({
             })}
           </Row>
         )}
+        {kind === 'heatmap' && (
+          <>
+            <Row label="Хугацаа">
+              {PHASES.map(([key, label]) => (
+                <Chip key={key} on={sel.phase === key} mono onClick={() => change({ phase: key })}>
+                  {label}
+                </Chip>
+              ))}
+            </Row>
+            <Row label="Buy">
+              {BUYS.map(([key, label]) => (
+                <Chip key={key} on={sel.buy === key} mono onClick={() => change({ buy: key })}>
+                  {label}
+                </Chip>
+              ))}
+              <Chip on={sel.compare} onClick={() => change({ compare: !sel.compare })}>
+                Pool-той харьцуулах
+              </Chip>
+            </Row>
+          </>
+        )}
       </div>
+      {kind === 'heatmap' && sel.compare && (
+        <p className="lede">Улаан: бусад багаас олон, цэнхэр: цөөн (тухайн map, тал, хугацаа, buy дээр).</p>
+      )}
 
       <div className="shots">
         {index.kinds.map((k, i) => {
@@ -328,7 +379,9 @@ async function drawCell(kind: Kind, mine: number, theirs: number, sel: Selection
   const query = { team: Number(sel.team), map: sel.map, player: sel.player, side: sel.side, level: sel.level, kind: cell }
   const res =
     kind === 'heatmap'
-      ? await fetchClient.GET('/gameplan/{mine}/vs/{theirs}/heatmap', { params: { path, query } })
+      ? await fetchClient.GET('/gameplan/{mine}/vs/{theirs}/heatmap', {
+          params: { path, query: { ...query, phase: sel.phase, buy: sel.buy, compare: sel.compare } },
+        })
       : await fetchClient.GET('/gameplan/{mine}/vs/{theirs}/movement', { params: { path, query } })
   if (res.error || !res.data) throw new Error('draw failed')
   return res.data as Shot

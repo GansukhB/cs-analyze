@@ -17,9 +17,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 
-from app.models import KillEvent, MapRoster, MatchMap, Player, Round, Team, TickDataset
+from app.models import GameMap, KillEvent, MapRoster, MatchMap, Player, Round, Team, TickDataset
 from app.services import radar, scouting
 from app.services.dbctx import db
 
@@ -185,8 +185,44 @@ def plate(map_name: str) -> dict | None:
     return {**base, "lower": lower}
 
 
+# VIZ-9: when in the Round (seconds after freeze end, or after the plant) and
+# on what the actor's Team had bought.
+PHASES = {"0-15": (0, 15), "15-30": (15, 30), "30-60": (30, 60), "60+": (60, None)}
+BUYS = {"full": ("full",), "light": ("eco", "force", "pistol")}
+POOL_SAMPLE = 4000
+
+
+def _narrow(query, actor_side, phase: str, buy: str, joined: bool = False):
+    """``query`` on KillEvent/Round, kept to a phase of the Round and a buy;
+    ``joined`` when it already joins MatchMap."""
+    if phase == "post":
+        query = query.where(
+            Round.bomb_plant_tick.is_not(None), KillEvent.tick >= Round.bomb_plant_tick
+        )
+    elif phase in PHASES:
+        lo, hi = PHASES[phase]
+        rate = func.coalesce(MatchMap.tickrate, 64)
+        if not joined:
+            query = query.join(MatchMap, MatchMap.id == Round.match_map_id)
+        # Added to the freeze end, never subtracted from the kill: both are
+        # UNSIGNED on MySQL, and a kill in the freeze time would underflow.
+        query = query.where(KillEvent.tick >= Round.freeze_end_tick + lo * rate)
+        if hi is not None:
+            query = query.where(KillEvent.tick < Round.freeze_end_tick + hi * rate)
+    if buy in BUYS:
+        bought = BUYS[buy]
+        query = query.where(
+            or_(
+                and_(actor_side == "ct", Round.ct_buy.in_(bought)),
+                and_(actor_side == "t", Round.t_buy.in_(bought)),
+            )
+        )
+    return query
+
+
 def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
-           level: str = ALL_LEVELS) -> dict | None:  # fmt: skip
+           level: str = ALL_LEVELS, phase: str = "all", buy: str = "all",
+           compare: bool = False) -> dict | None:  # fmt: skip
     """One cell of the grid: the positions to draw and what to draw them over.
 
     None when the selection has no usable positions -- the page says "nothing
@@ -236,6 +272,7 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
         label = player.name
     if side in ("ct", "t"):
         query = query.where(actor_side == side)
+    query = _narrow(query, actor_side, phase, buy)
 
     rows = session.execute(query).all()
     if level != ALL_LEVELS:
@@ -257,7 +294,25 @@ def points(*, map_name: str, team_id: int, player_id: str, side: str, kind: str,
     count = f"{len(rows)} position{'' if len(rows) == 1 else 's'}"
     heat = len(rows) >= HEAT_MIN_POINTS
     backdrop = plate(map_name)
+    pool = None
+    if compare:
+        # Every other Team's on this Map, the same way: what is usual here (VIZ-9).
+        others = (
+            select(fx, fy)
+            .join(Round, Round.id == KillEvent.round_id)
+            .join(MatchMap, MatchMap.id == Round.match_map_id)
+            .join(GameMap, GameMap.id == MatchMap.game_map_id)
+            .where(GameMap.name == map_name, fx.is_not(None), fy.is_not(None))
+            .where(actor_id.not_in(select(MapRoster.player_id).where(MapRoster.team_id == team.id)))
+            .order_by(func.rand() if session.bind.dialect.name == "mysql" else func.random())
+            .limit(POOL_SAMPLE)
+        )  # fmt: skip
+        if side in ("ct", "t"):
+            others = others.where(actor_side == side)
+        others = _narrow(others, actor_side, phase, buy, joined=True)
+        pool = [[round(x, 1), round(y, 1)] for x, y in session.execute(others).all()]
     return {
+        "pool": pool,
         "kind": kind,
         "cmap": spec["cmap"],
         "title": f"{label} — {verb}",

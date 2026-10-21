@@ -2186,7 +2186,7 @@
           "gameplan"
         ],
         "summary": "Heatmap",
-        "description": "One heatmap cell for a fixture: the positions and the map they go on (the page draws it).",
+        "description": "One heatmap cell for a fixture: the positions and the map they go on (the page\ndraws it); by phase of the Round and buy, against every other Team's (VIZ-9).",
         "operationId": "heatmap_gameplan__mine__vs__theirs__heatmap_get",
         "security": [
           {
@@ -2269,6 +2269,38 @@
               "type": "string",
               "default": "all",
               "title": "Level"
+            }
+          },
+          {
+            "name": "phase",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(all|0-15|15-30|30-60|60\\+|post)$",
+              "default": "all",
+              "title": "Phase"
+            }
+          },
+          {
+            "name": "buy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(all|full|light)$",
+              "default": "all",
+              "title": "Buy"
+            }
+          },
+          {
+            "name": "compare",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Compare"
             }
           }
         ],

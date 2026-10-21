@@ -745,7 +745,8 @@ export interface paths {
         };
         /**
          * Heatmap
-         * @description One heatmap cell for a fixture: the positions and the map they go on (the page draws it).
+         * @description One heatmap cell for a fixture: the positions and the map they go on (the page
+         *     draws it); by phase of the Round and buy, against every other Team's (VIZ-9).
          */
         get: operations["heatmap_gameplan__mine__vs__theirs__heatmap_get"];
         put?: never;
@@ -6325,6 +6326,9 @@ export interface operations {
                 side?: string;
                 kind?: string;
                 level?: string;
+                phase?: string;
+                buy?: string;
+                compare?: boolean;
             };
             header?: never;
             path: {

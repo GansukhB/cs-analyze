@@ -20,6 +20,9 @@ export interface HeatData {
   labels: { name: string; x: number; y: number }[]
   level: string
   plate: HeatPlate | null
+  // VIZ-9: every other Team's points the same way, to draw where this one is
+  // more (red) or less (blue) than usual instead of the plain heat.
+  pool?: [number, number][] | null
 }
 
 // radar.py's composite: the overview is a backdrop, not the subject -- pulled
@@ -150,7 +153,11 @@ async function build(plate: HeatPlate, level: string): Promise<Backdrop | null> 
 /** scipy's gaussian_kde with bw_method=0.22, on a GRID x GRID lattice over the
  *  extent, normalised to its peak. Null when it cannot be fit (too few or
  *  co-linear points), which -- as in cstat -- leaves just the dots. */
-function density(points: [number, number][], [x0, x1, y0, y1]: Extent): Float32Array | null {
+function density(
+  points: [number, number][],
+  [x0, x1, y0, y1]: Extent,
+  norm: 'peak' | 'mass' = 'peak',
+): Float32Array | null {
   const n = points.length
   if (n < 4) return null
   let mx = 0, my = 0 // prettier-ignore
@@ -196,9 +203,33 @@ function density(points: [number, number][], [x0, x1, y0, y1]: Extent): Float32A
     }
   }
   let peak = 0
-  for (let k = 0; k < z.length; k++) if (z[k] > peak) peak = z[k]
+  let mass = 0
+  for (let k = 0; k < z.length; k++) {
+    if (z[k] > peak) peak = z[k]
+    mass += z[k]
+  }
   if (!(peak > 0)) return null
-  for (let k = 0; k < z.length; k++) z[k] /= peak
+  const by = norm === 'peak' ? peak : mass
+  for (let k = 0; k < z.length; k++) z[k] /= by
+  return z
+}
+
+// Where this Team's density is above (red) or below (blue) every other Team's,
+// each as a share of its own mass, scaled to the largest gap (VIZ-9).
+const MORE = [209, 73, 91]
+const LESS = [91, 155, 216]
+function difference(points: [number, number][], pool: [number, number][], extent: Extent): Float32Array | null {
+  const a = density(points, extent, 'mass')
+  const b = density(pool, extent, 'mass')
+  if (!a || !b) return null
+  const z = new Float32Array(a.length)
+  let top = 0
+  for (let k = 0; k < z.length; k++) {
+    z[k] = a[k] - b[k]
+    top = Math.max(top, Math.abs(z[k]))
+  }
+  if (!(top > 0)) return null
+  for (let k = 0; k < z.length; k++) z[k] /= top
   return z
 }
 
@@ -235,7 +266,29 @@ export async function drawHeatmap(canvas: HTMLCanvasElement, data: HeatData, css
   g.imageSmoothingQuality = 'high'
   if (plate?.canvas) g.drawImage(plate.canvas, 0, 0, W, H)
 
-  const z = data.heat === false ? null : density(data.points, extent)
+  const diff = data.pool && data.pool.length >= 20 ? difference(data.points, data.pool, extent) : null
+  if (diff) {
+    const heat = document.createElement('canvas')
+    heat.width = GRID
+    heat.height = GRID
+    const hg = heat.getContext('2d')!
+    const img = hg.createImageData(GRID, GRID)
+    for (let j = 0; j < GRID; j++) {
+      const row = GRID - 1 - j
+      for (let i = 0; i < GRID; i++) {
+        const v = diff[j * GRID + i]
+        const c = v >= 0 ? MORE : LESS
+        const t = (row * GRID + i) * 4
+        img.data[t] = c[0]
+        img.data[t + 1] = c[1]
+        img.data[t + 2] = c[2]
+        img.data[t + 3] = Math.round(Math.min(Math.abs(v) * 1.3, 0.85) * 255)
+      }
+    }
+    hg.putImageData(img, 0, 0)
+    g.drawImage(heat, 0, 0, W, H)
+  }
+  const z = diff || data.heat === false ? null : density(data.points, extent)
   if (z) {
     const lut = COLORMAPS[data.cmap] ?? COLORMAPS.inferno
     const heat = document.createElement('canvas')

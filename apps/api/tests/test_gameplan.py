@@ -371,3 +371,24 @@ def test_a_warmed_pool_is_read_not_computed(client, auth, league, engine, monkey
     for tab in ("decision", "verdict", "roles", "players", "todo"):
         res = client.get(f"/gameplan/{a}/vs/{b}/s/{tab}", headers=auth)
         assert res.status_code == 200, (tab, res.text)
+
+
+def test_heatmap_by_phase_and_buy_and_against_the_pool(client, auth, league, db):
+    """VIZ-9: each Round's kills come 10 s and 20 s in; plants at ~9.4 s."""
+    a, b = league["a"], league["b"]
+    for r in db.scalars(select(Round)):
+        r.ct_buy, r.t_buy = "full", "eco"
+    db.commit()
+    url = f"/gameplan/{a.id}/vs/{b.id}/heatmap?team={a.id}&map=de_mirage&side=all&kind=kills"
+    every = client.get(url, headers=auth).json()["points"]
+    early = client.get(url + "&phase=0-15", headers=auth).json()["points"]
+    later = client.get(url + "&phase=15-30", headers=auth).json()["points"]
+    assert len(early) + len(later) == len(every) and early and later
+    post = client.get(url + "&phase=post", headers=auth).json()
+    assert post.get("empty") or len(post["points"]) < len(every)
+    full = client.get(url + "&buy=full", headers=auth).json()["points"]
+    light = client.get(url + "&buy=light", headers=auth).json()["points"]
+    assert len(full) + len(light) == len(every)
+    against = client.get(url + "&compare=true", headers=auth).json()
+    assert against["pool"] and len(against["pool"]) > 0
+    assert client.get(url + "&phase=nope", headers=auth).status_code == 422

@@ -365,16 +365,21 @@ def heatmap(
     side: str = "all",
     kind: str = "kills",
     level: str = heatmap_groups.ALL_LEVELS,
+    phase: str = Query("all", pattern=r"^(all|0-15|15-30|30-60|60\+|post)$"),
+    buy: str = Query("all", pattern="^(all|full|light)$"),
+    compare: bool = False,
 ) -> dict[str, Any]:
-    """One heatmap cell for a fixture: the positions and the map they go on (the page draws it)."""
+    """One heatmap cell for a fixture: the positions and the map they go on (the page
+    draws it); by phase of the Round and buy, against every other Team's (VIZ-9)."""
     _grid_team(mine, theirs, team, side, level)
     if kind not in {"kills", "deaths"}:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Bad selection")
     try:
         with dbctx.using(db):
             result = heatmap_groups.points(
-                map_name=map, team_id=team, player_id=player, side=side, kind=kind, level=level
-            )
+                map_name=map, team_id=team, player_id=player, side=side, kind=kind, level=level,
+                phase=phase, buy=buy, compare=compare,
+            )  # fmt: skip
     except Exception:  # a heatmap must never take the page down with it
         logger.exception("heatmap failed for %s vs %s", mine, theirs)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Heatmap failed") from None
