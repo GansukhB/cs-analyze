@@ -185,7 +185,7 @@ Briefing (бидний таамаглал) ба тоглолтын Review (бо�
 
 ### GP-12. Гүйцэтгэл (P1, M)
 
-> **Төлөв:** 🟡 `a43bbab` (improvement-01). Pool-ийг stale-while-revalidate, 3 tab урьдчилан. Fixture-ийн stamp, Report-ийн завсрын cache үлдсэн.
+> **Төлөв:** ✅ `a43bbab` (improvement-01). Pool-ийг stale-while-revalidate, 3 tab урьдчилан. Хэмжилт (2026-10-21, локал, cache-гүй, `?since=` шинэ цонхоор): tab бүр 0.03–1.3 с, тул Fixture-ийн stamp ба Report-ийн завсрын cache хэрэггүй гэж үзэв.
 
 - **Cache:**
   - Нийтлэг stamp-ийн оронд Fixture бүрийн stamp хэрэглэнэ. Хоёр багийн Match Map-ууд ба Pool-ийн stamp-аас бүрдэнэ.

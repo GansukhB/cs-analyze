@@ -99,7 +99,7 @@ Anti-strat-ийн хамгийн их хэрэглэгддэг харагдац:
 
 ### VIZ-7. Раунд хайх: "ийм раунд олж өг" (P1, L)
 
-> **Төлөв:** 🟡 `d05a3bb` (improvement-01). Токеныг `replay_rounds.tokens`-д (Replay-тэй хамт), Callout-оор; ±2 s, Team ба buy, ghost горим, үр дүнгийн heatmap (үхсэн/kill авсан газар). Spot-оор хайх үлдсэн.pot-оор хайх, үр дүнгийн нийт heatmap үлдсэн.
+> **Төлөв:** ✅ `3b52060` (improvement-01). Токен Callout ба Spot-оор (`replay_rounds.tokens`, REPLAY_SCHEMA 9); ±2 s, Team, buy, онооны байдал, ghost горим, үр дүнгийн heatmap (үхсэн/kill авсан газар). үлдсэн.pot-оор хайх, үр дүнгийн нийт heatmap үлдсэн.
 
 ggViz-ийн арга (Xenopoulos нар, CHI PLAY 2022, `12-research-sources.md`):
 
