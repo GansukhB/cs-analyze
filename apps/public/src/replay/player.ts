@@ -269,6 +269,12 @@ export function mountReplay(
     round: null as number | null,
     data: null as RoundData | null,
     t: 0,
+    // VIZ-3: the camera, in plate units: how far in, the point at the centre,
+    // and the Player it follows (Shift-click one; a double-click resets).
+    zoom: 1,
+    cx: 0,
+    cy: 0,
+    follow: null as string | null,
     playing: false,
     speed: 1,
     last: 0,
@@ -721,6 +727,7 @@ export function mountReplay(
 
   function draw() {
     if (destroyed) return
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0)
     ctx.clearRect(0, 0, W, H)
     ctx.fillStyle = '#0d1116'
     ctx.fillRect(0, 0, W, H)
@@ -732,6 +739,17 @@ export function mountReplay(
     }
     const t = state.t
     const f = Math.min(t * d.hz, d.frames - 1)
+    // The camera: follow a living Player, else stay where the reader put it.
+    if (state.follow) {
+      const p = d.players.find((x) => x.sid === state.follow)
+      const s = p ? at(p, f) : null
+      if (s && s.hp > 0) {
+        state.cx = px(s.x)
+        state.cy = py(s.y)
+      }
+    }
+    const z = state.zoom
+    if (z !== 1) ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - z * state.cx), DPR * (H / 2 - z * state.cy))
     const floor = LEVELS.length && d.levels && d.levels.length ? shownFloor(f, t) : null
     markFloor(floor)
     drawPlate(floor)
@@ -1258,6 +1276,117 @@ export function mountReplay(
     }
   }
   on(document, 'keydown', onKey as EventListener)
+
+  // -- VIZ-3: zoom, pan, follow, touch -----------------------------------
+  state.cx = W / 2
+  state.cy = H / 2
+  const MAX_ZOOM = 6
+  // A point of the canvas element, in plate units on screen (before the camera).
+  function screen(e: { clientX: number; clientY: number }) {
+    const r = canvas.getBoundingClientRect()
+    return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H }
+  }
+  // That point under the camera: where on the plate it is.
+  function under(p: { x: number; y: number }) {
+    return { x: state.cx + (p.x - W / 2) / state.zoom, y: state.cy + (p.y - H / 2) / state.zoom }
+  }
+  function zoomAt(p: { x: number; y: number }, factor: number) {
+    const before = under(p)
+    state.zoom = Math.max(1, Math.min(MAX_ZOOM, state.zoom * factor))
+    if (state.zoom === 1) {
+      state.cx = W / 2
+      state.cy = H / 2
+    } else {
+      // Keep the point under the cursor where it was.
+      state.cx = before.x - (p.x - W / 2) / state.zoom
+      state.cy = before.y - (p.y - H / 2) / state.zoom
+    }
+    draw()
+  }
+  // Not passive: the wheel zooms the Map instead of scrolling the page.
+  canvas.addEventListener(
+    'wheel',
+    (e: WheelEvent) => {
+      e.preventDefault()
+      zoomAt(screen(e), e.deltaY < 0 ? 1.15 : 1 / 1.15)
+    },
+    { passive: false, signal: abort.signal },
+  )
+  on(canvas, 'dblclick', () => {
+    state.zoom = 1
+    state.follow = null
+    state.cx = W / 2
+    state.cy = H / 2
+    draw()
+  })
+  // Pointers: one drags (pans when zoomed in, seeks on a phone when not), two pinch.
+  const down = new Map<number, { x: number; y: number }>()
+  let moved = 0
+  let pinch = 0
+  on(canvas, 'pointerdown', ((e: PointerEvent) => {
+    canvas.setPointerCapture(e.pointerId)
+    down.set(e.pointerId, screen(e))
+    moved = 0
+    if (down.size === 2) {
+      const [a, b] = [...down.values()]
+      pinch = Math.hypot(a.x - b.x, a.y - b.y)
+    }
+  }) as EventListener)
+  on(canvas, 'pointermove', ((e: PointerEvent) => {
+    const last = down.get(e.pointerId)
+    if (!last) return
+    const now = screen(e)
+    down.set(e.pointerId, now)
+    if (down.size === 2) {
+      const [a, b] = [...down.values()]
+      const gap = Math.hypot(a.x - b.x, a.y - b.y)
+      if (pinch > 0) zoomAt({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, gap / pinch)
+      pinch = gap
+      moved += 10
+      return
+    }
+    const dx = now.x - last.x
+    const dy = now.y - last.y
+    moved += Math.abs(dx) + Math.abs(dy)
+    if (state.zoom > 1) {
+      state.follow = null
+      state.cx -= dx / state.zoom
+      state.cy -= dy / state.zoom
+      draw()
+    } else if (e.pointerType === 'touch' && state.data) {
+      // A swipe across the whole canvas runs through a tenth of the Round.
+      seekTo(state.t + (dx / W) * state.data.seconds * 0.1)
+    }
+  }) as EventListener)
+  const release = ((e: PointerEvent) => {
+    if (!down.has(e.pointerId)) return
+    down.delete(e.pointerId)
+    if (down.size < 2) pinch = 0
+    if (moved > 6 || down.size) return
+    if (e.shiftKey && state.data) {
+      // Shift-click a Player: the camera follows him.
+      const p = under(screen(e))
+      const f = Math.min(state.t * state.data.hz, state.data.frames - 1)
+      let best: string | null = null
+      let near = 30
+      for (const pl of state.data.players) {
+        const s = at(pl, f)
+        if (!s || s.hp <= 0) continue
+        const gap = Math.hypot(px(s.x) - p.x, py(s.y) - p.y)
+        if (gap < near) {
+          near = gap
+          best = pl.sid
+        }
+      }
+      state.follow = best
+      if (best && state.zoom < 2) state.zoom = 2
+      draw()
+    } else if (e.pointerType === 'touch') {
+      onPlay() // a tap plays or pauses
+    }
+  }) as EventListener
+  on(canvas, 'pointerup', release)
+  on(canvas, 'pointercancel', release)
 
   draw()
   if (ROUNDS.length) void load(startRound && ROUNDS.includes(startRound) ? startRound : ROUNDS[0])

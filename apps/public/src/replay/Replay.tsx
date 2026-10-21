@@ -120,7 +120,10 @@ export default function Replay(props: {
                   ))}
                 </span>
               )}
-              <span>space = play · ← → = 5s · [ ] = round{scene.levels.length > 0 && ' · v = floor'}</span>
+              <span>
+                space = play · ← → = 5s · [ ] = round{scene.levels.length > 0 && ' · v = floor'} · wheel = zoom ·
+                shift+click = follow · double-click = reset
+              </span>
             </div>
           </div>
           <div className="rp-strip">
