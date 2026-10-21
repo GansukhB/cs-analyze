@@ -121,7 +121,7 @@ Detector өөрчлөх бүрт тестээр баталгаажуулна (OP
 
 #### RV-4. Win probability v2 (P1, M; ADR 0007-ийн committed table хэвээр)
 
-> **Төлөв:** 🟡 `2c22da7` (improvement-01). HP, utility, сүүлийн kill, defuse race, buy-ийн хос; калибровкийн тайлан. Patch-ийн үе DATA-7-г хүлээнэ.
+> **Төлөв:** ✅ `2c22da7` (improvement-01). HP, utility, сүүлийн kill, defuse race, buy-ийн хос; калибровкийн тайлан; patch-ийн үеэр fit (`review:fit --since`, DATA-7).
 
 - **Онцлог:**
   - HP, armor, амьд kit
@@ -163,7 +163,7 @@ Detector өөрчлөх бүрт тестээр баталгаажуулна (OP
 
 #### RV-7. Тэмдэглэл, bookmark, playlist, Finding-ийг маргах (P1, M)
 
-> **Төлөв:** 🟡 `db48695` (improvement-01). Note, Dispute, Playlist. Ghost горим VIZ-5-ыг хүлээнэ; Dispute-ийн давтамж /system биш Workspace хуудсанд (Workspace-ийнх тул).
+> **Төлөв:** ✅ `db48695` (improvement-01). Note, Dispute, Playlist; ghost горим (VIZ-5); Dispute-ийн давтамж Workspace хуудсанд.
 
 - **Note:**
   - Staff-ын тэмдэглэл. Round, агшин, Finding, тоглогчид хавсарна. Workspace-д хадгалагдана, tag-тай.
@@ -220,6 +220,8 @@ Match-ийн Summary ба Focus point-оос 45–60 минутын хуралд
 Хуралдаанд аль хэсгийг үзсэнийг тэмдэглэнэ.
 
 #### RV-11. Дасгалын төлөвлөгөө (P2, M)
+
+> **Төлөв:** ✅ `ad726e5` (improvement-01). `/week`: tier-2 долоо хоногийн загвар, Review хийх тоглолт, Development зорилго, Scrim-ийн Focus point, сүүлийн Briefing-ийн бэлтгэлээр дүүргэнэ.
 
 - **Долоо хоногийн календар** (R3-ийн tier-2 загвар):
 

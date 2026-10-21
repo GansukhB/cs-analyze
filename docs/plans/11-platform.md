@@ -149,6 +149,8 @@ Celery-ийн `task_routes`, worker бүрт `-Q`. Одоогийн `--pool=thre
 
 ### OPS-10. Цэвэрлэгээ (P2, S)
 
+> **Төлөв:** 🟡 `41eeede` (improvement-01). Assistant-ийн hex өнгө token болсон; `lang="mn"` байсан. Dead code (REPARSE_MAP, AnalysisArtifact) prod-ийн датаг шалгасны дараа; хоёр Chip-ийг нэгтгэх, UI текстийн толь үлдсэн.
+
 - Dead code-ийг устгана: `REPARSE_MAP`, `ANALYSING`/`RENDERING`, `AnalysisArtifact` (эсвэл Briefing-ийн PDF-д ашиглана).
 - Assistant-ийн hex өнгийг palette token болгоно (`Assistant.tsx:403,480,482,548,691`). Хоёр өөр Chip component-ийг нэгтгэнэ.
 - `<html lang="mn">` болгоно. Англи, монгол холилдсон UI текстийг нэг толь бичигт оруулна (`10-assistant.md`-ээс тусдаа, UI-ийн текст).

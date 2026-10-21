@@ -137,7 +137,7 @@ Forecast бүр хадгалагдаж, тоглолтын дараа үр дү�
 
 ### FC-4. Forecast-ыг хадгалж дүгнэх (P0, M)
 
-> **Төлөв:** 🟡 `5d19413` (improvement-01). Хүсэлтээр хадгалж дүгнэх, `/forecasts`. Автомат Forecast (DATA-3), reliability диаграм үлдсэн.
+> **Төлөв:** 🟡 `fdbee41` (improvement-01). Хүсэлтээр хадгалж дүгнэх, `/forecasts`, reliability диаграм (бүлэг бүрийн хожил, Wilson 80%). Автомат Forecast DATA-3-ийг хүлээнэ.
 
 - **`forecasts` хүснэгт:**
   - `id`, `public_id`, `workspace_id`

@@ -171,6 +171,8 @@ Player User зөвхөн өөрийн Review, Focus point, Development plan, х�
 
 ### AS-9. Дууны UX (P2, S)
 
+> **Төлөв:** ✅ `99ef39c` (improvement-01). Сонссоноо шалгаад илгээх (эсвэл «шууд»), утсан дээр дарж ярих, хариултын audio URL-ийг суллах; өнгө token болсон.
+
 - Илгээхээс өмнө transcript-ийг засах боломж олгоно.
 - Утсан дээр дарж байж ярих (push-to-talk) товч хийнэ.
 - Audio blob URL-ийг сулладаг болгоно (`assistant/api.ts:91`).

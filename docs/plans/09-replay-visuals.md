@@ -141,9 +141,13 @@ ggViz-ийн арга (Xenopoulos нар, CHI PLAY 2022, `12-research-sources.md
 
 ### VIZ-12. Дуу чимээний давхарга (P2, S)
 
+> **Төлөв:** ✅ `1cc9992` (improvement-01). `footsteps`-ийг Replay-д (REPLAY_SCHEMA 8): алхам бүр талын өнгөөр томрох тойрог, «footsteps» toggle.
+
 Хадгалсан `footsteps` хүснэгтээс (Map бүрт ~17 K мөр, одоо огт уншдаггүй) хөлийн чимээний тойргийг зурна. Хэн хаана дуу гаргасан, хэн чимээгүй rotate хийсэн нь харагдана. Demo дахин татах шаардлагагүй.
 
 ### VIZ-13. Клип гаргах (P2, M)
+
+> **Төлөв:** 🟡 `3c1a75b` (improvement-01). Replay-ийн 10 с-ийг browser-т WebM болгож татна (MediaRecorder). Note/Briefing-д хавсаргах (хадгалах газар) үлдсэн.
 
 Сонгосон хугацааны canvas-ийг `MediaRecorder`-ээр WebM болгож browser-т бичнэ. Сервер дээр render хийхгүй. Note эсвэл Briefing-д хавсаргана.
 
