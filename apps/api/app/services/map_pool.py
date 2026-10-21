@@ -5,8 +5,11 @@ them (DATA-7). Only when the file names fewer than :data:`ACTIVE_SIZE` are they
 read from the data: the Maps played most in the :data:`ACTIVE_WINDOW_DAYS`
 before the latest Match, each at least :data:`ACTIVE_MIN_MAPS` times, topped up
 from the file's. Each Map's strength is the Team's share of Rounds
-won there, pulled toward its own share over every Map by :data:`PRIOR_ROUNDS`
-(one Map's worth), so two lucky Maps don't read as a pocket pick. The pool's
+won there, each Match Map weighed by its age before the Team's latest
+(:data:`HALF_LIFE_DAYS`, TM-3: what they play now counts most), pulled toward
+its own share over every Map by :data:`PRIOR_ROUNDS` (one Map's worth), so two
+lucky Maps don't read as a pocket pick; an old Map is less evidence, so it is
+pulled harder. The pool's
 depth is how many Active Maps it has played at least :data:`MIN_MAPS` times
 without falling more than :data:`DEPTH_GAP` points under its own share.
 """
@@ -19,7 +22,7 @@ from datetime import timedelta
 from sqlalchemy import func, select
 
 from app.models import GameMap, Match, MatchKind, MatchMap, Team
-from app.services import mapstrategy, mn, patches
+from app.services import mapstrategy, mn, patches, stats
 from app.services.dbctx import db, memo
 
 ACTIVE_SIZE = 7
@@ -29,6 +32,7 @@ PRIOR_ROUNDS = 24.0
 DEPTH_GAP = 5.0  # points
 MIN_MAPS = 2
 RECENT_DAYS = 90
+HALF_LIFE_DAYS = 90.0
 
 
 def active_duty() -> tuple[str, ...]:
@@ -82,6 +86,22 @@ def team_pool(team: Team) -> dict:
     rounds = sum(p["rounds"] for p in profiles.values())
     won = sum(p["rounds_for"] for p in profiles.values())
     mean = 100.0 * won / rounds if rounds else 50.0
+    # TM-3: each Map's Rounds weighed by age before the Team's latest Match Map.
+    weighed: dict[str, list[float]] = {}
+    for m in played:
+        if m.team1_score is None or m.team2_score is None:
+            continue
+        mine, theirs = (m.team1_score, m.team2_score)
+        if m.team1_id != team.id:
+            mine, theirs = theirs, mine
+        when = m.match.played_at
+        w = stats.recency((latest - when).days, HALF_LIFE_DAYS) if when and latest else 1.0
+        row = weighed.setdefault(m.game_map.name if m.game_map else "?", [0.0, 0.0])
+        row[0] += w * mine
+        row[1] += w * (mine + theirs)
+    weight = sum(of for _got, of in weighed.values())
+    if weight:  # the Team's own share, weighed the same way, is what each Map is held to
+        mean = 100.0 * sum(got for got, _of in weighed.values()) / weight
     active = active_duty()
     rows, depth = [], 0
     for name in sorted(set(active) | set(profiles)):
@@ -90,8 +110,9 @@ def team_pool(team: Team) -> dict:
         share = shrunk = None
         if p and p["rounds"]:
             share = round(100.0 * p["rounds_for"] / p["rounds"], 1)
-            pulled = p["rounds_for"] + PRIOR_ROUNDS * mean / 100.0
-            shrunk = round(100.0 * pulled / (p["rounds"] + PRIOR_ROUNDS), 1)
+            got, of = weighed.get(name) or (p["rounds_for"], p["rounds"])
+            pulled = got + PRIOR_ROUNDS * mean / 100.0
+            shrunk = round(100.0 * pulled / (of + PRIOR_ROUNDS), 1)
         if n == 0:
             status = "untested"
         elif n < MIN_MAPS:

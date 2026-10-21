@@ -38,3 +38,26 @@ def test_a_pool_is_as_deep_as_its_maps_played_and_held(client, auth, db, league)
     assert {r["status"] for r in pool["rows"] if r["map"] != "de_mirage"} == {"untested"}
     page = client.get(f"/teams/{a.id}", headers=auth).json()
     assert page["map_pool"]["depth"] == 1
+
+
+def test_an_old_map_counts_less_than_a_recent_one(db, league):
+    """TM-3: Nuke lost 4-8 a year before the Team's latest weighs about a twentieth
+    of Nuke won 8-4 on its latest day, so the Map reads well above its 50%."""
+    import datetime as dt
+
+    from app.models import GameMap, Match
+    from tests.test_gameplan import _map
+
+    a, b = league["a"], league["b"]
+    nuke = GameMap(name="de_nuke", display_name="Nuke")
+    for number, day, first, second in ((90, dt.datetime(2025, 9, 1), b, a),
+                                       (91, dt.datetime(2026, 10, 1), a, b)):  # fmt: skip
+        match = Match(hltv_id=number, team1=a, team2=b, played_at=day)
+        db.add(match)
+        db.flush()
+        _map(db, match, 1, nuke, first, second, players=league["players"])
+    db.commit()
+    with dbctx.using(db):
+        pool = map_pool.team_pool(a)
+    row = next(r for r in pool["rows"] if r["map"] == "de_nuke")
+    assert row["share"] == 50.0 and row["shrunk"] > 55
