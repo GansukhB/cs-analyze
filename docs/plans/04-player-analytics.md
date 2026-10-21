@@ -91,7 +91,7 @@ Coach-ийн хоёр асуултад тоо, жишиг, нотолгоото�
 
 ### PL-4. Үүрэг v2 (P1, M)
 
-> **Төлөв:** 🟡 `30848b0` (improvement-01). Staff-ийн зарласан үүрэг (Side, Map), soft role-ийн хувь. GMM ба Round бүрийн slot assignment (Hungarian) үлдсэн.
+> **Төлөв:** 🟡 `a6d8d2d` (improvement-01). Staff-ийн зарласан үүрэг, soft role-ийн хувь (`30848b0`); Playbook-д хоёр багийн 20 с-ийн таван slot (Hungarian, Spot-ын нэртэй, хэн хэдэн хувь). GMM-ийн soft role үлдсэн.
 
 - **Онцлог:**
   - opening duel оролдлого
