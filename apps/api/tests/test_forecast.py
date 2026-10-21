@@ -159,6 +159,20 @@ def test_a_team_page_splits_its_maps_by_the_opponents_tier(client, db, auth):
     s = client.get(f"/teams/{a.id}", headers=auth).json()["strength"]
     assert s["name"] == "Alpha" and s["series"] == 12 and len(s["trend"]) >= 2
     assert sum(t["maps"] for t in s["tiers"]) == 1 and s["tiers"][0]["won"] == 1
+    # TM-2, Round by Round: Alpha held CT 1-6 and won 5 of them (tests.test_gameplan._map).
+    ct = next(r for r in s["rounds"] if r["side"] == "ct")
+    assert ct["rounds"] == 6 and ct["won"] == 5 and 3.0 < ct["expected"] < 6.0
+    assert ct["residual"] == pytest.approx(5 - ct["expected"], abs=0.11)
+    assert ct["per24"] == pytest.approx(4 * ct["residual"], abs=0.25)
+
+
+def test_a_round_chance_and_a_map_chance_turn_into_each_other():
+    from app.services import team_strength
+
+    assert team_strength.map_chance(0.5) == pytest.approx(0.5)
+    assert team_strength.map_chance(0.55) == pytest.approx(0.687, abs=0.002)
+    for p in (0.3, 0.45, 0.62):
+        assert team_strength.round_chance(team_strength.map_chance(p)) == pytest.approx(p, abs=1e-6)
 
 
 def test_the_veto_plays_on_from_where_it_stands():

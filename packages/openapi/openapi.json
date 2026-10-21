@@ -16046,6 +16046,45 @@
         ],
         "title": "TeamResultMap"
       },
+      "TeamRoundResidual": {
+        "properties": {
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "expected": {
+            "type": "number",
+            "title": "Expected"
+          },
+          "residual": {
+            "type": "number",
+            "title": "Residual"
+          },
+          "per24": {
+            "type": "number",
+            "title": "Per24",
+            "description": "Rounds won above expected per 24 played."
+          }
+        },
+        "type": "object",
+        "required": [
+          "side",
+          "rounds",
+          "won",
+          "expected",
+          "residual",
+          "per24"
+        ],
+        "title": "TeamRoundResidual"
+      },
       "TeamRow": {
         "properties": {
           "id": {
@@ -16182,6 +16221,14 @@
             },
             "type": "array",
             "title": "Tiers"
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/TeamRoundResidual"
+            },
+            "type": "array",
+            "title": "Rounds",
+            "default": []
           }
         },
         "type": "object",

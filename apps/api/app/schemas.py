@@ -432,6 +432,15 @@ class TeamTrendPoint(BaseModel):
     rating: float
 
 
+class TeamRoundResidual(BaseModel):
+    side: str
+    rounds: int
+    won: int
+    expected: float
+    residual: float
+    per24: float = Field(description="Rounds won above expected per 24 played.")
+
+
 class TeamStrength(BaseModel):
     """The Team's Rating and its results by the opponent's tier (TM-2, TM-10)."""
 
@@ -446,6 +455,8 @@ class TeamStrength(BaseModel):
     ranked: int
     trend: list[TeamTrendPoint]
     tiers: list[TeamTier]
+    # TM-2: Rounds won on each Side against the opponents' Ratings and the Maps' Sides.
+    rounds: list[TeamRoundResidual] = []
 
 
 class MapPoolRow(BaseModel):

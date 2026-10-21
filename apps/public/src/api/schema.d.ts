@@ -5629,6 +5629,24 @@ export interface components {
             /** Parsed */
             parsed: boolean;
         };
+        /** TeamRoundResidual */
+        TeamRoundResidual: {
+            /** Side */
+            side: string;
+            /** Rounds */
+            rounds: number;
+            /** Won */
+            won: number;
+            /** Expected */
+            expected: number;
+            /** Residual */
+            residual: number;
+            /**
+             * Per24
+             * @description Rounds won above expected per 24 played.
+             */
+            per24: number;
+        };
         /** TeamRow */
         TeamRow: {
             /** Id */
@@ -5675,6 +5693,11 @@ export interface components {
             trend: components["schemas"]["TeamTrendPoint"][];
             /** Tiers */
             tiers: components["schemas"]["TeamTier"][];
+            /**
+             * Rounds
+             * @default []
+             */
+            rounds: components["schemas"]["TeamRoundResidual"][];
         };
         /** TeamStyle */
         TeamStyle: {

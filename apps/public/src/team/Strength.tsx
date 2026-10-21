@@ -90,6 +90,28 @@ export default function StrengthSection({ s }: { s: Strength }) {
           </p>
         </div>
       )}
+      {(s.rounds ?? []).length > 0 && (
+        <div className="space-y-1 text-sm">
+          <h3 className="text-xs uppercase tracking-wide text-ink-3">Раундаар, хүлээгдэхтэй</h3>
+          <ul className="flex flex-wrap gap-x-6 gap-y-1">
+            {(s.rounds ?? []).map((r) => (
+              <li key={r.side} className="text-ink-2">
+                <span className={r.side === 'ct' ? 'text-ct' : 'text-t'}>{r.side.toUpperCase()}</span>{' '}
+                {r.won}/{r.rounds} хожсон, хүлээгдэх {r.expected} ·{' '}
+                <b className={`font-mono ${r.per24 > 0 ? 'text-good' : r.per24 < 0 ? 'text-crit' : 'text-ink'}`}>
+                  {r.per24 > 0 ? '+' : ''}
+                  {r.per24}
+                </b>{' '}
+                <span className="text-xs text-ink-3">раунд / 24</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-ink-3">
+            Раунд бүрийн хүлээгдэх хожил: тэр өдрийн Rating-ийн зөрүүгээр Map хожих магадлалыг раундынх руу шилжүүлж,
+            тухайн Map-ын CT/T давуугаар (бүх баг) засав.
+          </p>
+        </div>
+      )}
     </section>
   )
 }
