@@ -431,3 +431,16 @@ def test_the_new_lookups_answer_from_the_same_rows(db, league):  # noqa: F811
         {"mine_id": a.id, "theirs_id": b.id, "section": "playbook", "map": "de_mirage"},
     )
     assert book["label"] == "Mirage" and "sections" in book
+
+
+def test_round_tokens_are_read_aloud_as_rounds():
+    """AS-5: the page links a token; the voice says only its round."""
+    from app.services.assistant import spoken
+
+    text = "Тэд [R14] дээр, [4021.2:R4 1:23 @76561198000000001] ба [R20] хожсон."
+    assert spoken(text) == "Тэд 14 дүгээр Round дээр, 4 дүгээр Round ба 20 дугаар Round хожсон."
+    assert spoken("They won [R3 0:45].") == "They won round 3."
+    assert spoken("Тэр [R10], [R11], [R40], [R9]") == (
+        "Тэр 10 дугаар Round, 11 дүгээр Round, 40 дүгээр Round, 9 дүгээр Round"
+    )
+    assert spoken("[R14 нэг]") == "[R14 нэг]"

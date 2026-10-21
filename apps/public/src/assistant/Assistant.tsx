@@ -12,6 +12,7 @@ import { suggestions, usePageContext, type PageContext } from './context'
 import { Check, Close, Mic, NewChat, Pin, Play, Retry, Send, Sparkle, Speaker, SpeakerOff, StopSquare } from './icons'
 import { useRecorder } from './useRecorder'
 import { useSpeaker, type Speaker as SpeakerApi } from './useSpeaker'
+import { type MapAt, WithRefs } from './refs'
 import './assistant.css'
 
 interface Para {
@@ -30,6 +31,8 @@ interface Turn {
   spoken?: boolean
   /** The page a question was asked on (its label). */
   page?: string
+  /** The Match Map open when it was asked, for its reply's bare Round tokens (AS-5). */
+  at?: MapAt | null
 }
 
 type OrbState = 'idle' | 'thinking' | 'speaking' | 'listening'
@@ -53,10 +56,11 @@ function saveTurns(turns: Turn[]) {
   try {
     // Text only: audio URLs die with the page. An answer cut off by a reload
     // comes back as stopped, with whatever it had written.
-    const kept = turns.map(({ id, role, paras, error, stopped, spoken, steps, pending, page }) => ({
+    const kept = turns.map(({ id, role, paras, error, stopped, spoken, steps, pending, page, at }) => ({
       id,
       role,
       page,
+      at,
       paras: paras.filter(Boolean).map((p) => ({ text: p.text })),
       error,
       stopped: stopped || pending,
@@ -178,7 +182,9 @@ export default function Assistant() {
       if (!message || abort.current || !configured) return
       speaker.unlock()
       speaker.stop()
-      const reply: Turn = { id: uid(), role: 'assistant', paras: [], steps: [], pending: true }
+      const ctx = page.context as { match?: number; map?: number | null } | null
+      const at = page.scope === 'match' && ctx?.match && ctx.map ? { match: ctx.match, map: ctx.map } : null
+      const reply: Turn = { id: uid(), role: 'assistant', paras: [], steps: [], pending: true, at }
       const history = historyOf(turnsRef.current)
       setTurns((ts) => [...ts, { id: uid(), role: 'user', paras: [{ text: message }], spoken, page: page.label }, reply])
       setDraft('')
@@ -239,7 +245,7 @@ export default function Assistant() {
         if (!openRef.current) setUnread(true)
       }
     },
-    [configured, voiceAvailable, page.context, page.label, patch, speaker],
+    [configured, voiceAvailable, page.context, page.label, page.scope, patch, speaker],
   )
 
   const stop = useCallback(() => {
@@ -542,7 +548,9 @@ function Reply({ turn, speaker, onRetry }: { turn: Turn; speaker: SpeakerApi; on
                   key={key}
                   className={`group relative rounded-xl px-2.5 py-1.5 transition-colors ${speaking ? 'as-speaking' : ''}`}
                 >
-                  <p className="pr-7 text-sm leading-relaxed whitespace-pre-wrap text-ink">{p.text}</p>
+                  <p className="pr-7 text-sm leading-relaxed whitespace-pre-wrap text-ink">
+                    <WithRefs text={p.text} at={turn.at} />
+                  </p>
                   {p.audio && (
                     <button
                       onClick={() => (speaking ? speaker.stop() : speaker.play(key, p.audio!))}

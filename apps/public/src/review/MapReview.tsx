@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { $api } from '../api/client'
 import type { components } from '../api/schema'
@@ -95,6 +95,17 @@ function MapReviewBody({ matchId, mapNumber }: { matchId: number; mapNumber: num
     },
     [bridge],
   )
+  // AS-5: a link to a moment of this Map while it is open (an Assistant reply's
+  // Round token) moves the Replay there rather than reloading the page.
+  const wanted = `${search.get('round') ?? ''}|${search.get('t') ?? ''}|${search.get('player') ?? ''}`
+  const applied = useRef(wanted)
+  useEffect(() => {
+    if (wanted === applied.current) return
+    applied.current = wanted
+    const [n, t, sid] = wanted.split('|')
+    // The Replay reports the Round back through onRound.
+    if (Number(n)) bridge.goto?.(Number(n), Number(t) || 0, sid || null, false)
+  }, [wanted, bridge])
   const [filters, set, clear] = useFilters()
   const review = reviewQuery.data ?? null
   const view = useMemo(() => (review ? applyFilters(review, filters) : null), [review, filters])

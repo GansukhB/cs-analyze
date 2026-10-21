@@ -192,6 +192,15 @@ Never write "сохор", "сохорсон" or "сохорлосон". A teamma
 гишүүн" (plural "багийн гишүүд"), never "нөхөр" or "нөхөд".
 - Keep the whole reply to at most about five paragraphs unless the user \
 explicitly asks for more detail.
+- When a tool hands you a specific Round (a Finding's round and second, a \
+Playbook or Summary evidence ref), you may point at it with a Round token, \
+which the page turns into a link that opens the Replay there: [R14] for Round \
+14 of the Match Map the conversation is about (the one match_review read, or \
+the match page open), [R14 1:23] for a moment of it, [R14 1:23 @<steamid>] to \
+ring that player; for any other Match Map put the match id and map number \
+first, [4021.2:R14]. Only rounds, ids and seconds a tool returned. The voice \
+reads a token as the round's number, so don't also say the number in words \
+beside it, and use at most three tokens in a paragraph.
 - When you need a tool, call it directly with no preamble -- don't write "let \
 me check" or similar before a tool call. The interface already shows the user \
 which lookup is running; text you write in that turn would be read aloud as \
@@ -859,6 +868,7 @@ def _tool_match_review(
         findings.sort(key=lambda f: (f["round"] or 0, f["t"] or 0))
     return {
         "map": mn.game_map(match_map.game_map.name if match_map.game_map else ""),
+        "match_id": match_id,
         "map_number": match_map.map_number,
         "parsed_maps": [m.map_number for m in maps],
         "note": panel["missing"],
@@ -1327,6 +1337,31 @@ def _client():
     return anthropic.Anthropic(api_key=get_settings().claude_api_key.get_secret_value())
 
 
+# AS-5: a Round token in a reply, [R14], [R14 1:23], [R14 1:23 @<steamid>] or
+# [4021.2:R14]; the page links it, and the voice reads only the round.
+ROUND_TOKEN = re.compile(r"\[(?:\d+\.\d+:)?R(\d{1,2})(?: \d{1,2}:\d{2})?(?: @\d{5,20})?\]")
+# The Mongolian ordinal suffix follows the vowel of the number's last word:
+# нэг, дөрөв, ес and дөч take дүгээр, the rest дугаар.
+_FRONT_ONES = {1, 4, 9}
+
+
+def _ordinal_mn(n: int) -> str:
+    front = n % 10 in _FRONT_ONES if n % 10 else n // 10 % 10 == 4
+    return f"{n} {'дүгээр' if front else 'дугаар'}"
+
+
+def spoken(text: str) -> str:
+    """A paragraph as the voice should read it: each Round token as its round
+    ("14 дүгээр Round" in Mongolian, "round 14" otherwise)."""
+    mongolian = re.search("[а-яөүё]", text, re.IGNORECASE) is not None
+
+    def say(m: re.Match) -> str:
+        n = int(m.group(1))
+        return f"{_ordinal_mn(n)} Round" if mongolian else f"round {n}"
+
+    return ROUND_TOKEN.sub(say, text)
+
+
 class _Voices:
     """Paragraph audio made in the background and handed out in paragraph order.
 
@@ -1344,6 +1379,7 @@ class _Voices:
 
     def submit(self, n: int, text: str) -> None:
         if self.pool is not None:
+            text = spoken(text)
             self.chars += len(text)
             self.pending.append((n, self.pool.submit(voice.synthesize, text)))
 
