@@ -3583,6 +3583,26 @@ export interface components {
             last: string | null;
             /** Status */
             status: string;
+            /**
+             * Sides
+             * @default {}
+             */
+            sides: {
+                [key: string]: components["schemas"]["MapPoolSide"];
+            };
+        };
+        /** MapPoolSide */
+        MapPoolSide: {
+            /** Rounds */
+            rounds: number;
+            /** Won */
+            won: number;
+            /** Pct */
+            pct: number;
+            /** Low */
+            low: number;
+            /** High */
+            high: number;
         };
         /** MapRecordRow */
         MapRecordRow: {

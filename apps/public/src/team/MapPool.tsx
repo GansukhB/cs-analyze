@@ -30,6 +30,12 @@ export default function MapPool({ pool }: { pool: Pool }) {
             <th className="py-1 pr-6 text-right font-normal" title="Сүүлийн тоглолтуудыг илүү жинлэж (90 хоногт хагас), нэг map-ын жингээр өөрийн дундаж руу татсан">
               Хүч
             </th>
+            <th className="py-1 pr-6 text-right font-normal" title="Раундын хожил, 80% интервалтай">
+              CT
+            </th>
+            <th className="py-1 pr-6 text-right font-normal" title="Раундын хожил, 80% интервалтай">
+              T
+            </th>
             <th className="py-1 pr-6 text-right font-normal">Сүүлийн 90 хоног</th>
             <th className="py-1 pr-6 font-normal">Сүүлд</th>
             <th className="py-1 font-normal" />
@@ -47,6 +53,20 @@ export default function MapPool({ pool }: { pool: Pool }) {
                 <td className="py-1 pr-6 text-right font-mono">{r.maps ? `${r.won}–${r.maps - r.won}` : '—'}</td>
                 <td className="py-1 pr-6 text-right font-mono">{r.share == null ? '—' : `${r.share}%`}</td>
                 <td className="py-1 pr-6 text-right font-mono text-ink">{r.shrunk == null ? '—' : `${r.shrunk}%`}</td>
+                {(['ct', 't'] as const).map((side) => {
+                  const s = r.sides?.[side]
+                  return (
+                    <td key={side} className="py-1 pr-6 text-right font-mono" title={s ? `${s.won}/${s.rounds} раунд` : undefined}>
+                      {s ? (
+                        <>
+                          {s.pct}% <small className="text-ink-3">{Math.round(s.low)}–{Math.round(s.high)}</small>
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                  )
+                })}
                 <td className="py-1 pr-6 text-right font-mono">{r.recent}</td>
                 <td className="py-1 pr-6 text-xs text-ink-3">{r.last ?? '—'}</td>
                 <td className={`py-1 text-xs ${tone}`}>{word}</td>

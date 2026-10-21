@@ -10265,6 +10265,14 @@
           "status": {
             "type": "string",
             "title": "Status"
+          },
+          "sides": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MapPoolSide"
+            },
+            "type": "object",
+            "title": "Sides",
+            "default": {}
           }
         },
         "type": "object",
@@ -10282,6 +10290,39 @@
           "status"
         ],
         "title": "MapPoolRow"
+      },
+      "MapPoolSide": {
+        "properties": {
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "pct": {
+            "type": "number",
+            "title": "Pct"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rounds",
+          "won",
+          "pct",
+          "low",
+          "high"
+        ],
+        "title": "MapPoolSide"
       },
       "MapRecordRow": {
         "properties": {

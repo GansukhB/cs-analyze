@@ -69,6 +69,19 @@ def active_duty() -> tuple[str, ...]:
     return memo("active_duty", compute)
 
 
+def _sides(profile: dict) -> dict:
+    """TM-10: each Side's Rounds won with an 80% range."""
+    out = {}
+    for side in ("ct", "t"):
+        s = profile.get(side) or {}
+        n, k = s.get("rounds") or 0, s.get("won") or 0
+        if n:
+            low, high = stats.wilson(k, n)
+            out[side] = {"rounds": n, "won": k, "pct": round(100 * k / n, 1),
+                         "low": round(100 * low, 1), "high": round(100 * high, 1)}  # fmt: skip
+    return out
+
+
 def team_pool(team: Team) -> dict:
     """Each Active Map (and any other played) with the Team's strength there."""
     profiles = {p["map"]: p for p in mapstrategy.map_profiles(team)}
@@ -136,6 +149,7 @@ def team_pool(team: Team) -> dict:
                 "recent": recent[name],
                 "last": last[name].date().isoformat() if last.get(name) else None,
                 "status": status,
+                "sides": _sides(p) if p else {},
             }
         )
     rows.sort(key=lambda r: (not r["active"], -(r["shrunk"] or 0), r["map"]))

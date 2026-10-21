@@ -461,6 +461,14 @@ class TeamStrength(BaseModel):
     rounds: list[TeamRoundResidual] = []
 
 
+class MapPoolSide(BaseModel):
+    rounds: int
+    won: int
+    pct: float
+    low: float
+    high: float
+
+
 class MapPoolRow(BaseModel):
     map: str
     label: str
@@ -473,6 +481,8 @@ class MapPoolRow(BaseModel):
     recent: int  # Match Maps in the last 90 days of its data
     last: str | None
     status: str  # deep | weak | thin | untested
+    # TM-10: each Side's Rounds won, percent, with an 80% range (Wilson).
+    sides: dict[str, MapPoolSide] = {}
 
 
 class TeamMapPool(BaseModel):
