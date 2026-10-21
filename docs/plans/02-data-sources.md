@@ -201,6 +201,8 @@ GRID-ийн үнэгүй Open Access хаагдсан бололтой (`grid.gg
 
 ### DATA-7. Patch-ийн үе ба map pool-ийн тохиргоо (P1, S)
 
+> **Төлөв:** 🟡 `42ec2cd` (improvement-01). `app/data/patches.json` (patch, Map pool-ийн үе), Active Duty өдрөөр, Match-ийн patch, Playbook «patch-аас хойш», `review:fit --since`. Cache/C4 үеийн fit бүх датаас сайн биш тул model хэвээр. Post-plant detector-ийг 7 сараас хойших датагаар шалгах нь үлдсэн.
+
 - **`game_patches`:** огноо, build, тэмдэглэл. Тэмдэглэх patch-ууд:
   - CT-ийн T тутамд $50 (2025-07-16)
   - SMG-ийн өөрчлөлт (2026-01-21)
@@ -229,6 +231,8 @@ GRID-ийн үнэгүй Open Access хаагдсан бололтой (`grid.gg
   - **awpy 3.x-ийг corpus дээр туршина:** Rust, Polars 2 (апп polars ≥1.44 дээр pin хийгдсэн), multipart-ийг шууд уншдаг. Шилжихдээ `demo_parser.parse_map` ба `tickdata.parsed_map` хоёрыг ижил байлгана.
 
 ### DATA-9. Датаны хамрах хүрээний самбар (P1, S)
+
+> **Төлөв:** 🟡 `0665953` (improvement-01). `/data`: баг бүрийн дутуу (schema, Loadout, Sighting, event, cut, Review), Map-ийн Pool, дахин татах дараалал. Fixture-ийн дутуу дата ба «татах» товч DATA-4-ийг хүлээнэ.
 
 `/data` (Staff):
 

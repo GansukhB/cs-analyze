@@ -76,12 +76,16 @@ Deploy:
 
 ### OPS-4. Хамгийн бага эрх (P1, M)
 
+> **Төлөв:** 🟡 `94c4b86` (improvement-01). Өөрийн MySQL account (`deploy:db-user`), worker-т OOMScoreAdjust, `-e harden=true`-ээр MemoryMax ба ProtectSystem, JWT солих журам (ADR 0012). Root биш service user, Redis ACL үлдсэн. Deploy хийгээгүй.
+
 - MySQL дээр зөвхөн `cs_analyze.*` эрхтэй тусдаа user, Redis-д тусдаа ACL user үүсгэнэ (ADR 0004-ийн "root account"-ыг шинэ ADR-аар солино).
 - systemd: `User=cs2`, `NoNewPrivileges=yes`, `ProtectSystem=strict`, `ReadWritePaths=/home/cs2.bizon.mn/data`. Worker-т `MemoryMax=3500M`, `OOMScoreAdjust=500` тавина. Санах ой дутвал OOM killer MySQL биш worker-ийг алах ёстой (production-д OOM аль хэдийн тохиолдсон, `browser.py:187-190`).
 - Root биш user дээр Chromium-ийг `chromium_sandbox=True`-тэй ажиллуулна.
 - JWT secret-ийг солих журам бичнэ: солиход бүх token хүчингүй болно гэдгийг баримтжуулна.
 
 ### OPS-5. Ажиглалт ба alert (P1, S–M)
+
+> **Төлөв:** 🟡 `bf55894` (improvement-01). Telegram alert (тохиргоотой үед), 5 минут тутмын watch (heartbeat, stage 45 мин, диск 85%, HLTV 3 удаа блок), backup/worker OnFailure, долоо хоног бүрийн canary, Assistant-ийн хязгаар; Jobs хуудсанд stage-ийн медиан. Sentry ба гадны uptime account шаардана. Deploy хийгээгүй.
 
 - **Алдаа:** Sentry-ийн үнэгүй tier эсвэл self-hosted GlitchTip. Backend, worker, frontend гурвуулаа.
 - **Alert:** Telegram bot (үнэгүй, багийнхан аль хэдийн хэрэглэдэг) дараах тохиолдлуудад мэдэгдэнэ:
@@ -122,6 +126,8 @@ Celery-ийн `task_routes`, worker бүрт `-Q`. Одоогийн `--pool=thre
 
 ### OPS-8. Гүйцэтгэл (P1, M)
 
+> **Төлөв:** 🟡 `820d389` (improvement-01). Model хуучирсан Review-г хуучнаар нь үзүүлж worker-т rebuild өгнө; Server-Timing; lazy route (main 702→328 KB); 404/5xx ялгаа, retry 1; skeleton. Tick Data-ийн cut inline хэвээр.
+
 - **Page request дотор rebuild хийхгүй:** хуучирсан Review болон derived-ийг background-д rebuild хийж, тэр хооронд хуучин хувилбарыг "шинэчлэгдэж байна" гэсэн banner-тай харуулна.
 - **Game Plan:** tab бүрийн p95 хугацааг `Server-Timing` header-ээр хэмжинэ. Хэрэв tab 10 s-ээс удаан бол cache warm хийх дарааллыг өөрчилнө. Pool аль хэдийн Redis-д хуваалцагддаг.
 - **Frontend:**
@@ -130,6 +136,8 @@ Celery-ийн `task_routes`, worker бүрт `-Q`. Одоогийн `--pool=thre
   - Текстэн loader-ийг skeleton-оор солино.
 
 ### OPS-9. Тестийн стратеги (P1, M, тасралтгүй)
+
+> **Төлөв:** 🟡 `99d1db6` (improvement-01). Vitest (filters, format, lineup, heatmap, Round token) CI-д; model baseline-ийн regression тест; opt-in browser smoke тест (давхар key олсон); `hltv:canary`. Rating backtest-ийн CI ажиллуулалт data шаардана.
 
 - CI-ийн MySQL job (OPS-3).
 - **HLTV selector canary:** долоо хоног бүр мэдэгдэж буй results болон match хуудсыг уншиж, selector-ууд ажиллаж байгааг шалгана. Одоо HLTV markup-аа өөрчилбөл Scout "SUCCESS, 0 Match" гэж дуусна.

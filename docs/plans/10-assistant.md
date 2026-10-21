@@ -122,6 +122,8 @@ Tool бүр `Viewer`-ийн scope-оор уншина (ADR 0011). Player User-д
 
 ### AS-4. Үндэслэл (grounding) ба үнэлгээ (P1, M)
 
+> **Төлөв:** 🟡 `053f6d5` (improvement-01). Хариултын тоог tool-ийн гаралттай тулгаж «шалгах» тэмдэг; 40 асуулттай golden set ба `assistant:eval` (төлбөртэй, ажиллуулаагүй). Citations-ийн туршилт үлдсэн.
+
 - **Golden set:**
   - Coach-ийн 40 асуулт монголоор. Хуудас бүрээс, coach-ийн ажлын урсгалаас (`12-research-sources.md`).
   - Асуулт бүрт хүлээгдэх tool-ууд ба гол баримтууд.
@@ -135,6 +137,8 @@ Tool бүр `Viewer`-ийн scope-оор уншина (ADR 0011). Player User-д
 - **API-ийн citations:** tool-ийн гаралтыг custom content document болгон citations-тэй дамжуулбал өгүүлбэр бүр эх сурвалжаа (`content_block_location`) заана. UI hover дээр эх сурвалжийг харуулна. Догол мөрөөр stream хийх ба дуутай хэрхэн нийцэхийг эхлээд жижиг туршилтаар шалгана.
 
 ### AS-5. Round-ын лавлагаа ба линк (P1, M)
+
+> **Төлөв:** ✅ `d032218` (improvement-01). `[R14]`, `[R14 1:23 @sid]`, `[4021.2:R14]` → Replay-ийн линк; нээлттэй Replay шилжинэ; дуу «14 дүгээр Round».
 
 - Хариултад `[R14]`, `[R14 1:23 <steamid>]` гэсэн токен оруулна. UI тэдгээрийг Replay-ийн линк болгоно (VIZ-2).
 - Дуугаар "14 дүгээр Round" гэж уншина.
@@ -153,6 +157,8 @@ Tool бүр `Viewer`-ийн scope-оор уншина (ADR 0011). Player User-д
 - **Model:** тохируулсан `claude-sonnet-5-5`-аар эхэлнэ. Briefing-ийн golden set дээр `claude-opus-5-5`-ийг (1M token тутамд $4/$20) чанар, зардлаар харьцуулж, сонголтыг хэрэглэгч хийнэ.
 
 ### AS-7. Хуудасны хамаарлыг сайжруулах (P1, S)
+
+> **Төлөв:** 🟡 `336c908` (improvement-01). Player, Scout job (амжилттай бол Game Plan руу), Game Plan picker-ийн context; Team page-д rating, team_matches. Хуваарь DATA-3-ийг хүлээнэ.
 
 - Job page: Scout-ийн явцыг хэлж, дууссан бол Game Plan руу чиглүүлнэ.
 - Picker: Lineup-ийн тухай асуултыг ойлгоно.
