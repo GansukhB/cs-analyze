@@ -27,6 +27,9 @@ export interface HeatData {
   // and landings as coloured dots, over the overview instead of a heat.
   lines?: { from: [number, number]; to: [number, number]; colour: string; width?: number }[]
   marks?: { at: [number, number]; colour: string; r?: number }[]
+  // False to draw the density alone: thousands of positions (v2's heat by the
+  // Round's clock) would bury it under their dots.
+  dots?: boolean
 }
 
 // radar.py's composite: the overview is a backdrop, not the subject -- pulled
@@ -322,7 +325,7 @@ export async function drawHeatmap(canvas: HTMLCanvasElement, data: HeatData, css
   g.lineWidth = Math.max(0.6, W * 0.0011)
   g.strokeStyle = '#0d1116'
   g.fillStyle = 'rgba(255, 255, 255, 0.75)'
-  for (const [x, y] of data.points) {
+  for (const [x, y] of data.dots === false ? [] : data.points) {
     g.beginPath()
     g.arc(px(x), py(y), dot, 0, Math.PI * 2)
     g.fill()

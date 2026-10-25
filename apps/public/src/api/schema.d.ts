@@ -2089,6 +2089,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/teams/{team_id}/spatial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Spatial View */
+        get: operations["spatial_view_v2_teams__team_id__spatial_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -6029,6 +6046,131 @@ export interface components {
             /** Prev */
             prev?: number | null;
         };
+        /** Spatial */
+        Spatial: {
+            /** Maps */
+            maps: components["schemas"]["SpatialMap"][];
+            /** Map */
+            map: string | null;
+            /** Side */
+            side: string;
+            /** Mode */
+            mode: string;
+            /** Windows */
+            windows: number[][];
+            plate: components["schemas"]["SpatialPlate"] | null;
+            /** Labels */
+            labels: components["schemas"]["SpatialLabel"][];
+            us: components["schemas"]["SpatialTeam"] | null;
+            them: components["schemas"]["SpatialTeam"] | null;
+            opponent: components["schemas"]["TeamRef"] | null;
+        };
+        /** SpatialHeat */
+        SpatialHeat: {
+            /** Points */
+            points: number[][][];
+            /** Zones */
+            zones: components["schemas"]["Zone"][];
+        };
+        /** SpatialLabel */
+        SpatialLabel: {
+            /** Name */
+            name: string;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
+        /** SpatialLurk */
+        SpatialLurk: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Share */
+            share: number;
+            /** Rule */
+            rule: boolean;
+            /** Played */
+            played: number;
+            /** Curve */
+            curve: (number | null)[];
+            /** Team Curve */
+            team_curve: (number | null)[];
+            /** Rounds */
+            rounds: number;
+            /** Kills */
+            kills: number;
+            /** Deaths */
+            deaths: number;
+            /** Untraded */
+            untraded: number;
+            /** Won */
+            won: number;
+        };
+        /** SpatialMap */
+        SpatialMap: {
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** N */
+            n: number;
+        };
+        /** SpatialPlate */
+        SpatialPlate: {
+            /** Url */
+            url: string | null;
+            /** Lower */
+            lower?: string | null;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Extent */
+            extent: number[];
+        };
+        /** SpatialRoute */
+        SpatialRoute: {
+            /** Label */
+            label: string;
+            /** Rounds */
+            rounds: number;
+            /** Share */
+            share: number;
+            /** Win */
+            win: number | null;
+            /** Kills */
+            kills: number;
+            /** Deaths */
+            deaths: number;
+            /** Path */
+            path: number[][];
+        };
+        /** SpatialTeam */
+        SpatialTeam: {
+            team: components["schemas"]["TeamRef"];
+            /** Rounds */
+            rounds: number;
+            heat?: components["schemas"]["SpatialHeat"] | null;
+            /** Routes */
+            routes?: components["schemas"]["SpatialRoute"][] | null;
+            trade?: components["schemas"]["SpatialTrade"] | null;
+            lurk?: components["schemas"]["SpatialLurk"] | null;
+        };
+        /** SpatialTrade */
+        SpatialTrade: {
+            /** Players */
+            players: components["schemas"]["TradePlayer"][];
+            /** Traders */
+            traders: string[];
+            /** Matrix */
+            matrix: number[][];
+            /** Segments */
+            segments: number[][][];
+            /** Lone */
+            lone: number[][];
+        };
         /**
          * SpotLabel
          * @description A Spot's name and where to print it.
@@ -6856,6 +6998,17 @@ export interface components {
              */
             token_type: string;
         };
+        /** TradePlayer */
+        TradePlayer: {
+            /** Name */
+            name: string;
+            /** Deaths */
+            deaths: number;
+            /** Traded */
+            traded: number;
+            /** Pct */
+            pct: number | null;
+        };
         /** TrendPoint */
         TrendPoint: {
             /** Match Map Id */
@@ -7359,6 +7512,15 @@ export interface components {
             name: string;
             /** My Teams */
             my_teams: components["schemas"]["MyTeamRef"][];
+        };
+        /** Zone */
+        Zone: {
+            /** Place */
+            place: string;
+            /** Shares */
+            shares: number[];
+            /** All */
+            all: number;
         };
         /** RosterPlayer */
         app__schemas__RosterPlayer: {
@@ -11150,6 +11312,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Scouting"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spatial_view_v2_teams__team_id__spatial_get: {
+        parameters: {
+            query?: {
+                opponent?: number | null;
+                map?: string | null;
+                side?: "t" | "ct";
+                mode?: "heat" | "move" | "trade" | "lurk";
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Spatial"];
                 };
             };
             /** @description Validation Error */

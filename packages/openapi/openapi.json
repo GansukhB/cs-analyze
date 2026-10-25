@@ -6461,6 +6461,115 @@
         }
       }
     },
+    "/v2/teams/{team_id}/spatial": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Spatial View",
+        "operationId": "spatial_view_v2_teams__team_id__spatial_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "opponent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Opponent"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Map"
+            }
+          },
+          {
+            "name": "side",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "t",
+                "ct"
+              ],
+              "type": "string",
+              "default": "t",
+              "title": "Side"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "heat",
+                "move",
+                "trade",
+                "lurk"
+              ],
+              "type": "string",
+              "default": "heat",
+              "title": "Mode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spatial"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -17986,6 +18095,497 @@
         "title": "Share",
         "description": "``won`` of ``of``; ``pct`` is None when ``of`` is 0."
       },
+      "Spatial": {
+        "properties": {
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/SpatialMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "map": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "windows": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Windows"
+          },
+          "plate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpatialPlate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "labels": {
+            "items": {
+              "$ref": "#/components/schemas/SpatialLabel"
+            },
+            "type": "array",
+            "title": "Labels"
+          },
+          "us": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpatialTeam"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "them": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpatialTeam"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opponent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "map",
+          "side",
+          "mode",
+          "windows",
+          "plate",
+          "labels",
+          "us",
+          "them",
+          "opponent"
+        ],
+        "title": "Spatial"
+      },
+      "SpatialHeat": {
+        "properties": {
+          "points": {
+            "items": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/Zone"
+            },
+            "type": "array",
+            "title": "Zones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "zones"
+        ],
+        "title": "SpatialHeat"
+      },
+      "SpatialLabel": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "x",
+          "y"
+        ],
+        "title": "SpatialLabel"
+      },
+      "SpatialLurk": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "share": {
+            "type": "number",
+            "title": "Share"
+          },
+          "rule": {
+            "type": "boolean",
+            "title": "Rule"
+          },
+          "played": {
+            "type": "integer",
+            "title": "Played"
+          },
+          "curve": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Curve"
+          },
+          "team_curve": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Team Curve"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "deaths": {
+            "type": "integer",
+            "title": "Deaths"
+          },
+          "untraded": {
+            "type": "integer",
+            "title": "Untraded"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "share",
+          "rule",
+          "played",
+          "curve",
+          "team_curve",
+          "rounds",
+          "kills",
+          "deaths",
+          "untraded",
+          "won"
+        ],
+        "title": "SpatialLurk"
+      },
+      "SpatialMap": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "label",
+          "n"
+        ],
+        "title": "SpatialMap"
+      },
+      "SpatialPlate": {
+        "properties": {
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "lower": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "extent": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Extent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "width",
+          "height",
+          "extent"
+        ],
+        "title": "SpatialPlate"
+      },
+      "SpatialRoute": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "share": {
+            "type": "number",
+            "title": "Share"
+          },
+          "win": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "deaths": {
+            "type": "integer",
+            "title": "Deaths"
+          },
+          "path": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "rounds",
+          "share",
+          "win",
+          "kills",
+          "deaths",
+          "path"
+        ],
+        "title": "SpatialRoute"
+      },
+      "SpatialTeam": {
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "heat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpatialHeat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "routes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SpatialRoute"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routes"
+          },
+          "trade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpatialTrade"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lurk": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpatialLurk"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "rounds"
+        ],
+        "title": "SpatialTeam"
+      },
+      "SpatialTrade": {
+        "properties": {
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/TradePlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          },
+          "traders": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Traders"
+          },
+          "matrix": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Matrix"
+          },
+          "segments": {
+            "items": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Segments"
+          },
+          "lone": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Lone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "players",
+          "traders",
+          "matrix",
+          "segments",
+          "lone"
+        ],
+        "title": "SpatialTrade"
+      },
       "SpotLabel": {
         "properties": {
           "name": {
@@ -20123,6 +20723,41 @@
         ],
         "title": "Token"
       },
+      "TradePlayer": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "deaths": {
+            "type": "integer",
+            "title": "Deaths"
+          },
+          "traded": {
+            "type": "integer",
+            "title": "Traded"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "deaths",
+          "traded",
+          "pct"
+        ],
+        "title": "TradePlayer"
+      },
       "TrendPoint": {
         "properties": {
           "match_map_id": {
@@ -21543,6 +22178,32 @@
           "my_teams"
         ],
         "title": "WorkspaceRead"
+      },
+      "Zone": {
+        "properties": {
+          "place": {
+            "type": "string",
+            "title": "Place"
+          },
+          "shares": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Shares"
+          },
+          "all": {
+            "type": "number",
+            "title": "All"
+          }
+        },
+        "type": "object",
+        "required": [
+          "place",
+          "shares",
+          "all"
+        ],
+        "title": "Zone"
       },
       "app__schemas__RosterPlayer": {
         "properties": {

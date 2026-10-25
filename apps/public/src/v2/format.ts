@@ -8,6 +8,8 @@ export const T = 'var(--t)'
 export const CT = 'var(--ct)'
 export const THEM = 'var(--them)'
 export const MUTED = 'var(--ink-3)'
+// A canvas can't read CSS variables: the same colours as hex, for painting.
+export const HEX = { good: '#5fd39b', crit: '#f07167', t: '#f0a63a', ct: '#5eb0f2', them: '#8fa3b5' }
 
 /** Green from `good` up, amber from `ok`, red below: the design's three steps. */
 export function tone(value: number | null | undefined, good: number, ok: number): string {

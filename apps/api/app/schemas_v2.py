@@ -521,3 +521,99 @@ class Scouting(BaseModel):
     timing: list[ScoutBin]
     t_rounds: int
     upcoming: UpcomingRead | None
+
+
+# ---------------------------------------------------------------- Spatial
+
+
+class Zone(BaseModel):
+    place: str
+    shares: list[float]
+    all: float
+
+
+class SpatialHeat(BaseModel):
+    points: list[list[list[float]]]
+    zones: list[Zone]
+
+
+class SpatialRoute(BaseModel):
+    label: str
+    rounds: int
+    share: float
+    win: float | None
+    kills: int
+    deaths: int
+    path: list[list[float]]
+
+
+class TradePlayer(BaseModel):
+    name: str
+    deaths: int
+    traded: int
+    pct: float | None
+
+
+class SpatialTrade(BaseModel):
+    players: list[TradePlayer]
+    traders: list[str]
+    matrix: list[list[int]]
+    segments: list[list[list[float]]]
+    lone: list[list[float]]
+
+
+class SpatialLurk(BaseModel):
+    steamid: str
+    name: str
+    share: float
+    rule: bool
+    played: int
+    curve: list[float | None]
+    team_curve: list[float | None]
+    rounds: int
+    kills: int
+    deaths: int
+    untraded: int
+    won: int
+
+
+class SpatialTeam(BaseModel):
+    team: TeamRef
+    rounds: int
+    heat: SpatialHeat | None = None
+    routes: list[SpatialRoute] | None = None
+    trade: SpatialTrade | None = None
+    lurk: SpatialLurk | None = None
+
+
+class SpatialLabel(BaseModel):
+    name: str
+    x: float
+    y: float
+
+
+class SpatialPlate(BaseModel):
+    url: str | None
+    lower: str | None = None
+    width: int
+    height: int
+    extent: list[float]
+
+
+class SpatialMap(BaseModel):
+    map: str
+    label: str
+    n: int
+
+
+class Spatial(BaseModel):
+    maps: list[SpatialMap]
+    map: str | None
+    side: str
+    mode: str
+    windows: list[list[int]]
+    plate: SpatialPlate | None
+    labels: list[SpatialLabel]
+    us: SpatialTeam | None
+    them: SpatialTeam | None
+    opponent: TeamRef | None

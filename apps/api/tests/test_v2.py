@@ -187,3 +187,29 @@ def test_scouting(client, auth, huns):
     (full,) = [s for s in body["sites"] if s["buy"] == "full"]
     assert (full["n"], full["none"], full["won_none"]) == (1, 1, 1)
     assert body["window"]["h2h_maps"] == 1 and body["upcoming"] is None
+
+
+def test_spatial_modes(client, auth, db, huns):
+    from app.models import KillEvent, Player
+
+    a = db.query(Player).filter_by(steamid=1).one()
+    b = db.query(Player).filter_by(steamid=2).one()
+    r2 = db.query(Round).filter_by(number=2).one()
+    # b killed a on our CT Round 2 and nobody avenged him.
+    db.add(KillEvent(round=r2, tick=10, attacker_id=b.id, victim_id=a.id, attacker_side="t",
+                     victim_side="ct", weapon="ak47", victim_x=1.0, victim_y=2.0))  # fmt: skip
+    db.add(PlayerRound(round=r2, player=b, team=huns["spirit"], side="t", kills=1))
+    db.commit()
+    url = f"/v2/teams/{huns['huns'].id}/spatial"
+    q = {"opponent": huns["spirit"].id, "side": "ct"}
+    trade = client.get(url, params={**q, "mode": "trade"}, headers=auth).json()
+    assert trade["map"] == "de_anubis" and trade["us"]["rounds"] == 2
+    assert trade["us"]["trade"]["players"] == [{"name": "a", "deaths": 1, "traded": 0, "pct": 0.0}]
+    assert (
+        trade["us"]["trade"]["lone"] == [[1.0, 2.0]] and trade["them"]["team"]["name"] == "Spirit"
+    )
+    # No Replay stored: the heat says nothing rather than failing.
+    heat = client.get(url, params={**q, "mode": "heat"}, headers=auth).json()
+    assert heat["us"]["heat"]["zones"] == [] and heat["windows"][0] == [0, 20]
+    lurk = client.get(url, params={**q, "side": "t", "mode": "lurk"}, headers=auth).json()
+    assert lurk["us"]["lurk"] is None
