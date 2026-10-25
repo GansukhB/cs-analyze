@@ -45,6 +45,8 @@ const WorkspacePage = lazy(() => import('./pages/WorkspacePage'))
 const V2Overview = lazy(() => import('./v2/pages/OverviewPage'))
 const V2Matches = lazy(() => import('./v2/pages/MatchesPage'))
 const V2MatchReport = lazy(() => import('./v2/pages/MatchReportPage'))
+const V2Replay = lazy(() => import('./v2/pages/ReplayPage'))
+const V2ReplayIndex = lazy(() => import('./v2/pages/ReplayPage').then((m) => ({ default: m.ReplayIndex })))
 
 export default function App() {
   const token = useToken()
@@ -61,6 +63,8 @@ export default function App() {
         <Route index element={<V2Overview />} />
         <Route path="matches" element={<V2Matches />} />
         <Route path="matches/:matchId/m/:mapNumber" element={<V2MatchReport />} />
+        <Route path="replay" element={<V2ReplayIndex />} />
+        <Route path="replay/:matchId/:mapNumber" element={<V2Replay />} />
       </Route>
       <Route element={<Layout />}>
         <Route index element={<Home />} />
