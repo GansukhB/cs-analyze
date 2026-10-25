@@ -6570,6 +6570,95 @@
         }
       }
     },
+    "/v2/teams/{team_id}/utility": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Utility",
+        "operationId": "utility_v2_teams__team_id__utility_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "30",
+                "90",
+                "180",
+                "all"
+              ],
+              "type": "string",
+              "default": "30",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "scrims",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Scrims"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Map"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilityReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -19744,6 +19833,41 @@
         "title": "SummaryRef",
         "description": "Where a Summary line can be seen in the Replay."
       },
+      "SyncBin": {
+        "properties": {
+          "from": {
+            "type": "number",
+            "title": "From"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "n",
+          "won"
+        ],
+        "title": "SyncBin"
+      },
       "SystemState": {
         "properties": {
           "host": {
@@ -21464,6 +21588,364 @@
         ],
         "title": "UserRead",
         "description": "Who is signed in, and for which club: the pages read \"we\" from ``my_teams``."
+      },
+      "UtilityKpis": {
+        "properties": {
+          "damage_per_round": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Damage Per Round"
+          },
+          "assists_per_map": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assists Per Map"
+          },
+          "blinded_per_flash": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blinded Per Flash"
+          },
+          "team_flash_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Flash Pct"
+          },
+          "execute_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execute Seconds"
+          },
+          "unused_per24": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unused Per24"
+          }
+        },
+        "type": "object",
+        "required": [
+          "damage_per_round",
+          "assists_per_map",
+          "blinded_per_flash",
+          "team_flash_pct",
+          "execute_seconds",
+          "unused_per24"
+        ],
+        "title": "UtilityKpis"
+      },
+      "UtilityLineup": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "from_place": {
+            "type": "string",
+            "title": "From Place"
+          },
+          "to_place": {
+            "type": "string",
+            "title": "To Place"
+          },
+          "throws": {
+            "type": "integer",
+            "title": "Throws"
+          },
+          "accuracy": {
+            "type": "number",
+            "title": "Accuracy"
+          },
+          "radius": {
+            "type": "number",
+            "title": "Radius"
+          },
+          "scatter": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Scatter"
+          },
+          "throwers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Throwers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "side",
+          "from_place",
+          "to_place",
+          "throws",
+          "accuracy",
+          "radius",
+          "scatter",
+          "throwers"
+        ],
+        "title": "UtilityLineup"
+      },
+      "UtilityPlayer": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "per_round": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Round"
+          },
+          "smokes": {
+            "type": "integer",
+            "title": "Smokes"
+          },
+          "flashes_thrown": {
+            "type": "integer",
+            "title": "Flashes Thrown"
+          },
+          "molotovs": {
+            "type": "integer",
+            "title": "Molotovs"
+          },
+          "hes": {
+            "type": "integer",
+            "title": "Hes"
+          },
+          "utility_damage": {
+            "type": "integer",
+            "title": "Utility Damage"
+          },
+          "flash_assists": {
+            "type": "integer",
+            "title": "Flash Assists"
+          },
+          "flashes": {
+            "type": "integer",
+            "title": "Flashes"
+          },
+          "enemies_blinded": {
+            "type": "integer",
+            "title": "Enemies Blinded"
+          },
+          "team_flashes": {
+            "type": "integer",
+            "title": "Team Flashes"
+          },
+          "team_flash_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Flash Pct"
+          },
+          "unused": {
+            "type": "integer",
+            "title": "Unused"
+          },
+          "loadout_rounds": {
+            "type": "integer",
+            "title": "Loadout Rounds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "rounds",
+          "per_round",
+          "smokes",
+          "flashes_thrown",
+          "molotovs",
+          "hes",
+          "utility_damage",
+          "flash_assists",
+          "flashes",
+          "enemies_blinded",
+          "team_flashes",
+          "team_flash_pct",
+          "unused",
+          "loadout_rounds"
+        ],
+        "title": "UtilityPlayer"
+      },
+      "UtilityReport": {
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "throws": {
+            "type": "integer",
+            "title": "Throws"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/UtilityKpis"
+          },
+          "sync": {
+            "$ref": "#/components/schemas/UtilitySync"
+          },
+          "map_choices": {
+            "items": {
+              "$ref": "#/components/schemas/SpatialMap"
+            },
+            "type": "array",
+            "title": "Map Choices"
+          },
+          "map": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map"
+          },
+          "lineups": {
+            "items": {
+              "$ref": "#/components/schemas/UtilityLineup"
+            },
+            "type": "array",
+            "title": "Lineups"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/UtilityPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "days",
+          "rounds",
+          "maps",
+          "throws",
+          "kpis",
+          "sync",
+          "map_choices",
+          "map",
+          "lineups",
+          "players"
+        ],
+        "title": "UtilityReport"
+      },
+      "UtilitySync": {
+        "properties": {
+          "bins": {
+            "items": {
+              "$ref": "#/components/schemas/SyncBin"
+            },
+            "type": "array",
+            "title": "Bins"
+          },
+          "fights": {
+            "type": "integer",
+            "title": "Fights"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "flashes": {
+            "type": "integer",
+            "title": "Flashes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bins",
+          "fights",
+          "won",
+          "flashes"
+        ],
+        "title": "UtilitySync"
       },
       "ValidationError": {
         "properties": {

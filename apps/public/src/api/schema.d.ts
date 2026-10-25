@@ -2106,6 +2106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/teams/{team_id}/utility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Utility */
+        get: operations["utility_v2_teams__team_id__utility_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -6665,6 +6682,17 @@ export interface components {
             /** Sid */
             sid: string | null;
         };
+        /** SyncBin */
+        SyncBin: {
+            /** From */
+            from: number;
+            /** To */
+            to: number | null;
+            /** N */
+            n: number;
+            /** Won */
+            won: number;
+        };
         /**
          * SystemState
          * @description What the footer shows: the host, the worker's pulse, and the Scouts.
@@ -7283,6 +7311,110 @@ export interface components {
             /** Player Id */
             player_id: number | null;
             workspace: components["schemas"]["WorkspaceRead"];
+        };
+        /** UtilityKpis */
+        UtilityKpis: {
+            /** Damage Per Round */
+            damage_per_round: number | null;
+            /** Assists Per Map */
+            assists_per_map: number | null;
+            /** Blinded Per Flash */
+            blinded_per_flash: number | null;
+            /** Team Flash Pct */
+            team_flash_pct: number | null;
+            /** Execute Seconds */
+            execute_seconds: number | null;
+            /** Unused Per24 */
+            unused_per24: number | null;
+        };
+        /** UtilityLineup */
+        UtilityLineup: {
+            /** Type */
+            type: string;
+            /** Side */
+            side: string;
+            /** From Place */
+            from_place: string;
+            /** To Place */
+            to_place: string;
+            /** Throws */
+            throws: number;
+            /** Accuracy */
+            accuracy: number;
+            /** Radius */
+            radius: number;
+            /** Scatter */
+            scatter: number[][];
+            /** Throwers */
+            throwers: string[];
+        };
+        /** UtilityPlayer */
+        UtilityPlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Rounds */
+            rounds: number;
+            /** Per Round */
+            per_round: number | null;
+            /** Smokes */
+            smokes: number;
+            /** Flashes Thrown */
+            flashes_thrown: number;
+            /** Molotovs */
+            molotovs: number;
+            /** Hes */
+            hes: number;
+            /** Utility Damage */
+            utility_damage: number;
+            /** Flash Assists */
+            flash_assists: number;
+            /** Flashes */
+            flashes: number;
+            /** Enemies Blinded */
+            enemies_blinded: number;
+            /** Team Flashes */
+            team_flashes: number;
+            /** Team Flash Pct */
+            team_flash_pct: number | null;
+            /** Unused */
+            unused: number;
+            /** Loadout Rounds */
+            loadout_rounds: number;
+        };
+        /** UtilityReport */
+        UtilityReport: {
+            team: components["schemas"]["TeamRef"];
+            /** Days */
+            days: number | null;
+            /** Rounds */
+            rounds: number;
+            /** Maps */
+            maps: number;
+            /** Throws */
+            throws: number;
+            kpis: components["schemas"]["UtilityKpis"];
+            sync: components["schemas"]["UtilitySync"];
+            /** Map Choices */
+            map_choices: components["schemas"]["SpatialMap"][];
+            /** Map */
+            map: string | null;
+            /** Lineups */
+            lineups: components["schemas"]["UtilityLineup"][];
+            /** Players */
+            players: components["schemas"]["UtilityPlayer"][];
+        };
+        /** UtilitySync */
+        UtilitySync: {
+            /** Bins */
+            bins: components["schemas"]["SyncBin"][];
+            /** Fights */
+            fights: number;
+            /** Won */
+            won: number;
+            /** Flashes */
+            flashes: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -11348,6 +11480,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Spatial"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    utility_v2_teams__team_id__utility_get: {
+        parameters: {
+            query?: {
+                period?: "30" | "90" | "180" | "all";
+                scrims?: boolean;
+                map?: string | null;
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilityReport"];
                 };
             };
             /** @description Validation Error */

@@ -50,6 +50,7 @@ const V2Player = lazy(() => import('./v2/pages/PlayerPage'))
 const V2Scouting = lazy(() => import('./v2/pages/ScoutingPage'))
 const V2GamePlan = lazy(() => import('./v2/pages/GamePlanPage'))
 const V2Spatial = lazy(() => import('./v2/pages/SpatialPage'))
+const V2Utility = lazy(() => import('./v2/pages/UtilityPage'))
 const V2GamePlanIndex = lazy(() => import('./v2/pages/GamePlanPage').then((m) => ({ default: m.GamePlanIndex })))
 const V2ScoutingIndex = lazy(() => import('./v2/pages/ScoutingPage').then((m) => ({ default: m.ScoutingIndex })))
 const V2PlayersIndex = lazy(() => import('./v2/pages/PlayerPage').then((m) => ({ default: m.PlayersIndex })))
@@ -79,6 +80,7 @@ export default function App() {
         <Route path="gameplan" element={<V2GamePlanIndex />} />
         <Route path="gameplan/:opponent" element={<V2GamePlan />} />
         <Route path="spatial" element={<V2Spatial />} />
+        <Route path="utility" element={<V2Utility />} />
       </Route>
       <Route element={<Layout />}>
         <Route index element={<Home />} />

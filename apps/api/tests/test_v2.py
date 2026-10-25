@@ -213,3 +213,27 @@ def test_spatial_modes(client, auth, db, huns):
     assert heat["us"]["heat"]["zones"] == [] and heat["windows"][0] == [0, 20]
     lurk = client.get(url, params={**q, "side": "t", "mode": "lurk"}, headers=auth).json()
     assert lurk["us"]["lurk"] is None
+
+
+def test_utility(client, auth, db, huns):
+    from app.models import GrenadeThrow, KillEvent, Player
+
+    a = db.query(Player).filter_by(steamid=1).one()
+    b = db.query(Player).filter_by(steamid=2).one()
+    r1 = db.query(Round).filter_by(number=1).one()
+    # Our flash pops at tick 100 and a kills b 0.5 s later (64 tick): a won fight.
+    db.add(GrenadeThrow(round=r1, entity_id=1, type="flash", thrower_id=a.id, thrower_side="ct",
+                        throw_tick=100, x=0.0, y=0.0))  # fmt: skip
+    db.add(KillEvent(round=r1, tick=132, attacker_id=a.id, victim_id=b.id, attacker_side="ct",
+                     victim_side="t", weapon="ak47"))  # fmt: skip
+    db.add(PlayerRound(round=r1, player=b, team=huns["spirit"], side="t", deaths=1))
+    db.commit()
+    body = client.get(
+        f"/v2/teams/{huns['huns'].id}/utility", params={"period": "all"}, headers=auth
+    ).json()
+    assert body["rounds"] == 3 and body["throws"] == 1 and body["map"] == "de_anubis"
+    assert (body["sync"]["fights"], body["sync"]["won"], body["sync"]["flashes"]) == (1, 1, 1)
+    (fight,) = [x for x in body["sync"]["bins"] if x["n"]]
+    assert fight["from"] == 0.4 and fight["to"] == 0.6
+    (p,) = body["players"]
+    assert p["name"] == "a" and p["flashes_thrown"] == 1 and body["lineups"] == []

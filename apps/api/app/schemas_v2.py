@@ -617,3 +617,76 @@ class Spatial(BaseModel):
     us: SpatialTeam | None
     them: SpatialTeam | None
     opponent: TeamRef | None
+
+
+# ---------------------------------------------------------------- Utility
+
+
+class UtilityKpis(BaseModel):
+    damage_per_round: float | None
+    assists_per_map: float | None
+    blinded_per_flash: float | None
+    team_flash_pct: float | None
+    execute_seconds: float | None
+    unused_per24: float | None
+
+
+class SyncBin(BaseModel):
+    from_: float = Field(alias="from")
+    to: float | None
+    n: int
+    won: int
+
+    model_config = {"populate_by_name": True}
+
+
+class UtilitySync(BaseModel):
+    bins: list[SyncBin]
+    fights: int
+    won: int
+    flashes: int
+
+
+class UtilityLineup(BaseModel):
+    type: str
+    side: str
+    from_place: str
+    to_place: str
+    throws: int
+    accuracy: float
+    radius: float
+    scatter: list[list[float]]
+    throwers: list[str]
+
+
+class UtilityPlayer(BaseModel):
+    steamid: str
+    name: str
+    rounds: int
+    per_round: float | None
+    smokes: int
+    flashes_thrown: int
+    molotovs: int
+    hes: int
+    utility_damage: int
+    flash_assists: int
+    flashes: int
+    enemies_blinded: int
+    team_flashes: int
+    team_flash_pct: float | None
+    unused: int
+    loadout_rounds: int
+
+
+class UtilityReport(BaseModel):
+    team: TeamRef
+    days: int | None
+    rounds: int
+    maps: int
+    throws: int
+    kpis: UtilityKpis
+    sync: UtilitySync
+    map_choices: list[SpatialMap]
+    map: str | None
+    lineups: list[UtilityLineup]
+    players: list[UtilityPlayer]
