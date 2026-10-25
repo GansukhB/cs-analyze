@@ -6216,7 +6216,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Roster"
+                  "$ref": "#/components/schemas/Five"
                 }
               }
             }
@@ -6642,6 +6642,604 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UtilityReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/teams/{team_id}/practice": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Practice Week",
+        "operationId": "practice_week_v2_teams__team_id__practice_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "week",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Week"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PracticePlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/teams/{team_id}/blocks": {
+      "post": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Add Block",
+        "operationId": "add_block_v2_teams__team_id__blocks_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/blocks/{block_id}": {
+      "put": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Put Block",
+        "operationId": "put_block_v2_blocks__block_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "block_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Block Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Delete Block",
+        "operationId": "delete_block_v2_blocks__block_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "block_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Block Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/goal-kpis": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Goal Kpis",
+        "operationId": "goal_kpis_v2_goal_kpis_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GoalKpi"
+                  },
+                  "type": "array",
+                  "title": "Response Goal Kpis V2 Goal Kpis Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/v2/teams/{team_id}/goals": {
+      "post": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Add Goal",
+        "operationId": "add_goal_v2_teams__team_id__goals_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamGoalWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamGoalRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/goals/{goal_id}": {
+      "patch": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Patch Goal",
+        "operationId": "patch_goal_v2_goals__goal_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "goal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Goal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamGoalPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamGoalRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Delete Goal",
+        "operationId": "delete_goal_v2_goals__goal_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "goal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Goal Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/teams/{team_id}/queue": {
+      "post": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Add To Queue",
+        "operationId": "add_to_queue_v2_teams__team_id__queue_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/queue/{item_id}": {
+      "patch": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Patch Queue",
+        "operationId": "patch_queue_v2_queue__item_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueuePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Delete Queue",
+        "operationId": "delete_queue_v2_queue__item_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/queue/{item_id}/next-week": {
+      "post": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Queue Next Week",
+        "description": "An item not watched this week, moved to the next.",
+        "operationId": "queue_next_week_v2_queue__item_id__next_week_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueRead"
                 }
               }
             }
@@ -7938,6 +8536,127 @@
           "cold"
         ],
         "title": "BetweenPlayer"
+      },
+      "BlockRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "opponent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hours": {
+            "type": "number",
+            "title": "Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "day",
+          "start",
+          "end",
+          "kind",
+          "title",
+          "note",
+          "opponent",
+          "hours"
+        ],
+        "title": "BlockRead"
+      },
+      "BlockWrite": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "start": {
+            "type": "string",
+            "pattern": "^(|([01]\\d|2[0-3]):[0-5]\\d)$",
+            "title": "Start",
+            "default": ""
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^(|([01]\\d|2[0-3]):[0-5]\\d)$",
+            "title": "End",
+            "default": ""
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "scrim",
+              "drill",
+              "review",
+              "match",
+              "rest"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Title",
+            "default": ""
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Note",
+            "default": ""
+          },
+          "opponent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "kind"
+        ],
+        "title": "BlockWrite"
       },
       "BoardPlate": {
         "properties": {
@@ -9399,6 +10118,29 @@
         "title": "DrawnNote",
         "description": "A drawn Review note on a Match Map of the Map (VIZ-8), as a Briefing keeps it."
       },
+      "Drill": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "source",
+          "match_id"
+        ],
+        "title": "Drill"
+      },
       "DuelCell": {
         "properties": {
           "distance": {
@@ -9436,6 +10178,40 @@
           "lost"
         ],
         "title": "DuelCell"
+      },
+      "Five": {
+        "properties": {
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/FivePlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "players"
+        ],
+        "title": "Five"
+      },
+      "FivePlayer": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name"
+        ],
+        "title": "FivePlayer"
       },
       "FixtureStyle": {
         "properties": {
@@ -10116,6 +10892,34 @@
           "target"
         ],
         "title": "GoalCreate"
+      },
+      "GoalKpi": {
+        "properties": {
+          "kpi": {
+            "type": "string",
+            "title": "Kpi"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "better": {
+            "type": "string",
+            "title": "Better"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kpi",
+          "label",
+          "better",
+          "unit"
+        ],
+        "title": "GoalKpi"
       },
       "GoalPatch": {
         "properties": {
@@ -14317,6 +15121,84 @@
         ],
         "title": "PlayerFormRow"
       },
+      "PlayerGoalLine": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "player": {
+            "type": "string",
+            "title": "Player"
+          },
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "better": {
+            "type": "string",
+            "title": "Better"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
+          "target": {
+            "type": "number",
+            "title": "Target"
+          },
+          "due_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Due On"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "player",
+          "steamid",
+          "label",
+          "better",
+          "unit",
+          "baseline",
+          "target",
+          "due_on",
+          "value",
+          "verdict"
+        ],
+        "title": "PlayerGoalLine"
+      },
       "PlayerLine": {
         "properties": {
           "rounds": {
@@ -15306,6 +16188,97 @@
         ],
         "title": "PositionMap"
       },
+      "PracticePlan": {
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "week": {
+            "type": "string",
+            "format": "date",
+            "title": "Week"
+          },
+          "today": {
+            "type": "string",
+            "format": "date",
+            "title": "Today"
+          },
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/BlockRead"
+            },
+            "type": "array",
+            "title": "Blocks"
+          },
+          "hours": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Hours"
+          },
+          "queue": {
+            "items": {
+              "$ref": "#/components/schemas/QueueRead"
+            },
+            "type": "array",
+            "title": "Queue"
+          },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/TeamGoalRead"
+            },
+            "type": "array",
+            "title": "Goals"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/TeamGoalRead"
+            },
+            "type": "array",
+            "title": "History"
+          },
+          "player_goals": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerGoalLine"
+            },
+            "type": "array",
+            "title": "Player Goals"
+          },
+          "drills": {
+            "items": {
+              "$ref": "#/components/schemas/Drill"
+            },
+            "type": "array",
+            "title": "Drills"
+          },
+          "upcoming": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpcomingRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "week",
+          "today",
+          "blocks",
+          "hours",
+          "queue",
+          "goals",
+          "history",
+          "player_goals",
+          "drills",
+          "upcoming"
+        ],
+        "title": "PracticePlan"
+      },
       "PracticeWeek": {
         "properties": {
           "team": {
@@ -15917,6 +16890,197 @@
           "dpr"
         ],
         "title": "ProfileWeapon"
+      },
+      "QueuePatch": {
+        "properties": {
+          "watched": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Watched"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "tag": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag"
+          }
+        },
+        "type": "object",
+        "title": "QueuePatch"
+      },
+      "QueueRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "t": {
+            "type": "number",
+            "title": "T"
+          },
+          "seconds": {
+            "type": "integer",
+            "title": "Seconds"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "tag": {
+            "type": "string",
+            "title": "Tag"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "watched": {
+            "type": "boolean",
+            "title": "Watched"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "match_id",
+          "map_number",
+          "map",
+          "round",
+          "t",
+          "seconds",
+          "title",
+          "tag",
+          "source",
+          "position",
+          "watched"
+        ],
+        "title": "QueueRead"
+      },
+      "QueueWrite": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "maximum": 9.0,
+            "minimum": 1.0,
+            "title": "Map Number"
+          },
+          "round": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Round"
+          },
+          "t": {
+            "type": "number",
+            "maximum": 300.0,
+            "minimum": 0.0,
+            "title": "T",
+            "default": 0.0
+          },
+          "seconds": {
+            "type": "integer",
+            "maximum": 180.0,
+            "minimum": 5.0,
+            "title": "Seconds",
+            "default": 30
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Title",
+            "default": ""
+          },
+          "tag": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Tag",
+            "default": ""
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Source",
+            "default": ""
+          },
+          "week": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Week"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "map_number",
+          "round"
+        ],
+        "title": "QueueWrite"
       },
       "ReliabilityBand": {
         "properties": {
@@ -16952,21 +18116,36 @@
         ],
         "title": "ReviewTeam"
       },
-      "Roster": {
+      "RosterPlayer": {
         "properties": {
-          "players": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "spans": {
             "items": {
-              "$ref": "#/components/schemas/app__schemas_v2__RosterPlayer"
+              "$ref": "#/components/schemas/RosterSpan"
             },
             "type": "array",
-            "title": "Players"
+            "title": "Spans"
           }
         },
         "type": "object",
         "required": [
-          "players"
+          "steamid",
+          "name",
+          "maps",
+          "spans"
         ],
-        "title": "Roster"
+        "title": "RosterPlayer"
       },
       "RosterSpan": {
         "properties": {
@@ -17021,7 +18200,7 @@
           },
           "players": {
             "items": {
-              "$ref": "#/components/schemas/app__schemas__RosterPlayer"
+              "$ref": "#/components/schemas/RosterPlayer"
             },
             "type": "array",
             "title": "Players"
@@ -19990,6 +21169,301 @@
         ],
         "title": "TeamDetail"
       },
+      "TeamGoalPatch": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "due_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due On"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "done",
+                  "dropped"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "title": "TeamGoalPatch"
+      },
+      "TeamGoalProgress": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "of": {
+            "type": "integer",
+            "title": "Of"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "of",
+          "low",
+          "high",
+          "verdict",
+          "overdue"
+        ],
+        "title": "TeamGoalProgress"
+      },
+      "TeamGoalRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "kpi": {
+            "type": "string",
+            "title": "Kpi"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "better": {
+            "type": "string",
+            "title": "Better"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
+          "target": {
+            "type": "number",
+            "title": "Target"
+          },
+          "start_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Start On"
+          },
+          "due_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Due On"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/TeamGoalProgress"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kpi",
+          "label",
+          "better",
+          "unit",
+          "map",
+          "side",
+          "title",
+          "notes",
+          "baseline",
+          "target",
+          "start_on",
+          "due_on",
+          "status",
+          "progress"
+        ],
+        "title": "TeamGoalRead"
+      },
+      "TeamGoalWrite": {
+        "properties": {
+          "kpi": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Kpi"
+          },
+          "map": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Map",
+            "default": ""
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "",
+              "ct",
+              "t"
+            ],
+            "title": "Side",
+            "default": ""
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Title",
+            "default": ""
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Notes",
+            "default": ""
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
+          "target": {
+            "type": "number",
+            "title": "Target"
+          },
+          "start_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start On"
+          },
+          "due_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Due On"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kpi",
+          "target",
+          "due_on"
+        ],
+        "title": "TeamGoalWrite"
+      },
       "TeamList": {
         "properties": {
           "teams": {
@@ -22686,55 +24160,6 @@
           "all"
         ],
         "title": "Zone"
-      },
-      "app__schemas__RosterPlayer": {
-        "properties": {
-          "steamid": {
-            "type": "string",
-            "title": "Steamid"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "maps": {
-            "type": "integer",
-            "title": "Maps"
-          },
-          "spans": {
-            "items": {
-              "$ref": "#/components/schemas/RosterSpan"
-            },
-            "type": "array",
-            "title": "Spans"
-          }
-        },
-        "type": "object",
-        "required": [
-          "steamid",
-          "name",
-          "maps",
-          "spans"
-        ],
-        "title": "RosterPlayer"
-      },
-      "app__schemas_v2__RosterPlayer": {
-        "properties": {
-          "steamid": {
-            "type": "string",
-            "title": "Steamid"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "steamid",
-          "name"
-        ],
-        "title": "RosterPlayer"
       }
     },
     "securitySchemes": {

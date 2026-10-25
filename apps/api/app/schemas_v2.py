@@ -462,13 +462,13 @@ class PlayerProfile(BaseModel):
     note: DevNote | None
 
 
-class RosterPlayer(BaseModel):
+class FivePlayer(BaseModel):
     steamid: str
     name: str
 
 
-class Roster(BaseModel):
-    players: list[RosterPlayer]
+class Five(BaseModel):
+    players: list[FivePlayer]
 
 
 # ---------------------------------------------------------------- Scouting
@@ -690,3 +690,150 @@ class UtilityReport(BaseModel):
     map: str | None
     lineups: list[UtilityLineup]
     players: list[UtilityPlayer]
+
+
+# ---------------------------------------------------------------- Practice
+
+
+class TeamGoalProgress(BaseModel):
+    value: float | None
+    of: int
+    low: float | None
+    high: float | None
+    verdict: str
+    overdue: bool
+
+
+class TeamGoalRead(BaseModel):
+    id: int
+    kpi: str
+    label: str
+    better: str
+    unit: str
+    map: str
+    side: str
+    title: str
+    notes: str
+    baseline: float | None
+    target: float
+    start_on: dt.date
+    due_on: dt.date
+    status: str
+    progress: TeamGoalProgress
+
+
+class TeamGoalWrite(BaseModel):
+    kpi: str = Field(max_length=32)
+    map: str = Field(default="", max_length=32)
+    side: Literal["", "ct", "t"] = ""
+    title: str = Field(default="", max_length=200)
+    notes: str = Field(default="", max_length=4000)
+    baseline: float | None = None
+    target: float
+    start_on: dt.date | None = None
+    due_on: dt.date
+
+
+class TeamGoalPatch(BaseModel):
+    title: str | None = Field(default=None, max_length=200)
+    notes: str | None = Field(default=None, max_length=4000)
+    target: float | None = None
+    due_on: dt.date | None = None
+    status: Literal["active", "done", "dropped"] | None = None
+
+
+class GoalKpi(BaseModel):
+    kpi: str
+    label: str
+    better: str
+    unit: str
+
+
+class BlockRead(BaseModel):
+    id: int
+    day: dt.date
+    start: str
+    end: str
+    kind: str
+    title: str
+    note: str
+    opponent: TeamRef | None
+    hours: float
+
+
+class BlockWrite(BaseModel):
+    day: dt.date
+    start: str = Field(default="", pattern=r"^(|([01]\d|2[0-3]):[0-5]\d)$")
+    end: str = Field(default="", pattern=r"^(|([01]\d|2[0-3]):[0-5]\d)$")
+    kind: Literal["scrim", "drill", "review", "match", "rest"]
+    title: str = Field(default="", max_length=200)
+    note: str = Field(default="", max_length=500)
+    opponent_id: int | None = None
+
+
+class QueueRead(BaseModel):
+    id: int
+    match_id: int
+    map_number: int
+    map: str
+    round: int
+    t: float
+    seconds: int
+    title: str
+    tag: str
+    source: str
+    position: int
+    watched: bool
+
+
+class QueueWrite(BaseModel):
+    match_id: int
+    map_number: int = Field(ge=1, le=9)
+    round: int = Field(ge=1, le=99)
+    t: float = Field(default=0.0, ge=0, le=300)
+    seconds: int = Field(default=30, ge=5, le=180)
+    title: str = Field(default="", max_length=300)
+    tag: str = Field(default="", max_length=40)
+    source: str = Field(default="", max_length=80)
+    week: dt.date | None = None
+
+
+class QueuePatch(BaseModel):
+    watched: bool | None = None
+    position: int | None = None
+    title: str | None = Field(default=None, max_length=300)
+    tag: str | None = Field(default=None, max_length=40)
+
+
+class PlayerGoalLine(BaseModel):
+    id: int
+    player: str
+    steamid: str
+    label: str
+    better: str
+    unit: str
+    baseline: float | None
+    target: float
+    due_on: dt.date
+    value: float | None
+    verdict: str
+
+
+class Drill(BaseModel):
+    text: str
+    source: str
+    match_id: int
+
+
+class PracticePlan(BaseModel):
+    team: TeamRef
+    week: dt.date
+    today: dt.date
+    blocks: list[BlockRead]
+    hours: dict[str, float]
+    queue: list[QueueRead]
+    goals: list[TeamGoalRead]
+    history: list[TeamGoalRead]
+    player_goals: list[PlayerGoalLine]
+    drills: list[Drill]
+    upcoming: UpcomingRead | None

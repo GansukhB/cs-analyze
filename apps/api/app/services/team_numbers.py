@@ -83,8 +83,9 @@ def is_scrim(m: MatchMap) -> bool:
     return m.match.kind == MatchKind.SCRIM
 
 
-def numbers(team_id: int, maps: Iterable[MatchMap]) -> dict[str, Count]:
-    """Every number of :data:`KEYS` over these Match Maps."""
+def numbers(team_id: int, maps: Iterable[MatchMap], side: str | None = None) -> dict[str, Count]:
+    """Every number of :data:`KEYS` over these Match Maps; with ``side``, every
+    number but the Maps over the Rounds the Team played on that Side only."""
     maps = list(maps)
     out = {key: Count() for key in KEYS}
     for m in maps:
@@ -96,20 +97,24 @@ def numbers(team_id: int, maps: Iterable[MatchMap]) -> dict[str, Count]:
     session = db()
     rounds = list(session.scalars(select(Round).where(Round.match_map_id.in_(ids))))
     for r in rounds:
-        side = "ct" if r.ct_team_id == team_id else "t" if r.t_team_id == team_id else None
-        if side is None or not r.winner_team_id:
+        here = "ct" if r.ct_team_id == team_id else "t" if r.t_team_id == team_id else None
+        if here is None or not r.winner_team_id or (side and here != side):
             continue
         won = r.winner_team_id == team_id
         out["rounds"].add(won)
-        out[f"rounds_{side}"].add(won)
-        buy = r.ct_buy if side == "ct" else r.t_buy
+        out[f"rounds_{here}"].add(won)
+        buy = r.ct_buy if here == "ct" else r.t_buy
         if buy == BuyType.PISTOL:
             out["pistol"].add(won)
         elif buy == BuyType.FORCE:
             out["force"].add(won)
         if r.bomb_plant_tick is not None:
-            out["post_plant" if side == "t" else "retake"].add(won)
-    by_round = {r.id: r for r in rounds}
+            out["post_plant" if here == "t" else "retake"].add(won)
+    by_round = {
+        r.id: r
+        for r in rounds
+        if not side or (r.ct_team_id if side == "ct" else r.t_team_id) == team_id
+    }
     for pr in session.scalars(
         select(PlayerRound).where(
             PlayerRound.round_id.in_(list(by_round)), PlayerRound.team_id == team_id

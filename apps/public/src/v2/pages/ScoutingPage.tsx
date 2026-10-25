@@ -16,6 +16,7 @@ import { useInvalidateV2 } from '../hooks'
 import OpponentIndex from '../OpponentIndex'
 import { at, useTeam } from '../team'
 import { UpcomingForm } from '../Upcoming'
+import { AddToQueue } from '../AddToQueue'
 import { Bar, Box, Button, ButtonLink, Empty, PageHead, Panel, SideToggle, Swatch, Tag } from '../ui'
 
 type Scouting = components['schemas']['Scouting']
@@ -102,7 +103,7 @@ export default function ScoutingPage() {
           )}
         </Panel>
         <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
-          <Patterns book={book} />
+          <Patterns book={book} teamId={team.id} />
           <Threats book={book} />
         </div>
       </section>
@@ -205,7 +206,7 @@ function TSide({ d }: { d: Scouting }) {
   )
 }
 
-function HabitLine({ h }: { h: Habit }) {
+function HabitLine({ h, teamId }: { h: Habit; teamId?: number }) {
   const [word, color] = STRENGTH[h.evidence.strength] ?? STRENGTH.weak
   return (
     <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3.5 border-t border-line py-2.5">
@@ -221,6 +222,20 @@ function HabitLine({ h }: { h: Habit }) {
             <>
               {' · '}
               <Link to={ghostLink(h.evidence.refs)}>⧉ давхар</Link>
+            </>
+          )}
+          {teamId && h.evidence.refs[0] && (
+            <>
+              {' · '}
+              <AddToQueue
+                teamId={teamId}
+                className="text-ct underline"
+                label="review-д нэмэх"
+                moment={() => ({ match_id: h.evidence.refs[0].match, map_number: h.evidence.refs[0].map, round: h.evidence.refs[0].round, t: 0 })}
+                title={h.title}
+                tag="Скаутинг"
+                source="Скаутинг"
+              />
             </>
           )}
         </span>
@@ -241,12 +256,12 @@ function CTSide({ book, loading }: { book?: PlaybookPanel; loading: boolean }) {
   )
 }
 
-function Patterns({ book }: { book?: PlaybookPanel }) {
+function Patterns({ book, teamId }: { book?: PlaybookPanel; teamId: number }) {
   const all = [...(book?.sections.find((s) => s.key === 'their_t')?.habits ?? []), ...(book?.sections.find((s) => s.key === 'their_ct')?.habits ?? [])]
   const top = all.filter((h) => h.evidence.strength !== 'weak').slice(0, 5)
   return (
     <Panel title="Илрүүлсэн хэв маяг">
-      {!book ? <Empty>Playbook уншиж байна…</Empty> : top.length === 0 ? <Empty>Дунд, өндөр итгэлтэй хэв маяг алга.</Empty> : top.map((h) => <HabitLine key={h.title} h={h} />)}
+      {!book ? <Empty>Playbook уншиж байна…</Empty> : top.length === 0 ? <Empty>Дунд, өндөр итгэлтэй хэв маяг алга.</Empty> : top.map((h) => <HabitLine key={h.title} h={h} teamId={teamId} />)}
     </Panel>
   )
 }

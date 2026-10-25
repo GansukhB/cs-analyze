@@ -59,7 +59,7 @@ from app.models.jobs import (
     analysis_job_matches,
 )
 from app.models.notes import NoteClip, NoteKind, PlaybookNote, Playlist, ReviewNote
-from app.models.planning import UpcomingMatch
+from app.models.planning import PracticeBlock, ReviewQueueItem, TeamGoal, UpcomingMatch
 from app.models.results import SeriesResult, VrsStanding
 from app.models.source import Demo, Match, MatchKind, MatchSource, Team, Tournament
 from app.models.strat import (
@@ -76,6 +76,9 @@ from app.models.user import User
 from app.models.workspace import DeclaredRole, Invite, UserRole, Workspace, WorkspaceTeam
 
 __all__ = [
+    "PracticeBlock",
+    "ReviewQueueItem",
+    "TeamGoal",
     "DevelopmentNote",
     "UpcomingMatch",
     "TimestampMixin",

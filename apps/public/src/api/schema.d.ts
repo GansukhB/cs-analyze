@@ -2123,6 +2123,165 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/teams/{team_id}/practice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Practice Week */
+        get: operations["practice_week_v2_teams__team_id__practice_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/teams/{team_id}/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Block */
+        post: operations["add_block_v2_teams__team_id__blocks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/blocks/{block_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Block */
+        put: operations["put_block_v2_blocks__block_id__put"];
+        post?: never;
+        /** Delete Block */
+        delete: operations["delete_block_v2_blocks__block_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/goal-kpis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Goal Kpis */
+        get: operations["goal_kpis_v2_goal_kpis_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/teams/{team_id}/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Goal */
+        post: operations["add_goal_v2_teams__team_id__goals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/goals/{goal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Goal */
+        delete: operations["delete_goal_v2_goals__goal_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Goal */
+        patch: operations["patch_goal_v2_goals__goal_id__patch"];
+        trace?: never;
+    };
+    "/v2/teams/{team_id}/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add To Queue */
+        post: operations["add_to_queue_v2_teams__team_id__queue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/queue/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Queue */
+        delete: operations["delete_queue_v2_queue__item_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Queue */
+        patch: operations["patch_queue_v2_queue__item_id__patch"];
+        trace?: never;
+    };
+    "/v2/queue/{item_id}/next-week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue Next Week
+         * @description An item not watched this week, moved to the next.
+         */
+        post: operations["queue_next_week_v2_queue__item_id__next_week_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -2608,6 +2767,64 @@ export interface components {
             hot: boolean;
             /** Cold */
             cold: boolean;
+        };
+        /** BlockRead */
+        BlockRead: {
+            /** Id */
+            id: number;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Kind */
+            kind: string;
+            /** Title */
+            title: string;
+            /** Note */
+            note: string;
+            opponent: components["schemas"]["TeamRef"] | null;
+            /** Hours */
+            hours: number;
+        };
+        /** BlockWrite */
+        BlockWrite: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Start
+             * @default
+             */
+            start: string;
+            /**
+             * End
+             * @default
+             */
+            end: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "scrim" | "drill" | "review" | "match" | "rest";
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Opponent Id */
+            opponent_id?: number | null;
         };
         /**
          * BoardPlate
@@ -3139,6 +3356,15 @@ export interface components {
             /** Shapes */
             shapes: components["schemas"]["NoteShape"][];
         };
+        /** Drill */
+        Drill: {
+            /** Text */
+            text: string;
+            /** Source */
+            source: string;
+            /** Match Id */
+            match_id: number;
+        };
         /** DuelCell */
         DuelCell: {
             /**
@@ -3155,6 +3381,18 @@ export interface components {
             won: number;
             /** Lost */
             lost: number;
+        };
+        /** Five */
+        Five: {
+            /** Players */
+            players: components["schemas"]["FivePlayer"][];
+        };
+        /** FivePlayer */
+        FivePlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
         };
         /** FixtureStyle */
         FixtureStyle: {
@@ -3391,6 +3629,17 @@ export interface components {
              * @default
              */
             notes: string;
+        };
+        /** GoalKpi */
+        GoalKpi: {
+            /** Kpi */
+            kpi: string;
+            /** Label */
+            label: string;
+            /** Better */
+            better: string;
+            /** Unit */
+            unit: string;
         };
         /** GoalPatch */
         GoalPatch: {
@@ -4822,6 +5071,34 @@ export interface components {
              */
             scrim: boolean;
         };
+        /** PlayerGoalLine */
+        PlayerGoalLine: {
+            /** Id */
+            id: number;
+            /** Player */
+            player: string;
+            /** Steamid */
+            steamid: string;
+            /** Label */
+            label: string;
+            /** Better */
+            better: string;
+            /** Unit */
+            unit: string;
+            /** Baseline */
+            baseline: number | null;
+            /** Target */
+            target: number;
+            /**
+             * Due On
+             * Format: date
+             */
+            due_on: string;
+            /** Value */
+            value: number | null;
+            /** Verdict */
+            verdict: string;
+        };
         /** PlayerLine */
         PlayerLine: {
             /** Rounds */
@@ -5132,6 +5409,37 @@ export interface components {
             /** N */
             n: number;
         };
+        /** PracticePlan */
+        PracticePlan: {
+            team: components["schemas"]["TeamRef"];
+            /**
+             * Week
+             * Format: date
+             */
+            week: string;
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
+            /** Blocks */
+            blocks: components["schemas"]["BlockRead"][];
+            /** Hours */
+            hours: {
+                [key: string]: number;
+            };
+            /** Queue */
+            queue: components["schemas"]["QueueRead"][];
+            /** Goals */
+            goals: components["schemas"]["TeamGoalRead"][];
+            /** History */
+            history: components["schemas"]["TeamGoalRead"][];
+            /** Player Goals */
+            player_goals: components["schemas"]["PlayerGoalLine"][];
+            /** Drills */
+            drills: components["schemas"]["Drill"][];
+            upcoming: components["schemas"]["UpcomingRead"] | null;
+        };
         /** PracticeWeek */
         PracticeWeek: {
             team: components["schemas"]["TeamRef"] | null;
@@ -5281,6 +5589,80 @@ export interface components {
             share: number;
             /** Dpr */
             dpr: number | null;
+        };
+        /** QueuePatch */
+        QueuePatch: {
+            /** Watched */
+            watched?: boolean | null;
+            /** Position */
+            position?: number | null;
+            /** Title */
+            title?: string | null;
+            /** Tag */
+            tag?: string | null;
+        };
+        /** QueueRead */
+        QueueRead: {
+            /** Id */
+            id: number;
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Map */
+            map: string;
+            /** Round */
+            round: number;
+            /** T */
+            t: number;
+            /** Seconds */
+            seconds: number;
+            /** Title */
+            title: string;
+            /** Tag */
+            tag: string;
+            /** Source */
+            source: string;
+            /** Position */
+            position: number;
+            /** Watched */
+            watched: boolean;
+        };
+        /** QueueWrite */
+        QueueWrite: {
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Round */
+            round: number;
+            /**
+             * T
+             * @default 0
+             */
+            t: number;
+            /**
+             * Seconds
+             * @default 30
+             */
+            seconds: number;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /**
+             * Tag
+             * @default
+             */
+            tag: string;
+            /**
+             * Source
+             * @default
+             */
+            source: string;
+            /** Week */
+            week?: string | null;
         };
         /** ReliabilityBand */
         ReliabilityBand: {
@@ -5660,10 +6042,16 @@ export interface components {
             /** Name */
             name: string;
         };
-        /** Roster */
-        Roster: {
-            /** Players */
-            players: components["schemas"]["app__schemas_v2__RosterPlayer"][];
+        /** RosterPlayer */
+        RosterPlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Maps */
+            maps: number;
+            /** Spans */
+            spans: components["schemas"]["RosterSpan"][];
         };
         /** RosterSpan */
         RosterSpan: {
@@ -5690,7 +6078,7 @@ export interface components {
             /** To */
             to: string | null;
             /** Players */
-            players: components["schemas"]["app__schemas__RosterPlayer"][];
+            players: components["schemas"]["RosterPlayer"][];
         };
         /** RoundBullet */
         RoundBullet: {
@@ -6728,6 +7116,109 @@ export interface components {
             map_pool?: components["schemas"]["TeamMapPool"] | null;
             profile?: components["schemas"]["TeamProfile"] | null;
         };
+        /** TeamGoalPatch */
+        TeamGoalPatch: {
+            /** Title */
+            title?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Target */
+            target?: number | null;
+            /** Due On */
+            due_on?: string | null;
+            /** Status */
+            status?: ("active" | "done" | "dropped") | null;
+        };
+        /** TeamGoalProgress */
+        TeamGoalProgress: {
+            /** Value */
+            value: number | null;
+            /** Of */
+            of: number;
+            /** Low */
+            low: number | null;
+            /** High */
+            high: number | null;
+            /** Verdict */
+            verdict: string;
+            /** Overdue */
+            overdue: boolean;
+        };
+        /** TeamGoalRead */
+        TeamGoalRead: {
+            /** Id */
+            id: number;
+            /** Kpi */
+            kpi: string;
+            /** Label */
+            label: string;
+            /** Better */
+            better: string;
+            /** Unit */
+            unit: string;
+            /** Map */
+            map: string;
+            /** Side */
+            side: string;
+            /** Title */
+            title: string;
+            /** Notes */
+            notes: string;
+            /** Baseline */
+            baseline: number | null;
+            /** Target */
+            target: number;
+            /**
+             * Start On
+             * Format: date
+             */
+            start_on: string;
+            /**
+             * Due On
+             * Format: date
+             */
+            due_on: string;
+            /** Status */
+            status: string;
+            progress: components["schemas"]["TeamGoalProgress"];
+        };
+        /** TeamGoalWrite */
+        TeamGoalWrite: {
+            /** Kpi */
+            kpi: string;
+            /**
+             * Map
+             * @default
+             */
+            map: string;
+            /**
+             * Side
+             * @default
+             * @enum {string}
+             */
+            side: "" | "ct" | "t";
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /** Baseline */
+            baseline?: number | null;
+            /** Target */
+            target: number;
+            /** Start On */
+            start_on?: string | null;
+            /**
+             * Due On
+             * Format: date
+             */
+            due_on: string;
+        };
         /** TeamList */
         TeamList: {
             /** Teams */
@@ -7653,24 +8144,6 @@ export interface components {
             shares: number[];
             /** All */
             all: number;
-        };
-        /** RosterPlayer */
-        app__schemas__RosterPlayer: {
-            /** Steamid */
-            steamid: string;
-            /** Name */
-            name: string;
-            /** Maps */
-            maps: number;
-            /** Spans */
-            spans: components["schemas"]["RosterSpan"][];
-        };
-        /** RosterPlayer */
-        app__schemas_v2__RosterPlayer: {
-            /** Steamid */
-            steamid: string;
-            /** Name */
-            name: string;
         };
     };
     responses: never;
@@ -11338,7 +11811,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Roster"];
+                    "application/json": components["schemas"]["Five"];
                 };
             };
             /** @description Validation Error */
@@ -11515,6 +11988,387 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UtilityReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    practice_week_v2_teams__team_id__practice_get: {
+        parameters: {
+            query?: {
+                week?: string | null;
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PracticePlan"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_block_v2_teams__team_id__blocks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlockWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_block_v2_blocks__block_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                block_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlockWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_block_v2_blocks__block_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                block_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    goal_kpis_v2_goal_kpis_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalKpi"][];
+                };
+            };
+        };
+    };
+    add_goal_v2_teams__team_id__goals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamGoalWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamGoalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_goal_v2_goals__goal_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_goal_v2_goals__goal_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamGoalPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamGoalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_to_queue_v2_teams__team_id__queue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueueWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_queue_v2_queue__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_queue_v2_queue__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueuePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    queue_next_week_v2_queue__item_id__next_week_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueRead"];
                 };
             };
             /** @description Validation Error */

@@ -237,3 +237,57 @@ def test_utility(client, auth, db, huns):
     assert fight["from"] == 0.4 and fight["to"] == 0.6
     (p,) = body["players"]
     assert p["name"] == "a" and p["flashes_thrown"] == 1 and body["lineups"] == []
+
+
+def test_practice_week(client, auth, huns):
+    t = huns["huns"].id
+    week = "2026-08-31"  # a Monday; the Match was on Tuesday 2026-09-01
+    block = client.post(
+        f"/v2/teams/{t}/blocks",
+        json={"day": "2026-09-02", "start": "19:00", "end": "22:00", "kind": "scrim",
+              "title": "Scrim", "opponent_id": huns["spirit"].id},
+        headers=auth,
+    ).json()  # fmt: skip
+    assert block["hours"] == 3.0 and block["opponent"]["name"] == "Spirit"
+    # Past midnight counts too.
+    late = {"day": "2026-09-03", "start": "23:00", "end": "01:00", "kind": "review"}
+    assert client.post(f"/v2/teams/{t}/blocks", json=late, headers=auth).json()["hours"] == 2.0
+    goal = client.post(
+        f"/v2/teams/{t}/goals",
+        json={"kpi": "rounds", "side": "ct", "target": 40, "start_on": "2026-08-01",
+              "due_on": "2026-12-01", "title": "CT"},
+        headers=auth,
+    ).json()  # fmt: skip
+    # One CT Round won of two since August: 50%, its 80% range taking 40 in.
+    assert goal["progress"]["value"] == 50.0 and goal["progress"]["of"] == 2
+    assert goal["progress"]["verdict"] == "close" and goal["baseline"] is None
+    item = client.post(
+        f"/v2/teams/{t}/queue",
+        json={"match_id": huns["match"].id, "map_number": 1, "round": 2, "t": 12.5,
+              "title": "Retake", "tag": "Retake", "week": week},
+        headers=auth,
+    ).json()  # fmt: skip
+    assert item["map"] == "Anubis" and item["watched"] is False
+    watched = client.patch(f"/v2/queue/{item['id']}", json={"watched": True}, headers=auth).json()
+    assert watched["watched"] is True
+    body = client.get(f"/v2/teams/{t}/practice", params={"week": "2026-09-03"}, headers=auth).json()
+    assert body["week"] == week and body["hours"]["scrim"] == 3.0 and body["hours"]["review"] == 2.0
+    assert [q["title"] for q in body["queue"]] == ["Retake"]
+    assert [g["title"] for g in body["goals"]] == ["CT"]
+    moved = client.post(f"/v2/queue/{item['id']}/next-week", headers=auth).json()
+    assert moved["id"] == item["id"]
+    assert (
+        client.get(f"/v2/teams/{t}/practice", params={"week": week}, headers=auth).json()["queue"]
+        == []
+    )
+    bad = {"kpi": "nope", "target": 1, "due_on": "2026-12-01"}
+    assert client.post(f"/v2/teams/{t}/goals", json=bad, headers=auth).status_code == 422
+    assert client.delete(f"/v2/goals/{goal['id']}", headers=auth).status_code == 204
+
+
+def test_v2_schema_names_leave_v1_alone():
+    """A v2 shape named like a v1 one renames both in the contract (app__schemas_*)."""
+    from app.main import app
+
+    names = app.openapi()["components"]["schemas"]
+    assert not [n for n in names if n.startswith("app__")]

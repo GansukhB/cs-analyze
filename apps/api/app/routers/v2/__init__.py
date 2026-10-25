@@ -6,7 +6,16 @@ here; the pages call v1 endpoints wherever one already answers.
 
 from fastapi import APIRouter
 
-from app.routers.v2 import matches, overview, players, scouting, spatial, upcoming, utility
+from app.routers.v2 import (
+    matches,
+    overview,
+    players,
+    practice,
+    scouting,
+    spatial,
+    upcoming,
+    utility,
+)
 
 router = APIRouter(prefix="/v2", tags=["v2"])
 router.include_router(overview.router)
@@ -16,3 +25,4 @@ router.include_router(players.router)
 router.include_router(scouting.router)
 router.include_router(spatial.router)
 router.include_router(utility.router)
+router.include_router(practice.router)

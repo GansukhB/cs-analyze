@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.deps import DbSession, StaffUser
 from app.models import DevelopmentNote, MatchKind, Player, PlayerAlias
 from app.routers.v2.common import my_team
-from app.schemas_v2 import DevNote, NoteWrite, PlayerProfile, Roster
+from app.schemas_v2 import DevNote, Five, NoteWrite, PlayerProfile
 from app.services import dbctx, player_cards, player_profile, scope, team_numbers, team_overview
 
 router = APIRouter()
@@ -36,12 +36,12 @@ def _mean(rows: list[dict]) -> dict:
 
 
 @router.get("/teams/{team_id}/players")
-def roster(team_id: int, db: DbSession, user: StaffUser) -> Roster:
+def roster(team_id: int, db: DbSession, user: StaffUser) -> Five:
     """The my team's five on its latest parsed Match Map."""
     team = my_team(db, user, team_id)
     with dbctx.using(db):
         five = team_overview.current_five(team)
-    return Roster(players=[{"steamid": str(p.steamid), "name": p.name} for p in five])
+    return Five(players=[{"steamid": str(p.steamid), "name": p.name} for p in five])
 
 
 @router.get("/teams/{team_id}/players/{steamid}/profile")

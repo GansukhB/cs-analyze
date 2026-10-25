@@ -12,6 +12,7 @@ import { LoadError } from '../../ui/LoadError'
 import { PageSkeleton } from '../../ui/Skeleton'
 import { CRIT, GOOD, mmss, shortDate } from '../format'
 import ReplayV2 from '../ReplayV2'
+import { AddToQueue } from '../AddToQueue'
 import { at, useTeam } from '../team'
 import { Button, Empty, Panel } from '../ui'
 
@@ -172,6 +173,16 @@ function ReplayBody({ teamId, matchId, mapNumber }: { teamId: number; matchId: n
               <Button primary onClick={share}>
                 {copied ? 'Холбоос хуулсан ✓' : 'Хуваалцах'}
               </Button>
+              <AddToQueue
+                teamId={teamId}
+                className="inline-flex h-11 items-center rounded-md border border-line-strong bg-raised px-4 text-sm text-ink disabled:opacity-50"
+                moment={() => {
+                  const now = bridge.now?.()
+                  return now ? { match_id: matchId, map_number: mapNumber, round: now.round, t: Math.max(0, now.t - 3) } : null
+                }}
+                title={moments[0]?.title ?? `${label} R${shown}`}
+                source={`2D Replay · ${label} vs ${r?.them?.name ?? ''}`}
+              />
             </div>
             <div className="rounded-lg border border-line bg-surface p-3.5">
               <RoundNotes round={shown} bridge={bridge} onPens={onPens} names={names} onGoto={goto} />

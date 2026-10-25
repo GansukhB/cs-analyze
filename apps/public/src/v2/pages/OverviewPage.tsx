@@ -8,6 +8,7 @@ import { LoadError } from '../../ui/LoadError'
 import { PageSkeleton } from '../../ui/Skeleton'
 import { at, initials, useTeam } from '../team'
 import { UpcomingBlock } from '../Upcoming'
+import { AddToQueue } from '../AddToQueue'
 import { CRIT, CT, GOOD, MUTED, T, WARN, ghostLink, insightValue, shortDate, signed, sparkPath, tone } from '../format'
 import { Bar, Button, Empty, Panel, PageHead, Spark, Swatch, Tag, Toggle } from '../ui'
 
@@ -207,6 +208,16 @@ function Insights({ teamId, insights }: { teamId: number; insights: Insight[] })
                     <Link to={ghostLink(x.refs)} className="py-1.5 text-sm">
                       ⧉ давхарлаж үзэх
                     </Link>
+                  )}
+                  {first && (
+                    <AddToQueue
+                      teamId={teamId}
+                      label="Бэлтгэлд нэмэх"
+                      moment={() => ({ match_id: first.match, map_number: first.map, round: first.round, t: 0 })}
+                      title={x.title}
+                      tag={x.tone === 'strength' ? 'Давуу тал' : 'Сайжруулах'}
+                      source={`Тойм · ${x.map_label ?? 'бүх Map'} ${x.side.toUpperCase()}`}
+                    />
                   )}
                 </div>
               </article>
