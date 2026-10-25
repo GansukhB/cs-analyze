@@ -2,8 +2,9 @@
 // Round's buys on top, the notes and drawing beside both fives, and the Round's
 // key moments (its weightiest Findings) under it.
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Navigate, useParams, useSearchParams } from 'react-router'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { $api } from '../../api/client'
+import type { components } from '../../api/schema'
 import type { ReplayBridge } from '../../replay/player'
 import { CLIP_SECONDS } from '../../review/format'
 import { NotesProvider, RoundNotes } from '../../review/Notes'
@@ -117,11 +118,15 @@ function ReplayBody({ teamId, matchId, mapNumber }: { teamId: number; matchId: n
   if (detail.error) return <LoadError error={detail.error} what="Replay" retry={() => void detail.refetch()} />
   if (!detail.data) return <PageSkeleton />
   const { scene, rounds, scoreboard, label, parsed } = detail.data
+  const tabs = <MapTabs teamId={teamId} matchId={matchId} current={mapNumber} maps={report.data?.maps ?? []} />
   if (!scene)
     return (
-      <Empty>
-        {parsed ? `${label}-ийн tick дата хадгалагдаагүй тул replay хийх боломжгүй.` : `${label} parse хийгдээгүй байна.`}
-      </Empty>
+      <>
+        {tabs}
+        <Empty>
+          {parsed ? `${label}-ийн tick дата хадгалагдаагүй тул replay хийх боломжгүй.` : `${label} parse хийгдээгүй байна.`}
+        </Empty>
+      </>
     )
   const team1 = { name: scoreboard[0]?.team.name ?? 'Team 1', score: scoreboard[0]?.score ?? null }
   const team2 = { name: scoreboard[1]?.team.name ?? 'Team 2', score: scoreboard[1]?.score ?? null }
@@ -137,6 +142,7 @@ function ReplayBody({ teamId, matchId, mapNumber }: { teamId: number; matchId: n
 
   return (
     <>
+      {tabs}
       <ReplayV2
         key={`${matchId}-${mapNumber}`}
         matchId={matchId}
@@ -221,6 +227,37 @@ function ReplayBody({ teamId, matchId, mapNumber }: { teamId: number; matchId: n
         )}
       </section>
     </>
+  )
+}
+
+/** The Match's Maps: each parsed one opens its Replay; the one shown also its report. */
+function MapTabs(props: { teamId: number; matchId: number; current: number; maps: components['schemas']['ReportMapTab'][] }) {
+  const { teamId, matchId, current, maps } = props
+  if (maps.length === 0) return null
+  return (
+    <nav aria-label="Газрын зураг" className="flex flex-wrap items-center gap-1.5">
+      {maps.map((m) =>
+        m.parsed ? (
+          <Link
+            key={m.map_number}
+            to={at(teamId, 'replay', matchId, m.map_number)}
+            aria-current={m.map_number === current ? 'page' : undefined}
+            className={`plain flex h-10 items-center gap-2 rounded-md border px-3.5 text-sm ${
+              m.map_number === current ? 'border-accent bg-accent-soft !text-accent' : 'border-line-strong !text-ink-2 hover:!text-ink'
+            }`}
+          >
+            {m.label} <span className="num text-xs text-ink-3">{m.score}</span>
+          </Link>
+        ) : (
+          <span key={m.map_number} title="Parse хийгдээгүй" className="flex h-10 items-center px-3.5 text-sm text-ink-3">
+            {m.label} {m.score}
+          </span>
+        ),
+      )}
+      <Link to={at(teamId, 'matches', matchId, 'm', current)} className="ml-auto py-2 text-sm">
+        Энэ Map-ийн тайлан
+      </Link>
+    </nav>
   )
 }
 
