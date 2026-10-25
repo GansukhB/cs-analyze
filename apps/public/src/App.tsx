@@ -43,6 +43,8 @@ const VetoLabPage = lazy(() => import('./pages/VetoLabPage'))
 const WorkspacePage = lazy(() => import('./pages/WorkspacePage'))
 // v2 (the DEMOLAB design, docs/adr/0013): /v2/t/:team/..., in its own frame.
 const V2Overview = lazy(() => import('./v2/pages/OverviewPage'))
+const V2Matches = lazy(() => import('./v2/pages/MatchesPage'))
+const V2MatchReport = lazy(() => import('./v2/pages/MatchReportPage'))
 
 export default function App() {
   const token = useToken()
@@ -57,6 +59,8 @@ export default function App() {
       <Route path="v2" element={<V2Layout />} />
       <Route path="v2/t/:team" element={<V2Layout />}>
         <Route index element={<V2Overview />} />
+        <Route path="matches" element={<V2Matches />} />
+        <Route path="matches/:matchId/m/:mapNumber" element={<V2MatchReport />} />
       </Route>
       <Route element={<Layout />}>
         <Route index element={<Home />} />

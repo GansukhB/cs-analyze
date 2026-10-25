@@ -142,3 +142,20 @@ def test_upcoming_match(client, auth, db, huns):
     db.get(UpcomingMatch, u["id"]).workspace_id = other.id
     db.commit()
     assert client.delete(f"/v2/upcoming/{u['id']}", headers=auth).status_code == 404
+
+
+def test_match_report(client, auth, huns):
+    url = f"/v2/teams/{huns['huns'].id}/matches/{huns['match'].id}/maps/1/report"
+    body = client.get(url, headers=auth).json()
+    assert (body["ours"], body["theirs"]) == (13, 8) and body["them"]["name"] == "Spirit"
+    assert [r["won"] for r in body["rounds"]] == [True, False, True]
+    assert [(h["side"], h["ours"], h["theirs"]) for h in body["halves"]] == [
+        ("ct", 1, 1),
+        ("t", 1, 0),
+    ]
+    pistol = next(b for b in body["buys"] if b["buy"] == "pistol")
+    assert (pistol["won"], pistol["of"], pistol["won_rounds"]) == (1, 1, [1])
+    assert body["teams"][0]["team"]["name"] == "The Huns"
+    assert body["quick"]["post_plant"] == [1, 1]
+    listed = client.get(f"/v2/teams/{huns['huns'].id}/matches", headers=auth).json()["matches"]
+    assert listed[0]["maps"][0]["score"] == "13–8"

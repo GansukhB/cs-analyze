@@ -6,8 +6,9 @@ here; the pages call v1 endpoints wherever one already answers.
 
 from fastapi import APIRouter
 
-from app.routers.v2 import overview, upcoming
+from app.routers.v2 import matches, overview, upcoming
 
 router = APIRouter(prefix="/v2", tags=["v2"])
 router.include_router(overview.router)
 router.include_router(upcoming.router)
+router.include_router(matches.router)

@@ -1977,6 +1977,47 @@ export interface paths {
         patch: operations["patch_upcoming_v2_upcoming__upcoming_id__patch"];
         trace?: never;
     };
+    "/v2/teams/{team_id}/matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Team Matches
+         * @description The my team's Matches, newest first, each with its Maps.
+         */
+        get: operations["team_matches_v2_teams__team_id__matches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/teams/{team_id}/matches/{match_id}/maps/{map_number}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Report
+         * @description One Match Map from the my team's side; from the first Team's when the my
+         *     team did not play it.
+         */
+        get: operations["report_v2_teams__team_id__matches__match_id__maps__map_number__report_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -3900,6 +3941,30 @@ export interface components {
             default_map: number | null;
             patch?: components["schemas"]["PatchRef"] | null;
         };
+        /** MatchList */
+        MatchList: {
+            /** Matches */
+            matches: components["schemas"]["MatchListItem"][];
+        };
+        /** MatchListItem */
+        MatchListItem: {
+            /** Match Id */
+            match_id: number;
+            /** Played At */
+            played_at: string | null;
+            /** Opponent */
+            opponent: string;
+            /** Ours */
+            ours: number | null;
+            /** Theirs */
+            theirs: number | null;
+            /** Kind */
+            kind: string;
+            /** Tournament */
+            tournament: string;
+            /** Maps */
+            maps: components["schemas"]["ReportMapTab"][];
+        };
         /** MatchMapDetail */
         MatchMapDetail: {
             /** Map Number */
@@ -3950,6 +4015,50 @@ export interface components {
             lost: number;
             /** Drawn */
             drawn: number;
+        };
+        /** MatchReport */
+        MatchReport: {
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** Kind */
+            kind: string;
+            /** Best Of */
+            best_of: number;
+            /** Played At */
+            played_at: string | null;
+            /** Tournament */
+            tournament: string;
+            us: components["schemas"]["TeamRef"];
+            them: components["schemas"]["TeamRef"] | null;
+            /** Ours */
+            ours: number | null;
+            /** Theirs */
+            theirs: number | null;
+            /** Maps */
+            maps: components["schemas"]["ReportMapTab"][];
+            /** Seconds */
+            seconds: number | null;
+            /** Halves */
+            halves: components["schemas"]["ReportHalf"][];
+            /** Rounds */
+            rounds: components["schemas"]["ReportRound"][];
+            /** Factors */
+            factors: components["schemas"]["ReportFactor"][];
+            /** Teams */
+            teams: components["schemas"]["ReportTeam"][];
+            /** Buys */
+            buys: components["schemas"]["ReportBuy"][];
+            /** Turning */
+            turning: components["schemas"]["ReportTurn"][];
+            quick: components["schemas"]["ReportQuick"];
+            /** Reviewed */
+            reviewed: boolean;
         };
         /**
          * MatchReviewSummary
@@ -4881,6 +4990,148 @@ export interface components {
             map: number;
             /** Round */
             round: number;
+        };
+        /** ReportBuy */
+        ReportBuy: {
+            /** Buy */
+            buy: string;
+            /** Label */
+            label: string;
+            /** Won */
+            won: number;
+            /** Of */
+            of: number;
+            /** Won Rounds */
+            won_rounds: number[];
+            /** Lost Rounds */
+            lost_rounds: number[];
+        };
+        /** ReportFactor */
+        ReportFactor: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Us */
+            us: number;
+            /** Them */
+            them: number;
+        };
+        /** ReportHalf */
+        ReportHalf: {
+            /** Side */
+            side: string | null;
+            /** Ours */
+            ours: number;
+            /** Theirs */
+            theirs: number;
+        };
+        /** ReportMapTab */
+        ReportMapTab: {
+            /** Map Number */
+            map_number: number;
+            /** Label */
+            label: string;
+            /** Parsed */
+            parsed: boolean;
+            /** Score */
+            score: string;
+        };
+        /** ReportPlayer */
+        ReportPlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Kills */
+            kills: number;
+            /** Deaths */
+            deaths: number;
+            /** Assists */
+            assists: number;
+            /** Adr */
+            adr: number | null;
+            /** Kast */
+            kast: number | null;
+            /** Opening Kills */
+            opening_kills: number;
+            /** Opening Deaths */
+            opening_deaths: number;
+            /** Multi */
+            multi: number;
+            /** Clutch Won */
+            clutch_won: number;
+            /** Clutch Of */
+            clutch_of: number;
+            /** Utility Damage */
+            utility_damage: number;
+            /** Flash Assists */
+            flash_assists: number;
+            /** Awp Kills */
+            awp_kills: number;
+            /** Rating */
+            rating: number | null;
+            /** Swing Per Round */
+            swing_per_round: number | null;
+        };
+        /** ReportQuick */
+        ReportQuick: {
+            /** Opening */
+            opening: number[];
+            /** Trade */
+            trade: number[];
+            /** Clutch */
+            clutch: number[];
+            /** Post Plant */
+            post_plant: number[];
+        };
+        /** ReportRound */
+        ReportRound: {
+            /** N */
+            n: number;
+            /** Won */
+            won: boolean | null;
+            /** Side */
+            side: string | null;
+            /** End */
+            end: string;
+            /** Site */
+            site: string;
+            /** Ours */
+            ours: number | null;
+            /** Theirs */
+            theirs: number | null;
+            /** Our Buy */
+            our_buy: string;
+            /** Their Buy */
+            their_buy: string;
+            /** Turning */
+            turning: boolean;
+        };
+        /** ReportTeam */
+        ReportTeam: {
+            team: components["schemas"]["TeamRef"];
+            /** Rating */
+            rating: number;
+            /** Players */
+            players: components["schemas"]["ReportPlayer"][];
+        };
+        /** ReportTurn */
+        ReportTurn: {
+            /** N */
+            n: number;
+            /** Won */
+            won: boolean;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** From Wp */
+            from_wp: number;
+            /** To Wp */
+            to_wp: number;
+            /** Site */
+            site: string;
         };
         /** Review */
         Review: {
@@ -10324,6 +10575,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UpcomingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    team_matches_v2_teams__team_id__matches_get: {
+        parameters: {
+            query?: {
+                scrims?: boolean;
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_v2_teams__team_id__matches__match_id__maps__map_number__report_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+                match_id: number;
+                map_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchReport"];
                 };
             };
             /** @description Validation Error */

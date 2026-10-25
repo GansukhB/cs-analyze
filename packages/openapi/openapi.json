@@ -6062,6 +6062,130 @@
         }
       }
     },
+    "/v2/teams/{team_id}/matches": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Team Matches",
+        "description": "The my team's Matches, newest first, each with its Maps.",
+        "operationId": "team_matches_v2_teams__team_id__matches_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "scrims",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Scrims"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/teams/{team_id}/matches/{match_id}/maps/{map_number}/report": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Report",
+        "description": "One Match Map from the my team's side; from the first Team's when the my\nteam did not play it.",
+        "operationId": "report_v2_teams__team_id__matches__match_id__maps__map_number__report_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Match Id"
+            }
+          },
+          {
+            "name": "map_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Map Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -11344,6 +11468,95 @@
         ],
         "title": "MatchInfo"
       },
+      "MatchList": {
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/MatchListItem"
+            },
+            "type": "array",
+            "title": "Matches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matches"
+        ],
+        "title": "MatchList"
+      },
+      "MatchListItem": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "opponent": {
+            "type": "string",
+            "title": "Opponent"
+          },
+          "ours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ours"
+          },
+          "theirs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theirs"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "tournament": {
+            "type": "string",
+            "title": "Tournament"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/ReportMapTab"
+            },
+            "type": "array",
+            "title": "Maps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "played_at",
+          "opponent",
+          "ours",
+          "theirs",
+          "kind",
+          "tournament",
+          "maps"
+        ],
+        "title": "MatchListItem"
+      },
       "MatchMapDetail": {
         "properties": {
           "map_number": {
@@ -11487,6 +11700,178 @@
           "drawn"
         ],
         "title": "MatchRecord"
+      },
+      "MatchReport": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "best_of": {
+            "type": "integer",
+            "title": "Best Of"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "tournament": {
+            "type": "string",
+            "title": "Tournament"
+          },
+          "us": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "them": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ours"
+          },
+          "theirs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theirs"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/ReportMapTab"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds"
+          },
+          "halves": {
+            "items": {
+              "$ref": "#/components/schemas/ReportHalf"
+            },
+            "type": "array",
+            "title": "Halves"
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/ReportRound"
+            },
+            "type": "array",
+            "title": "Rounds"
+          },
+          "factors": {
+            "items": {
+              "$ref": "#/components/schemas/ReportFactor"
+            },
+            "type": "array",
+            "title": "Factors"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/ReportTeam"
+            },
+            "type": "array",
+            "title": "Teams"
+          },
+          "buys": {
+            "items": {
+              "$ref": "#/components/schemas/ReportBuy"
+            },
+            "type": "array",
+            "title": "Buys"
+          },
+          "turning": {
+            "items": {
+              "$ref": "#/components/schemas/ReportTurn"
+            },
+            "type": "array",
+            "title": "Turning"
+          },
+          "quick": {
+            "$ref": "#/components/schemas/ReportQuick"
+          },
+          "reviewed": {
+            "type": "boolean",
+            "title": "Reviewed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "map_number",
+          "map",
+          "label",
+          "kind",
+          "best_of",
+          "played_at",
+          "tournament",
+          "us",
+          "them",
+          "ours",
+          "theirs",
+          "maps",
+          "seconds",
+          "halves",
+          "rounds",
+          "factors",
+          "teams",
+          "buys",
+          "turning",
+          "quick",
+          "reviewed"
+        ],
+        "title": "MatchReport"
       },
       "MatchReviewSummary": {
         "properties": {
@@ -14324,6 +14709,451 @@
         ],
         "title": "ReplayRef",
         "description": "A Round on the Replay: /matches/{match}/m/{map}?round={round}."
+      },
+      "ReportBuy": {
+        "properties": {
+          "buy": {
+            "type": "string",
+            "title": "Buy"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "of": {
+            "type": "integer",
+            "title": "Of"
+          },
+          "won_rounds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Won Rounds"
+          },
+          "lost_rounds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Lost Rounds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "buy",
+          "label",
+          "won",
+          "of",
+          "won_rounds",
+          "lost_rounds"
+        ],
+        "title": "ReportBuy"
+      },
+      "ReportFactor": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "us": {
+            "type": "number",
+            "title": "Us"
+          },
+          "them": {
+            "type": "number",
+            "title": "Them"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "us",
+          "them"
+        ],
+        "title": "ReportFactor"
+      },
+      "ReportHalf": {
+        "properties": {
+          "side": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Side"
+          },
+          "ours": {
+            "type": "integer",
+            "title": "Ours"
+          },
+          "theirs": {
+            "type": "integer",
+            "title": "Theirs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "side",
+          "ours",
+          "theirs"
+        ],
+        "title": "ReportHalf"
+      },
+      "ReportMapTab": {
+        "properties": {
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "parsed": {
+            "type": "boolean",
+            "title": "Parsed"
+          },
+          "score": {
+            "type": "string",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map_number",
+          "label",
+          "parsed",
+          "score"
+        ],
+        "title": "ReportMapTab"
+      },
+      "ReportPlayer": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "deaths": {
+            "type": "integer",
+            "title": "Deaths"
+          },
+          "assists": {
+            "type": "integer",
+            "title": "Assists"
+          },
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "kast": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kast"
+          },
+          "opening_kills": {
+            "type": "integer",
+            "title": "Opening Kills"
+          },
+          "opening_deaths": {
+            "type": "integer",
+            "title": "Opening Deaths"
+          },
+          "multi": {
+            "type": "integer",
+            "title": "Multi"
+          },
+          "clutch_won": {
+            "type": "integer",
+            "title": "Clutch Won"
+          },
+          "clutch_of": {
+            "type": "integer",
+            "title": "Clutch Of"
+          },
+          "utility_damage": {
+            "type": "integer",
+            "title": "Utility Damage"
+          },
+          "flash_assists": {
+            "type": "integer",
+            "title": "Flash Assists"
+          },
+          "awp_kills": {
+            "type": "integer",
+            "title": "Awp Kills"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "swing_per_round": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swing Per Round"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "kills",
+          "deaths",
+          "assists",
+          "adr",
+          "kast",
+          "opening_kills",
+          "opening_deaths",
+          "multi",
+          "clutch_won",
+          "clutch_of",
+          "utility_damage",
+          "flash_assists",
+          "awp_kills",
+          "rating",
+          "swing_per_round"
+        ],
+        "title": "ReportPlayer"
+      },
+      "ReportQuick": {
+        "properties": {
+          "opening": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Opening"
+          },
+          "trade": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Trade"
+          },
+          "clutch": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Clutch"
+          },
+          "post_plant": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Post Plant"
+          }
+        },
+        "type": "object",
+        "required": [
+          "opening",
+          "trade",
+          "clutch",
+          "post_plant"
+        ],
+        "title": "ReportQuick"
+      },
+      "ReportRound": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "won": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Won"
+          },
+          "side": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Side"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          },
+          "site": {
+            "type": "string",
+            "title": "Site"
+          },
+          "ours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ours"
+          },
+          "theirs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theirs"
+          },
+          "our_buy": {
+            "type": "string",
+            "title": "Our Buy"
+          },
+          "their_buy": {
+            "type": "string",
+            "title": "Their Buy"
+          },
+          "turning": {
+            "type": "boolean",
+            "title": "Turning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "won",
+          "side",
+          "end",
+          "site",
+          "ours",
+          "theirs",
+          "our_buy",
+          "their_buy",
+          "turning"
+        ],
+        "title": "ReportRound"
+      },
+      "ReportTeam": {
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "rating": {
+            "type": "number",
+            "title": "Rating"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/ReportPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "rating",
+          "players"
+        ],
+        "title": "ReportTeam"
+      },
+      "ReportTurn": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "won": {
+            "type": "boolean",
+            "title": "Won"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "from_wp": {
+            "type": "number",
+            "title": "From Wp"
+          },
+          "to_wp": {
+            "type": "number",
+            "title": "To Wp"
+          },
+          "site": {
+            "type": "string",
+            "title": "Site"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "won",
+          "title",
+          "body",
+          "from_wp",
+          "to_wp",
+          "site"
+        ],
+        "title": "ReportTurn"
       },
       "Review": {
         "properties": {

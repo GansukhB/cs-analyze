@@ -201,3 +201,131 @@ class Overview(BaseModel):
     demos: list[DemoLine]
     uploads: list[UploadLine]
     upcoming: UpcomingRead | None
+
+
+# ---------------------------------------------------------------- Match report
+
+
+class ReportHalf(BaseModel):
+    side: str | None
+    ours: int
+    theirs: int
+
+
+class ReportRound(BaseModel):
+    n: int
+    won: bool | None
+    side: str | None
+    end: str
+    site: str
+    ours: int | None
+    theirs: int | None
+    our_buy: str
+    their_buy: str
+    turning: bool
+
+
+class ReportFactor(BaseModel):
+    key: str
+    label: str
+    us: float
+    them: float
+
+
+class ReportPlayer(BaseModel):
+    steamid: str
+    name: str
+    kills: int
+    deaths: int
+    assists: int
+    adr: float | None
+    kast: float | None
+    opening_kills: int
+    opening_deaths: int
+    multi: int
+    clutch_won: int
+    clutch_of: int
+    utility_damage: int
+    flash_assists: int
+    awp_kills: int
+    rating: float | None
+    swing_per_round: float | None
+
+
+class ReportTeam(BaseModel):
+    team: TeamRef
+    rating: float
+    players: list[ReportPlayer]
+
+
+class ReportBuy(BaseModel):
+    buy: str
+    label: str
+    won: int
+    of: int
+    won_rounds: list[int]
+    lost_rounds: list[int]
+
+
+class ReportTurn(BaseModel):
+    n: int
+    won: bool
+    title: str
+    body: str
+    from_wp: float
+    to_wp: float
+    site: str
+
+
+class ReportQuick(BaseModel):
+    opening: list[int]
+    trade: list[int]
+    clutch: list[int]
+    post_plant: list[int]
+
+
+class ReportMapTab(BaseModel):
+    map_number: int
+    label: str
+    parsed: bool
+    score: str
+
+
+class MatchReport(BaseModel):
+    match_id: int
+    map_number: int
+    map: str
+    label: str
+    kind: str
+    best_of: int
+    played_at: Utc | None
+    tournament: str
+    us: TeamRef
+    them: TeamRef | None
+    ours: int | None
+    theirs: int | None
+    maps: list[ReportMapTab]
+    seconds: int | None
+    halves: list[ReportHalf]
+    rounds: list[ReportRound]
+    factors: list[ReportFactor]
+    teams: list[ReportTeam]
+    buys: list[ReportBuy]
+    turning: list[ReportTurn]
+    quick: ReportQuick
+    reviewed: bool
+
+
+class MatchListItem(BaseModel):
+    match_id: int
+    played_at: Utc | None
+    opponent: str
+    ours: int | None
+    theirs: int | None
+    kind: str
+    tournament: str
+    maps: list[ReportMapTab]
+
+
+class MatchList(BaseModel):
+    matches: list[MatchListItem]
