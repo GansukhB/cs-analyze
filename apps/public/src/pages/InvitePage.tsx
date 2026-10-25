@@ -66,12 +66,12 @@ export default function InvitePage({ token }: { token: string }) {
               </label>
             )}
             <label className="block space-y-1">
-              <span className="text-sm text-ink-2">Нууц үг (10+ тэмдэгт)</span>
+              <span className="text-sm text-ink-2">Нууц үг (6+ тэмдэгт)</span>
               <input
                 className={input}
                 type="password"
                 autoComplete="new-password"
-                minLength={10}
+                minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

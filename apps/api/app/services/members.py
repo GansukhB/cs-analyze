@@ -20,7 +20,7 @@ from app.models.base import utcnow
 from app.security import hash_password
 
 INVITE_DAYS = 7
-MIN_PASSWORD_LENGTH = 10
+MIN_PASSWORD_LENGTH = 6
 USERNAME = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
 
 
