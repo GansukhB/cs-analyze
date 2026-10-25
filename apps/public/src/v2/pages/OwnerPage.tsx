@@ -249,7 +249,7 @@ function Players({ d }: { d: Owner }) {
           const values = p.spark.filter((v): v is number => v != null)
           const trendUp = values.length > 1 && values[values.length - 1] >= values[0]
           return (
-            <div key={p.steamid} className="grid grid-cols-[14px_110px_110px_70px_minmax(0,1fr)] items-center gap-3 border-t border-line py-2.5">
+            <div key={p.steamid} className="grid grid-cols-[14px_minmax(0,1fr)_100px_60px] items-center gap-3 border-t border-line py-2.5 sm:grid-cols-[14px_110px_110px_70px_minmax(0,1fr)]">
               <span className="h-3 w-3 rounded-[3px]" style={{ background: PALETTE[i % PALETTE.length] }} />
               <span className="truncate font-semibold">{p.name}</span>
               {values.length > 1 ? (
@@ -262,7 +262,7 @@ function Players({ d }: { d: Owner }) {
               <span className="num text-[13px]" style={{ color: p.sigma != null && p.sigma > 0.3 ? WARN : 'var(--ink-2)' }}>
                 σ {p.sigma ?? '—'}
               </span>
-              <span className="text-[13px] text-ink-2">
+              <span className="col-span-full text-[13px] text-ink-2 sm:col-span-1">
                 Rating {p.rating ?? '—'} · {p.maps} Map
               </span>
             </div>
