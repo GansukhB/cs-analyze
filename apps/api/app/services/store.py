@@ -196,11 +196,17 @@ def record_download(
 
 
 def record_download_failure(db: Session, match: models.Match, url: str, error: str) -> models.Demo:
-    """Record a download HLTV or Cloudflare refused, so it can be retried."""
+    """Record a download HLTV or Cloudflare refused, so it can be retried.
+
+    An archive downloaded and unpacked before (a Match downloading again, ADR
+    0003/0005) keeps that history: the database holds every processed Demo to be
+    downloaded, and the next Scout retries it from its maps' state anyway.
+    """
     demo = _demo(db, match)
     demo.url = url or demo.url
-    demo.is_downloaded = False
-    demo.downloaded_at = None
+    if not demo.is_processed:
+        demo.is_downloaded = False
+        demo.downloaded_at = None
     demo.error = str(error)[:2000]
     db.commit()
     return demo

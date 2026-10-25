@@ -890,9 +890,29 @@ def _process_match(
     job_db, db, job, client, browser, match, scratch: Path, totals: dict, step, cycle
 ) -> None:
     """One match end to end, and its files gone afterwards whatever happened."""
+    from app.services.browser import HltvBlocked
+
     n, of = cycle
     jobs.set_stage(job_db, job, STAGE.FETCHING, _at_match(STAGE.FETCHING, n, of), cycle=cycle)
-    archive = _fetch_one(job_db, db, job, client, browser, match, scratch, totals["fetching"], step)
+    try:
+        archive = _fetch_one(
+            job_db, db, job, client, browser, match, scratch, totals["fetching"], step
+        )
+    except (jobs.JobCancelled, HltvBlocked):
+        raise  # a stop, or a browser gone for every Match still queued
+    except Exception as exc:  # one Match must not fail the Scout, fetching included
+        db.rollback()
+        logger.exception("match %s failed to fetch", match.id)
+        jobs.log(
+            job_db,
+            job,
+            f"   ✗ энэ матчийг алгаслаа — {exc}",
+            level=LEVEL.ERROR,
+            stage=STAGE.FETCHING,
+            step=step,
+        )
+        totals["fetching"]["failed"] += 1
+        archive = None
     jobs.finish_stage(job_db, job, STAGE.FETCHING, "", totals["fetching"])
     if archive is None:
         return

@@ -447,3 +447,58 @@ def test_a_match_whose_demos_wont_store_fails_alone(pipeline, db, monkeypatch):
     assert job.status == "success"
     assert job.result["totals"]["unpacking"]["failed"] == 1
     assert job.result["totals"]["parsing"]["parsed"] == 2
+
+
+def test_a_download_again_that_breaks_off_fails_that_match_only(pipeline, db, monkeypatch):
+    # Production, 2026-10-25: a Match downloading again (its Tick Data has no
+    # economy) timed out, and marking its processed archive "not downloaded"
+    # broke the Demo check constraint, which stopped the whole Scout.
+    pipeline()
+    db.query(MatchMap).update({"schema_version": analysis_store.CURRENT_SCHEMA_VERSION - 1})
+    for dataset in db.query(TickDataset):
+        dataset.tables = ["ticks", *tickdata.DETONATION_TABLES]
+    db.commit()
+
+    def broke_off(self, url, dest, **kwargs):
+        raise browser.HltvBlocked(f"Download of {url} broke off (Timeout 120000ms exceeded)")
+
+    works = FakeBrowser.download
+    monkeypatch.setattr(FakeBrowser, "download", broke_off)
+    failed = pipeline()
+    assert failed.status == "success"
+    assert failed.result["totals"]["fetching"]["failed"] == 3
+    archives = db.query(Demo).filter_by(map="").all()
+    assert all(d.is_processed and d.is_downloaded for d in archives)
+    assert all("broke off" in d.error for d in archives)
+
+    # The next Scout tries again, and this time the files come.
+    monkeypatch.setattr(FakeBrowser, "download", works)
+    again = pipeline()
+    assert again.result["totals"]["fetching"]["downloaded"] == 3
+    assert again.result["totals"]["parsing"]["parsed"] == 3
+    assert all(not d.error for d in db.query(Demo).filter_by(map="").all())
+
+
+def test_a_match_that_fails_to_fetch_fails_alone(pipeline, db, monkeypatch):
+    from app.services import store
+
+    real = store.record_demo_lookup
+
+    def lookup(db_, match, link):
+        if match.hltv_id == 102:
+            raise RuntimeError(
+                "(3819, \"Check constraint 'ck_demos_processed_requires_download' is violated.\")"
+            )
+        return real(db_, match, link)
+
+    monkeypatch.setattr(store, "record_demo_lookup", lookup)
+    job = pipeline()
+    assert job.status == "success"
+    assert job.result["totals"]["fetching"] == {
+        "downloaded": 2,
+        "skipped": 0,
+        "missing": 0,
+        "failed": 1,
+    }
+    assert job.result["totals"]["parsing"]["parsed"] == 2
+    assert any("энэ матчийг алгаслаа" in e.message for e in job.events)
