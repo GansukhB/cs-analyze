@@ -126,6 +126,10 @@ _Avoid_: Win chance, odds, expected win, Forecast (that is a Fixture's, made bef
 How much one action (a kill, a plant, a defuse, a flash that set up a kill) moved its Team's Win probability, credited to the Players behind it. A Player's Swing over a Round or a Match Map is the sum of theirs.
 _Avoid_: Impact (HLTV's Impact rating is another thing), value, rating
 
+**Player rating**:
+A Player's score over one or more Match Maps, from their kills, deaths, assists, KAST and damage per Round, by the published approximation of HLTV's Rating 2.0, where 1.00 is an average game. It is not HLTV's own number and says nothing about a Team's strength.
+_Avoid_: HLTV rating, impact, Rating (that is a Team's)
+
 **Trade**:
 Killing the enemy who just killed a teammate, within 5 seconds of that death.
 _Avoid_: Refrag, revenge
@@ -180,6 +184,18 @@ _Avoid_: Clip list, reel, compilation
 What one Player is working on, set by Staff: each goal named with the number that shows it, a target and a date, followed across Matches and Scrims. The Player sees their own; Staff see everyone's.
 _Avoid_: IDP, training plan, goals (in prose)
 
+**Team goal**:
+What a my team is working on, set by Staff: one team number, such as retakes won on one Map and Side, with its baseline, target and dates, followed across the Team's official Matches only. A Player's own goals belong to their Development plan.
+_Avoid_: Season goal, objective, KPI (in prose)
+
+**Practice schedule**:
+A my team's week of practice as Staff planned it: blocks of Scrims, drills, demo review, official Matches and rest, each on its day with its hours. It is kept for Staff only.
+_Avoid_: Calendar, timetable, Practice week (that is the fixed template filled from the data)
+
+**Review queue**:
+The Rounds a my team is to watch together in one week, as Staff picked them: each a moment of a Match Map with a line and a tag, marked once the team has watched it. Unlike a Playlist it is never shared with Players.
+_Avoid_: Playlist (that is shared with Players), watchlist, clip list
+
 ## Jobs
 
 **Analysis Job**:
@@ -207,13 +223,17 @@ _Avoid_: Phase, step
 The ordered pair a Game Plan is about: my team first, the opponent second. Swapping them is a different Fixture, because every panel is read from my team's side.
 _Avoid_: Matchup, pairing
 
+**Upcoming match**:
+A Match a my team is due to play, as Staff entered it: the opponent, when it starts, its format (Bo1, Bo3 or Bo5) and the tournament. Once that Match is played and parsed, the Upcoming match points at it.
+_Avoid_: Fixture (that is the pair, with no date), schedule, event
+
 **Game Plan**:
 The match-preparation page for one Fixture, computed only from parsed Match Maps: a decision, the evidence behind it in sections, and what to do. Unlike a Scout it downloads nothing and keeps nothing; it is recomputed whenever a Match Map is parsed.
 _Avoid_: Report (that is a Scout's output), scouting page
 
 **Rating**:
 A number for how strong a Team is, overall and on each Map, read from its results against other rated Teams, with recent Matches counting most. A Team keeps its Rating while at least three of its five Players stay; with fewer, it starts again from where its new Players stood. Forecasts are made from Ratings.
-_Avoid_: Ranking (an ordered list such as HLTV's or Valve's), Elo, power; HLTV's Rating is a Player's score for one Match Map, another thing
+_Avoid_: Ranking (an ordered list such as HLTV's or Valve's), Elo, power, Player rating (that is one Player's score)
 
 **Forecast**:
 A Fixture's chance of winning each Map and the whole Match, made at one moment before it is played, from both Teams' Ratings and the veto they are expected to make. Every Forecast is kept and graded against the result once the Match is played.

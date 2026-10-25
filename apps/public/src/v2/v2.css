@@ -1,0 +1,115 @@
+/* v2 (the DEMOLAB design, docs/adr/0013 for its numbers): the same tokens as
+   index.css, redefined under .v2 so every v1 component a v2 page reuses takes
+   the new palette with it. The fonts are bundled, not fetched: production's CSP
+   allows fonts from the app's own origin only. */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-sans-condensed/500.css';
+@import '@fontsource/ibm-plex-sans-condensed/600.css';
+@import '@fontsource/ibm-plex-sans-condensed/700.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+.v2 {
+  --ground: #0a0d10;
+  --surface: #11161b;
+  --surface-2: #0d1115;
+  --raised: #161c22;
+  --chip: #1a2129;
+  --ink: #e7ecf0;
+  --ink-2: #c5ced6;
+  --ink-3: #94a1ad;
+  --line: #1e262e;
+  --line-soft: #222b34;
+  --line-strong: #2a343e;
+  --ct: #5eb0f2;
+  --t: #f0a63a;
+  --good: #5fd39b;
+  --warn: #e9c46a;
+  --crit: #f07167;
+  --accent: #f0a63a;
+  --accent-soft: #2b2113;
+  --ct-soft: #13212d;
+  --good-soft: #1c3329;
+  --crit-soft: #33201f;
+  --warn-soft: #3a3220;
+  --them: #8fa3b5;
+  /* A reused Game Plan component draws my team in the accent, theirs in grey. */
+  --mine: #f0a63a;
+  --theirs: #8fa3b5;
+  --mine-soft: rgba(240, 166, 58, 0.3);
+  --theirs-soft: rgba(143, 163, 181, 0.3);
+  --mark-mine: #f0a63a;
+  --mark-theirs: #8fa3b5;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  min-height: 100vh;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+.v2 a { color: var(--ct); }
+.v2 a:hover { color: #8cc7f6; }
+.v2 a.plain, .v2 a.plain:hover { color: inherit; text-decoration: none; }
+.v2 button:not(:disabled) { cursor: pointer; }
+
+/* The three type voices: condensed for headings and labels, sans for text,
+   mono with tabular figures for every number. */
+.v2 .cond { font-family: 'IBM Plex Sans Condensed', 'Arial Narrow', sans-serif; }
+.v2 .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.v2 .lbl {
+  font-family: 'IBM Plex Sans Condensed', 'Arial Narrow', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+
+/* Tables: condensed caps headers, mono cells, rules between rows. */
+.v2 table.grid-table { border-collapse: collapse; width: 100%; }
+.v2 table.grid-table th {
+  text-align: left;
+  font-family: 'IBM Plex Sans Condensed', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+.v2 table.grid-table td {
+  padding: 11px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.v2 table.grid-table td.num, .v2 table.grid-table.nums td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.v2 table.grid-table td.name { font-family: var(--font-sans); font-weight: 600; }
+
+@media print {
+  .v2 {
+    --ground: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f4f5f7;
+    --raised: #eef0f3;
+    --chip: #eef0f3;
+    --ink: #111418;
+    --ink-2: #33393f;
+    --ink-3: #5c646c;
+    --line: #c9ced4;
+    --line-soft: #e1e4e8;
+    --line-strong: #c9ced4;
+    --ct: #1f5f9e;
+    --t: #94591a;
+    --accent: #94591a;
+    --good: #1f6f4c;
+    --warn: #8a5a12;
+    --crit: #a33a26;
+    --them: #4b5560;
+  }
+}

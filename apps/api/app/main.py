@@ -25,6 +25,7 @@ from app.routers import (
     system,
     teams,
     uploads,
+    v2,
     workspace,
 )
 from app.timing import ServerTiming
@@ -67,6 +68,7 @@ app.include_router(strats.router)
 app.include_router(workspace.router)
 app.include_router(assistant.router)
 app.include_router(system.router)
+app.include_router(v2.router)
 
 
 @app.get("/health", tags=["health"])

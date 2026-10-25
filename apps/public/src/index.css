@@ -36,6 +36,17 @@
   --assist-2: #9a86f0;
   --assist-line: #5d63b8;
   --assist-line-2: #4a4f8a;
+  /* v2 (src/v2/v2.css) redefines every token above under .v2 and adds these;
+     here they fall back to the v1 palette so a shared component never misses one. */
+  --accent: var(--t);
+  --accent-soft: rgba(211, 154, 85, 0.16);
+  --ct-soft: rgba(91, 155, 216, 0.16);
+  --good-soft: rgba(79, 167, 127, 0.16);
+  --crit-soft: rgba(207, 106, 86, 0.16);
+  --warn-soft: rgba(211, 154, 85, 0.16);
+  --line-strong: var(--line);
+  --chip: var(--surface-2);
+  --them: var(--ink-2);
 }
 
 @theme inline {
@@ -59,6 +70,15 @@
   --color-assist-2: var(--assist-2);
   --color-assist-line: var(--assist-line);
   --color-assist-line-2: var(--assist-line-2);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-ct-soft: var(--ct-soft);
+  --color-good-soft: var(--good-soft);
+  --color-crit-soft: var(--crit-soft);
+  --color-warn-soft: var(--warn-soft);
+  --color-line-strong: var(--line-strong);
+  --color-chip: var(--chip);
+  --color-them: var(--them);
 }
 
 body {

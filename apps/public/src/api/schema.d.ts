@@ -1919,6 +1919,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/teams/{team_id}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overview
+         * @description KPIs over the period against the one before it, Strengths and Weaknesses,
+         *     Maps, form, the five, the pipeline and the next Upcoming match. Scrims count
+         *     only when asked (grilling Q5), and only the Team's own.
+         */
+        get: operations["overview_v2_teams__team_id__overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/upcoming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Upcoming */
+        get: operations["list_upcoming_v2_upcoming_get"];
+        put?: never;
+        /** Create Upcoming */
+        post: operations["create_upcoming_v2_upcoming_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/upcoming/{upcoming_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Upcoming */
+        delete: operations["delete_upcoming_v2_upcoming__upcoming_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Upcoming */
+        patch: operations["patch_upcoming_v2_upcoming__upcoming_id__patch"];
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -2702,6 +2760,16 @@ export interface components {
             /** Hit */
             hit: number;
         };
+        /** ChecklistItem */
+        ChecklistItem: {
+            /** Text */
+            text: string;
+            /**
+             * Done
+             * @default false
+             */
+            done: boolean;
+        };
         /** Consistency */
         Consistency: {
             /** Maps */
@@ -2712,6 +2780,26 @@ export interface components {
             pct: number;
             /** Players */
             players: number;
+        };
+        /**
+         * CounterPick
+         * @description A counter Staff picked on the scouting page for this Upcoming match.
+         */
+        CounterPick: {
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /**
+             * Body
+             * @default
+             */
+            body: string;
+            /**
+             * Map
+             * @default
+             */
+            map: string;
         };
         /** Coverage */
         Coverage: {
@@ -2817,6 +2905,27 @@ export interface components {
                     [key: string]: string;
                 }[];
             };
+        };
+        /** DemoLine */
+        DemoLine: {
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Played At */
+            played_at: string | null;
+            /** Opponent */
+            opponent: string;
+            /** Map */
+            map: string;
+            /** Ours */
+            ours: number | null;
+            /** Theirs */
+            theirs: number | null;
+            /** Kind */
+            kind: string;
+            /** Parsed */
+            parsed: boolean;
         };
         /** DemoState */
         DemoState: {
@@ -2970,6 +3079,23 @@ export interface components {
              * @default []
              */
             reliability: components["schemas"]["ReliabilityBand"][];
+        };
+        /** FormItem */
+        FormItem: {
+            /** Match Id */
+            match_id: number;
+            /** Played At */
+            played_at: string | null;
+            /** Opponent */
+            opponent: string;
+            /** Ours */
+            ours: number | null;
+            /** Theirs */
+            theirs: number | null;
+            /** Won */
+            won: boolean | null;
+            /** Scrim */
+            scrim: boolean;
         };
         /** GameplanHeader */
         GameplanHeader: {
@@ -3194,6 +3320,48 @@ export interface components {
              */
             uptime: number;
         };
+        /** Insight */
+        Insight: {
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Tone
+             * @enum {string}
+             */
+            tone: "strength" | "risk" | "watch";
+            /** Label */
+            label: string;
+            /** Title */
+            title: string;
+            /** Advice */
+            advice: string;
+            /** Map */
+            map: string | null;
+            /** Map Label */
+            map_label: string | null;
+            /** Side */
+            side: string;
+            /** Value */
+            value: number;
+            /** Pool */
+            pool: number;
+            /** Z */
+            z: number;
+            /** Of */
+            of: number;
+            /** N */
+            n: number;
+            /** Maps */
+            maps: number;
+            /** Strength */
+            strength: string;
+            /** Refs */
+            refs: components["schemas"]["ReplayRef"][];
+            /** Players */
+            players: string[];
+        };
         /** InviteAccept */
         InviteAccept: {
             /**
@@ -3325,6 +3493,27 @@ export interface components {
             };
             /** At */
             at: string;
+        };
+        /** JobLine */
+        JobLine: {
+            /** Public Id */
+            public_id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Status */
+            status: string;
+            /** Stage */
+            stage: string;
+            /** Progress */
+            progress: number;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Error */
+            error: string;
         };
         /** JobList */
         JobList: {
@@ -3636,6 +3825,36 @@ export interface components {
             lost: number;
             /** Pct */
             pct: number | null;
+        };
+        /** MapRow */
+        MapRow: {
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** Active */
+            active: boolean;
+            /** Played */
+            played: number;
+            /** Won */
+            won: number;
+            /** Win */
+            win: number | null;
+            /** T */
+            t: number | null;
+            /** Ct */
+            ct: number | null;
+            /** Pistol */
+            pistol: number | null;
+            /** Trend */
+            trend: number[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "strong" | "improve" | "test" | "untested";
+            /** Shrunk */
+            shrunk: number | null;
         };
         /**
          * MapSummary
@@ -4114,6 +4333,45 @@ export interface components {
             /** After Death Won Pct */
             after_death_won_pct: number | null;
         };
+        /** Overview */
+        Overview: {
+            team: components["schemas"]["TeamRef"];
+            /** Days */
+            days: number | null;
+            /** Scrims */
+            scrims: boolean;
+            /** N Matches */
+            n_matches: number;
+            /** N Scrims */
+            n_scrims: number;
+            /** N Maps */
+            n_maps: number;
+            /** N All Matches */
+            n_all_matches: number;
+            /** Updated At */
+            updated_at: string | null;
+            /** Kpis */
+            kpis: {
+                [key: string]: components["schemas"]["Share"];
+            };
+            /** Insights */
+            insights: components["schemas"]["Insight"][];
+            /** Maps */
+            maps: components["schemas"]["MapRow"][];
+            /** Form */
+            form: components["schemas"]["FormItem"][];
+            /** Trend */
+            trend: components["schemas"]["TrendPoint"][];
+            /** Players */
+            players: components["schemas"]["PlayerCard"][];
+            /** Jobs */
+            jobs: components["schemas"]["JobLine"][];
+            /** Demos */
+            demos: components["schemas"]["DemoLine"][];
+            /** Uploads */
+            uploads: components["schemas"]["UploadLine"][];
+            upcoming: components["schemas"]["UpcomingRead"] | null;
+        };
         /** PatchList */
         PatchList: {
             /** Patches */
@@ -4214,6 +4472,22 @@ export interface components {
             rank: {
                 [key: string]: number;
             };
+        };
+        /** PlayerCard */
+        PlayerCard: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Rating */
+            rating: number | null;
+            /** Adr */
+            adr: number | null;
+            /** Kast */
+            kast: number | null;
+            /** Maps */
+            maps: number;
+            note: components["schemas"]["PlayerNote"] | null;
         };
         /**
          * PlayerDuels
@@ -4327,6 +4601,13 @@ export interface components {
             map: string;
             /** Side */
             side: string;
+        };
+        /** PlayerNote */
+        PlayerNote: {
+            /** Good */
+            good: boolean;
+            /** Text */
+            text: string;
         };
         /** PlayerPage */
         PlayerPage: {
@@ -4588,6 +4869,18 @@ export interface components {
             low: number;
             /** High */
             high: number;
+        };
+        /**
+         * ReplayRef
+         * @description A Round on the Replay: /matches/{match}/m/{map}?round={round}.
+         */
+        ReplayRef: {
+            /** Match */
+            match: number;
+            /** Map */
+            map: number;
+            /** Round */
+            round: number;
         };
         /** Review */
         Review: {
@@ -5115,6 +5408,20 @@ export interface components {
             buy: string;
             /** Played At */
             played_at: string | null;
+        };
+        /**
+         * Share
+         * @description ``won`` of ``of``; ``pct`` is None when ``of`` is 0.
+         */
+        Share: {
+            /** Won */
+            won: number;
+            /** Of */
+            of: number;
+            /** Pct */
+            pct: number | null;
+            /** Prev */
+            prev?: number | null;
         };
         /**
          * SpotLabel
@@ -5943,6 +6250,80 @@ export interface components {
              */
             token_type: string;
         };
+        /** TrendPoint */
+        TrendPoint: {
+            /** Match Map Id */
+            match_map_id: number;
+            /** Played At */
+            played_at: string | null;
+            /** Map */
+            map: string;
+            /** Rating */
+            rating: number;
+        };
+        /** UpcomingList */
+        UpcomingList: {
+            /** Upcoming */
+            upcoming: components["schemas"]["UpcomingRead"][];
+        };
+        /** UpcomingPatch */
+        UpcomingPatch: {
+            /** Starts At */
+            starts_at?: string | null;
+            /** Best Of */
+            best_of?: (1 | 3 | 5) | null;
+            /** Tournament */
+            tournament?: string | null;
+            /** Checklist */
+            checklist?: components["schemas"]["ChecklistItem"][] | null;
+            /** Counters */
+            counters?: components["schemas"]["CounterPick"][] | null;
+        };
+        /** UpcomingRead */
+        UpcomingRead: {
+            /** Id */
+            id: number;
+            team: components["schemas"]["TeamRef"];
+            opponent: components["schemas"]["TeamRef"];
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** Best Of */
+            best_of: number;
+            /** Tournament */
+            tournament: string;
+            /** Match Id */
+            match_id: number | null;
+            /** Checklist */
+            checklist: components["schemas"]["ChecklistItem"][];
+            /** Counters */
+            counters: components["schemas"]["CounterPick"][];
+        };
+        /** UpcomingWrite */
+        UpcomingWrite: {
+            /** Team Id */
+            team_id: number;
+            /** Opponent Id */
+            opponent_id: number;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /**
+             * Best Of
+             * @default 3
+             * @enum {integer}
+             */
+            best_of: 1 | 3 | 5;
+            /**
+             * Tournament
+             * @default
+             */
+            tournament: string;
+        };
         /**
          * UploadCreate
          * @description Describe the file first; its bytes follow in parts.
@@ -6008,6 +6389,24 @@ export interface components {
             note: string;
             /** Url */
             url: string;
+        };
+        /** UploadLine */
+        UploadLine: {
+            /** Id */
+            id: number;
+            /** Filename */
+            filename: string;
+            /** Kind */
+            kind: string;
+            /** Status */
+            status: string;
+            /**
+             * Played On
+             * Format: date
+             */
+            played_on: string;
+            /** Error */
+            error: string;
         };
         /** UploadList */
         UploadList: {
@@ -9771,6 +10170,169 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PatchList"];
+                };
+            };
+        };
+    };
+    overview_v2_teams__team_id__overview_get: {
+        parameters: {
+            query?: {
+                period?: "30" | "90" | "180" | "all";
+                scrims?: boolean;
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Overview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_upcoming_v2_upcoming_get: {
+        parameters: {
+            query?: {
+                team_id?: number | null;
+                past?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpcomingList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_upcoming_v2_upcoming_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpcomingWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpcomingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_upcoming_v2_upcoming__upcoming_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upcoming_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_upcoming_v2_upcoming__upcoming_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upcoming_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpcomingPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpcomingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

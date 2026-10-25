@@ -5785,6 +5785,283 @@
         ]
       }
     },
+    "/v2/teams/{team_id}/overview": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Overview",
+        "description": "KPIs over the period against the one before it, Strengths and Weaknesses,\nMaps, form, the five, the pipeline and the next Upcoming match. Scrims count\nonly when asked (grilling Q5), and only the Team's own.",
+        "operationId": "overview_v2_teams__team_id__overview_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "30",
+                "90",
+                "180",
+                "all"
+              ],
+              "type": "string",
+              "default": "30",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "scrims",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Scrims"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/upcoming": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "List Upcoming",
+        "operationId": "list_upcoming_v2_upcoming_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "past",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Past"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpcomingList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Create Upcoming",
+        "operationId": "create_upcoming_v2_upcoming_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpcomingWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpcomingRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/upcoming/{upcoming_id}": {
+      "patch": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Patch Upcoming",
+        "operationId": "patch_upcoming_v2_upcoming__upcoming_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "upcoming_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Upcoming Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpcomingPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpcomingRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Delete Upcoming",
+        "operationId": "delete_upcoming_v2_upcoming__upcoming_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "upcoming_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Upcoming Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -7877,6 +8154,25 @@
         ],
         "title": "CheckVeto"
       },
+      "ChecklistItem": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Text"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ChecklistItem"
+      },
       "Consistency": {
         "properties": {
           "maps": {
@@ -7904,6 +8200,39 @@
           "players"
         ],
         "title": "Consistency"
+      },
+      "CounterPick": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Body",
+            "default": ""
+          },
+          "map": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Map",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "title"
+        ],
+        "title": "CounterPick",
+        "description": "A counter Staff picked on the scouting page for this Upcoming match."
       },
       "Coverage": {
         "properties": {
@@ -8190,6 +8519,81 @@
           "choices"
         ],
         "title": "DeclaredRoles"
+      },
+      "DemoLine": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "opponent": {
+            "type": "string",
+            "title": "Opponent"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "ours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ours"
+          },
+          "theirs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theirs"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "parsed": {
+            "type": "boolean",
+            "title": "Parsed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "map_number",
+          "played_at",
+          "opponent",
+          "map",
+          "ours",
+          "theirs",
+          "kind",
+          "parsed"
+        ],
+        "title": "DemoLine"
       },
       "DemoState": {
         "properties": {
@@ -8645,6 +9049,78 @@
           "map_log_loss"
         ],
         "title": "ForecastSummary"
+      },
+      "FormItem": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "opponent": {
+            "type": "string",
+            "title": "Opponent"
+          },
+          "ours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ours"
+          },
+          "theirs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theirs"
+          },
+          "won": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Won"
+          },
+          "scrim": {
+            "type": "boolean",
+            "title": "Scrim"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "played_at",
+          "opponent",
+          "ours",
+          "theirs",
+          "won",
+          "scrim"
+        ],
+        "title": "FormItem"
       },
       "GameplanHeader": {
         "properties": {
@@ -9268,6 +9744,129 @@
         "title": "HostStats",
         "description": "The whole host's load right now (app/services/system.py)."
       },
+      "Insight": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "strength",
+              "risk",
+              "watch"
+            ],
+            "title": "Tone"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "advice": {
+            "type": "string",
+            "title": "Advice"
+          },
+          "map": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map"
+          },
+          "map_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map Label"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "pool": {
+            "type": "number",
+            "title": "Pool"
+          },
+          "z": {
+            "type": "number",
+            "title": "Z"
+          },
+          "of": {
+            "type": "integer",
+            "title": "Of"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "strength": {
+            "type": "string",
+            "title": "Strength"
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayRef"
+            },
+            "type": "array",
+            "title": "Refs"
+          },
+          "players": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "kind",
+          "tone",
+          "label",
+          "title",
+          "advice",
+          "map",
+          "map_label",
+          "side",
+          "value",
+          "pool",
+          "z",
+          "of",
+          "n",
+          "maps",
+          "strength",
+          "refs",
+          "players"
+        ],
+        "title": "Insight"
+      },
       "InviteAccept": {
         "properties": {
           "username": {
@@ -9566,6 +10165,75 @@
           "at"
         ],
         "title": "JobEvent"
+      },
+      "JobLine": {
+        "properties": {
+          "public_id": {
+            "type": "string",
+            "title": "Public Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "Progress"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "public_id",
+          "kind",
+          "label",
+          "status",
+          "stage",
+          "progress",
+          "started_at",
+          "finished_at",
+          "error"
+        ],
+        "title": "JobLine"
       },
       "JobList": {
         "properties": {
@@ -10415,6 +11083,118 @@
           "pct"
         ],
         "title": "MapRecordRow"
+      },
+      "MapRow": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "played": {
+            "type": "integer",
+            "title": "Played"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "win": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win"
+          },
+          "t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T"
+          },
+          "ct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ct"
+          },
+          "pistol": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pistol"
+          },
+          "trend": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Trend"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "improve",
+              "test",
+              "untested"
+            ],
+            "title": "Status"
+          },
+          "shrunk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shrunk"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "label",
+          "active",
+          "played",
+          "won",
+          "win",
+          "t",
+          "ct",
+          "pistol",
+          "trend",
+          "status",
+          "shrunk"
+        ],
+        "title": "MapRow"
       },
       "MapSummary": {
         "properties": {
@@ -11831,6 +12611,151 @@
         ],
         "title": "OpeningLine"
       },
+      "Overview": {
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days"
+          },
+          "scrims": {
+            "type": "boolean",
+            "title": "Scrims"
+          },
+          "n_matches": {
+            "type": "integer",
+            "title": "N Matches"
+          },
+          "n_scrims": {
+            "type": "integer",
+            "title": "N Scrims"
+          },
+          "n_maps": {
+            "type": "integer",
+            "title": "N Maps"
+          },
+          "n_all_matches": {
+            "type": "integer",
+            "title": "N All Matches"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "kpis": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Share"
+            },
+            "type": "object",
+            "title": "Kpis"
+          },
+          "insights": {
+            "items": {
+              "$ref": "#/components/schemas/Insight"
+            },
+            "type": "array",
+            "title": "Insights"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/MapRow"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "form": {
+            "items": {
+              "$ref": "#/components/schemas/FormItem"
+            },
+            "type": "array",
+            "title": "Form"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/TrendPoint"
+            },
+            "type": "array",
+            "title": "Trend"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerCard"
+            },
+            "type": "array",
+            "title": "Players"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobLine"
+            },
+            "type": "array",
+            "title": "Jobs"
+          },
+          "demos": {
+            "items": {
+              "$ref": "#/components/schemas/DemoLine"
+            },
+            "type": "array",
+            "title": "Demos"
+          },
+          "uploads": {
+            "items": {
+              "$ref": "#/components/schemas/UploadLine"
+            },
+            "type": "array",
+            "title": "Uploads"
+          },
+          "upcoming": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpcomingRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "days",
+          "scrims",
+          "n_matches",
+          "n_scrims",
+          "n_maps",
+          "n_all_matches",
+          "updated_at",
+          "kpis",
+          "insights",
+          "maps",
+          "form",
+          "trend",
+          "players",
+          "jobs",
+          "demos",
+          "uploads",
+          "upcoming"
+        ],
+        "title": "Overview"
+      },
       "PatchList": {
         "properties": {
           "patches": {
@@ -12120,6 +13045,76 @@
         ],
         "title": "PlayerAim",
         "description": "Aim from his engagements (PL-5); ``rank`` 0-100 among every Player past the bar."
+      },
+      "PlayerCard": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "kast": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kast"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlayerNote"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "rating",
+          "adr",
+          "kast",
+          "maps",
+          "note"
+        ],
+        "title": "PlayerCard"
       },
       "PlayerDuels": {
         "properties": {
@@ -12484,6 +13479,24 @@
           "side"
         ],
         "title": "PlayerMapLine"
+      },
+      "PlayerNote": {
+        "properties": {
+          "good": {
+            "type": "boolean",
+            "title": "Good"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "good",
+          "text"
+        ],
+        "title": "PlayerNote"
       },
       "PlayerPage": {
         "properties": {
@@ -13287,6 +14300,30 @@
           "high"
         ],
         "title": "ReliabilityBand"
+      },
+      "ReplayRef": {
+        "properties": {
+          "match": {
+            "type": "integer",
+            "title": "Match"
+          },
+          "map": {
+            "type": "integer",
+            "title": "Map"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match",
+          "map",
+          "round"
+        ],
+        "title": "ReplayRef",
+        "description": "A Round on the Replay: /matches/{match}/m/{map}?round={round}."
       },
       "Review": {
         "properties": {
@@ -14773,6 +15810,48 @@
           "played_at"
         ],
         "title": "SearchRound"
+      },
+      "Share": {
+        "properties": {
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "of": {
+            "type": "integer",
+            "title": "Of"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          },
+          "prev": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prev"
+          }
+        },
+        "type": "object",
+        "required": [
+          "won",
+          "of",
+          "pct"
+        ],
+        "title": "Share",
+        "description": "``won`` of ``of``; ``pct`` is None when ``of`` is 0."
       },
       "SpotLabel": {
         "properties": {
@@ -16911,6 +17990,239 @@
         ],
         "title": "Token"
       },
+      "TrendPoint": {
+        "properties": {
+          "match_map_id": {
+            "type": "integer",
+            "title": "Match Map Id"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "rating": {
+            "type": "number",
+            "title": "Rating"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_map_id",
+          "played_at",
+          "map",
+          "rating"
+        ],
+        "title": "TrendPoint"
+      },
+      "UpcomingList": {
+        "properties": {
+          "upcoming": {
+            "items": {
+              "$ref": "#/components/schemas/UpcomingRead"
+            },
+            "type": "array",
+            "title": "Upcoming"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upcoming"
+        ],
+        "title": "UpcomingList"
+      },
+      "UpcomingPatch": {
+        "properties": {
+          "starts_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "best_of": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "enum": [
+                  1,
+                  3,
+                  5
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Of"
+          },
+          "tournament": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tournament"
+          },
+          "checklist": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ChecklistItem"
+                },
+                "type": "array",
+                "maxItems": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checklist"
+          },
+          "counters": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CounterPick"
+                },
+                "type": "array",
+                "maxItems": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counters"
+          }
+        },
+        "type": "object",
+        "title": "UpcomingPatch"
+      },
+      "UpcomingRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "opponent": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Starts At"
+          },
+          "best_of": {
+            "type": "integer",
+            "title": "Best Of"
+          },
+          "tournament": {
+            "type": "string",
+            "title": "Tournament"
+          },
+          "match_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Id"
+          },
+          "checklist": {
+            "items": {
+              "$ref": "#/components/schemas/ChecklistItem"
+            },
+            "type": "array",
+            "title": "Checklist"
+          },
+          "counters": {
+            "items": {
+              "$ref": "#/components/schemas/CounterPick"
+            },
+            "type": "array",
+            "title": "Counters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "team",
+          "opponent",
+          "starts_at",
+          "best_of",
+          "tournament",
+          "match_id",
+          "checklist",
+          "counters"
+        ],
+        "title": "UpcomingRead"
+      },
+      "UpcomingWrite": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "opponent_id": {
+            "type": "integer",
+            "title": "Opponent Id"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Starts At"
+          },
+          "best_of": {
+            "type": "integer",
+            "enum": [
+              1,
+              3,
+              5
+            ],
+            "title": "Best Of",
+            "default": 3
+          },
+          "tournament": {
+            "type": "string",
+            "maxLength": 160,
+            "title": "Tournament",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "opponent_id",
+          "starts_at"
+        ],
+        "title": "UpcomingWrite"
+      },
       "UploadCreate": {
         "properties": {
           "kind": {
@@ -17034,6 +18346,45 @@
         ],
         "title": "UploadFromUrl",
         "description": "Describe the file and give the link the worker fetches it from (DATA-1)."
+      },
+      "UploadLine": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "played_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Played On"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "kind",
+          "status",
+          "played_on",
+          "error"
+        ],
+        "title": "UploadLine"
       },
       "UploadList": {
         "properties": {
