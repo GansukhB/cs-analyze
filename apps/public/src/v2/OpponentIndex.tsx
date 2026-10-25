@@ -1,7 +1,7 @@
 // /v2/t/:team/scouting and /gameplan without an opponent: the next Upcoming
 // match's, else a pick from recent opponents or any Team with parsed Maps.
 import { useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { $api } from '../api/client'
 import { PageSkeleton } from '../ui/Skeleton'
 import { TeamPicker, type PickedTeam } from './TeamPicker'
@@ -12,11 +12,13 @@ export default function OpponentIndex({ section, title }: { section: 'scouting' 
   const team = useTeam()
   const navigate = useNavigate()
   const [picked, setPicked] = useState<PickedTeam | null>(null)
+  // ?pick=1 ("change opponent") always shows the picker.
+  const [search] = useSearchParams()
   const next = $api.useQuery('get', '/v2/upcoming', { params: { query: { team_id: team.id } } })
   const matches = $api.useQuery('get', '/v2/teams/{team_id}/matches', { params: { path: { team_id: team.id } } })
   if (!next.data || !matches.data) return <PageSkeleton />
   const u = next.data.upcoming[0]
-  if (u) return <Navigate to={at(team.id, section, u.opponent.id)} replace />
+  if (u && search.get('pick') !== '1') return <Navigate to={at(team.id, section, u.opponent.id)} replace />
   const recent = new Map<string, number>()
   for (const m of matches.data.matches) {
     // The matches list names opponents only; their ids come from the picker below.

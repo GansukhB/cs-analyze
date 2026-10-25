@@ -50,3 +50,11 @@ def test_a_player_hot_on_the_map_just_played():
     here = [_tally(1, "t", 12, swings={"1": [0.08] * 12})]
     (p,) = between._players(here, _usual(), {"1": "910"})
     assert p["name"] == "910" and p["hot"] and not p["cold"] and p["here"] == 0.08
+
+
+def test_findings_are_counted_by_the_rounds_they_fell_in():
+    # Four untraded deaths in each of five Rounds: five Rounds of twelve, not twenty.
+    here = [_tally(1, "t", 12)]
+    here[0].codes["untraded"] = [(n, 10.0, "1", -0.1, "") for n in range(1, 6) for _ in range(4)]
+    (untraded,) = [x for x in between._code_lines(here, _usual()) if x["key"] == "untraded"]
+    assert untraded["k"] == 5 and untraded["n"] == 12

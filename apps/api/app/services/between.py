@@ -100,11 +100,13 @@ def _code_lines(here: list, usual: list) -> list[dict]:
         for side in ("ct", "t"):
             h = [t for t in here if t.side == side and review_pool.can_show(t, code)]
             u = [t for t in usual if t.side == side and review_pool.can_show(t, code)]
-            c1 = sum(len(t.codes.get(code, ())) for t in h)
+            # Rounds with the Finding, not Findings: two in one Round would make
+            # the share pass 1 and the Beta it is read as meaningless.
+            c1 = sum(len({e[0] for e in t.codes.get(code, ())}) for t in h)
             r1, r0 = sum(len(t.rounds) for t in h), sum(len(t.rounds) for t in u)
             if c1 < MIN_CODE or r0 < MIN_USUAL or not r1:
                 continue
-            c0 = sum(len(t.codes.get(code, ())) for t in u)
+            c0 = sum(len({e[0] for e in t.codes.get(code, ())}) for t in u)
             up = stats.chance_higher(c1, r1, c0, r0)
             if up >= SURE:
                 out.append({"kind": "code", "key": code, "side": side, "k": c1, "n": r1,
