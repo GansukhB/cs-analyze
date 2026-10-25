@@ -41,9 +41,9 @@ export function UpcomingBlock(props: { teamId: number; upcoming: Upcoming | null
   )
 }
 
-export function UpcomingForm(props: { teamId: number; onDone: () => void }) {
+export function UpcomingForm(props: { teamId: number; onDone: () => void; opponent?: PickedTeam }) {
   const invalidate = useInvalidateV2()
-  const [opponent, setOpponent] = useState<PickedTeam | null>(null)
+  const [opponent, setOpponent] = useState<PickedTeam | null>(props.opponent ?? null)
   const [starts, setStarts] = useState('')
   const [bestOf, setBestOf] = useState<1 | 3 | 5>(3)
   const [tournament, setTournament] = useState('')

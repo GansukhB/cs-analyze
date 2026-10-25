@@ -136,3 +136,5 @@
 .v2 .v2rp .rp-roster.t .rp-hp, .v2 .v2rp .rp-roster.t .rp-nm { text-align: left; }
 .v2 .v2rp .rp-roster.t .rp-rest { margin-left: auto; margin-right: 0; flex-direction: row; }
 .v2 .rp .track input[type=range] { accent-color: var(--accent); }
+/* v1's chips (gameplan.css) picked in the accent. */
+.v2 .chip.on { background: var(--accent); border-color: var(--accent); color: #0a0d10; }

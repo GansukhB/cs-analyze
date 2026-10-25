@@ -2072,6 +2072,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/teams/{team_id}/scouting/{opponent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scouting */
+        get: operations["scouting_v2_teams__team_id__scouting__opponent_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -5773,12 +5790,38 @@ export interface components {
             /** Players */
             players: components["schemas"]["ScoreboardPlayer"][];
         };
+        /** ScoutBin */
+        ScoutBin: {
+            /** From */
+            from: number;
+            /** N */
+            n: number;
+        };
         /** ScoutDefaults */
         ScoutDefaults: {
             /** Matches */
             matches: number;
             /** Max Matches */
             max_matches: number;
+        };
+        /** ScoutMap */
+        ScoutMap: {
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** Active */
+            active: boolean;
+            /** Theirs */
+            theirs: number;
+            /** Won */
+            won: number;
+            /** Ours */
+            ours: number;
+            /** Pick */
+            pick: number | null;
+            /** Ban */
+            ban: number | null;
         };
         /**
          * ScoutNow
@@ -5795,6 +5838,55 @@ export interface components {
             /** Stage Label */
             stage_label: string;
             cycle: components["schemas"]["JobCycle"] | null;
+        };
+        /** ScoutSites */
+        ScoutSites: {
+            /** Buy */
+            buy: string;
+            /** N */
+            n: number;
+            /** A */
+            a: number;
+            /** B */
+            b: number;
+            /** None */
+            none: number;
+            /** Won A */
+            won_a: number;
+            /** Won B */
+            won_b: number;
+            /** Won None */
+            won_none: number;
+        };
+        /** ScoutWindow */
+        ScoutWindow: {
+            /** Maps */
+            maps: number;
+            /** Matches */
+            matches: number;
+            /** H2H Maps */
+            h2h_maps: number;
+            /** Since */
+            since: string | null;
+            /** Rounds */
+            rounds: number;
+        };
+        /** Scouting */
+        Scouting: {
+            team: components["schemas"]["TeamRef"];
+            opponent: components["schemas"]["TeamRef"];
+            /** Maps */
+            maps: components["schemas"]["ScoutMap"][];
+            /** Map */
+            map: string | null;
+            window: components["schemas"]["ScoutWindow"];
+            /** Sites */
+            sites: components["schemas"]["ScoutSites"][];
+            /** Timing */
+            timing: components["schemas"]["ScoutBin"][];
+            /** T Rounds */
+            t_rounds: number;
+            upcoming: components["schemas"]["UpcomingRead"] | null;
         };
         /** ScrimLine */
         ScrimLine: {
@@ -11024,6 +11116,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DevNote"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scouting_v2_teams__team_id__scouting__opponent_id__get: {
+        parameters: {
+            query?: {
+                map?: string | null;
+            };
+            header?: never;
+            path: {
+                team_id: number;
+                opponent_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scouting"];
                 };
             };
             /** @description Validation Error */

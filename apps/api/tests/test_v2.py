@@ -175,3 +175,15 @@ def test_player_profile_and_note(client, auth, huns):
     assert client.get(url, headers=auth).json()["note"]["text"] == "Pop flash-ийг хүлээ"
     roster = client.get(f"/v2/teams/{huns['huns'].id}/players", headers=auth).json()
     assert roster["players"] == [{"steamid": "1", "name": "a"}]
+
+
+def test_scouting(client, auth, huns):
+    url = f"/v2/teams/{huns['huns'].id}/scouting/{huns['spirit'].id}"
+    body = client.get(url, headers=auth).json()
+    assert body["opponent"]["name"] == "Spirit" and body["map"] == "de_anubis"
+    anubis = next(m for m in body["maps"] if m["map"] == "de_anubis")
+    assert (anubis["theirs"], anubis["won"], anubis["ours"]) == (1, 0, 1)
+    # Their one T Round (R2) was a full buy; its plant names no site, so it counts as none.
+    (full,) = [s for s in body["sites"] if s["buy"] == "full"]
+    assert (full["n"], full["none"], full["won_none"]) == (1, 1, 1)
+    assert body["window"]["h2h_maps"] == 1 and body["upcoming"] is None

@@ -469,3 +469,55 @@ class RosterPlayer(BaseModel):
 
 class Roster(BaseModel):
     players: list[RosterPlayer]
+
+
+# ---------------------------------------------------------------- Scouting
+
+
+class ScoutMap(BaseModel):
+    map: str
+    label: str
+    active: bool
+    theirs: int
+    won: int
+    ours: int
+    pick: float | None
+    ban: float | None
+
+
+class ScoutWindow(BaseModel):
+    maps: int
+    matches: int
+    h2h_maps: int
+    since: Utc | None
+    rounds: int
+
+
+class ScoutSites(BaseModel):
+    buy: str
+    n: int
+    a: int
+    b: int
+    none: int
+    won_a: int
+    won_b: int
+    won_none: int
+
+
+class ScoutBin(BaseModel):
+    from_: int = Field(alias="from")
+    n: int
+
+    model_config = {"populate_by_name": True}
+
+
+class Scouting(BaseModel):
+    team: TeamRef
+    opponent: TeamRef
+    maps: list[ScoutMap]
+    map: str | None
+    window: ScoutWindow
+    sites: list[ScoutSites]
+    timing: list[ScoutBin]
+    t_rounds: int
+    upcoming: UpcomingRead | None

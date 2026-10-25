@@ -47,6 +47,8 @@ const V2Matches = lazy(() => import('./v2/pages/MatchesPage'))
 const V2MatchReport = lazy(() => import('./v2/pages/MatchReportPage'))
 const V2Replay = lazy(() => import('./v2/pages/ReplayPage'))
 const V2Player = lazy(() => import('./v2/pages/PlayerPage'))
+const V2Scouting = lazy(() => import('./v2/pages/ScoutingPage'))
+const V2ScoutingIndex = lazy(() => import('./v2/pages/ScoutingPage').then((m) => ({ default: m.ScoutingIndex })))
 const V2PlayersIndex = lazy(() => import('./v2/pages/PlayerPage').then((m) => ({ default: m.PlayersIndex })))
 const V2ReplayIndex = lazy(() => import('./v2/pages/ReplayPage').then((m) => ({ default: m.ReplayIndex })))
 
@@ -69,6 +71,8 @@ export default function App() {
         <Route path="replay/:matchId/:mapNumber" element={<V2Replay />} />
         <Route path="players" element={<V2PlayersIndex />} />
         <Route path="players/:steamid" element={<V2Player />} />
+        <Route path="scouting" element={<V2ScoutingIndex />} />
+        <Route path="scouting/:opponent" element={<V2Scouting />} />
       </Route>
       <Route element={<Layout />}>
         <Route index element={<Home />} />

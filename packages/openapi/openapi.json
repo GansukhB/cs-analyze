@@ -6389,6 +6389,78 @@
         }
       }
     },
+    "/v2/teams/{team_id}/scouting/{opponent_id}": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Scouting",
+        "operationId": "scouting_v2_teams__team_id__scouting__opponent_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "opponent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Opponent Id"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Map"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scouting"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -17196,6 +17268,24 @@
         ],
         "title": "ScoreboardSide"
       },
+      "ScoutBin": {
+        "properties": {
+          "from": {
+            "type": "integer",
+            "title": "From"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "n"
+        ],
+        "title": "ScoutBin"
+      },
       "ScoutDefaults": {
         "properties": {
           "matches": {
@@ -17213,6 +17303,68 @@
           "max_matches"
         ],
         "title": "ScoutDefaults"
+      },
+      "ScoutMap": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "theirs": {
+            "type": "integer",
+            "title": "Theirs"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "ours": {
+            "type": "integer",
+            "title": "Ours"
+          },
+          "pick": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pick"
+          },
+          "ban": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ban"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "label",
+          "active",
+          "theirs",
+          "won",
+          "ours",
+          "pick",
+          "ban"
+        ],
+        "title": "ScoutMap"
       },
       "ScoutNow": {
         "properties": {
@@ -17249,6 +17401,167 @@
         ],
         "title": "ScoutNow",
         "description": "The Analysis Job the worker is on."
+      },
+      "ScoutSites": {
+        "properties": {
+          "buy": {
+            "type": "string",
+            "title": "Buy"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "a": {
+            "type": "integer",
+            "title": "A"
+          },
+          "b": {
+            "type": "integer",
+            "title": "B"
+          },
+          "none": {
+            "type": "integer",
+            "title": "None"
+          },
+          "won_a": {
+            "type": "integer",
+            "title": "Won A"
+          },
+          "won_b": {
+            "type": "integer",
+            "title": "Won B"
+          },
+          "won_none": {
+            "type": "integer",
+            "title": "Won None"
+          }
+        },
+        "type": "object",
+        "required": [
+          "buy",
+          "n",
+          "a",
+          "b",
+          "none",
+          "won_a",
+          "won_b",
+          "won_none"
+        ],
+        "title": "ScoutSites"
+      },
+      "ScoutWindow": {
+        "properties": {
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "matches": {
+            "type": "integer",
+            "title": "Matches"
+          },
+          "h2h_maps": {
+            "type": "integer",
+            "title": "H2H Maps"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "matches",
+          "h2h_maps",
+          "since",
+          "rounds"
+        ],
+        "title": "ScoutWindow"
+      },
+      "Scouting": {
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "opponent": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/ScoutMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "map": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map"
+          },
+          "window": {
+            "$ref": "#/components/schemas/ScoutWindow"
+          },
+          "sites": {
+            "items": {
+              "$ref": "#/components/schemas/ScoutSites"
+            },
+            "type": "array",
+            "title": "Sites"
+          },
+          "timing": {
+            "items": {
+              "$ref": "#/components/schemas/ScoutBin"
+            },
+            "type": "array",
+            "title": "Timing"
+          },
+          "t_rounds": {
+            "type": "integer",
+            "title": "T Rounds"
+          },
+          "upcoming": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpcomingRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "opponent",
+          "maps",
+          "map",
+          "window",
+          "sites",
+          "timing",
+          "t_rounds",
+          "upcoming"
+        ],
+        "title": "Scouting"
       },
       "ScrimLine": {
         "properties": {
