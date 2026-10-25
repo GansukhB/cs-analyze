@@ -5,6 +5,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { $api } from '../api/client'
+import { errorText } from '../api/errors'
 import type { components } from '../api/schema'
 
 type Goal = components['schemas']['GoalRead']
@@ -70,7 +71,7 @@ export default function DevelopmentPlan({ steamid, staff }: { steamid: string; s
     (s) => !goals.some((g) => g.kpi === s.kpi && g.status === 'active'),
   )
   if (!staff && !goals.length) return null
-  const error = (add.error as { detail?: string } | undefined)?.detail
+  const error = errorText(add.error)
 
   return (
     <section className="space-y-3">

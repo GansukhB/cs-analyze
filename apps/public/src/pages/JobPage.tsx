@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router'
 import { $api } from '../api/client'
+import { usePaths } from '../paths'
 import {
-  STATUS_MN,
   secs,
   tally,
   when,
@@ -56,7 +56,7 @@ export default function JobPage() {
           {job.my_team_name} <span className="text-ink-3">vs</span> {job.opponent_name}
         </h1>
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          <StatusPill status={status.status} labels={STATUS_MN} />
+          <StatusPill status={status.status} />
           <span className="font-mono text-xs text-ink-3">{words.stages[status.stage] ?? status.stage_label}</span>
           {status.cycle && (
             <span className="rounded-md border border-line px-2 py-0.5 font-mono text-xs text-ink-2">
@@ -177,6 +177,7 @@ const WINDOW_TITLES: Record<string, string> = {
 }
 
 function Result({ result, words }: { result: JobResult; words: Record<string, string> }) {
+  const paths = usePaths()
   const totals = Object.entries(result.totals).filter(([, counts]) => tally(counts, words))
   return (
     <section className="space-y-4">
@@ -196,11 +197,11 @@ function Result({ result, words }: { result: JobResult; words: Record<string, st
         ))}
       {result.match_id ? (
         <p className="text-sm">
-          <Link to={`/matches/${result.match_id}`} className="text-ct hover:underline">
+          <Link to={paths.match(result.match_id)} className="text-ct hover:underline">
             Upload хийсэн тоглолтыг нээх →
           </Link>{' '}
-          <Link to="/uploads" className="text-ink-3 hover:underline">
-            Uploads
+          <Link to={paths.uploads()} className="text-ink-3 hover:underline">
+            Демо оруулах
           </Link>
         </p>
       ) : (
@@ -211,6 +212,7 @@ function Result({ result, words }: { result: JobResult; words: Record<string, st
 }
 
 function Matches({ title, matches }: { title: string; matches: MatchSummary[] }) {
+  const paths = usePaths()
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-medium text-ink-2">
@@ -224,7 +226,7 @@ function Matches({ title, matches }: { title: string; matches: MatchSummary[] })
             <li key={m.hltv_id} className="space-y-1 px-4 py-2 text-sm">
               <div className="flex flex-wrap items-baseline gap-x-2">
                 {m.match_id && m.maps.some((map) => map.parsed) ? (
-                  <Link to={`/matches/${m.match_id}`} className="font-medium text-ct hover:underline">
+                  <Link to={paths.match(m.match_id)} className="font-medium text-ct hover:underline">
                     {m.team1} {m.score || 'vs'} {m.team2}
                   </Link>
                 ) : (

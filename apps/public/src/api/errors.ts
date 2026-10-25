@@ -12,3 +12,16 @@ export function retryOnce(failures: number, error: unknown): boolean {
   const status = errorStatus(error)
   return failures < 1 && (status === null || status >= 500)
 }
+
+/** What a failed request says, as one line: FastAPI's `detail` is a string, or on
+ * a 422 a list of `{msg}`, which rendered as is would crash the page. */
+export function errorText(error: unknown): string {
+  const d = (error as { detail?: unknown } | null | undefined)?.detail
+  if (typeof d === 'string') return d
+  if (Array.isArray(d))
+    return d
+      .map((x) => String((x as { msg?: unknown }).msg ?? '').replace(/^Value error, /, ''))
+      .filter(Boolean)
+      .join(' ')
+  return ''
+}

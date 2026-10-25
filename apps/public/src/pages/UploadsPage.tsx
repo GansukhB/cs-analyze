@@ -6,8 +6,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { $api, fetchClient } from '../api/client'
+import { errorText } from '../api/errors'
 import type { components } from '../api/schema'
 import { useMyTeams } from '../auth/useMe'
+import { usePaths } from '../paths'
 
 type Upload = components['schemas']['UploadRead']
 type UploadMap = components['schemas']['UploadMap']
@@ -33,7 +35,7 @@ export default function UploadsPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-ink">Uploads</h1>
+        <h1 className="text-2xl font-semibold text-ink">Демо оруулах</h1>
         <p className="max-w-2xl text-ink-2">
           Өөрсдийн demo: scrim, эсвэл HLTV-д ороогүй албан тоглолт. Scrim нь Review, Replay-тэй болох ч ямар ч
           багийн Own form, habit, Pool-д тооцогдохгүй. Албан тоглолт нь зөвхөн энэ Workspace дотор тооцогдоно.
@@ -60,6 +62,7 @@ export default function UploadsPage() {
 function UploadForm() {
   const queryClient = useQueryClient()
   const myTeams = useMyTeams()
+  const paths = usePaths()
   const teams = $api.useQuery('get', '/teams')
   const [kind, setKind] = useState<'scrim' | 'official'>('scrim')
   const [playedOn, setPlayedOn] = useState(today())
@@ -71,7 +74,7 @@ function UploadForm() {
   const [link, setLink] = useState('')
   const [progress, setProgress] = useState<{ done: number; of: number } | null>(null)
   const [error, setError] = useState('')
-  const mine = myTeam ?? myTeams[0]?.id ?? null
+  const mine = myTeam ?? paths.team ?? myTeams[0]?.id ?? null
   const byName = useMemo(
     () => new Map((teams.data?.teams ?? []).map((t) => [t.name.toLowerCase(), t.id])),
     [teams.data],
@@ -96,7 +99,7 @@ function UploadForm() {
         },
       })
       setProgress(null)
-      if (fetched.error) setError(detail(fetched.error) || 'Линкийг хүлээж авсангүй.')
+      if (fetched.error) setError(errorText(fetched.error) || 'Линкийг хүлээж авсангүй.')
       else setLink('')
       queryClient.invalidateQueries({ queryKey: ['get', '/uploads'] })
       return
@@ -114,7 +117,7 @@ function UploadForm() {
       },
     })
     if (!made.data) {
-      setError(detail(made.error) || 'Upload эхлүүлж чадсангүй.')
+      setError(errorText(made.error) || 'Upload эхлүүлж чадсангүй.')
       return
     }
     const up = made.data
@@ -131,7 +134,7 @@ function UploadForm() {
         },
       })
       if (sent.error) {
-        setError(detail(sent.error) || `Хэсэг ${n + 1} явсангүй.`)
+        setError(errorText(sent.error) || `Хэсэг ${n + 1} явсангүй.`)
         setProgress(null)
         return
       }
@@ -140,7 +143,7 @@ function UploadForm() {
     const closed = await fetchClient.POST('/uploads/{public_id}/complete', {
       params: { path: { public_id: up.id } },
     })
-    if (closed.error) setError(detail(closed.error) || 'Upload-ыг хааж чадсангүй.')
+    if (closed.error) setError(errorText(closed.error) || 'Upload-ыг хааж чадсангүй.')
     setProgress(null)
     setFile(null)
     queryClient.invalidateQueries({ queryKey: ['get', '/uploads'] })
@@ -233,7 +236,7 @@ function UploadForm() {
           disabled={(!file && !link.trim()) || busy}
           className="rounded-md border border-line bg-raised px-4 py-2 text-ink hover:border-ink-3 disabled:opacity-50"
         >
-          Upload
+          Оруулах
         </button>
         {progress && (
           <span className="font-mono text-xs text-ink-2">
@@ -247,6 +250,7 @@ function UploadForm() {
 }
 
 function UploadCard({ upload: u }: { upload: Upload }) {
+  const paths = usePaths()
   const s = STATUS[u.status] ?? { text: u.status, tone: 'text-ink-2' }
   const opponent = u.opponent?.name ?? u.opponent_name
   return (
@@ -281,12 +285,12 @@ function UploadCard({ upload: u }: { upload: Upload }) {
       )}
       <div className="flex gap-4 text-xs">
         {u.match_id && (
-          <Link to={`/matches/${u.match_id}`} className="text-ct hover:underline">
+          <Link to={paths.match(u.match_id)} className="text-ct hover:underline">
             Review ба Replay →
           </Link>
         )}
         {u.job_id && (
-          <Link to={`/jobs/${u.job_id}`} className="text-ink-3 hover:underline">
+          <Link to={paths.job(u.job_id)} className="text-ink-3 hover:underline">
             Job-ын явц
           </Link>
         )}
@@ -357,9 +361,3 @@ function hostOf(url: string): string {
   }
 }
 
-function detail(error: unknown): string {
-  const d = (error as { detail?: unknown } | undefined)?.detail
-  if (typeof d === 'string') return d
-  if (Array.isArray(d)) return d.map((x) => (x as { msg?: string }).msg ?? '').join(' ')
-  return ''
-}

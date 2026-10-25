@@ -8,6 +8,8 @@ import { useMe } from '../auth/useMe'
 import { day } from '../jobs/format'
 import type { Shape } from '../replay/player'
 import DrawingThumb from '../review/DrawingThumb'
+import ConfirmButton from '../ui/ConfirmButton'
+import { usePaths } from '../paths'
 
 interface Ref {
   match: number
@@ -70,10 +72,11 @@ const KIND: Record<string, { label: string; tone: string }> = {
 export default function BriefingPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
+  const paths = usePaths()
   const staff = useMe().data?.role === 'staff'
   const b = $api.useQuery('get', '/briefings/{public_id}', { params: { path: { public_id: id } } })
   const share = $api.useMutation('post', '/briefings/{public_id}/share', { onSuccess: () => b.refetch() })
-  const remove = $api.useMutation('delete', '/briefings/{public_id}', { onSuccess: () => navigate('/briefings') })
+  const remove = $api.useMutation('delete', '/briefings/{public_id}', { onSuccess: () => navigate(paths.briefings()) })
   if (b.isError) return <p className="text-ink-2">Ийм Briefing алга.</p>
   if (!b.data) return <p className="text-ink-3">Уншиж байна…</p>
   const c = b.data.content as unknown as Content
@@ -105,13 +108,14 @@ export default function BriefingPage() {
           <button type="button" onClick={() => window.print()} className="rounded-md border border-line px-3 py-1.5 text-ink">
             Хэвлэх
           </button>
-          <button
-            type="button"
-            onClick={() => remove.mutate({ params: { path: { public_id: id } } })}
-            className="ml-auto text-ink-3 underline hover:text-ink"
-          >
-            Устгах
-          </button>
+          <span className="ml-auto">
+            <ConfirmButton
+              onConfirm={() => remove.mutate({ params: { path: { public_id: id } } })}
+              className="text-ink-3 underline hover:text-ink"
+            >
+              Устгах
+            </ConfirmButton>
+          </span>
         </div>
       )}
       {c.note && <p className="whitespace-pre-line rounded-md border-l-2 border-ct bg-surface px-4 py-3 text-ink">{c.note}</p>}
@@ -139,7 +143,7 @@ export default function BriefingPage() {
             <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
               <span className="text-ink-3">Stratbook:</span>
               {m.strats.map((s) => (
-                <Link key={s.id} to={`/stratbook/${s.id}`} className="text-ct hover:underline">
+                <Link key={s.id} to={paths.strat(s.id)} className="text-ct hover:underline">
                   {s.name} <span className="text-xs text-ink-3">{s.side.toUpperCase()}</span>
                 </Link>
               ))}
@@ -153,7 +157,7 @@ export default function BriefingPage() {
                   <figcaption className="space-y-0.5">
                     {d.text && <span className="block text-ink">{d.text}</span>}
                     <Link
-                      to={`/matches/${d.match_id}/m/${d.map_number}${d.round ? `?round=${d.round}` : ''}`}
+                      to={paths.match(d.match_id, d.map_number, d.round)}
                       className="text-xs text-ct hover:underline"
                     >
                       {d.teams}
@@ -187,7 +191,7 @@ export default function BriefingPage() {
                       {item.refs.map((r, j) => (
                         <Link
                           key={j}
-                          to={`/matches/${r.match}/m/${r.map}?round=${r.round}`}
+                          to={paths.match(r.match, r.map, r.round)}
                           className="text-ct hover:underline"
                         >
                           R{r.round}

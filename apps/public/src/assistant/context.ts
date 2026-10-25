@@ -20,14 +20,16 @@ export interface PageContext {
 const KEEP = { staleTime: Infinity }
 
 /** A v2 page (/v2/t/:team/...) read as the v1 page about the same subject: a
- *  Fixture for scouting and the Game plan, a Match Map for the report and the
- *  Replay, a Player, else the my team itself. */
+ *  Fixture for scouting, the Game plan and a new Briefing, a Match Map for the
+ *  report and the Replay, a Player, a Scout's job, else the my team itself. */
 export function asV1(pathname: string): string {
   const v2 = pathname.match(/^\/v2\/t\/(\d+)(?:\/(.*))?$/)
   if (!v2) return pathname
   const [, team, rest = ''] = v2
   const [section, a, b, c] = rest.split('/')
   if ((section === 'gameplan' || section === 'scouting') && a) return `/gameplan/${team}/vs/${a}`
+  if (section === 'briefings' && a === 'new' && b) return `/gameplan/${team}/vs/${b}`
+  if (section === 'jobs' && a) return `/jobs/${a}`
   if (section === 'matches' && a && b === 'm' && c) return `/matches/${a}/m/${c}`
   if (section === 'replay' && a && b) return `/matches/${a}/m/${b}`
   if (section === 'players' && a) return `/players/${a}`

@@ -1,6 +1,7 @@
 // The next Upcoming match (CONTEXT.md), and the form Staff enter one with.
 import { useState } from 'react'
 import { $api } from '../api/client'
+import { errorText } from '../api/errors'
 import type { components } from '../api/schema'
 import { TeamPicker, type PickedTeam } from './TeamPicker'
 import { at } from './team'
@@ -53,7 +54,7 @@ export function UpcomingForm(props: { teamId: number; onDone: () => void; oppone
       props.onDone()
     },
   })
-  const error = (save.error as { detail?: string } | null)?.detail
+  const error = errorText(save.error)
   return (
     <form
       className="flex flex-col gap-3"

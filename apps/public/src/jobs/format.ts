@@ -8,21 +8,13 @@ export type StageRow = components['schemas']['StageRow']
 export type MatchSummary = components['schemas']['MatchSummary']
 export type JobResult = components['schemas']['JobResult']
 
-// The job page speaks Mongolian like cstat's; the lists keep the English labels.
+// Job states as every page says them (Mongolian, like cstat's job page).
 export const STATUS_MN: Record<string, string> = {
   queued: 'Дараалалд',
   running: 'Ажиллаж байна',
   success: 'Дууслаа',
   failed: 'Унасан',
   cancelled: 'Цуцлагдсан',
-}
-
-export const STATUS_EN: Record<string, string> = {
-  queued: 'Queued',
-  running: 'Running',
-  success: 'Success',
-  failed: 'Failed',
-  cancelled: 'Cancelled',
 }
 
 export const PILL: Record<string, string> = {

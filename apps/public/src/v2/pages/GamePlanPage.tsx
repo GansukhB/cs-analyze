@@ -130,7 +130,7 @@ function Header(props: {
           </span>
         )}
         <div className="mt-1.5 flex flex-wrap gap-2">
-          <ButtonLink primary to={`/gameplan/${teamId}/vs/${d.opponent.id}/briefing`}>
+          <ButtonLink primary to={at(teamId, 'briefings', 'new', d.opponent.id)}>
             Briefing горим
           </ButtonLink>
           <Button onClick={() => window.print()}>PDF</Button>

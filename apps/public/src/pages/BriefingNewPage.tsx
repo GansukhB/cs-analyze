@@ -5,15 +5,22 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { $api } from '../api/client'
+import { errorText } from '../api/errors'
 import { type PickLine, pickLines } from '../briefing/lines'
 import { lineupQuery, readLineups } from '../gameplan/lineup'
+import { usePaths } from '../paths'
 import type { PlaybookMap, PlaybookPanel, TodoPanel } from '../gameplan/types'
 
 const field = 'w-full rounded-md border border-line bg-surface-2 px-3 py-2 text-sm text-ink'
+// What one Map of a Briefing may hold (BriefingMapPick in the API).
+const MAX_LINES = 40
+const MAX_STRATS = 20
+const MAX_DRAWINGS = 6
 
 export default function BriefingNewPage() {
   const params = useParams()
-  const mine = Number(params.mine)
+  const paths = usePaths()
+  const mine = Number(params.mine ?? paths.team)
   const theirs = Number(params.theirs)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -33,7 +40,7 @@ export default function BriefingNewPage() {
   const [drawings, setDrawings] = useState<Record<string, number[]>>({})
   const [open, setOpen] = useState<string | null>(null)
   const save = $api.useMutation('post', '/briefings', {
-    onSuccess: (b) => navigate(`/briefings/${b.id}`),
+    onSuccess: (b) => navigate(paths.briefing(b.id)),
   })
   const [checks, setChecks] = useState<Record<string, string[]>>({})
   const draft = $api.useMutation('post', '/briefings/draft', {
@@ -74,14 +81,13 @@ export default function BriefingNewPage() {
   function submit(share: boolean) {
     save.mutate({ body: body(share) })
   }
-  const error =
-    (save.error as { detail?: string } | undefined)?.detail ?? (draft.error as { detail?: string } | undefined)?.detail
+  const error = errorText(save.error) || errorText(draft.error)
   const flagged = Object.entries(checks)
 
   return (
     <div className="space-y-6">
       <p className="font-mono text-xs text-ink-3">
-        <Link to={`/gameplan/${mine}/vs/${theirs}?${searchParams}`} className="hover:underline">
+        <Link to={`${paths.gameplan(mine, theirs)}?${searchParams}`} className="hover:underline">
           {header.data.my_team.name} — {header.data.opponent.name}
         </Link>{' '}
         / Briefing
@@ -228,6 +234,9 @@ function MapPicker(props: {
       </button>
       {open && (
         <div className="space-y-4 border-t-1 border-line px-4 py-3 text-sm">
+          {picked.length >= MAX_LINES && (
+            <p className="text-xs text-warn">Нэг Map-д {MAX_LINES} мөр хүртэл: өөр мөр нэмэх бол аль нэгийг нь авна уу.</p>
+          )}
           {!panel.data ? (
             <p className="text-ink-3">{panel.isError ? 'Playbook-ийг уншиж чадсангүй.' : 'Playbook-ийг бодож байна…'}</p>
           ) : lines.length === 0 ? (
@@ -238,7 +247,12 @@ function MapPicker(props: {
                 <p className="text-xs uppercase tracking-wide text-ink-3">{group}</p>
                 {items.map((l) => (
                   <label key={l.path} className="flex gap-2 text-ink-2">
-                    <input type="checkbox" checked={picked.includes(l.path)} onChange={() => toggle(l.path)} />
+                    <input
+                      type="checkbox"
+                      checked={picked.includes(l.path)}
+                      onChange={() => toggle(l.path)}
+                      disabled={!picked.includes(l.path) && picked.length >= MAX_LINES}
+                    />
                     <span>
                       <span className="text-ink">{l.title}</span>
                       {l.sub && <span className="block text-xs text-ink-3">{l.sub}</span>}
@@ -255,7 +269,12 @@ function MapPicker(props: {
             ) : (
               shared.map((s) => (
                 <label key={s.id} className="flex gap-2 text-ink-2">
-                  <input type="checkbox" checked={props.strats.includes(s.id)} onChange={() => flip(s.id)} />
+                  <input
+                    type="checkbox"
+                    checked={props.strats.includes(s.id)}
+                    onChange={() => flip(s.id)}
+                    disabled={!props.strats.includes(s.id) && props.strats.length >= MAX_STRATS}
+                  />
                   <span>
                     <span className="text-ink">{s.name}</span>{' '}
                     <span className="text-xs text-ink-3">
@@ -275,7 +294,7 @@ function MapPicker(props: {
                     type="checkbox"
                     checked={props.drawings.includes(d.id)}
                     onChange={() => flipDrawing(d.id)}
-                    disabled={!props.drawings.includes(d.id) && props.drawings.length >= 6}
+                    disabled={!props.drawings.includes(d.id) && props.drawings.length >= MAX_DRAWINGS}
                   />
                   <span>
                     <span className="text-ink">{d.text || `${d.shapes.length} тэмдэг`}</span>{' '}

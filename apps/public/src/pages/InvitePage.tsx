@@ -4,6 +4,7 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { $api } from '../api/client'
+import { errorText } from '../api/errors'
 import { tokenStore } from '../auth/token'
 
 const input =
@@ -29,7 +30,7 @@ export default function InvitePage({ token }: { token: string }) {
     accept.mutate({ params: { path: { token } }, body: { username, password } })
   }
 
-  const error = (accept.error as { detail?: string } | undefined)?.detail
+  const error = errorText(accept.error)
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-4 rounded-xl border border-line bg-surface p-8">

@@ -63,7 +63,7 @@ export default function ScoutingPage() {
             <ButtonLink primary to={at(team.id, 'gameplan', d.opponent.id)}>
               Game plan нээх
             </ButtonLink>
-            <ButtonLink to={`/gameplan/${team.id}/vs/${d.opponent.id}/briefing`}>Briefing (тайлан хуваалцах)</ButtonLink>
+            <ButtonLink to={at(team.id, 'briefings', 'new', d.opponent.id)}>Briefing (тайлан хуваалцах)</ButtonLink>
           </>
         }
       />

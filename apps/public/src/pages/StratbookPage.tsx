@@ -5,11 +5,14 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { $api } from '../api/client'
+import { errorText } from '../api/errors'
 import { useMe, useMyTeams } from '../auth/useMe'
 import { day } from '../jobs/format'
+import { usePaths } from '../paths'
 import { KINDS, type StratWrite } from '../strat/kinds'
 import StratForm from '../strat/StratForm'
 import Board from '../strat/Board'
+import ConfirmButton from '../ui/ConfirmButton'
 import type { components } from '../api/schema'
 
 type BoardShape = components['schemas']['BoardShape']
@@ -21,7 +24,8 @@ const STATUS: Record<string, string> = { draft: 'ноорог', active: 'идэ�
 export function StratbookPage() {
   const myTeams = useMyTeams()
   const staff = useMe().data?.role === 'staff'
-  const [teamId, setTeamId] = useState<number | null>(null)
+  const paths = usePaths()
+  const [teamId, setTeamId] = useState<number | null>(paths.team)
   const team = teamId ?? myTeams[0]?.id ?? null
   const maps = $api.useQuery('get', '/strats/maps')
   const strats = $api.useQuery('get', '/strats', { params: { query: team ? { team_id: team } : {} } })
@@ -79,7 +83,7 @@ export function StratbookPage() {
                       .map((s) => (
                         <Link
                           key={s.id}
-                          to={`/stratbook/${s.id}`}
+                          to={paths.strat(s.id)}
                           className={`block hover:underline ${s.status === 'active' ? 'text-ct' : 'text-ink-3'}`}
                         >
                           {s.name} <span className="text-xs text-ink-3">{kindLabel(s.kind)} · {STATUS[s.status]}</span>
@@ -87,7 +91,7 @@ export function StratbookPage() {
                         </Link>
                       ))}
                     {staff && team && (
-                      <Link to={`/stratbook/new?team=${team}&map=${m}&side=${side}`} className="block text-xs text-ink-3 hover:text-ink">
+                      <Link to={`${paths.stratNew(team)}&map=${m}&side=${side}`} className="block text-xs text-ink-3 hover:text-ink">
                         + Strat
                       </Link>
                     )}
@@ -107,10 +111,11 @@ export function StratNewPage() {
   const myTeams = useMyTeams()
   const maps = $api.useQuery('get', '/strats/maps')
   const navigate = useNavigate()
-  const create = $api.useMutation('post', '/strats', { onSuccess: (s) => navigate(`/stratbook/${s.id}`) })
+  const paths = usePaths()
+  const create = $api.useMutation('post', '/strats', { onSuccess: (s) => navigate(paths.strat(s.id)) })
   if (!maps.data || !myTeams.length) return <p className="text-ink-3">Уншиж байна…</p>
   const initial: StratWrite = {
-    team_id: Number(search.get('team')) || myTeams[0].id,
+    team_id: Number(search.get('team')) || paths.team || myTeams[0].id,
     map_name: search.get('map') || maps.data[0],
     side: search.get('side') === 'ct' ? 'ct' : 't',
     name: '',
@@ -128,7 +133,7 @@ export function StratNewPage() {
   return (
     <div className="space-y-4">
       <p className="font-mono text-xs text-ink-3">
-        <Link to="/stratbook" className="hover:underline">
+        <Link to={paths.stratbook()} className="hover:underline">
           Stratbook
         </Link>{' '}
         / шинэ
@@ -139,7 +144,7 @@ export function StratNewPage() {
         teams={myTeams}
         maps={maps.data}
         busy={create.isPending}
-        error={(create.error as { detail?: string } | undefined)?.detail}
+        error={errorText(create.error)}
         onSave={(body) => create.mutate({ body })}
       />
     </div>
@@ -154,6 +159,7 @@ export function StratPage() {
   const maps = $api.useQuery('get', '/strats/maps')
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const paths = usePaths()
   const [editing, setEditing] = useState(false)
   const [round, setRound] = useState({ match_id: '', map_number: '1', round: '' })
   const refresh = () => {
@@ -171,7 +177,7 @@ export function StratPage() {
   const remove = $api.useMutation('delete', '/strats/{strat_id}', {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['get', '/strats'] })
-      navigate('/stratbook')
+      navigate(paths.stratbook())
     },
   })
   const printed = $api.useMutation('post', '/strats/{strat_id}/print')
@@ -196,7 +202,7 @@ export function StratPage() {
           teams={myTeams}
           maps={maps.data}
           busy={save.isPending}
-          error={(save.error as { detail?: string } | undefined)?.detail}
+          error={errorText(save.error)}
           onSave={(body) => save.mutate({ ...path, body })}
         />
         <button type="button" onClick={() => setEditing(false)} className="text-sm text-ink-3 hover:text-ink">
@@ -208,7 +214,7 @@ export function StratPage() {
   return (
     <article className="space-y-5">
       <p className="font-mono text-xs text-ink-3">
-        <Link to="/stratbook" className="hover:underline">
+        <Link to={paths.stratbook()} className="hover:underline">
           Stratbook
         </Link>{' '}
         / {label(s.map_name)} {s.side.toUpperCase()}
@@ -296,7 +302,7 @@ export function StratPage() {
         <ul className="space-y-0.5 text-sm">
           {s.examples_list.map((e) => (
             <li key={e.id}>
-              <Link to={`/matches/${e.match_id}/m/${e.map_number}?round=${e.round}`} className="text-ct hover:underline">
+              <Link to={paths.match(e.match_id, e.map_number, e.round)} className="text-ct hover:underline">
                 ▶ {e.label}
               </Link>
               {!e.confirmed && (
@@ -478,9 +484,11 @@ function StaffTrail({ id, versions, onDelete }: { id: number; versions: number; 
               </li>
             ))}
           </ul>
-          <button type="button" onClick={onDelete} className="justify-self-start text-xs text-ink-3 hover:text-crit">
-            Strat-ийг устгах
-          </button>
+          <span className="justify-self-start text-xs">
+            <ConfirmButton onConfirm={onDelete} className="text-ink-3 hover:text-crit">
+              Strat-ийг устгах
+            </ConfirmButton>
+          </span>
         </div>
       )}
     </section>

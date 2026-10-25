@@ -3,10 +3,12 @@
 // Forecast against the result. Staff only.
 import { Link } from 'react-router'
 import { $api } from '../api/client'
+import { usePaths } from '../paths'
 
 const pct = (v: number | null | undefined) => (v == null ? '—' : `${v}%`)
 
 export default function Check({ id }: { id: string }) {
+  const paths = usePaths()
   const check = $api.useQuery('get', '/briefings/{public_id}/check', { params: { path: { public_id: id } } })
   if (!check.data) return null
   const c = check.data
@@ -23,7 +25,7 @@ export default function Check({ id }: { id: string }) {
     <section className="space-y-3 rounded-xl border border-line bg-surface p-4 text-sm">
       <h2 className="font-medium text-ink">
         Тоглолтын дараах шалгалт ·{' '}
-        <Link to={`/matches/${c.match_id}`} className="text-ct hover:underline">
+        <Link to={paths.match(c.match_id)} className="text-ct hover:underline">
           тоглолт
         </Link>
       </h2>
@@ -76,7 +78,7 @@ export default function Check({ id }: { id: string }) {
                   {r?.refs.slice(0, 4).map((ref) => (
                     <Link
                       key={`${ref.map}-${ref.round}`}
-                      to={`/matches/${ref.match}/m/${ref.map}?round=${ref.round}`}
+                      to={paths.match(ref.match, ref.map, ref.round)}
                       className="font-mono text-xs text-ct"
                     >
                       R{ref.round}

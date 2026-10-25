@@ -3,6 +3,7 @@
 // or not.
 import { Link } from 'react-router'
 import { $api } from '../api/client'
+import { usePaths } from '../paths'
 import Count from '../components/Count'
 import { day } from '../jobs/format'
 
@@ -10,6 +11,7 @@ const pct5 = (p: number) => `~${Math.round(p * 20) * 5}%`
 const fixed = (v: number | null | undefined, n = 3) => (v === null || v === undefined ? '—' : v.toFixed(n))
 
 export default function ForecastsPage() {
+  const paths = usePaths()
   const list = $api.useQuery('get', '/forecasts')
   if (list.isError) return <p className="text-crit">Forecast-уудыг уншиж чадсангүй.</p>
   if (!list.data) return <p className="text-ink-3">Уншиж байна…</p>
@@ -47,7 +49,7 @@ export default function ForecastsPage() {
 
       {items.length === 0 ? (
         <p className="text-sm text-ink-3">
-          Forecast алга. <Link to="/gameplan" className="text-ct hover:underline">Game plan</Link>-ийн «Шийдвэр» tab-аас
+          Forecast алга. <Link to={paths.gameplanPick()} className="text-ct hover:underline">Game plan</Link>-ийн «Шийдвэр» tab-аас
           хадгална.
         </p>
       ) : (
@@ -71,7 +73,7 @@ export default function ForecastsPage() {
                     <td className="px-4 py-2 whitespace-nowrap text-ink-3">{day(f.created_at)}</td>
                     <td className="px-4 py-2">
                       <Link
-                        to={`/gameplan/${f.my_team.id}/vs/${f.opponent.id}`}
+                        to={paths.gameplan(f.my_team.id, f.opponent.id)}
                         className="font-medium text-ct hover:underline"
                       >
                         {f.my_team.name} vs {f.opponent.name}

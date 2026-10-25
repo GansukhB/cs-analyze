@@ -1,6 +1,6 @@
-import { PILL, STATUS_EN } from './format'
+import { PILL, STATUS_MN } from './format'
 
-export default function StatusPill({ status, labels = STATUS_EN }: {
+export default function StatusPill({ status, labels = STATUS_MN }: {
   status: string
   labels?: Record<string, string>
 }) {

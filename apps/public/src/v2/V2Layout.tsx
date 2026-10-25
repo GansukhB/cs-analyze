@@ -31,6 +31,27 @@ const NAV: [string, string][][] = [
   ],
 ]
 
+// «Бусад ▾»: the v1 pages v2 shows in its frame (grilling 2026-10-25), grouped.
+const MORE: [string, [string, string][]][] = [
+  [
+    'Ажил',
+    [
+      ['scout', 'Шинэ Scout'],
+      ['jobs', 'Ажлууд'],
+      ['uploads', 'Демо оруулах'],
+    ],
+  ],
+  [
+    'Бэлтгэл',
+    [
+      ['briefings', 'Briefing'],
+      ['stratbook', 'Stratbook'],
+    ],
+  ],
+  ['Шинжилгээ', [['forecasts', 'Forecast']]],
+  ['Байгууллага', [['workspace', 'Workspace']]],
+]
+
 export default function V2Layout() {
   const me = useMe()
   const mine = useMyTeams()
@@ -70,40 +91,45 @@ function Header({ teamId }: { teamId: number }) {
         </svg>
         <span className="cond text-[17px] font-bold tracking-[0.14em]">DEMOLAB</span>
       </Link>
-      <nav
-        aria-label="Үндсэн цэс"
-        className="order-3 -mx-1 flex w-full items-center gap-x-2 overflow-x-auto xl:order-none xl:mx-0 xl:w-auto xl:flex-1 xl:flex-wrap"
-      >
-        {NAV.map((group, gi) => (
-          <div key={gi} className={`flex items-center gap-0.5 ${gi ? 'border-l border-line-strong pl-2' : ''}`}>
-            {group.map(([key, label]) => (
-              <NavLink
-                key={key}
-                to={key ? at(teamId, key) : at(teamId)}
-                end={!key}
-                className={({ isActive }) =>
-                  `plain border-b-2 px-2 py-3 text-sm font-medium whitespace-nowrap ${
-                    isActive ? 'border-accent !text-ink' : 'border-transparent !text-ink-3 hover:!text-ink'
-                  }`
-                }
-              >
-                {label}
-              </NavLink>
-            ))}
-          </div>
-        ))}
-      </nav>
+      {/* On a phone the nav scrolls on its own row with «Бусад» pinned at its end,
+          outside the scrolling box so the menu isn't clipped. */}
+      <div className="order-3 flex w-full min-w-0 items-center gap-x-2 xl:order-none xl:w-auto xl:flex-1">
+        <nav
+          aria-label="Үндсэн цэс"
+          className="-mx-1 flex min-w-0 flex-1 items-center gap-x-2 overflow-x-auto xl:mx-0 xl:flex-none"
+        >
+          {NAV.map((group, gi) => (
+            <div key={gi} className={`flex items-center gap-0.5 ${gi ? 'border-l border-line-strong pl-2' : ''}`}>
+              {group.map(([key, label]) => (
+                <NavLink
+                  key={key}
+                  to={key ? at(teamId, key) : at(teamId)}
+                  end={!key}
+                  className={({ isActive }) =>
+                    `plain border-b-2 px-2 py-3 text-sm font-medium whitespace-nowrap ${
+                      isActive ? 'border-accent !text-ink' : 'border-transparent !text-ink-3 hover:!text-ink'
+                    }`
+                  }
+                >
+                  {label}
+                </NavLink>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <More teamId={teamId} />
+      </div>
       <div className="ml-auto flex items-center gap-2.5">
         <TeamSwitch teamId={teamId} />
         <Link
-          to="/uploads"
+          to={at(teamId, 'uploads')}
           aria-label="Демо оруулах"
           className="plain flex h-11 items-center gap-2 rounded-md border border-accent px-4 text-sm font-semibold !text-accent"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
             <path d="M12 16V4M6 10l6-6 6 6M4 20h16" />
           </svg>
-          <span className="hidden sm:inline">Демо оруулах</span>
+          <span className="hidden sm:inline xl:hidden 2xl:inline">Демо оруулах</span>
         </Link>
         <UserMenu />
       </div>
@@ -111,7 +137,12 @@ function Header({ teamId }: { teamId: number }) {
   )
 }
 
-function Popover(props: { button: (open: boolean, toggle: () => void) => React.ReactNode; children: (close: () => void) => React.ReactNode }) {
+function Popover(props: {
+  button: (open: boolean, toggle: () => void) => React.ReactNode
+  children: (close: () => void) => React.ReactNode
+  /** Where the menu opens from, as position classes (default: under the right edge). */
+  align?: string
+}) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -131,7 +162,7 @@ function Popover(props: { button: (open: boolean, toggle: () => void) => React.R
     <div ref={ref} className="relative">
       {props.button(open, () => setOpen((o) => !o))}
       {open && (
-        <div className="absolute right-0 z-30 mt-1 min-w-56 rounded-md border border-line-strong bg-raised p-1 shadow-xl">
+        <div className={`absolute ${props.align ?? 'right-0'} z-30 mt-1 min-w-56 rounded-md border border-line-strong bg-raised p-1 shadow-xl`}>
           {props.children(() => setOpen(false))}
         </div>
       )}
@@ -147,7 +178,8 @@ function TeamSwitch({ teamId }: { teamId: number }) {
   // Switching keeps the section (overview, practice...) but drops what belongs to
   // the old team (a Match, a Player, an opponent).
   const section = location.pathname.split('/')[4] ?? ''
-  const keep = ['spatial', 'utility', 'practice', 'owner', 'matches', 'replay', 'players', 'scouting', 'gameplan']
+  const keep = ['spatial', 'utility', 'practice', 'owner', 'matches', 'replay', 'players', 'scouting', 'gameplan',
+    ...MORE.flatMap(([, items]) => items.map(([key]) => key))]
   return (
     <Popover
       button={(open, toggle) => (
@@ -162,7 +194,7 @@ function TeamSwitch({ teamId }: { teamId: number }) {
             {initials(current?.name ?? '?')}
           </span>
           {current?.name}
-          {current?.label && <span className="text-ink-3">· {current.label}</span>}
+          {current?.label && <span className="hidden text-ink-3 2xl:inline">· {current.label}</span>}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M6 9l6 6 6-6" />
           </svg>
@@ -219,13 +251,7 @@ function UserMenu() {
           <span className="px-3 py-2 text-ink-3">
             {me.data.workspace.name} · {me.data.username}
           </span>
-          {[
-            ['/workspace', 'Workspace'],
-            ['/jobs', 'Jobs (Scout)'],
-            ['/stratbook', 'Stratbook'],
-            ['/briefings', 'Briefing'],
-            ['/', 'Хуучин хувилбар (v1)'],
-          ].map(([to, label]) => (
+          {[['/', 'Хуучин хувилбар (v1)']].map(([to, label]) => (
             <Link key={to} to={to} onClick={close} className="plain rounded px-3 py-2.5 !text-ink hover:bg-chip">
               {label}
             </Link>
@@ -240,6 +266,55 @@ function UserMenu() {
           >
             Гарах
           </button>
+        </div>
+      )}
+    </Popover>
+  )
+}
+
+function More({ teamId }: { teamId: number }) {
+  const location = useLocation()
+  const section = location.pathname.split('/')[4] ?? ''
+  const here = MORE.some(([, items]) => items.some(([key]) => key === section))
+  return (
+    <Popover
+      align="right-0 xl:right-auto xl:left-0"
+      button={(open, toggle) => (
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-haspopup="menu"
+          onClick={toggle}
+          className={`flex items-center gap-1 border-b-2 px-2 py-3 text-sm font-medium whitespace-nowrap ${
+            here ? 'border-accent text-ink' : 'border-transparent text-ink-3 hover:text-ink'
+          }`}
+        >
+          Бусад
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+      )}
+    >
+      {(close) => (
+        <div className="flex flex-col gap-1 py-1 text-sm">
+          {MORE.map(([group, items]) => (
+            <div key={group} className="flex flex-col">
+              <span className="lbl px-3 pt-1.5 pb-1">{group}</span>
+              {items.map(([key, label]) => (
+                <NavLink
+                  key={key}
+                  to={at(teamId, key)}
+                  onClick={close}
+                  className={({ isActive }) =>
+                    `plain rounded px-3 py-2 hover:bg-chip ${isActive ? '!text-accent' : '!text-ink'}`
+                  }
+                >
+                  {label}
+                </NavLink>
+              ))}
+            </div>
+          ))}
         </div>
       )}
     </Popover>

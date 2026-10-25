@@ -4,6 +4,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { $api } from '../api/client'
+import { errorText } from '../api/errors'
 import type { components } from '../api/schema'
 import { useMe, useMyTeams } from '../auth/useMe'
 import { day } from '../jobs/format'
@@ -25,7 +26,7 @@ export default function WorkspacePage() {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold text-ink">{me.data?.workspace.name ?? 'Workspace'}</h1>
         <p className="text-ink-2">
-          My team: {myTeams.map((t) => t.name + (t.label ? ` (${t.label})` : '')).join(', ') || '—'}
+          Манай баг: {myTeams.map((t) => t.name + (t.label ? ` (${t.label})` : '')).join(', ') || '—'}
         </p>
       </div>
 
@@ -54,7 +55,7 @@ export default function WorkspacePage() {
           <table className="w-full text-sm">
             <thead className="border-b border-line text-left text-xs uppercase text-ink-3">
               <tr>
-                <th className="px-4 py-2">Username</th>
+                <th className="px-4 py-2">Нэвтрэх нэр</th>
                 <th className="px-4 py-2">Эрх</th>
                 <th className="px-4 py-2">Тоглогч</th>
                 <th className="px-4 py-2">Сүүлд нэвтэрсэн</th>
@@ -193,7 +194,7 @@ function InviteForm({ onLink }: { onLink: (l: { url: string; what: string }) => 
       refresh()
     },
   })
-  const error = (make.error as { detail?: string } | undefined)?.detail
+  const error = errorText(make.error)
   return (
     <section className="space-y-3 rounded-xl border border-line bg-surface p-4 text-sm">
       <h2 className="font-medium text-ink">Урих</h2>
@@ -270,7 +271,7 @@ function MemberRow({
       refresh()
     },
   })
-  const error = (change.error as { detail?: string } | undefined)?.detail
+  const error = errorText(change.error)
   return (
     <tr className={`border-b border-line-soft last:border-0 ${m.is_active ? '' : 'text-ink-3'}`}>
       <td className="px-4 py-2">

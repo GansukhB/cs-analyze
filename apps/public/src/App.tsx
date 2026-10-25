@@ -11,6 +11,7 @@ import LoginPage from './pages/LoginPage'
 import MePage from './pages/MePage'
 import TeamsPage from './pages/TeamsPage'
 import V2Layout from './v2/V2Layout'
+import Legacy from './v2/Legacy'
 
 
 // OPS-8: the heavy pages (the Replay, the Game Plan, the Stratbook...) load when
@@ -85,6 +86,19 @@ export default function App() {
         <Route path="utility" element={<V2Utility />} />
         <Route path="practice" element={<V2Practice />} />
         <Route path="owner" element={<V2Owner />} />
+        {/* v1 pages in the v2 frame: their links follow it (paths.ts). */}
+        <Route path="workspace" element={<Legacy><WorkspacePage /></Legacy>} />
+        <Route path="briefings" element={<Legacy><BriefingsPage /></Legacy>} />
+        <Route path="briefings/new/:theirs" element={<Legacy><BriefingNewPage /></Legacy>} />
+        <Route path="briefings/:id" element={<Legacy><BriefingPage /></Legacy>} />
+        <Route path="forecasts" element={<Legacy><ForecastsPage /></Legacy>} />
+        <Route path="scout" element={<Legacy><HomePage /></Legacy>} />
+        <Route path="jobs" element={<Legacy><JobsPage /></Legacy>} />
+        <Route path="jobs/:publicId" element={<Legacy><JobPage /></Legacy>} />
+        <Route path="uploads" element={<Legacy><UploadsPage /></Legacy>} />
+        <Route path="stratbook" element={<Legacy><StratbookPage /></Legacy>} />
+        <Route path="stratbook/new" element={<Legacy><StratNewPage /></Legacy>} />
+        <Route path="stratbook/:stratId" element={<Legacy><StratPage /></Legacy>} />
       </Route>
       <Route element={<Layout />}>
         <Route index element={<Home />} />

@@ -470,8 +470,8 @@ function Pipeline({ d, teamId }: { d: Overview; teamId: number }) {
       sub=".dem файл, архив эсвэл линк · HLTV-ийн Scout"
       right={
         <div className="flex gap-4 text-sm">
-          <Link to="/uploads">Демо оруулах</Link>
-          <Link to="/jobs">Бүх ажил</Link>
+          <Link to={at(teamId, 'uploads')}>Демо оруулах</Link>
+          <Link to={at(teamId, 'jobs')}>Бүх ажил</Link>
         </div>
       }
     >
@@ -479,7 +479,7 @@ function Pipeline({ d, teamId }: { d: Overview; teamId: number }) {
         {d.jobs.map((j) => (
           <Link
             key={j.public_id}
-            to={`/jobs/${j.public_id}`}
+            to={at(teamId, 'jobs', j.public_id)}
             className="plain flex flex-col gap-1.5 rounded-md border border-line-soft bg-surface-2 p-3 !text-ink"
           >
             <span className="num text-xs text-ink-3">{j.kind === 'scout' ? 'Scout' : j.kind}</span>
@@ -490,7 +490,7 @@ function Pipeline({ d, teamId }: { d: Overview; teamId: number }) {
           </Link>
         ))}
         {d.uploads.map((u) => (
-          <Link key={`u${u.id}`} to="/uploads" className="plain flex flex-col gap-1.5 rounded-md border border-line-soft bg-surface-2 p-3 !text-ink">
+          <Link key={`u${u.id}`} to={at(teamId, 'uploads')} className="plain flex flex-col gap-1.5 rounded-md border border-line-soft bg-surface-2 p-3 !text-ink">
             <span className="num text-xs text-ink-3">Upload · {u.kind}</span>
             <span className="cond truncate text-base font-semibold">{u.filename}</span>
             <span className="num text-[13px]" style={{ color: STATUS_COLOR[u.status] ?? MUTED }}>
