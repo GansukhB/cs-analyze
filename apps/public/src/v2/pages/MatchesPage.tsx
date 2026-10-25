@@ -21,7 +21,7 @@ export default function MatchesPage() {
       <PageHead
         label="Тоглолтын тайлан"
         title={`${team.name} · тоглолтууд`}
-        sub="Газрын зургаа сонгоход тайлан нь нээгдэнэ"
+        sub="Газрын зураг дээр дарвал тайлан, ▸ 2D дээр дарвал 2D Replay нээгдэнэ"
         actions={
           <Toggle
             label="Тоглолтын төрөл"
@@ -66,13 +66,27 @@ export default function MatchesPage() {
                         <div className="flex flex-wrap gap-2">
                           {m.maps.map((mm) =>
                             mm.parsed ? (
-                              <Link
-                                key={mm.map_number}
-                                to={at(team.id, 'matches', m.match_id, 'm', mm.map_number)}
-                                className="plain rounded border border-line-strong px-2 py-1 text-[13px] !text-ink hover:border-accent"
-                              >
-                                {mm.label} <span className="num text-ink-3">{mm.score}</span>
-                              </Link>
+                              // The Map's report, and beside it its 2D Replay.
+                              <span key={mm.map_number} className="inline-flex overflow-hidden rounded border border-line-strong text-[13px]">
+                                <Link
+                                  to={at(team.id, 'matches', m.match_id, 'm', mm.map_number)}
+                                  title="Тоглолтын тайлан"
+                                  className="plain px-2 py-1 !text-ink hover:bg-chip"
+                                >
+                                  {mm.label} <span className="num text-ink-3">{mm.score}</span>
+                                </Link>
+                                <Link
+                                  to={at(team.id, 'replay', m.match_id, mm.map_number)}
+                                  title="2D Replay"
+                                  aria-label={`${mm.label} 2D Replay`}
+                                  className="plain flex items-center gap-1 border-l border-line-strong px-2 py-1 !text-accent hover:bg-accent-soft"
+                                >
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M7 4.5v15L19.5 12z" />
+                                  </svg>
+                                  2D
+                                </Link>
+                              </span>
                             ) : (
                               <span key={mm.map_number} className="px-2 py-1 text-[13px] text-ink-3">
                                 {mm.label} {mm.score}
