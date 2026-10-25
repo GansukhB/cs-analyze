@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date
 from enum import StrEnum
 
-from sqlalchemy import Date, ForeignKey, String, Text
+from sqlalchemy import Date, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -41,3 +41,21 @@ class DevelopmentGoal(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(12), default=GoalStatus.ACTIVE)
     notes: Mapped[str] = mapped_column(Text, default="")
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+
+class DevelopmentNote(TimestampMixin, Base):
+    """Staff's running note on one Player, beside his Development plan's goals
+    (the v2 player page's coach note; grilling Q7). One per Workspace and Player."""
+
+    __tablename__ = "development_notes"
+    __table_args__ = (UniqueConstraint("workspace_id", "player_id", name="uq_dev_note"),)
+
+    id: Mapped[int] = mapped_column(BigId, primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        BigId, ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    player_id: Mapped[int] = mapped_column(
+        BigId, ForeignKey("players.id", ondelete="CASCADE"), index=True
+    )
+    text: Mapped[str] = mapped_column(Text, default="")
+    updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

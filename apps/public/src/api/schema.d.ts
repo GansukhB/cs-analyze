@@ -2018,6 +2018,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/teams/{team_id}/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Roster
+         * @description The my team's five on its latest parsed Match Map.
+         */
+        get: operations["roster_v2_teams__team_id__players_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/teams/{team_id}/players/{steamid}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Profile */
+        get: operations["profile_v2_teams__team_id__players__steamid__profile_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/players/{steamid}/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Note */
+        put: operations["put_note_v2_players__steamid__note_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -2977,6 +3031,13 @@ export interface components {
             /** Why */
             why: string;
         };
+        /** DevNote */
+        DevNote: {
+            /** Text */
+            text: string;
+            /** Updated At */
+            updated_at: string | null;
+        };
         /** DevelopmentPlan */
         DevelopmentPlan: {
             /** Goals */
@@ -3026,6 +3087,23 @@ export interface components {
             teams: string;
             /** Shapes */
             shapes: components["schemas"]["NoteShape"][];
+        };
+        /** DuelCell */
+        DuelCell: {
+            /**
+             * Distance
+             * @enum {string}
+             */
+            distance: "near" | "mid" | "far";
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "early" | "mid" | "late";
+            /** Won */
+            won: number;
+            /** Lost */
+            lost: number;
         };
         /** FixtureStyle */
         FixtureStyle: {
@@ -3137,6 +3215,25 @@ export interface components {
             won: boolean | null;
             /** Scrim */
             scrim: boolean;
+        };
+        /** FormMap */
+        FormMap: {
+            /** Match Id */
+            match_id: number;
+            /** Map Number */
+            map_number: number;
+            /** Map */
+            map: string;
+            /** Played At */
+            played_at: string | null;
+            /** Opponent */
+            opponent: string;
+            /** Scrim */
+            scrim: boolean;
+            /** Won */
+            won: boolean | null;
+            /** Rating */
+            rating: number;
         };
         /** GameplanHeader */
         GameplanHeader: {
@@ -4417,6 +4514,11 @@ export interface components {
              */
             text: string;
         };
+        /** NoteWrite */
+        NoteWrite: {
+            /** Text */
+            text: string;
+        };
         /** OpeningLine */
         OpeningLine: {
             /** Sid */
@@ -4755,6 +4857,43 @@ export interface components {
             pressure: components["schemas"]["PressureLine"][];
             consistency?: components["schemas"]["Consistency"] | null;
         };
+        /** PlayerProfile */
+        PlayerProfile: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Aliases */
+            aliases: string[];
+            team: components["schemas"]["TeamRef"];
+            /** Rounds */
+            rounds: number;
+            /** Maps */
+            maps: number;
+            /** Clutch Won */
+            clutch_won: number;
+            /** Clutch Of */
+            clutch_of: number;
+            /** Pool Players */
+            pool_players: number;
+            kpis: components["schemas"]["ProfileKpis"];
+            team_kpis: components["schemas"]["ProfileKpis"];
+            pool_kpis: components["schemas"]["ProfileKpis"];
+            axes: components["schemas"]["ProfileAxes"];
+            team_axes: components["schemas"]["ProfileAxes"];
+            /** Mates */
+            mates: components["schemas"]["ProfileMate"][];
+            form: components["schemas"]["ProfileForm"];
+            mechanics: components["schemas"]["ProfileMechanics"] | null;
+            /** Duels */
+            duels: components["schemas"]["DuelCell"][];
+            positions: components["schemas"]["ProfilePositions"];
+            /** Weapons */
+            weapons: components["schemas"]["ProfileWeapon"][];
+            /** Lines */
+            lines: components["schemas"]["ProfileLine"][];
+            note: components["schemas"]["DevNote"] | null;
+        };
         /** PlayerRef */
         PlayerRef: {
             /**
@@ -4935,6 +5074,13 @@ export interface components {
              */
             shared: boolean;
         };
+        /** PositionMap */
+        PositionMap: {
+            /** Map */
+            map: string;
+            /** N */
+            n: number;
+        };
         /** PracticeWeek */
         PracticeWeek: {
             team: components["schemas"]["TeamRef"] | null;
@@ -4961,6 +5107,129 @@ export interface components {
             per_round: number | null;
             /** Pool Per Round */
             pool_per_round: number | null;
+        };
+        /** ProfileAxes */
+        ProfileAxes: {
+            /** Firepower */
+            firepower?: number | null;
+            /** Entry */
+            entry?: number | null;
+            /** Trade */
+            trade?: number | null;
+            /** Utility */
+            utility?: number | null;
+            /** Clutch */
+            clutch?: number | null;
+            /** Survival */
+            survival?: number | null;
+            /** Opening */
+            opening?: number | null;
+        };
+        /** ProfileForm */
+        ProfileForm: {
+            /** Maps */
+            maps: components["schemas"]["FormMap"][];
+            /** Sigma */
+            sigma: number | null;
+            /** Official */
+            official: number | null;
+            /** Scrim */
+            scrim: number | null;
+            /** T */
+            t: number | null;
+            /** Ct */
+            ct: number | null;
+        };
+        /** ProfileKpis */
+        ProfileKpis: {
+            /** Rating */
+            rating?: number | null;
+            /** Adr */
+            adr?: number | null;
+            /** Kast */
+            kast?: number | null;
+            /** Opening Pct */
+            opening_pct?: number | null;
+            /** Hs */
+            hs?: number | null;
+            /** Traded Pct */
+            traded_pct?: number | null;
+        };
+        /** ProfileLine */
+        ProfileLine: {
+            /** Good */
+            good: boolean;
+            /** Text */
+            text: string;
+        };
+        /** ProfileMate */
+        ProfileMate: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            axes: components["schemas"]["ProfileAxes"];
+            kpis: components["schemas"]["ProfileKpis"];
+        };
+        /** ProfileMechanics */
+        ProfileMechanics: {
+            /** Engagements */
+            engagements: number;
+            /** Maps */
+            maps: number;
+            /** Enough */
+            enough: boolean;
+            /** Ttd Ms */
+            ttd_ms: number | null;
+            /** Xhair Deg */
+            xhair_deg: number | null;
+            /** Counter Strafe Pct */
+            counter_strafe_pct: number | null;
+            /** First Hit Pct */
+            first_hit_pct: number | null;
+            /**
+             * Rank
+             * @default {}
+             */
+            rank: {
+                [key: string]: number;
+            };
+            /** Medians */
+            medians: {
+                [key: string]: number | null;
+            };
+            /** Players */
+            players?: number | null;
+        };
+        /** ProfilePositions */
+        ProfilePositions: {
+            /** Maps */
+            maps: components["schemas"]["PositionMap"][];
+            /** Map */
+            map: string | null;
+            /** Side */
+            side: string;
+            /** Url */
+            url: string | null;
+            /** Kills */
+            kills: number[][];
+            /** Deaths */
+            deaths: number[][];
+        };
+        /** ProfileWeapon */
+        ProfileWeapon: {
+            /** Weapon */
+            weapon: string;
+            /** Kills */
+            kills: number;
+            /** Hs */
+            hs: number | null;
+            /** Distance */
+            distance: number | null;
+            /** Share */
+            share: number;
+            /** Dpr */
+            dpr: number | null;
         };
         /** ReliabilityBand */
         ReliabilityBand: {
@@ -5340,16 +5609,10 @@ export interface components {
             /** Name */
             name: string;
         };
-        /** RosterPlayer */
-        RosterPlayer: {
-            /** Steamid */
-            steamid: string;
-            /** Name */
-            name: string;
-            /** Maps */
-            maps: number;
-            /** Spans */
-            spans: components["schemas"]["RosterSpan"][];
+        /** Roster */
+        Roster: {
+            /** Players */
+            players: components["schemas"]["app__schemas_v2__RosterPlayer"][];
         };
         /** RosterSpan */
         RosterSpan: {
@@ -5376,7 +5639,7 @@ export interface components {
             /** To */
             to: string | null;
             /** Players */
-            players: components["schemas"]["RosterPlayer"][];
+            players: components["schemas"]["app__schemas__RosterPlayer"][];
         };
         /** RoundBullet */
         RoundBullet: {
@@ -7004,6 +7267,24 @@ export interface components {
             name: string;
             /** My Teams */
             my_teams: components["schemas"]["MyTeamRef"][];
+        };
+        /** RosterPlayer */
+        app__schemas__RosterPlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Maps */
+            maps: number;
+            /** Spans */
+            spans: components["schemas"]["RosterSpan"][];
+        };
+        /** RosterPlayer */
+        app__schemas_v2__RosterPlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
         };
     };
     responses: never;
@@ -10641,6 +10922,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MatchReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roster_v2_teams__team_id__players_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Roster"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    profile_v2_teams__team_id__players__steamid__profile_get: {
+        parameters: {
+            query?: {
+                scrims?: boolean;
+                map?: string | null;
+                side?: "t" | "ct";
+            };
+            header?: never;
+            path: {
+                team_id: number;
+                steamid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerProfile"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_note_v2_players__steamid__note_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                steamid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DevNote"];
                 };
             };
             /** @description Validation Error */

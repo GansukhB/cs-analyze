@@ -46,6 +46,8 @@ const V2Overview = lazy(() => import('./v2/pages/OverviewPage'))
 const V2Matches = lazy(() => import('./v2/pages/MatchesPage'))
 const V2MatchReport = lazy(() => import('./v2/pages/MatchReportPage'))
 const V2Replay = lazy(() => import('./v2/pages/ReplayPage'))
+const V2Player = lazy(() => import('./v2/pages/PlayerPage'))
+const V2PlayersIndex = lazy(() => import('./v2/pages/PlayerPage').then((m) => ({ default: m.PlayersIndex })))
 const V2ReplayIndex = lazy(() => import('./v2/pages/ReplayPage').then((m) => ({ default: m.ReplayIndex })))
 
 export default function App() {
@@ -65,6 +67,8 @@ export default function App() {
         <Route path="matches/:matchId/m/:mapNumber" element={<V2MatchReport />} />
         <Route path="replay" element={<V2ReplayIndex />} />
         <Route path="replay/:matchId/:mapNumber" element={<V2Replay />} />
+        <Route path="players" element={<V2PlayersIndex />} />
+        <Route path="players/:steamid" element={<V2Player />} />
       </Route>
       <Route element={<Layout />}>
         <Route index element={<Home />} />

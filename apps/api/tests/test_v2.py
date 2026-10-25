@@ -159,3 +159,19 @@ def test_match_report(client, auth, huns):
     assert body["quick"]["post_plant"] == [1, 1]
     listed = client.get(f"/v2/teams/{huns['huns'].id}/matches", headers=auth).json()["matches"]
     assert listed[0]["maps"][0]["score"] == "13–8"
+
+
+def test_player_profile_and_note(client, auth, huns):
+    url = f"/v2/teams/{huns['huns'].id}/players/1/profile"
+    body = client.get(url, headers=auth).json()
+    assert body["name"] == "a" and body["rounds"] == 3 and body["maps"] == 1
+    # Read from the Rounds: four kills and a death over three of them.
+    assert body["kpis"]["rating"] > 1.0
+    # Three Rounds is no Pool: no axis is placed against nobody.
+    assert body["pool_players"] == 0 and body["axes"]["firepower"] is None
+    assert body["form"]["maps"][0]["map"] == "de_anubis" and body["note"] is None
+    put = client.put("/v2/players/1/note", json={"text": " Pop flash-ийг хүлээ "}, headers=auth)
+    assert put.json()["text"] == "Pop flash-ийг хүлээ"
+    assert client.get(url, headers=auth).json()["note"]["text"] == "Pop flash-ийг хүлээ"
+    roster = client.get(f"/v2/teams/{huns['huns'].id}/players", headers=auth).json()
+    assert roster["players"] == [{"steamid": "1", "name": "a"}]

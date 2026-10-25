@@ -45,7 +45,7 @@ from app.models.assistant import AssistantUsage
 from app.models.audit import AuditEvent
 from app.models.base import TimestampMixin
 from app.models.briefing import Briefing
-from app.models.development import DevelopmentGoal, GoalStatus
+from app.models.development import DevelopmentGoal, DevelopmentNote, GoalStatus
 from app.models.forecast import Forecast
 from app.models.jobs import (
     AnalysisArtifact,
@@ -76,6 +76,7 @@ from app.models.user import User
 from app.models.workspace import DeclaredRole, Invite, UserRole, Workspace, WorkspaceTeam
 
 __all__ = [
+    "DevelopmentNote",
     "UpcomingMatch",
     "TimestampMixin",
     "User",

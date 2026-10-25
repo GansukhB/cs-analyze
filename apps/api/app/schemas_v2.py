@@ -329,3 +329,143 @@ class MatchListItem(BaseModel):
 
 class MatchList(BaseModel):
     matches: list[MatchListItem]
+
+
+# ---------------------------------------------------------------- Player profile
+
+
+class ProfileKpis(BaseModel):
+    rating: float | None = None
+    adr: float | None = None
+    kast: float | None = None
+    opening_pct: float | None = None
+    hs: float | None = None
+    traded_pct: float | None = None
+
+
+class ProfileAxes(BaseModel):
+    firepower: float | None = None
+    entry: float | None = None
+    trade: float | None = None
+    utility: float | None = None
+    clutch: float | None = None
+    survival: float | None = None
+    opening: float | None = None
+
+
+class ProfileMate(BaseModel):
+    steamid: str
+    name: str
+    axes: ProfileAxes
+    kpis: ProfileKpis
+
+
+class FormMap(BaseModel):
+    match_id: int
+    map_number: int
+    map: str
+    played_at: Utc | None
+    opponent: str
+    scrim: bool
+    won: bool | None
+    rating: float
+
+
+class ProfileForm(BaseModel):
+    maps: list[FormMap]
+    sigma: float | None
+    official: float | None
+    scrim: float | None
+    t: float | None
+    ct: float | None
+
+
+class ProfileMechanics(BaseModel):
+    engagements: int
+    maps: int
+    enough: bool
+    ttd_ms: float | None
+    xhair_deg: float | None
+    counter_strafe_pct: float | None
+    first_hit_pct: float | None
+    rank: dict[str, float] = {}
+    medians: dict[str, float | None]
+    players: int | None = None
+
+
+class DuelCell(BaseModel):
+    distance: Literal["near", "mid", "far"]
+    phase: Literal["early", "mid", "late"]
+    won: int
+    lost: int
+
+
+class PositionMap(BaseModel):
+    map: str
+    n: int
+
+
+class ProfilePositions(BaseModel):
+    maps: list[PositionMap]
+    map: str | None
+    side: str
+    url: str | None
+    kills: list[list[float]]
+    deaths: list[list[float]]
+
+
+class ProfileWeapon(BaseModel):
+    weapon: str
+    kills: int
+    hs: float | None
+    distance: float | None
+    share: float
+    dpr: float | None
+
+
+class ProfileLine(BaseModel):
+    good: bool
+    text: str
+
+
+class DevNote(BaseModel):
+    text: str
+    updated_at: Utc | None
+
+
+class NoteWrite(BaseModel):
+    text: str = Field(max_length=4000)
+
+
+class PlayerProfile(BaseModel):
+    steamid: str
+    name: str
+    aliases: list[str]
+    team: TeamRef
+    rounds: int
+    maps: int
+    clutch_won: int
+    clutch_of: int
+    pool_players: int
+    kpis: ProfileKpis
+    team_kpis: ProfileKpis
+    pool_kpis: ProfileKpis
+    axes: ProfileAxes
+    team_axes: ProfileAxes
+    mates: list[ProfileMate]
+    form: ProfileForm
+    mechanics: ProfileMechanics | None
+    duels: list[DuelCell]
+    positions: ProfilePositions
+    weapons: list[ProfileWeapon]
+    lines: list[ProfileLine]
+    note: DevNote | None
+
+
+class RosterPlayer(BaseModel):
+    steamid: str
+    name: str
+
+
+class Roster(BaseModel):
+    players: list[RosterPlayer]

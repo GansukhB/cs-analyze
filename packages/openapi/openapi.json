@@ -6186,6 +6186,209 @@
         }
       }
     },
+    "/v2/teams/{team_id}/players": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Roster",
+        "description": "The my team's five on its latest parsed Match Map.",
+        "operationId": "roster_v2_teams__team_id__players_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Roster"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/teams/{team_id}/players/{steamid}/profile": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Profile",
+        "operationId": "profile_v2_teams__team_id__players__steamid__profile_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "steamid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$",
+              "title": "Steamid"
+            }
+          },
+          {
+            "name": "scrims",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Scrims"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Map"
+            }
+          },
+          {
+            "name": "side",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "t",
+                "ct"
+              ],
+              "type": "string",
+              "default": "t",
+              "title": "Side"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerProfile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/players/{steamid}/note": {
+      "put": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Put Note",
+        "operationId": "put_note_v2_players__steamid__note_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "steamid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$",
+              "title": "Steamid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevNote"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -8742,6 +8945,32 @@
         ],
         "title": "DemoState"
       },
+      "DevNote": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "updated_at"
+        ],
+        "title": "DevNote"
+      },
       "DevelopmentPlan": {
         "properties": {
           "goals": {
@@ -8899,6 +9128,44 @@
         ],
         "title": "DrawnNote",
         "description": "A drawn Review note on a Match Map of the Map (VIZ-8), as a Briefing keeps it."
+      },
+      "DuelCell": {
+        "properties": {
+          "distance": {
+            "type": "string",
+            "enum": [
+              "near",
+              "mid",
+              "far"
+            ],
+            "title": "Distance"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "early",
+              "mid",
+              "late"
+            ],
+            "title": "Phase"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "lost": {
+            "type": "integer",
+            "title": "Lost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distance",
+          "phase",
+          "won",
+          "lost"
+        ],
+        "title": "DuelCell"
       },
       "FixtureStyle": {
         "properties": {
@@ -9245,6 +9512,69 @@
           "scrim"
         ],
         "title": "FormItem"
+      },
+      "FormMap": {
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "title": "Match Id"
+          },
+          "map_number": {
+            "type": "integer",
+            "title": "Map Number"
+          },
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At"
+          },
+          "opponent": {
+            "type": "string",
+            "title": "Opponent"
+          },
+          "scrim": {
+            "type": "boolean",
+            "title": "Scrim"
+          },
+          "won": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Won"
+          },
+          "rating": {
+            "type": "number",
+            "title": "Rating"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "map_number",
+          "map",
+          "played_at",
+          "opponent",
+          "scrim",
+          "won",
+          "rating"
+        ],
+        "title": "FormMap"
       },
       "GameplanHeader": {
         "properties": {
@@ -12898,6 +13228,20 @@
         "title": "NoteShape",
         "description": "One mark drawn on the Replay (VIZ-8), in world units."
       },
+      "NoteWrite": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "NoteWrite"
+      },
       "OpeningLine": {
         "properties": {
           "sid": {
@@ -14016,6 +14360,143 @@
         ],
         "title": "PlayerPage"
       },
+      "PlayerProfile": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "clutch_won": {
+            "type": "integer",
+            "title": "Clutch Won"
+          },
+          "clutch_of": {
+            "type": "integer",
+            "title": "Clutch Of"
+          },
+          "pool_players": {
+            "type": "integer",
+            "title": "Pool Players"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/ProfileKpis"
+          },
+          "team_kpis": {
+            "$ref": "#/components/schemas/ProfileKpis"
+          },
+          "pool_kpis": {
+            "$ref": "#/components/schemas/ProfileKpis"
+          },
+          "axes": {
+            "$ref": "#/components/schemas/ProfileAxes"
+          },
+          "team_axes": {
+            "$ref": "#/components/schemas/ProfileAxes"
+          },
+          "mates": {
+            "items": {
+              "$ref": "#/components/schemas/ProfileMate"
+            },
+            "type": "array",
+            "title": "Mates"
+          },
+          "form": {
+            "$ref": "#/components/schemas/ProfileForm"
+          },
+          "mechanics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileMechanics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "duels": {
+            "items": {
+              "$ref": "#/components/schemas/DuelCell"
+            },
+            "type": "array",
+            "title": "Duels"
+          },
+          "positions": {
+            "$ref": "#/components/schemas/ProfilePositions"
+          },
+          "weapons": {
+            "items": {
+              "$ref": "#/components/schemas/ProfileWeapon"
+            },
+            "type": "array",
+            "title": "Weapons"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ProfileLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DevNote"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "aliases",
+          "team",
+          "rounds",
+          "maps",
+          "clutch_won",
+          "clutch_of",
+          "pool_players",
+          "kpis",
+          "team_kpis",
+          "pool_kpis",
+          "axes",
+          "team_axes",
+          "mates",
+          "form",
+          "mechanics",
+          "duels",
+          "positions",
+          "weapons",
+          "lines",
+          "note"
+        ],
+        "title": "PlayerProfile"
+      },
       "PlayerRef": {
         "properties": {
           "steamid": {
@@ -14537,6 +15018,24 @@
         ],
         "title": "PlaylistWrite"
       },
+      "PositionMap": {
+        "properties": {
+          "map": {
+            "type": "string",
+            "title": "Map"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          }
+        },
+        "type": "object",
+        "required": [
+          "map",
+          "n"
+        ],
+        "title": "PositionMap"
+      },
       "PracticeWeek": {
         "properties": {
           "team": {
@@ -14642,6 +15141,512 @@
           "pool_per_round"
         ],
         "title": "PressureLine"
+      },
+      "ProfileAxes": {
+        "properties": {
+          "firepower": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firepower"
+          },
+          "entry": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry"
+          },
+          "trade": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trade"
+          },
+          "utility": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utility"
+          },
+          "clutch": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clutch"
+          },
+          "survival": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Survival"
+          },
+          "opening": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opening"
+          }
+        },
+        "type": "object",
+        "title": "ProfileAxes"
+      },
+      "ProfileForm": {
+        "properties": {
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/FormMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "sigma": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigma"
+          },
+          "official": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Official"
+          },
+          "scrim": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scrim"
+          },
+          "t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T"
+          },
+          "ct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "sigma",
+          "official",
+          "scrim",
+          "t",
+          "ct"
+        ],
+        "title": "ProfileForm"
+      },
+      "ProfileKpis": {
+        "properties": {
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "kast": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kast"
+          },
+          "opening_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opening Pct"
+          },
+          "hs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hs"
+          },
+          "traded_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traded Pct"
+          }
+        },
+        "type": "object",
+        "title": "ProfileKpis"
+      },
+      "ProfileLine": {
+        "properties": {
+          "good": {
+            "type": "boolean",
+            "title": "Good"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "good",
+          "text"
+        ],
+        "title": "ProfileLine"
+      },
+      "ProfileMate": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "axes": {
+            "$ref": "#/components/schemas/ProfileAxes"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/ProfileKpis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "axes",
+          "kpis"
+        ],
+        "title": "ProfileMate"
+      },
+      "ProfileMechanics": {
+        "properties": {
+          "engagements": {
+            "type": "integer",
+            "title": "Engagements"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "enough": {
+            "type": "boolean",
+            "title": "Enough"
+          },
+          "ttd_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttd Ms"
+          },
+          "xhair_deg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Xhair Deg"
+          },
+          "counter_strafe_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Strafe Pct"
+          },
+          "first_hit_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Hit Pct"
+          },
+          "rank": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Rank",
+            "default": {}
+          },
+          "medians": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Medians"
+          },
+          "players": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "engagements",
+          "maps",
+          "enough",
+          "ttd_ms",
+          "xhair_deg",
+          "counter_strafe_pct",
+          "first_hit_pct",
+          "medians"
+        ],
+        "title": "ProfileMechanics"
+      },
+      "ProfilePositions": {
+        "properties": {
+          "maps": {
+            "items": {
+              "$ref": "#/components/schemas/PositionMap"
+            },
+            "type": "array",
+            "title": "Maps"
+          },
+          "map": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "kills": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Kills"
+          },
+          "deaths": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Deaths"
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "map",
+          "side",
+          "url",
+          "kills",
+          "deaths"
+        ],
+        "title": "ProfilePositions"
+      },
+      "ProfileWeapon": {
+        "properties": {
+          "weapon": {
+            "type": "string",
+            "title": "Weapon"
+          },
+          "kills": {
+            "type": "integer",
+            "title": "Kills"
+          },
+          "hs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hs"
+          },
+          "distance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance"
+          },
+          "share": {
+            "type": "number",
+            "title": "Share"
+          },
+          "dpr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dpr"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weapon",
+          "kills",
+          "hs",
+          "distance",
+          "share",
+          "dpr"
+        ],
+        "title": "ProfileWeapon"
       },
       "ReliabilityBand": {
         "properties": {
@@ -15677,36 +16682,21 @@
         ],
         "title": "ReviewTeam"
       },
-      "RosterPlayer": {
+      "Roster": {
         "properties": {
-          "steamid": {
-            "type": "string",
-            "title": "Steamid"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "maps": {
-            "type": "integer",
-            "title": "Maps"
-          },
-          "spans": {
+          "players": {
             "items": {
-              "$ref": "#/components/schemas/RosterSpan"
+              "$ref": "#/components/schemas/app__schemas_v2__RosterPlayer"
             },
             "type": "array",
-            "title": "Spans"
+            "title": "Players"
           }
         },
         "type": "object",
         "required": [
-          "steamid",
-          "name",
-          "maps",
-          "spans"
+          "players"
         ],
-        "title": "RosterPlayer"
+        "title": "Roster"
       },
       "RosterSpan": {
         "properties": {
@@ -15761,7 +16751,7 @@
           },
           "players": {
             "items": {
-              "$ref": "#/components/schemas/RosterPlayer"
+              "$ref": "#/components/schemas/app__schemas__RosterPlayer"
             },
             "type": "array",
             "title": "Players"
@@ -20240,6 +21230,55 @@
           "my_teams"
         ],
         "title": "WorkspaceRead"
+      },
+      "app__schemas__RosterPlayer": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "spans": {
+            "items": {
+              "$ref": "#/components/schemas/RosterSpan"
+            },
+            "type": "array",
+            "title": "Spans"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "maps",
+          "spans"
+        ],
+        "title": "RosterPlayer"
+      },
+      "app__schemas_v2__RosterPlayer": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name"
+        ],
+        "title": "RosterPlayer"
       }
     },
     "securitySchemes": {
