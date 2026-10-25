@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from app.routers.v2 import (
     matches,
     overview,
+    owner,
     players,
     practice,
     scouting,
@@ -26,3 +27,4 @@ router.include_router(scouting.router)
 router.include_router(spatial.router)
 router.include_router(utility.router)
 router.include_router(practice.router)
+router.include_router(owner.router)

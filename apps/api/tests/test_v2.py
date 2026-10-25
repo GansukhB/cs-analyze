@@ -291,3 +291,19 @@ def test_v2_schema_names_leave_v1_alone():
 
     names = app.openapi()["components"]["schemas"]
     assert not [n for n in names if n.startswith("app__")]
+
+
+def test_owner_summary(client, auth, huns):
+    t = huns["huns"].id
+    client.post(
+        f"/v2/teams/{t}/blocks",
+        json={"day": "2026-09-02", "start": "19:00", "end": "21:30", "kind": "scrim"},
+        headers=auth,
+    )
+    body = client.get(f"/v2/teams/{t}/owner", params={"period": "y"}, headers=auth).json()
+    assert body["kpis"]["maps"]["won"] == 1 and body["kpis"]["maps"]["of"] == 1
+    assert body["kpis"]["matches"] == {"won": 1, "lost": 0}
+    assert body["kpis"]["parsed"] == {"parsed": 1, "of": 1}
+    assert body["kpis"]["hours"]["scrim"] == 2.5 and body["kpis"]["vrs"] is None
+    assert len(body["months"]) == 6 and body["summary"]["maps"] == 1
+    assert [p["name"] for p in body["players"]] == ["a"] and body["goals"] == []

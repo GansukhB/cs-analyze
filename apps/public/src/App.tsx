@@ -52,6 +52,7 @@ const V2GamePlan = lazy(() => import('./v2/pages/GamePlanPage'))
 const V2Spatial = lazy(() => import('./v2/pages/SpatialPage'))
 const V2Utility = lazy(() => import('./v2/pages/UtilityPage'))
 const V2Practice = lazy(() => import('./v2/pages/PracticePage'))
+const V2Owner = lazy(() => import('./v2/pages/OwnerPage'))
 const V2GamePlanIndex = lazy(() => import('./v2/pages/GamePlanPage').then((m) => ({ default: m.GamePlanIndex })))
 const V2ScoutingIndex = lazy(() => import('./v2/pages/ScoutingPage').then((m) => ({ default: m.ScoutingIndex })))
 const V2PlayersIndex = lazy(() => import('./v2/pages/PlayerPage').then((m) => ({ default: m.PlayersIndex })))
@@ -83,6 +84,7 @@ export default function App() {
         <Route path="spatial" element={<V2Spatial />} />
         <Route path="utility" element={<V2Utility />} />
         <Route path="practice" element={<V2Practice />} />
+        <Route path="owner" element={<V2Owner />} />
       </Route>
       <Route element={<Layout />}>
         <Route index element={<Home />} />

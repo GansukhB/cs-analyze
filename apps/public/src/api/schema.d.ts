@@ -2282,6 +2282,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/teams/{team_id}/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Owner Summary */
+        get: operations["owner_summary_v2_teams__team_id__owner_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -4882,6 +4899,153 @@ export interface components {
             /** Uploads */
             uploads: components["schemas"]["UploadLine"][];
             upcoming: components["schemas"]["UpcomingRead"] | null;
+        };
+        /** Owner */
+        Owner: {
+            team: components["schemas"]["TeamRef"];
+            /** Period */
+            period: string;
+            /** Days */
+            days: number;
+            /**
+             * Since
+             * Format: date
+             */
+            since: string;
+            summary: components["schemas"]["OwnerSummary"];
+            /** Form Index */
+            form_index: number | null;
+            /** Rating */
+            rating: number | null;
+            /** Rank */
+            rank: number | null;
+            /** Ranked */
+            ranked: number | null;
+            kpis: components["schemas"]["OwnerKpis"];
+            /** Months */
+            months: components["schemas"]["OwnerMonth"][];
+            /** Tiers */
+            tiers: components["schemas"]["OwnerTier"][];
+            /** Players */
+            players: components["schemas"]["OwnerPlayer"][];
+            /** Goals */
+            goals: components["schemas"]["TeamGoalRead"][];
+            /** Risks */
+            risks: components["schemas"]["OwnerRisk"][];
+        };
+        /** OwnerHours */
+        OwnerHours: {
+            /** Scrim */
+            scrim: number;
+            /** Drill */
+            drill: number;
+            /** Review */
+            review: number;
+            /** Total */
+            total: number;
+        };
+        /** OwnerKpis */
+        OwnerKpis: {
+            maps: components["schemas"]["Share"];
+            /** Matches */
+            matches: {
+                [key: string]: number;
+            };
+            vrs: components["schemas"]["OwnerVrs"] | null;
+            hours: components["schemas"]["OwnerHours"];
+            /** Parsed */
+            parsed: {
+                [key: string]: number;
+            };
+        };
+        /** OwnerMonth */
+        OwnerMonth: {
+            /**
+             * Month
+             * Format: date
+             */
+            month: string;
+            /** Maps */
+            maps: number;
+            /** Won */
+            won: number;
+            /** Pct */
+            pct: number | null;
+            /** Hours */
+            hours: number;
+        };
+        /** OwnerPlayer */
+        OwnerPlayer: {
+            /** Steamid */
+            steamid: string;
+            /** Name */
+            name: string;
+            /** Share */
+            share: number | null;
+            /** Rating */
+            rating: number | null;
+            /** Sigma */
+            sigma: number | null;
+            /** Maps */
+            maps: number;
+            /** Spark */
+            spark: (number | null)[];
+        };
+        /** OwnerRisk */
+        OwnerRisk: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "risk" | "opening";
+            /** Tone */
+            tone: string;
+            /** Text */
+            text: string;
+        };
+        /** OwnerSummary */
+        OwnerSummary: {
+            /** Now */
+            now: number | null;
+            /** Prev */
+            prev: number | null;
+            /** Maps */
+            maps: number;
+            /** Prev Maps */
+            prev_maps: number;
+            /** Weakest */
+            weakest: string | null;
+            /** Weakest Share */
+            weakest_share: number | null;
+        };
+        /** OwnerTier */
+        OwnerTier: {
+            /** Tier */
+            tier: string;
+            /** Maps */
+            maps: number;
+            /** Won */
+            won: number;
+            /** Expected */
+            expected: number;
+            /** Residual */
+            residual: number;
+        };
+        /** OwnerVrs */
+        OwnerVrs: {
+            /**
+             * Snapshot
+             * Format: date
+             */
+            snapshot: string;
+            /** Global */
+            global: number;
+            /** Region */
+            region: string;
+            /** Regional */
+            regional: number | null;
+            /** Points */
+            points: number;
         };
         /** PatchList */
         PatchList: {
@@ -12369,6 +12533,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QueueRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    owner_summary_v2_teams__team_id__owner_get: {
+        parameters: {
+            query?: {
+                period?: "m" | "q" | "y";
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Owner"];
                 };
             };
             /** @description Validation Error */

@@ -7257,6 +7257,68 @@
         }
       }
     },
+    "/v2/teams/{team_id}/owner": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Owner Summary",
+        "operationId": "owner_summary_v2_teams__team_id__owner_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "m",
+                "q",
+                "y"
+              ],
+              "type": "string",
+              "default": "q",
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Owner"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -14558,6 +14620,483 @@
           "upcoming"
         ],
         "title": "Overview"
+      },
+      "Owner": {
+        "properties": {
+          "team": {
+            "$ref": "#/components/schemas/TeamRef"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "since": {
+            "type": "string",
+            "format": "date",
+            "title": "Since"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/OwnerSummary"
+          },
+          "form_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form Index"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "ranked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ranked"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/OwnerKpis"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerMonth"
+            },
+            "type": "array",
+            "title": "Months"
+          },
+          "tiers": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerTier"
+            },
+            "type": "array",
+            "title": "Tiers"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerPlayer"
+            },
+            "type": "array",
+            "title": "Players"
+          },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/TeamGoalRead"
+            },
+            "type": "array",
+            "title": "Goals"
+          },
+          "risks": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerRisk"
+            },
+            "type": "array",
+            "title": "Risks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team",
+          "period",
+          "days",
+          "since",
+          "summary",
+          "form_index",
+          "rating",
+          "rank",
+          "ranked",
+          "kpis",
+          "months",
+          "tiers",
+          "players",
+          "goals",
+          "risks"
+        ],
+        "title": "Owner"
+      },
+      "OwnerHours": {
+        "properties": {
+          "scrim": {
+            "type": "number",
+            "title": "Scrim"
+          },
+          "drill": {
+            "type": "number",
+            "title": "Drill"
+          },
+          "review": {
+            "type": "number",
+            "title": "Review"
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scrim",
+          "drill",
+          "review",
+          "total"
+        ],
+        "title": "OwnerHours"
+      },
+      "OwnerKpis": {
+        "properties": {
+          "maps": {
+            "$ref": "#/components/schemas/Share"
+          },
+          "matches": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Matches"
+          },
+          "vrs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnerVrs"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hours": {
+            "$ref": "#/components/schemas/OwnerHours"
+          },
+          "parsed": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Parsed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "maps",
+          "matches",
+          "vrs",
+          "hours",
+          "parsed"
+        ],
+        "title": "OwnerKpis"
+      },
+      "OwnerMonth": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          },
+          "hours": {
+            "type": "number",
+            "title": "Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "maps",
+          "won",
+          "pct",
+          "hours"
+        ],
+        "title": "OwnerMonth"
+      },
+      "OwnerPlayer": {
+        "properties": {
+          "steamid": {
+            "type": "string",
+            "title": "Steamid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "sigma": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigma"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "spark": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Spark"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steamid",
+          "name",
+          "share",
+          "rating",
+          "sigma",
+          "maps",
+          "spark"
+        ],
+        "title": "OwnerPlayer"
+      },
+      "OwnerRisk": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "risk",
+              "opening"
+            ],
+            "title": "Kind"
+          },
+          "tone": {
+            "type": "string",
+            "title": "Tone"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "tone",
+          "text"
+        ],
+        "title": "OwnerRisk"
+      },
+      "OwnerSummary": {
+        "properties": {
+          "now": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Now"
+          },
+          "prev": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prev"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "prev_maps": {
+            "type": "integer",
+            "title": "Prev Maps"
+          },
+          "weakest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weakest"
+          },
+          "weakest_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weakest Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "now",
+          "prev",
+          "maps",
+          "prev_maps",
+          "weakest",
+          "weakest_share"
+        ],
+        "title": "OwnerSummary"
+      },
+      "OwnerTier": {
+        "properties": {
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "won": {
+            "type": "integer",
+            "title": "Won"
+          },
+          "expected": {
+            "type": "number",
+            "title": "Expected"
+          },
+          "residual": {
+            "type": "number",
+            "title": "Residual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tier",
+          "maps",
+          "won",
+          "expected",
+          "residual"
+        ],
+        "title": "OwnerTier"
+      },
+      "OwnerVrs": {
+        "properties": {
+          "snapshot": {
+            "type": "string",
+            "format": "date",
+            "title": "Snapshot"
+          },
+          "global": {
+            "type": "integer",
+            "title": "Global"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "regional": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regional"
+          },
+          "points": {
+            "type": "number",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snapshot",
+          "global",
+          "region",
+          "regional",
+          "points"
+        ],
+        "title": "OwnerVrs"
       },
       "PatchList": {
         "properties": {

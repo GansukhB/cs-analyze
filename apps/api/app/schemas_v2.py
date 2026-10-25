@@ -837,3 +837,90 @@ class PracticePlan(BaseModel):
     player_goals: list[PlayerGoalLine]
     drills: list[Drill]
     upcoming: UpcomingRead | None
+
+
+# ---------------------------------------------------------------- Management
+
+
+class OwnerSummary(BaseModel):
+    now: float | None
+    prev: float | None
+    maps: int
+    prev_maps: int
+    weakest: str | None
+    weakest_share: float | None
+
+
+class OwnerVrs(BaseModel):
+    snapshot: dt.date
+    global_: int = Field(alias="global")
+    region: str
+    regional: int | None
+    points: float
+
+    model_config = {"populate_by_name": True}
+
+
+class OwnerHours(BaseModel):
+    scrim: float
+    drill: float
+    review: float
+    total: float
+
+
+class OwnerKpis(BaseModel):
+    maps: Share
+    matches: dict[str, int]
+    vrs: OwnerVrs | None
+    hours: OwnerHours
+    parsed: dict[str, int]
+
+
+class OwnerMonth(BaseModel):
+    month: dt.date
+    maps: int
+    won: int
+    pct: float | None
+    hours: float
+
+
+class OwnerTier(BaseModel):
+    tier: str
+    maps: int
+    won: int
+    expected: float
+    residual: float
+
+
+class OwnerPlayer(BaseModel):
+    steamid: str
+    name: str
+    share: float | None
+    rating: float | None
+    sigma: float | None
+    maps: int
+    spark: list[float | None]
+
+
+class OwnerRisk(BaseModel):
+    kind: Literal["risk", "opening"]
+    tone: str
+    text: str
+
+
+class Owner(BaseModel):
+    team: TeamRef
+    period: str
+    days: int
+    since: dt.date
+    summary: OwnerSummary
+    form_index: int | None
+    rating: float | None
+    rank: int | None
+    ranked: int | None
+    kpis: OwnerKpis
+    months: list[OwnerMonth]
+    tiers: list[OwnerTier]
+    players: list[OwnerPlayer]
+    goals: list[TeamGoalRead]
+    risks: list[OwnerRisk]
