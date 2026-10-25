@@ -83,6 +83,9 @@ export default function Layout() {
               <NavLink to="/briefings" className={link}>
                 Briefing
               </NavLink>
+              <NavLink to="/v2" className="text-t hover:text-ink">
+                v2
+              </NavLink>
             </nav>
           )}
           <div className="ml-auto flex items-center gap-4">
