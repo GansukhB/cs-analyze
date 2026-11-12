@@ -154,6 +154,12 @@ class Match(TimestampMixin, Base):
     # set timestamp means HLTV published no demo for this match.
     demo_url: Mapped[str] = mapped_column(String(200), default="")
     demo_checked_at: Mapped[datetime | None] = mapped_column(DateTime6)
+    # What the match page said about the Veto (CONTEXT.md): its format line
+    # ("Best of 3 (LAN)") and the steps in ``match_vetoes``. A set timestamp with
+    # no steps means the page listed none, so the page is not opened again.
+    best_of: Mapped[int | None] = mapped_column(PositiveSmallInt)
+    lan: Mapped[bool | None] = mapped_column()
+    veto_checked_at: Mapped[datetime | None] = mapped_column(DateTime6)
 
     team1: Mapped[Team | None] = relationship(
         back_populates="matches_as_team1", foreign_keys=[team1_id]
@@ -164,6 +170,9 @@ class Match(TimestampMixin, Base):
     tournament: Mapped[Tournament | None] = relationship(back_populates="matches")
     demos: Mapped[list[Demo]] = relationship(back_populates="match", passive_deletes=True)
     map_results: Mapped[list[MatchMap]] = relationship(back_populates="match", passive_deletes=True)
+    vetoes: Mapped[list[MatchVeto]] = relationship(
+        back_populates="match", passive_deletes=True, order_by="MatchVeto.step"
+    )
     player_stats: Mapped[list[PlayerMatch]] = relationship(
         back_populates="match", passive_deletes=True
     )
@@ -206,6 +215,39 @@ class Match(TimestampMixin, Base):
     def map_demos(self) -> list[Demo]:
         """The rows tracking the individual .dem files, once unpacked."""
         return [d for d in self.demos if not d.is_archive]
+
+
+class VetoAction(StrEnum):
+    BAN = "ban"
+    PICK = "pick"
+    DECIDER = "decider"
+
+
+class MatchVeto(Base):
+    """One step of a Match's Veto, as its HLTV match page lists it.
+
+    ``team`` is the side that took the step, 1 or 2 as the page names them
+    (which is not always ``matches.team1``), with its HLTV id and name as read;
+    ``team_id`` is our row for it, when we have one. The decider has no team.
+    ``map`` is the demo header name (``de_ancient``).
+    """
+
+    __tablename__ = "match_vetoes"
+    __table_args__ = (UniqueConstraint("match_id", "step", name="uq_match_vetoes_step"),)
+
+    id: Mapped[int] = mapped_column(BigId, primary_key=True)
+    match_id: Mapped[int] = mapped_column(BigId, ForeignKey("matches.id", ondelete="CASCADE"))
+    step: Mapped[int] = mapped_column(PositiveSmallInt)
+    action: Mapped[str] = mapped_column(String(8))
+    map: Mapped[str] = mapped_column(String(32))
+    team_id: Mapped[int | None] = mapped_column(
+        BigId, ForeignKey("teams.id", ondelete="SET NULL"), index=True
+    )
+    team_hltv_id: Mapped[int | None] = mapped_column(PositiveInt)
+    team_name: Mapped[str] = mapped_column(String(120), default="")
+
+    match: Mapped[Match] = relationship(back_populates="vetoes")
+    team: Mapped[Team | None] = relationship()
 
 
 class Demo(TimestampMixin, Base):

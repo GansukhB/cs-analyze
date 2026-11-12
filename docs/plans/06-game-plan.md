@@ -176,7 +176,7 @@ Briefing (бидний таамаглал) ба тоглолтын Review (бо�
 
 ### GP-11. Self-scout: урьдчилан таамаглагдах байдлын индекс (P1, M)
 
-> **Төлөв:** ✅ `972e3e5` (improvement-01).
+> **Төлөв:** ✅ `972e3e5` (improvement-01). 2026-11-12: Tell (CONTEXT.md) болж хоёр багт (CT Setup, T site+хурд, pistol, pistol алдсаны дараах buy бүх Map-аар, veto-гийн эхний ban ба pick), Pool-ийн p75-тай; v2 Game plan-ийн Map tab, scouting, Self-scout дэлгэцэнд (`app/services/tells.py`, `veto_history.py`). v1-ийн predictability хэвээр.
 
 - **Хэмжүүр:** манай эхний нүүдэл Map ба Buy type бүрээр хэр давтагддаг вэ. T-ийн default, execute ба CT-ийн Setup-ийн entropy-оор хэмжинэ.
 - **Анхааруулга:** босгоос давбал "өрсөлдөгч бидний эсрэг юуг anti-strat хийж чадах вэ" гэж анхааруулна.

@@ -1,7 +1,7 @@
-// v2 screen 07, scouting an opponent: what they play (and the model's guess at
-// their veto), on one Map their bomb by buy and its clock, their CT Setups,
-// utility, habits and dangerous Players from the Playbook, and the counters
-// Staff pick for the Upcoming match.
+// v2 screen 07, scouting an opponent: what they play, their Veto history and
+// the model's guess at their veto, on one Map their bomb by buy and its clock,
+// their CT Setups, utility, Tells, habits and dangerous Players from the
+// Playbook, and the counters Staff pick for the Upcoming match.
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { $api } from '../../api/client'
@@ -17,6 +17,7 @@ import OpponentIndex from '../OpponentIndex'
 import { at, useTeam } from '../team'
 import { UpcomingForm } from '../Upcoming'
 import { AddToQueue } from '../AddToQueue'
+import { TellList, VetoHistoryView } from '../playbook'
 import { Bar, Box, Button, ButtonLink, Empty, PageHead, Panel, SideToggle, Swatch, Tag } from '../ui'
 
 type Scouting = components['schemas']['Scouting']
@@ -103,6 +104,11 @@ export default function ScoutingPage() {
           )}
         </Panel>
         <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
+          {book?.tells && (
+            <Panel title="Таамаглагдах зуршил" sub="Pool-ийн багуудаас илүү давтан хийдэг сонголт">
+              <TellList tells={book.tells.theirs} whose="theirs" />
+            </Panel>
+          )}
           <Patterns book={book} teamId={team.id} />
           <Threats book={book} />
         </div>
@@ -115,7 +121,15 @@ export default function ScoutingPage() {
 function Veto({ d }: { d: Scouting }) {
   const rows = d.maps.filter((m) => m.active)
   return (
-    <Panel title="Veto таамаг" sub="Veto-гийн түүх уншаагүй: тоглосон давтамж, бидний боломжоос гаргасан загвар" className="flex-[1_1_380px]">
+    <Panel
+      title="Veto таамаг ба түүх"
+      sub={
+        d.vetoes.policy_from_vetoes
+          ? 'Тоглосон давтамж, бидний боломж ба тэдний veto түүхээс (backtest-ээр шалгасан)'
+          : 'Тоглосон давтамж, бидний боломжоос гаргасан загвар; түүх доор'
+      }
+      className="flex-[1_1_380px]"
+    >
       {rows.map((m) => (
         <div key={m.map} className="grid grid-cols-[80px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2.5">
           <span className="cond font-semibold">
@@ -137,6 +151,9 @@ function Veto({ d }: { d: Scouting }) {
         <span>тоо = Map</span>
         <span className="text-right">Ban %</span>
         <span>Pick %</span>
+      </div>
+      <div className="border-t-1 border-line pt-3">
+        <VetoHistoryView v={d.vetoes.theirs} whose="theirs" />
       </div>
     </Panel>
   )

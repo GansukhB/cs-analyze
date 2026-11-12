@@ -12,6 +12,7 @@ python -m app.cli rebuild-tickdata           # Replays, walks, geometry from the
 python -m app.cli fit-winprob                # refit the Review's Win probability model
 python -m app.cli assistant-eval [--yes]     # ask and score the Assistant's golden set
 python -m app.cli hltv-canary                # check HLTV still reads the Scout's way
+python -m app.cli hltv-veto [--limit N]      # read the Veto of stored Matches that lack one
 python -m app.cli watch                      # alert on what is wrong now (every 5 min)
 python -m app.cli alert <key> <text>         # send one alert
 python -m app.cli rebuild-reviews [--map ID] # cut every Match Map's Review again
@@ -280,6 +281,67 @@ def hltv_canary(team: str) -> None:
     print(f"HLTV reads as expected ({team}).")
 
 
+def hltv_veto(limit: int | None) -> None:
+    """Read the Veto of every stored HLTV Match that has none yet, one match page each
+    (CONTEXT.md: Veto). Refuses while a Scout runs, and stops if one starts: the two
+    would share HLTV's patience. Re-runnable: a Match read once is never opened again."""
+    from app.models import Match as MatchRow
+    from app.models import MatchKind
+    from app.services import jobs as job_service
+    from app.services import veto
+    from app.services.browser import HltvBlocked, HltvBrowser
+    from app.services.client import HltvClient
+    from app.services.client import Match as Scraped
+
+    with SessionLocal() as db:
+        if job_service.scout_busy(db):
+            print("A Scout is running; try again when it is done.")
+            raise SystemExit(1)
+        rows = db.scalars(
+            select(MatchRow)
+            .where(
+                MatchRow.hltv_id.is_not(None),
+                MatchRow.kind == MatchKind.OFFICIAL,
+                MatchRow.veto_checked_at.is_(None),
+            )
+            .order_by(MatchRow.played_at.desc())
+        ).all()
+        if limit:
+            rows = rows[:limit]
+        print(f"{len(rows)} Matches without a Veto read.")
+        if not rows:
+            return
+        read = steps = 0
+        with HltvBrowser() as browser:
+            client = HltvClient(browser)
+            for row in rows:
+                if job_service.scout_busy(db):
+                    print("A Scout started; stopping here (run again later).")
+                    break
+                scraped = Scraped(
+                    id=row.hltv_id,
+                    slug=row.slug,
+                    team1=row.team1.name if row.team1 else "",
+                    team2=row.team2.name if row.team2 else "",
+                    score=row.score,
+                    event="",
+                    played_at=None,
+                )
+                try:
+                    page = client.match_page(scraped)
+                except HltvBlocked as exc:
+                    print(f"  ✗ {row.hltv_id}: {exc}")
+                    if not browser.is_connected():
+                        break
+                    browser.recover_page()
+                    continue
+                n = veto.record(db, row, page.veto)
+                read += 1
+                steps += n
+                print(f"  {row.hltv_id} {row.slug}: {n} steps")
+        print(f"Read {read} pages, kept {steps} Veto steps.")
+
+
 def watch() -> None:
     """The every-5-minutes check (OPS-5): send an alert for each thing wrong."""
     from app.services import alerts
@@ -431,8 +493,9 @@ def forecast_backtest() -> None:
     rating._region_offsets.cache_clear()
     with SessionLocal() as db, dbctx.using(db):
         out["maps"] = forecast.check_maps()
+        out["vetoes"] = forecast.check_vetoes()
     rating.PARAMS_PATH.write_text(json.dumps(out, indent=2) + "\n")
-    keys = ("params", "tune", "test", "baselines", "vs_vrs_points", "maps")
+    keys = ("params", "tune", "test", "baselines", "vs_vrs_points", "maps", "vetoes")
     print(json.dumps({k: out[k] for k in keys}, indent=2))
     print(f"Wrote {rating.PARAMS_PATH}; commit it.")
 
@@ -467,6 +530,9 @@ def main() -> None:
     sub.add_parser("forecast-backtest")
     sub.add_parser("hltv-canary").add_argument(
         "--team", default="Vitality", help="A Team HLTV lists with recent demos."
+    )
+    sub.add_parser("hltv-veto").add_argument(
+        "--limit", type=int, help="Only the N most recent Matches without a Veto."
     )
     sub.add_parser("watch")
     al = sub.add_parser("alert")
@@ -515,6 +581,9 @@ def main() -> None:
         return
     if args.command == "alert":
         alert(args.key, args.text)
+        return
+    if args.command == "hltv-veto":
+        hltv_veto(args.limit)
         return
     if args.command == "hltv-canary":
         hltv_canary(args.team)

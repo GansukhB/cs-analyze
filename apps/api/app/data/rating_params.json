@@ -172,5 +172,19 @@
     },
     "map_slope": 0.5981,
     "checked_at": "2026-10-21"
+  },
+  "vetoes": {
+    "model": {
+      "n": 288,
+      "log_loss": 1.1192,
+      "top1": 0.576
+    },
+    "history": {
+      "n": 288,
+      "log_loss": 1.0728,
+      "top1": 0.573
+    },
+    "prior": 4.0,
+    "checked_at": "2026-11-12"
   }
 }

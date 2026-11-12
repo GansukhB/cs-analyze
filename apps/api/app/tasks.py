@@ -997,6 +997,37 @@ def _unmerged(demo: Demo) -> bool:
     return bool(demo.part) and not demo.is_processed
 
 
+def _keep_veto(job_db, db, job, row, page_veto, step) -> None:
+    """Keep the Veto the match page listed; a failure here never costs the Match."""
+    from app.services import veto
+
+    try:
+        n = veto.record(db, row, page_veto)
+    except Exception as exc:  # noqa: BLE001 - the Veto is a bonus, the demo is the job
+        db.rollback()
+        logger.warning("veto for match %s not kept: %s", row.hltv_id, exc)
+        return
+    jobs.log(job_db, job, mn.veto_line(n, row.best_of, row.lan), stage=STAGE.FETCHING, step=step)
+
+
+def _veto_only(job_db, db, job, client, browser, match, row, step) -> None:
+    """A Match parsed before Vetoes were read: open its page once for the Veto alone.
+    Any failure is logged and the Scout goes on; a dead browser is left for the
+    next page to find."""
+    from playwright.sync_api import Error as PlaywrightError
+
+    from app.services.browser import HltvBlocked
+
+    try:
+        page = client.match_page(match)
+    except (HltvBlocked, PlaywrightError) as exc:
+        if browser.is_connected():
+            browser.recover_page()
+        logger.warning("veto page for match %s not read: %s", match.id, exc)
+        return
+    _keep_veto(job_db, db, job, row, page.veto, step)
+
+
 def _fetch_one(job_db, db, job, client, browser, match, scratch: Path, totals: dict, step):
     """One match: skip it if it is already parsed, otherwise download it.
 
@@ -1038,6 +1069,8 @@ def _fetch_one(job_db, db, job, client, browser, match, scratch: Path, totals: d
                 step=step,
             )
             totals["skipped"] += 1
+            if row.veto_checked_at is None:
+                _veto_only(job_db, db, job, client, browser, match, row, step)
             return None
         jobs.log(
             job_db,
@@ -1056,7 +1089,8 @@ def _fetch_one(job_db, db, job, client, browser, match, scratch: Path, totals: d
         text=f"demo-ийн холбоосыг шалгаж байна · match {match.id}",
     )
     try:
-        link = client.demo_link(match)
+        page = client.match_page(match)
+        link = page.demo
     except (HltvBlocked, PlaywrightError) as exc:
         if not browser.is_connected():
             # The Chromium process itself is gone; every match still queued would
@@ -1075,6 +1109,7 @@ def _fetch_one(job_db, db, job, client, browser, match, scratch: Path, totals: d
         totals["failed"] += 1
         return None
     store.record_demo_lookup(db, row, link)
+    _keep_veto(job_db, db, job, row, page.veto, step)
     if not link:
         jobs.log(
             job_db,

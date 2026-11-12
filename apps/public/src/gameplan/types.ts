@@ -168,6 +168,23 @@ export interface PlaybookPanel {
   predictability: { side: 'ct' | 't'; text: string; predictable: boolean }[]
   /** PL-4: each Team's five slots 20 s in per Side (null under 8 full Rounds). */
   slots?: Record<'theirs' | 'mine', Record<'ct' | 't', Slot[] | null>>
+  /** Tells (CONTEXT.md): both Teams' decision points against the Pool. */
+  tells?: { theirs: Tell[]; mine: Tell[] }
+}
+
+// A Tell (CONTEXT.md): one decision point, Tell or not, with its top option.
+export interface Tell {
+  point: 'setup' | 'attack' | 'pistol' | 'after_pistol'
+  side: 'ct' | 't'
+  tell: boolean
+  label: string
+  title: string
+  detail: string
+  counter: string
+  share: number
+  pool_p75: number | null
+  mix: { text: string; n: number }[]
+  evidence: Evidence
 }
 
 export interface Slot {

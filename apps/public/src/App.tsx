@@ -50,6 +50,7 @@ const V2Replay = lazy(() => import('./v2/pages/ReplayPage'))
 const V2Player = lazy(() => import('./v2/pages/PlayerPage'))
 const V2Scouting = lazy(() => import('./v2/pages/ScoutingPage'))
 const V2GamePlan = lazy(() => import('./v2/pages/GamePlanPage'))
+const V2SelfScout = lazy(() => import('./v2/pages/SelfScoutPage'))
 const V2Spatial = lazy(() => import('./v2/pages/SpatialPage'))
 const V2Utility = lazy(() => import('./v2/pages/UtilityPage'))
 const V2Practice = lazy(() => import('./v2/pages/PracticePage'))
@@ -82,6 +83,9 @@ export default function App() {
         <Route path="scouting/:opponent" element={<V2Scouting />} />
         <Route path="gameplan" element={<V2GamePlanIndex />} />
         <Route path="gameplan/:opponent" element={<V2GamePlan />} />
+        <Route path="gameplan/:opponent/m/:map" element={<V2GamePlan />} />
+        <Route path="gameplan/:opponent/e/:section" element={<V2GamePlan />} />
+        <Route path="self-scout" element={<V2SelfScout />} />
         <Route path="spatial" element={<V2Spatial />} />
         <Route path="utility" element={<V2Utility />} />
         <Route path="practice" element={<V2Practice />} />

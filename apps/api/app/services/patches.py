@@ -62,3 +62,17 @@ def pool_on(when=None) -> tuple[str, ...]:
             if any((lo is None or lo <= day) and (hi is None or day < hi) for lo, hi in periods)
         )
     )
+
+
+def pool_changed(when=None) -> date:
+    """The day the Active Duty Maps last changed, on or before ``when`` (today when
+    none is given): a Veto from before it was made over another pool."""
+    day = (_day(when) if when is not None else date.today()).isoformat()
+    edges = {
+        edge
+        for periods in _data()["pool"].values()
+        for lo, hi in periods
+        for edge in (lo, hi)
+        if edge is not None and edge <= day
+    }
+    return date.fromisoformat(max(edges)) if edges else date(2023, 9, 27)

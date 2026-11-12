@@ -1021,6 +1021,16 @@ def match_line(m: dict) -> str:
     return " · ".join(bits)
 
 
+def veto_line(steps: int, best_of: int | None, lan: bool | None) -> str:
+    """Scout-ийн лог: матчийн хуудаснаас veto уншсан эсэх."""
+    if not steps:
+        return "   · veto: хуудсанд алга."
+    fmt = f"Bo{best_of}" if best_of else ""
+    where = {True: "LAN", False: "online"}.get(lan, "")
+    extra = " ".join(x for x in (fmt, where) if x)
+    return f"   · veto: {steps} алхам" + (f" ({extra})" if extra else "") + "."
+
+
 # Аль цонхны матч болохыг нэг үгээр. Гурван цонх өөр өөр асуултад хариулдаг тул
 # лог мөр аль нь болохыг хэлэх ёстой.
 WINDOWS = {
@@ -3483,3 +3493,107 @@ def economy_choice(row: dict, team: str) -> dict:
     else:
         text += "."
     return {"text": text, "costly": row["costly"]}
+
+
+# -- Tells (CONTEXT.md): the choices a Team makes so often they can be prepared for --
+TELL_POINT = {
+    ("setup", "ct"): "CT Setup",
+    ("attack", "t"): "T: plant-ийн site ба хурд",
+    ("pistol", "ct"): "Pistol: CT Setup",
+    ("pistol", "t"): "Pistol: T-ийн site",
+    ("after_pistol", "ct"): "Pistol алдсаны дараа (CT)",
+    ("after_pistol", "t"): "Pistol алдсаны дараа (T)",
+}
+TELL_BUY = {"eco": "eco (хэмнэнэ)", "force": "force buy", "full": "full buy"}
+TELL_TEMPO = {"rush": "rush", "default": "default"}
+
+
+def _tell_option(point: str, side: str, top: dict) -> str:
+    if "setup" in top:
+        return lean_pattern(top["setup"])
+    if point == "attack":
+        return f"{top['site']} site, {TELL_TEMPO.get(top['tempo'], top['tempo'])}"
+    if point == "pistol":
+        return "plant хийхгүй" if top["site"] == "none" else f"{top['site']} site"
+    return TELL_BUY.get(top.get("buy", ""), top.get("buy", ""))
+
+
+def _tell_counter(point: str, side: str, top: dict, ours: bool) -> str:
+    if ours:
+        return "Өрсөлдөгч үүнийг урьдчилан бэлдэж (anti-strat) чадна: хувилбар нэм."
+    if "setup" in top:
+        weak = min(("A", "B"), key=lambda s: top["setup"].get(s, 0))
+        return f"{weak} цэгт хүн цөөн байдаг — {weak} руу довтол, эсвэл тэнд түрүүлж мэдээлэл ав."
+    if point == "attack":
+        site = top["site"]
+        if top["tempo"] == "rush":
+            return f"{site}-д эхний 30 секундэд utility-гээ бэлэн барь, нэмэлт хүнтэй хамгаал."
+        return f"{site}-ийн retake-ээ бэлд; {_other_site(site)}-г цөөн хүнээр удаашруул."
+    if point == "pistol":
+        if top["site"] == "none":
+            return "Pistol-д тэд plant хийх гэж яарахгүй: эрт мэдээлэл аваад цагийг ашигла."
+        return f"Pistol-д {top['site']} цэгт нэмэлт хүн, utility тавь."
+    buy = top.get("buy")
+    if buy == "force":
+        return "Тэд force хийнэ: ойрын тулаанаас зайлсхий, хол зайнаас, бүтэн armor-тай тогло."
+    if buy == "eco":
+        return "Тэд хэмнэнэ: хүчтэй түрж раунд ав, дараагийн full buy-д нь бэлд."
+    return "Тэдний худалдан авалт урьдчилан мэдэгдэнэ: түүнд тааруулж бэлд."
+
+
+def tell(t: dict, *, whose: str) -> dict:
+    """Нэг шийдвэрийн цэг: тэдний (ашиглах) эсвэл манай (anti-strat-аас сэрэмжлэх)."""
+    ours = whose == "mine"
+    share = round(t["share"] * 100)
+    what = _tell_option(t["point"], t["side"], t["top"])
+    detail = f"{t['n']}/{t['of']} раундад ({share}%)"
+    if t.get("pool_p75") is not None:
+        detail += f"; Pool-д дөрвөн багийн нэг нь {round(t['pool_p75'] * 100)}%+"
+    detail += f"; эдгээрээс {t['won']} хожсон."
+    return {
+        "point": t["point"],
+        "side": t["side"],
+        "tell": t["tell"],
+        "label": TELL_POINT.get((t["point"], t["side"]), t["point"])
+        + (" · бүх Map" if t.get("all_maps") else ""),
+        "title": what,
+        "detail": detail,
+        "counter": _tell_counter(t["point"], t["side"], t["top"], ours) if t["tell"] else "",
+        "share": t["share"],
+        "pool_p75": t.get("pool_p75"),
+        "mix": [{"text": _tell_option(t["point"], t["side"], m), "n": m["n"]} for m in t["mix"]],
+        "evidence": t["evidence"],
+    }
+
+
+VETO_POINT = {"first_ban": "Эхний ban", "pick": "Pick"}
+
+
+def veto_tell(t: dict, *, whose: str) -> dict:
+    """Veto-гийн нэг цэг (Bo1, Bo3 тусдаа)."""
+    ours = whose == "mine"
+    what = game_map(t["top"])
+    detail = f"Bo{t['best_of']}: {t['n']}/{t['of']} veto ({round(t['share'] * 100)}%)"
+    if t.get("pool_p75") is not None:
+        detail += f"; Pool-д дөрвөн багийн нэг нь {round(t['pool_p75'] * 100)}%+"
+    detail += "."
+    if not t["tell"]:
+        counter = ""
+    elif ours:
+        counter = "Өрсөлдөгч манай veto-г урьдчилан тооцоолж чадна."
+    elif t["point"] == "first_ban":
+        counter = f"{what}-ийг тэд хасна гэж тооцоод өөрийн ban-аа өөр Map-д зарцуул."
+    else:
+        counter = f"{what}-д бэлд: тэд үүнийг сонгох магадлал өндөр."
+    return {
+        "point": t["point"],
+        "best_of": t["best_of"],
+        "tell": t["tell"],
+        "label": VETO_POINT.get(t["point"], t["point"]),
+        "map": t["top"],
+        "title": what,
+        "detail": detail,
+        "counter": counter,
+        "share": t["share"],
+        "pool_p75": t.get("pool_p75"),
+    }

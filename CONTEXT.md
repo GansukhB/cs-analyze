@@ -57,6 +57,10 @@ _Avoid_: Pracc, practice match, scrimmage
 One of several Demos that together record one Match Map, because its server was restarted mid-play: each later part resumes from the Round the game was restored to. The parts are parsed together as one Match Map, every Round numbered as it was played.
 _Avoid_: Split demo (in prose), half
 
+**Veto**:
+How a Match's Maps were chosen before it was played, as HLTV lists it: the two Teams in turn banning or picking a Map, until the one Map left over is the decider. A Team's veto history counts only the Matches played since the Active Duty Maps last changed, because a new pool reshuffles every ban and pick.
+_Avoid_: Map veto (in prose), pick/ban (in prose), draft
+
 ## Analysis (what happened in the game)
 
 **Map**:
@@ -296,8 +300,12 @@ A play Staff wrote down for one of their Teams on one Map and Side: its name, wh
 _Avoid_: Set play (that is found, not written), execute, call
 
 **Self-scout**:
-The Playbook's view of my own team: the same habits and Set plays it finds on the opponent, read from my team's Match Maps, so I can see what the opponent could prepare against.
+The Playbook's view of my own team: the same habits, Set plays and Tells it finds on the opponent, read from my team's Match Maps, so I can see what the opponent could prepare against. It can be read with no Fixture at all, for my team alone.
 _Avoid_: Own form (that's the numbers, not the habits)
+
+**Tell**:
+A choice a Team makes the same way so often, at one decision point on one Side of a Map or in its Veto, that the other Team can prepare for it: its most frequent option there stands above what most Teams of the Pool show at the same point. The decision points are the CT Setup, where and how fast the Ts take the bomb, the pistol Round, the buy after a lost pistol, and the Veto's first ban and its picks (Bo1 and Bo3 apart). The opponent's Tells are there to be used; my team's are what the opponent could anti-strat. Scrims never count.
+_Avoid_: Predictability (in prose), habit (that is what a Team tends to do, named by its Evidence strength), tendency
 
 **Setup**:
 Where a Team's Players stand 20 seconds after buy time ends, on one Side of one Map: each Player's Callout, and how many lean toward A, mid and B (such as 2-1-2). On CT it is how they hold; on T it is their default.

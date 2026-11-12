@@ -1409,6 +1409,8 @@ class VetoState(BaseModel):
     line: list[VetoLine]
     maps: list[str]
     decider: str | None
+    # Their likely choice leans on their own Vetoes (forecast.veto_history_helps).
+    from_vetoes: bool = False
 
 
 class VetoLab(BaseModel):

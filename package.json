@@ -35,6 +35,7 @@
     "review:fit": "uv run --directory apps/api python -m app.cli fit-winprob",
     "assistant:eval": "uv run --directory apps/api python -m app.cli assistant-eval",
     "hltv:canary": "uv run --directory apps/api python -m app.cli hltv-canary",
+    "hltv:veto": "uv run --directory apps/api python -m app.cli hltv-veto",
     "review:rebuild": "uv run --directory apps/api python -m app.cli rebuild-reviews",
     "review:thresholds": "uv run --directory apps/api python -m app.cli summary-thresholds",
     "openapi": "uv run --directory apps/api python -m app.openapi && npm run gen:api -w public",

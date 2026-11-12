@@ -155,8 +155,9 @@ def _evidence(rounds: Iterable[_Round], of: int) -> dict:
 
 
 # ------------------------------------------------------------------ loading --
-def _team_rounds(team: Team, other: Team, map_name: str | None) -> list[_Round]:
-    """Every parsed Round the team played, on one Map or on all of them."""
+def _team_rounds(team: Team, other: Team | None, map_name: str | None) -> list[_Round]:
+    """Every parsed Round the team played, on one Map or on all of them. ``other``
+    marks the Head-to-head Rounds; with none (Self-scout alone), none are."""
 
     def compute():
         maps = [
@@ -168,7 +169,11 @@ def _team_rounds(team: Team, other: Team, map_name: str | None) -> list[_Round]:
             return []
         # The current five's era (TM-3): habits of a roster that is gone mislead.
         maps, _narrowed = mapstrategy.era_maps(team, maps)
-        h2h = {m.id for m in mapstrategy.maps_in_window(team, opponent=other)}
+        h2h = (
+            {m.id for m in mapstrategy.maps_in_window(team, opponent=other)}
+            if other is not None
+            else set()
+        )
         info = {m.id: m for m in maps}
         rows = (
             db()
@@ -214,7 +219,7 @@ def _team_rounds(team: Team, other: Team, map_name: str | None) -> list[_Round]:
             for r in rows
         ]
 
-    return memo(("pb_rounds", team.id, other.id, map_name), compute)
+    return memo(("pb_rounds", team.id, other.id if other else None, map_name), compute)
 
 
 @dataclass
@@ -1310,6 +1315,8 @@ def build(my_team: Team, opponent: Team, map_name: str, view: dict | None = None
     """One Map's Playbook, structured: what they do, what we do, and the evidence.
     ``view`` reads the habits over some Rounds only (GP-9); the economy, pistols
     and conversion keep every Round, which they need for what comes next."""
+    from app.services import tells
+
     every_theirs = _team_rounds(opponent, my_team, map_name)
     every_mine = _team_rounds(my_team, opponent, map_name)
     theirs = _viewed(opponent, every_theirs, view)
@@ -1365,6 +1372,20 @@ def build(my_team: Team, opponent: Team, map_name: str, view: dict | None = None
             for side in ("t", "ct")
         },
         "predictability": predictability(my_team.id, mine, detail, sites, map_name),
+        # Tells (CONTEXT.md): both Teams' decision points, judged against the Pool.
+        "tells": {
+            "theirs": tells.for_team(
+                opponent.id, theirs, detail.setup, sites, map_name, every_map=all_theirs
+            ),
+            "mine": tells.for_team(
+                my_team.id,
+                mine,
+                detail.setup,
+                sites,
+                map_name,
+                every_map=_team_rounds(my_team, opponent, None),
+            ),  # fmt: skip
+        },
         "beaten_by": beaten_by(opponent.id, theirs, detail, sites),
         # PL-4: who fills which of the five spots 20 s in, Round after Round.
         "slots": {

@@ -11,8 +11,10 @@ is the chance of winning most of them.
 The veto is played out exactly in Valve's Major order (:data:`VETO`): ``minimax``
 when both Teams ban and pick by these chances, ``expected`` when the opponent
 bans and picks by how often it plays each Map and by its chances there (a soft
-choice, :func:`_their_policy`) and we answer it best. Veto records would make the
-expected line far better; they wait for HLTV's match pages (DATA-2).
+choice, :func:`_their_policy`) and we answer it best. Once the stored Vetoes
+show it predicts their steps better (``check_vetoes``, walk-forward, committed
+under ``vetoes`` in rating_params.json), that choice leans on what the opponent
+actually banned and picked in its Vetoes of the format (:mod:`veto_history`).
 
 Every number carries how far to trust it: how often past forecasts in its band
 came true (``reliability`` in ``rating_params.json``) and its data limits (a Team
@@ -282,18 +284,61 @@ def series_chance(ps: list[float], best_of: int) -> float:
     return sum(dist[need:])
 
 
-def _their_policy(options: list[str], kind: str, p: dict[str, float], share: dict[str, float]):
+VETO_PRIOR = 4.0  # pseudo-Vetoes of the model a Team's own record is pulled toward
+MIN_VETO_STEPS_CHECKED = 100
+
+
+def _blend(q: dict[str, float], counts: dict, options: list[str]) -> dict[str, float]:
+    """``q`` moved toward how often the Team took each option before, by
+    ``n / (n + VETO_PRIOR)``."""
+    total = sum(counts.get(m, 0) for m in options)
+    if not total:
+        return q
+    return {m: (counts.get(m, 0) + VETO_PRIOR * q[m]) / (total + VETO_PRIOR) for m in options}
+
+
+def _their_policy(
+    options: list[str],
+    kind: str,
+    p: dict[str, float],
+    share: dict[str, float],
+    habit: dict | None = None,
+):
     """How likely the opponent is to take each option: softly, by how often it plays
-    the Map and by its own chance there (each counted once, on the log scale)."""
+    the Map and by its own chance there (each counted once, on the log scale), and
+    with ``habit`` (``{"ban": counts, "pick": counts}`` from its Vetoes of the
+    format) moved toward what it actually did."""
     utility = {m: math.log(share[m]) + math.log((1 - p[m]) / p[m]) for m in options}
     sign = 1.0 if kind == "pick" else -1.0
     top = max(sign * u for u in utility.values())
     weights = {m: math.exp(sign * utility[m] - top) for m in options}
     total = sum(weights.values())
-    return {m: w / total for m, w in weights.items()}
+    q = {m: w / total for m, w in weights.items()}
+    if habit:
+        q = _blend(q, habit.get(kind) or {}, options)
+    return q
 
 
-def _solver(p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool):
+def veto_history_helps() -> bool:
+    """Whether the Teams' own Vetoes predict their steps better than the model,
+    checked walk-forward by ``npm run forecast:backtest`` (``vetoes``)."""
+    check = _committed().get("vetoes") or {}
+    plain, hist = check.get("model") or {}, check.get("history") or {}
+    return plain.get("n", 0) >= MIN_VETO_STEPS_CHECKED and hist.get(
+        "log_loss", math.inf
+    ) < plain.get("log_loss", -math.inf)
+
+
+def their_habit(team: Team, best_of: int) -> dict | None:
+    """The opponent's Veto record for :func:`_their_policy`, once it helps."""
+    if not veto_history_helps():
+        return None
+    from app.services import veto_history
+
+    return veto_history.habit(team, best_of)
+
+
+def _solver(p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool, habit=None):
     """``value(left, played, i, mode)``: our series chance from step ``i`` on, with
     our best answer at our steps and, at theirs, their worst for us ("minimax")
     or their likely move ("expected")."""
@@ -316,13 +361,15 @@ def _solver(p: dict[str, float], share: dict[str, float], fmt: str, we_start: bo
             return max(after(m) for m in options)
         if mode == "minimax":
             return min(after(m) for m in options)
-        policy = _their_policy(options, kind, p, share)
+        policy = _their_policy(options, kind, p, share, habit)
         return sum(q * after(m) for m, q in policy.items())
 
     return value, steps, best_of, us
 
 
-def _line(value, steps, us, p, share, left: frozenset, played: tuple, start: int) -> list:
+def _line(
+    value, steps, us, p, share, left: frozenset, played: tuple, start: int, habit=None
+) -> list:
     """From step ``start``: our best answer at each of our steps, their likeliest
     move at theirs."""
     line = []
@@ -344,7 +391,7 @@ def _line(value, steps, us, p, share, left: frozenset, played: tuple, start: int
             choice = scored[0]["map"]
             line.append({"who": "mine", "kind": kind, "map": choice, "options": scored})
         else:
-            policy = _their_policy(options, kind, p, share)
+            policy = _their_policy(options, kind, p, share, habit)
             choice = max(policy, key=lambda m: (policy[m], m))
             line.append(
                 {"who": "theirs", "kind": kind, "map": choice, "chance": round(policy[choice], 3)}
@@ -355,18 +402,25 @@ def _line(value, steps, us, p, share, left: frozenset, played: tuple, start: int
     return line
 
 
-def veto(p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool) -> dict:
+def veto(
+    p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool, habit=None
+) -> dict:
     """Play the veto out: our options at each of our steps, valued both ways."""
-    return veto_from(p, share, fmt, we_start, [])
+    return veto_from(p, share, fmt, we_start, [], habit)
 
 
 def veto_from(
-    p: dict[str, float], share: dict[str, float], fmt: str, we_start: bool, done: list[str]
+    p: dict[str, float],
+    share: dict[str, float],
+    fmt: str,
+    we_start: bool,
+    done: list[str],
+    habit=None,
 ) -> dict:
     """The veto from where it stands, ``done`` the Maps taken at its first steps
     in order (GP-10): our chance now, every option at the next step valued, and
     the line played out from there."""
-    value, steps, best_of, us = _solver(p, share, fmt, we_start)
+    value, steps, best_of, us = _solver(p, share, fmt, we_start, habit)
     left, played = frozenset(p), ()
     for i, m in enumerate(done):
         if i >= len(steps) or m not in left:
@@ -379,7 +433,7 @@ def veto_from(
     if at < len(steps):
         who, kind = steps[at]
         options = []
-        policy = _their_policy(sorted(left), kind, p, share) if who != us else {}
+        policy = _their_policy(sorted(left), kind, p, share, habit) if who != us else {}
         for m in sorted(left):
             nl, np_ = left - {m}, played + ((m,) if kind == "pick" else ())
             options.append(
@@ -392,7 +446,7 @@ def veto_from(
             )
         options.sort(key=lambda r: (-r["expected"], r["map"]))
         nxt = {"who": "mine" if who == us else "theirs", "kind": kind, "options": options}
-    line = _line(value, steps, us, p, share, left, played, at)
+    line = _line(value, steps, us, p, share, left, played, at, habit)
     projected_left, projected = left, played
     for step in line:
         projected_left = projected_left - {step["map"]}
@@ -410,6 +464,7 @@ def veto_from(
         "line": line,
         "maps": list(projected) + decider,
         "decider": decider[0] if decider else None,
+        "from_vetoes": bool(habit),
     }
 
 
@@ -539,7 +594,9 @@ def build(
     share = play_share(theirs_n, pool)
     for fmt, best_of in FORMATS.items():
         if use_offsets and len(pool) == 7:
-            ours, theirs_first = veto(p, share, fmt, True), veto(p, share, fmt, False)
+            habit = their_habit(theirs, best_of)
+            ours = veto(p, share, fmt, True, habit)
+            theirs_first = veto(p, share, fmt, False, habit)
             out["veto"][fmt] = {"we_start": ours, "they_start": theirs_first}
             expected = (ours["expected"] + theirs_first["expected"]) / 2
             minimax = (ours["minimax"] + theirs_first["minimax"]) / 2
@@ -587,6 +644,59 @@ def _standing_json(s: Standing | None) -> dict | None:
 
 
 # ---------------------------------------------------------------- checking ---
+def check_vetoes() -> dict:
+    """Score the opponent's veto choice walk-forward on every stored Veto: each step
+    a Team took, by the model alone and moved toward its earlier Vetoes of that
+    format within the same Active Duty pool, as log loss of the Map it took."""
+    from app.services import patches, veto_history
+
+    plain: list[float] = []
+    hist: list[float] = []
+    hits = [0, 0]
+    seen: dict[tuple, dict] = defaultdict(lambda: {"ban": Counter(), "pick": Counter()})
+    for v in veto_history.every_veto():
+        if v.played_at is None or v.best_of is None:
+            continue
+        day = v.played_at.date()
+        era = patches.pool_changed(day)
+        left = {s[2] for s in v.steps}
+        made = []
+        for step in sorted(v.steps):
+            _n, action, m, team_id, _h, _name = step
+            if action not in ("ban", "pick") or m not in left:
+                break
+            key = veto_history.team_key(step)
+            options = sorted(left)
+            if team_id is not None and key is not None and len(options) > 1:
+                share = play_share(played(team_id, day), options)
+                q = _their_policy(options, action, dict.fromkeys(options, 0.5), share)
+                h = _blend(q, seen[(key, v.best_of, era)][action], options)
+                plain.append(-math.log(max(q[m], 1e-9)))
+                hist.append(-math.log(max(h[m], 1e-9)))
+                hits[0] += max(q, key=q.get) == m
+                hits[1] += max(h, key=h.get) == m
+            made.append((key, action, m))
+            left.discard(m)
+        for key, action, m in made:
+            if key is not None:
+                seen[(key, v.best_of, era)][action][m] += 1
+    n = len(plain)
+
+    def score(losses, hit):
+        return {
+            "n": n,
+            "log_loss": round(sum(losses) / n, 4) if n else None,
+            "top1": round(hit / n, 3) if n else None,
+        }
+
+    return {
+        "model": score(plain, hits[0]),
+        "history": score(hist, hits[1]),
+        "prior": VETO_PRIOR,
+        "checked_at": datetime.now().date().isoformat(),
+    }
+
+
 def check_maps() -> dict:
     """Score the Map model walk-forward on every stored Match Map: each one from
     the Ratings and offsets known before its day."""

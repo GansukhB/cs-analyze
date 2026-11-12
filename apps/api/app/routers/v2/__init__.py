@@ -13,6 +13,7 @@ from app.routers.v2 import (
     players,
     practice,
     scouting,
+    selfscout,
     spatial,
     upcoming,
     utility,
@@ -24,6 +25,7 @@ router.include_router(upcoming.router)
 router.include_router(matches.router)
 router.include_router(players.router)
 router.include_router(scouting.router)
+router.include_router(selfscout.router)
 router.include_router(spatial.router)
 router.include_router(utility.router)
 router.include_router(practice.router)

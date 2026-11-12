@@ -105,7 +105,7 @@
 
 ### DATA-2. Дэлхийн үр дүнгийн сан (P0/P1, L; FC-1-ийн суурь)
 
-> **Төлөв:** 🟡 `5b26e5b` (improvement-01). Эхний эх: Valve VRS (35,761 цуврал, 12,252 standing). HLTV match page (Map-ын оноо, veto), Liquipedia үлдсэн.
+> **Төлөв:** 🟡 `5b26e5b` (improvement-01). Эхний эх: Valve VRS (35,761 цуврал, 12,252 standing). Veto (2026-11-12): Scout-ийн Window-ийн Match-ийн хуудаснаас `match_vetoes`-д, хуучныг `npm run hltv:veto`; локал 49 Match, 336 алхам. HLTV match page-ийн Map-ын оноо, Liquipedia үлдсэн.
 
 Q9-ийн дагуу дэлхий даяар цуглуулна. Хамрах хүрээ: VRS-д бүртгэлтэй бүх roster (2026-10-05-ны жагсаалт ~380), сүүлийн 18 сар.
 

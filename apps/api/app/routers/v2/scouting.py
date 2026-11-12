@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from app.deps import DbSession, StaffUser
 from app.routers.v2.common import my_team, team
 from app.schemas_v2 import Scouting, UpcomingRead
-from app.services import dbctx, scouting_v2, upcoming
+from app.services import dbctx, forecast, scouting_v2, self_scout, upcoming
 
 router = APIRouter()
 
@@ -24,5 +24,10 @@ def scouting(
             team={"id": mine.id, "name": mine.name},
             opponent={"id": theirs.id, "name": theirs.name},
             upcoming=UpcomingRead(**upcoming.read(u)) if u else None,
+            vetoes={
+                "mine": self_scout.veto_summary(mine, "mine"),
+                "theirs": self_scout.veto_summary(theirs, "theirs"),
+                "policy_from_vetoes": forecast.veto_history_helps(),
+            },
             **built,
         )

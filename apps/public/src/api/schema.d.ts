@@ -2089,6 +2089,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/teams/{team_id}/self-scout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Selfscout
+         * @description ``buy``, ``days`` and ``since`` read the Rounds as the Playbook's views do (GP-9).
+         */
+        get: operations["selfscout_v2_teams__team_id__self_scout_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/teams/{team_id}/spatial": {
         parameters: {
             query?: never;
@@ -3741,6 +3761,43 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HistoryVeto */
+        HistoryVeto: {
+            /** Match Id */
+            match_id: number;
+            /** Hltv Id */
+            hltv_id: number | null;
+            /** Played At */
+            played_at: string | null;
+            /** Best Of */
+            best_of: number | null;
+            /** Opponent */
+            opponent: string;
+            /** Started */
+            started: boolean;
+            /** First Ban */
+            first_ban: string | null;
+            /** Pick */
+            pick: string | null;
+            /** Steps */
+            steps: components["schemas"]["HistoryVetoStep"][];
+        };
+        /** HistoryVetoStep */
+        HistoryVetoStep: {
+            /** Step */
+            step: number;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "ban" | "pick" | "decider";
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** Mine */
+            mine: boolean;
         };
         /** HomeInfo */
         HomeInfo: {
@@ -6473,6 +6530,7 @@ export interface components {
             /** T Rounds */
             t_rounds: number;
             upcoming: components["schemas"]["UpcomingRead"] | null;
+            vetoes: components["schemas"]["VetoPair"];
         };
         /** ScrimLine */
         ScrimLine: {
@@ -6600,6 +6658,68 @@ export interface components {
             buy: string;
             /** Played At */
             played_at: string | null;
+        };
+        /** SelfScout */
+        SelfScout: {
+            team: components["schemas"]["TeamRef"];
+            /** Maps */
+            maps: components["schemas"]["SelfScoutMap"][];
+            /** Map */
+            map: string | null;
+            /** Label */
+            label: string | null;
+            sample: components["schemas"]["SelfScoutSample"] | null;
+            /** Tells */
+            tells: components["schemas"]["Tell"][];
+            /** Habits */
+            habits: components["schemas"]["SelfScoutSide"][];
+            /** Slots */
+            slots: {
+                [key: string]: unknown;
+            };
+            vetoes: components["schemas"]["VetoHistory"];
+        };
+        /** SelfScoutMap */
+        SelfScoutMap: {
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** Active */
+            active: boolean;
+            /** Maps */
+            maps: number;
+        };
+        /** SelfScoutSample */
+        SelfScoutSample: {
+            /** Maps */
+            maps: number;
+            /** All Maps */
+            all_maps: number;
+            /** Rounds */
+            rounds: number;
+            /** Of */
+            of: number;
+            /** Ct */
+            ct: number;
+            /** T */
+            t: number;
+            /** Sites Known */
+            sites_known: boolean;
+        };
+        /** SelfScoutSide */
+        SelfScoutSide: {
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "ct" | "t";
+            /** Label */
+            label: string;
+            /** Habits */
+            habits: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * Share
@@ -7635,6 +7755,46 @@ export interface components {
             /** Rating */
             rating: number;
         };
+        /** Tell */
+        Tell: {
+            /**
+             * Point
+             * @enum {string}
+             */
+            point: "setup" | "attack" | "pistol" | "after_pistol";
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "ct" | "t";
+            /** Tell */
+            tell: boolean;
+            /** Label */
+            label: string;
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+            /** Counter */
+            counter: string;
+            /** Share */
+            share: number;
+            /** Pool P75 */
+            pool_p75: number | null;
+            /** Mix */
+            mix: components["schemas"]["TellMix"][];
+            /** Evidence */
+            evidence: {
+                [key: string]: unknown;
+            };
+        };
+        /** TellMix */
+        TellMix: {
+            /** Text */
+            text: string;
+            /** N */
+            n: number;
+        };
         /** TimeoutCard */
         TimeoutCard: {
             /** Map */
@@ -8084,6 +8244,29 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VetoFormat */
+        VetoFormat: {
+            /** Best Of */
+            best_of: number;
+            /** Vetoes */
+            vetoes: number;
+            /** Maps */
+            maps: components["schemas"]["VetoMapCount"][];
+            /** Tells */
+            tells: components["schemas"]["VetoTell"][];
+        };
+        /** VetoHistory */
+        VetoHistory: {
+            team: components["schemas"]["TeamRef"];
+            /** Since */
+            since: string;
+            /** Vetoes */
+            vetoes: number;
+            /** Formats */
+            formats: components["schemas"]["VetoFormat"][];
+            /** Recent */
+            recent: components["schemas"]["HistoryVeto"][];
+        };
         /** VetoLab */
         VetoLab: {
             /** Maps */
@@ -8169,6 +8352,21 @@ export interface components {
             /** Chance */
             chance?: number | null;
         };
+        /** VetoMapCount */
+        VetoMapCount: {
+            /** Map */
+            map: string;
+            /** Label */
+            label: string;
+            /** First Ban */
+            first_ban: number;
+            /** Banned */
+            banned: number;
+            /** Picked */
+            picked: number;
+            /** Left */
+            left: number;
+        };
         /** VetoNext */
         VetoNext: {
             /** Who */
@@ -8188,6 +8386,13 @@ export interface components {
             minimax: number;
             /** Chance */
             chance: number | null;
+        };
+        /** VetoPair */
+        VetoPair: {
+            mine: components["schemas"]["VetoHistory"];
+            theirs: components["schemas"]["VetoHistory"];
+            /** Policy From Vetoes */
+            policy_from_vetoes: boolean;
         };
         /** VetoState */
         VetoState: {
@@ -8210,6 +8415,11 @@ export interface components {
             maps: string[];
             /** Decider */
             decider: string | null;
+            /**
+             * From Vetoes
+             * @default false
+             */
+            from_vetoes: boolean;
         };
         /** VetoStep */
         VetoStep: {
@@ -8217,6 +8427,32 @@ export interface components {
             who: string;
             /** Kind */
             kind: string;
+        };
+        /** VetoTell */
+        VetoTell: {
+            /**
+             * Point
+             * @enum {string}
+             */
+            point: "first_ban" | "pick";
+            /** Best Of */
+            best_of: number;
+            /** Tell */
+            tell: boolean;
+            /** Label */
+            label: string;
+            /** Map */
+            map: string;
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+            /** Counter */
+            counter: string;
+            /** Share */
+            share: number;
+            /** Pool P75 */
+            pool_p75: number | null;
         };
         /** WeekDay */
         WeekDay: {
@@ -12081,6 +12317,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Scouting"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    selfscout_v2_teams__team_id__self_scout_get: {
+        parameters: {
+            query?: {
+                map?: string | null;
+                buy?: "" | "full" | "light";
+                days?: number;
+                since?: string;
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfScout"];
                 };
             };
             /** @description Validation Error */

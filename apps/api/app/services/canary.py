@@ -3,9 +3,10 @@
 HLTV has no API: the Scout reads its pages through selectors (``client.py``).
 If HLTV changes its markup, a Scout ends "SUCCESS, 0 Matches" and nobody
 notices. The canary reads one known Team the Scout's way: found by name, its
-latest Matches listed with their teams and scores, and a demo link on one of
-them. Each step that fails is named. Run weekly (``npm run hltv:canary``); it
-opens three HLTV pages, so never more often.
+latest Matches listed with their teams and scores, and a demo link and a Veto on
+their match pages (read in the same visit). Each step that fails is named. Run
+weekly (``npm run hltv:canary``); it opens a handful of HLTV pages, so never
+more often.
 """
 
 from __future__ import annotations
@@ -29,9 +30,13 @@ def check(client, team_name: str = DEFAULT_TEAM) -> list[str]:
         problems.append("results: no score read (.result-score)")
     if not any(m.played_at for m in matches):
         problems.append("results: no date read (data-zonedgrouping-entry-unix)")
-    # A very recent Match may not have its demo yet: one of them is enough.
-    if not any(client.demo_link(m) for m in matches):
+    # A very recent Match may not have its demo yet: one of them is enough. The
+    # Veto comes off the same page, so it costs no visit of its own.
+    pages = [client.match_page(m) for m in matches]
+    if not any(p.demo for p in pages):
         problems.append(
             "match page: no demo link on the latest matches (a[href^='/download/demo/'])"
         )
+    if not any(p.veto.steps for p in pages):
+        problems.append("match page: no Veto read on the latest matches (.veto-box)")
     return problems

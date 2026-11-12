@@ -511,6 +511,130 @@ class ScoutBin(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+# ------------------------------------------------- Vetoes and Tells (CONTEXT.md)
+
+
+class HistoryVetoStep(BaseModel):
+    step: int
+    action: Literal["ban", "pick", "decider"]
+    map: str
+    label: str
+    mine: bool
+
+
+class HistoryVeto(BaseModel):
+    match_id: int
+    hltv_id: int | None
+    played_at: str | None
+    best_of: int | None
+    opponent: str
+    started: bool
+    first_ban: str | None
+    pick: str | None
+    steps: list[HistoryVetoStep]
+
+
+class VetoMapCount(BaseModel):
+    map: str
+    label: str
+    first_ban: int
+    banned: int
+    picked: int
+    left: int
+
+
+class VetoTell(BaseModel):
+    point: Literal["first_ban", "pick"]
+    best_of: int
+    tell: bool
+    label: str
+    map: str
+    title: str
+    detail: str
+    counter: str
+    share: float
+    pool_p75: float | None
+
+
+class VetoFormat(BaseModel):
+    best_of: int
+    vetoes: int
+    maps: list[VetoMapCount]
+    tells: list[VetoTell]
+
+
+class VetoHistory(BaseModel):
+    team: TeamRef
+    since: str
+    vetoes: int
+    formats: list[VetoFormat]
+    recent: list[HistoryVeto]
+
+
+class VetoPair(BaseModel):
+    mine: VetoHistory
+    theirs: VetoHistory
+    # Their pick and ban chances lean on their Vetoes (forecast.veto_history_helps).
+    policy_from_vetoes: bool
+
+
+class TellMix(BaseModel):
+    text: str
+    n: int
+
+
+class Tell(BaseModel):
+    point: Literal["setup", "attack", "pistol", "after_pistol"]
+    side: Literal["ct", "t"]
+    tell: bool
+    label: str
+    title: str
+    detail: str
+    counter: str
+    share: float
+    pool_p75: float | None
+    mix: list[TellMix]
+    # The Playbook's evidence: n, of, maps, h2h, strength, refs.
+    evidence: dict
+
+
+class SelfScoutMap(BaseModel):
+    map: str
+    label: str
+    active: bool
+    maps: int
+
+
+class SelfScoutSample(BaseModel):
+    maps: int
+    all_maps: int
+    rounds: int
+    of: int
+    ct: int
+    t: int
+    sites_known: bool
+
+
+class SelfScoutSide(BaseModel):
+    side: Literal["ct", "t"]
+    label: str
+    # The Playbook's habit lines, worded as ours (src/gameplan/types.ts Habit).
+    habits: list[dict]
+
+
+class SelfScout(BaseModel):
+    team: TeamRef
+    maps: list[SelfScoutMap]
+    map: str | None
+    label: str | None
+    sample: SelfScoutSample | None
+    tells: list[Tell]
+    habits: list[SelfScoutSide]
+    # PL-4's five slots per Side (src/gameplan/types.ts SlotsSide).
+    slots: dict
+    vetoes: VetoHistory
+
+
 class Scouting(BaseModel):
     team: TeamRef
     opponent: TeamRef
@@ -521,6 +645,7 @@ class Scouting(BaseModel):
     timing: list[ScoutBin]
     t_rounds: int
     upcoming: UpcomingRead | None
+    vetoes: VetoPair
 
 
 # ---------------------------------------------------------------- Spatial

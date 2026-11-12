@@ -9,6 +9,7 @@ so this scrapes rendered HTML:
 * match list   -- ``/results?team=<id>``, newest first, one ``.result-con`` per
   match inside ``.allres``
 * demo link    -- on the match page, ``a[href^='/download/demo/']``
+* Veto         -- on the same page, ``.veto-box`` (see :mod:`app.services.veto`)
 """
 
 from __future__ import annotations
@@ -16,8 +17,12 @@ from __future__ import annotations
 import datetime as dt
 import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .browser import HltvBrowser
+
+if TYPE_CHECKING:
+    from .veto import PageVeto
 
 _TEAM_HREF = re.compile(r"^/team/(\d+)/([^/?#]+)")
 _MATCH_HREF = re.compile(r"^/matches/(\d+)/([^/?#]+)")
@@ -52,6 +57,12 @@ class Match:
     def label(self) -> str:
         when = self.played_at.date().isoformat() if self.played_at else "unknown date"
         return f"{self.team1} {self.score} {self.team2} — {self.event} ({when})"
+
+
+@dataclass(frozen=True)
+class MatchPage:
+    demo: str | None
+    veto: PageVeto
 
 
 class HltvClient:
@@ -177,17 +188,24 @@ class HltvClient:
                 break
         return matches
 
-    # -- demos -------------------------------------------------------------
+    # -- the match page ----------------------------------------------------
+    def match_page(self, match: Match) -> MatchPage:
+        """The match page's demo link and Veto, read in one visit."""
+        from . import veto
+
+        page = self.browser.open(match.url)
+        demo = page.evaluate(
+            """() => {
+                const a = document.querySelector("a[href^='/download/demo/']");
+                return a ? a.getAttribute('href') : null;
+            }"""
+        )
+        return MatchPage(demo=demo, veto=veto.parse(page.evaluate(veto.PAGE_JS)))
+
     def demo_link(self, match: Match) -> str | None:
         """The ``/download/demo/<id>`` path for ``match``, or None if absent.
 
         Not every match has a demo: very recent or very old matches, and some
         online qualifiers, simply never get one published.
         """
-        page = self.browser.open(match.url)
-        return page.evaluate(
-            """() => {
-                const a = document.querySelector("a[href^='/download/demo/']");
-                return a ? a.getAttribute('href') : null;
-            }"""
-        )
+        return self.match_page(match).demo

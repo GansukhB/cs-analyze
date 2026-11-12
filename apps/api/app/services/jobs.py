@@ -102,6 +102,11 @@ def _in_flight(*, all_kinds: bool = False):
     return query if all_kinds else query.where(AnalysisJob.kind.in_(SLOT_KINDS))
 
 
+def scout_busy(db: Session) -> bool:
+    """A Scout (or a re-parse) holds the slot now, or is about to."""
+    return db.scalars(_in_flight().limit(1)).first() is not None
+
+
 def _dispatch(db: Session, job: AnalysisJob) -> None:
     """Hand `job` to Celery right now. Never raises -- a broker failure fails
     the job rather than the caller."""

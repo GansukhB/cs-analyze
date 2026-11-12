@@ -86,7 +86,8 @@ def lab(
     out = {"maps": rows, "limits": built["limits"], "veto": None}
     if len(p) == len(pool) and fmt in forecast.FORMATS:
         share = forecast.play_share(forecast.played(opponent.id), pool)
-        out["veto"] = forecast.veto_from(p, share, fmt, we_start, done)
+        habit = forecast.their_habit(opponent, forecast.FORMATS[fmt])
+        out["veto"] = forecast.veto_from(p, share, fmt, we_start, done, habit)
     return out
 
 

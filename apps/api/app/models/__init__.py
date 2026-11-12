@@ -61,7 +61,16 @@ from app.models.jobs import (
 from app.models.notes import NoteClip, NoteKind, PlaybookNote, Playlist, ReviewNote
 from app.models.planning import PracticeBlock, ReviewQueueItem, TeamGoal, UpcomingMatch
 from app.models.results import SeriesResult, VrsStanding
-from app.models.source import Demo, Match, MatchKind, MatchSource, Team, Tournament
+from app.models.source import (
+    Demo,
+    Match,
+    MatchKind,
+    MatchSource,
+    MatchVeto,
+    Team,
+    Tournament,
+    VetoAction,
+)
 from app.models.strat import (
     Strat,
     StratEvent,
@@ -105,6 +114,8 @@ __all__ = [
     "Team",
     "Tournament",
     "Match",
+    "MatchVeto",
+    "VetoAction",
     "NoteKind",
     "MatchKind",
     "MatchSource",

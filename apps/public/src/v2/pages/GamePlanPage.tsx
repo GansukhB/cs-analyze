@@ -1,25 +1,34 @@
-// v2 screen 08, the Game plan: the next match with this opponent, the three
-// things to do, the veto played out, both styles, each Map's plan with the
-// counters picked on the scouting page, the "if … then" card, the matchups,
-// what is new about them and the pre-match checklist. Read from the v1 Game Plan
-// endpoints (decision, todo, maps, veto lab, Playbook, style, timeout, between)
-// and the Upcoming match.
-import { useState } from 'react'
+// v2 screen 08, the Game plan: an overview tab (the next match with this
+// opponent, the three things to do, the short actions, the veto played out with
+// both Teams' Veto histories, each Map's plan in short, what is new about them
+// and the pre-match checklist), then each Map's whole Playbook in veto order
+// (grilled 2026-11-12: Tells, habits with counters and Rounds, Levers and
+// Cautions, slots, utility, pistols, economy, Players, Self-scout, style and
+// the timeout card), then the evidence tabs v1 has (decision, Players with roles
+// and edge, Maps, Head-to-head). Lineups and the window ride on the URL as on v1.
+import { type ReactNode, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { $api } from '../../api/client'
 import type { components } from '../../api/schema'
+import '../../gameplan/gameplan.css'
+import { lineupQuery, lineupSearch, readLineups } from '../../gameplan/lineup'
+import { LineupBar, WindowBar } from '../../gameplan/LineupBar'
+import { Decision, Duels as DuelsPanelView, Edge, type Fixture, H2H, Maps, Players, Roles } from '../../gameplan/panels'
+import type * as GP from '../../gameplan/types'
 import type { DecisionPanel, MapsPanel, PlaybookPanel, TodoPanel } from '../../gameplan/types'
 import { LoadError } from '../../ui/LoadError'
 import { PageSkeleton } from '../../ui/Skeleton'
 import { CRIT, CT, GOOD, MUTED, T, WARN, countdown, when } from '../format'
 import { useInvalidateV2 } from '../hooks'
 import OpponentIndex from '../OpponentIndex'
+import { MapPlaybook, VetoHistoryView } from '../playbook'
 import { at, useTeam } from '../team'
 import { UpcomingForm } from '../Upcoming'
 import { Bar, Box, Button, ButtonLink, Empty, Panel, Swatch, Tag } from '../ui'
 
 type Scouting = components['schemas']['Scouting']
 type Upcoming = components['schemas']['UpcomingRead']
+type LineupQuery = Record<string, string>
 
 export function GamePlanIndex() {
   return <OpponentIndex section="gameplan" title="Game plan" />
@@ -34,68 +43,254 @@ const CALL: Record<string, [string, string]> = {
   unknown: ['—', MUTED],
 }
 
+// The evidence tabs after the Maps: v1's panels, dressed by .v2-legacy.
+const EVIDENCE: [string, string][] = [
+  ['decision', 'Шийдвэр'],
+  ['players', 'Тоглогчид'],
+  ['maps', 'Map-ууд'],
+  ['h2h', 'Хоорондын'],
+]
+
 export default function GamePlanPage() {
   const team = useTeam()
-  const { opponent = '' } = useParams()
+  const { opponent = '', map, section } = useParams()
   const theirs = Number(opponent)
+  const [params] = useSearchParams()
+  const lineups = readLineups(params)
+  const lineupKeep = lineupSearch(lineups)
+  const query = lineupQuery(lineups) as LineupQuery
+  // Every tab link keeps the whole query (Lineups, window, the Playbook's view).
+  const keep = params.toString() ? `?${params.toString()}` : ''
   const fixture = { params: { path: { mine: team.id, theirs } } }
   const scout = $api.useQuery('get', '/v2/teams/{team_id}/scouting/{opponent_id}', {
     params: { path: { team_id: team.id, opponent_id: theirs } },
   })
-  const tab = (t: string) => ({ params: { path: { mine: team.id, theirs, tab: t } } })
-  const decision = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/s/{tab}', tab('decision'))
+  const header = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}', { params: { path: { mine: team.id, theirs }, query } }, { staleTime: 5 * 60_000 })
+  const tab = (t: string) => ({ params: { path: { mine: team.id, theirs, tab: t }, query } })
   const todo = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/s/{tab}', tab('todo'))
-  const mapsPanel = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/s/{tab}', tab('maps'))
-  const h2h = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/s/{tab}', tab('h2h'))
-  const u = scout.data?.upcoming ?? null
-  const format = (`bo${u?.best_of ?? 3}` as 'bo1' | 'bo3' | 'bo5')
-  const veto = $api.useQuery('post', '/gameplan/{mine}/vs/{theirs}/veto', { ...fixture, body: { format, we_start: true, done: [], adjust: {} } })
-  const between = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/between', fixture, { retry: false })
-  const [params, setParams] = useSearchParams()
   if (scout.error) return <LoadError error={scout.error} what="Game plan" retry={() => void scout.refetch()} />
   if (!scout.data) return <PageSkeleton />
   const d = scout.data
-  const dec = decision.data?.data as DecisionPanel | undefined
   const todoData = todo.data?.data as TodoPanel | undefined
-  const board = (mapsPanel.data?.data as MapsPanel | undefined)?.board ?? []
-  const played = (todoData?.maps ?? []).filter((m) => m.call === 'pick' || m.call === 'contest')
-  const chosen = params.get('map') ?? played[0]?.map ?? todoData?.maps[0]?.map ?? d.map
+  const base = at(team.id, 'gameplan', theirs)
+  const known = !map || (todoData?.maps ?? []).some((m) => m.map === map) || !todoData
   return (
     <>
-      <Header d={d} u={u} dec={dec} h2h={h2h.data?.data as { totals?: { maps_played?: number; maps_won?: number }; matches?: { my_maps_won: number; their_maps_won: number }[] } | undefined} teamId={team.id} />
+      <Header d={d} u={d.upcoming ?? null} query={query} teamId={team.id} />
+      {header.data && (
+        <div className="v2-legacy gp-page flex flex-col gap-2">
+          <LineupBar header={header.data} />
+          <WindowBar />
+        </div>
+      )}
+      <nav aria-label="Game plan" className="flex flex-wrap gap-1.5 border-b border-line pb-3">
+        <TabLink to={`${base}${keep}`} on={!map && !section}>
+          Тойм
+        </TabLink>
+        {(todoData?.maps ?? []).map((m) => (
+          <TabLink key={m.map} to={`${base}/m/${m.map}${keep}`} on={m.map === map}>
+            {m.label} <span className="num text-xs text-ink-3">{m.call_label}</span>
+          </TabLink>
+        ))}
+        {todo.isPending && <span className="flex h-11 items-center px-2 text-[13px] text-ink-3">Map-уудыг veto-гийн дарааллаар уншиж байна…</span>}
+        {todo.isError && <span className="flex h-11 items-center px-2 text-[13px] text-crit">Map-уудыг уншиж чадсангүй.</span>}
+        <span className="mx-1 w-px self-stretch bg-line" aria-hidden="true" />
+        {EVIDENCE.map(([key, label]) => (
+          <TabLink key={key} to={`${base}/e/${key}${keep}`} on={section === key}>
+            {label}
+          </TabLink>
+        ))}
+      </nav>
+      {map ? (
+        known ? (
+          <MapTab mine={team.id} theirs={theirs} map={map} query={query} names={{ mine: d.team.name, theirs: d.opponent.name }} sheet={`/gameplan/${team.id}/vs/${theirs}/sheet/${map}${lineupKeep}`} />
+        ) : (
+          <Panel>
+            <Empty>Энэ Fixture-ийн Map-уудад {map} алга.</Empty>
+          </Panel>
+        )
+      ) : section ? (
+        <Evidence section={section} mine={team.id} theirs={theirs} query={query} names={{ mine: d.team.name, theirs: d.opponent.name }} search={lineupKeep} tabs={header.data?.tabs ?? []} />
+      ) : (
+        <Overview d={d} teamId={team.id} theirs={theirs} query={query} todo={todoData} fixture={fixture} keep={keep} />
+      )}
+    </>
+  )
+}
+
+function TabLink(props: { to: string; on: boolean; children: ReactNode }) {
+  return (
+    <Link
+      to={props.to}
+      aria-current={props.on ? 'page' : undefined}
+      className={`plain flex h-11 items-center gap-1.5 rounded-md border px-4 text-sm ${props.on ? 'border-accent bg-accent-soft !text-accent' : 'border-line-strong !text-ink-2 hover:!text-ink'}`}
+    >
+      {props.children}
+    </Link>
+  )
+}
+
+function Overview(props: {
+  d: Scouting
+  teamId: number
+  theirs: number
+  query: LineupQuery
+  todo?: TodoPanel
+  fixture: { params: { path: { mine: number; theirs: number } } }
+  keep: string
+}) {
+  const { d, teamId, theirs, query, todo, fixture } = props
+  const tab = (t: string) => ({ params: { path: { mine: teamId, theirs, tab: t }, query } })
+  const decision = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/s/{tab}', tab('decision'))
+  const mapsPanel = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/s/{tab}', tab('maps'))
+  const u = d.upcoming ?? null
+  const format = `bo${u?.best_of ?? 3}` as 'bo1' | 'bo3' | 'bo5'
+  const veto = $api.useQuery('post', '/gameplan/{mine}/vs/{theirs}/veto', { ...fixture, body: { format, we_start: true, done: [], adjust: {} } })
+  const between = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/between', fixture, { retry: false })
+  const [params, setParams] = useSearchParams()
+  const dec = decision.data?.data as DecisionPanel | undefined
+  const board = (mapsPanel.data?.data as MapsPanel | undefined)?.board ?? []
+  const played = (todo?.maps ?? []).filter((m) => m.call === 'pick' || m.call === 'contest')
+  const chosen = params.get('map') ?? played[0]?.map ?? todo?.maps[0]?.map ?? d.map
+  return (
+    <>
       <Keys dec={dec} loading={decision.isPending} />
+      <Actions todo={todo} />
       <section className="flex flex-wrap gap-4">
         <Veto lab={veto.data} board={board} loading={veto.isPending} />
-        {chosen && <Style mine={team.id} theirs={theirs} map={chosen} names={[d.team.name, d.opponent.name]} />}
+        {chosen && <Style mine={teamId} theirs={theirs} map={chosen} names={[d.team.name, d.opponent.name]} />}
+      </section>
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(min(520px,100%),1fr))] gap-4">
+        <Panel title={`${d.opponent.name}-ийн veto түүх`} sub={d.vetoes.policy_from_vetoes ? 'Veto таамаг энэ түүхийг ашигладаг (backtest-ээр шалгасан)' : 'Veto таамаг одоогоор тоглосон давтамжаас'}>
+          <VetoHistoryView v={d.vetoes.theirs} whose="theirs" />
+        </Panel>
+        <Panel title={`${d.team.name}-ийн veto түүх`} sub="Өрсөлдөгчид бидний veto хэр таамаглагдахыг харуулна">
+          <VetoHistoryView v={d.vetoes.mine} whose="mine" />
+        </Panel>
       </section>
       <MapPlan
-        teamId={team.id}
+        teamId={teamId}
         theirs={theirs}
-        maps={todoData?.maps ?? []}
+        query={query}
+        maps={todo?.maps ?? []}
         map={chosen}
-        onMap={(m) => setParams({ map: m }, { replace: true })}
+        onMap={(m) => setParams({ ...Object.fromEntries(params), map: m }, { replace: true })}
         counters={(u?.counters ?? []).filter((c) => c.map === chosen)}
+        full={chosen ? `${at(teamId, 'gameplan', theirs, 'm', chosen)}${props.keep}` : ''}
       />
-      {chosen && <Triggers mine={team.id} theirs={theirs} map={chosen} />}
       <section className="flex flex-wrap gap-4">
-        {chosen && <Duels mine={team.id} theirs={theirs} map={chosen} />}
         <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
           <Novel data={between.data} />
-          <Checklist u={u} teamId={team.id} opponent={d.opponent} />
+        </div>
+        <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
+          <Checklist u={u} teamId={teamId} opponent={d.opponent} />
         </div>
       </section>
     </>
   )
 }
 
-function Header(props: {
-  d: Scouting
-  u: Upcoming | null
-  dec?: DecisionPanel
-  h2h?: { totals?: { maps_played?: number; maps_won?: number }; matches?: { my_maps_won: number; their_maps_won: number }[] }
-  teamId: number
+function Actions({ todo }: { todo?: TodoPanel }) {
+  if (!todo || todo.actions.length === 0) return null
+  return (
+    <Panel title="Товч зөвлөмж" sub="Veto, Map бүрийн эхний Lever ба Caution-оос">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-2.5">
+        {todo.actions.map((a, i) => (
+          <div key={i} className="grid grid-cols-[28px_minmax(0,1fr)] gap-2 rounded-md border border-line-soft bg-surface-2 p-3">
+            <span className="num text-sm text-accent">{String(i + 1).padStart(2, '0')}</span>
+            <span className="flex flex-col gap-1">
+              <b className="text-sm">{a.what}</b>
+              <span className="text-[13px] text-ink-2">{a.why}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  )
+}
+
+function MapTab(props: { mine: number; theirs: number; map: string; query: LineupQuery; names: { mine: string; theirs: string }; sheet: string }) {
+  const { mine, theirs, map } = props
+  return (
+    <>
+      <MapPlaybook {...props} />
+      <section className="flex flex-wrap gap-4">
+        <Style mine={mine} theirs={theirs} map={map} names={[props.names.mine, props.names.theirs]} />
+      </section>
+      <Triggers mine={mine} theirs={theirs} map={map} />
+    </>
+  )
+}
+
+function Evidence(props: {
+  section: string
+  mine: number
+  theirs: number
+  query: LineupQuery
+  names: { mine: string; theirs: string }
+  search: string
+  tabs: Fixture['tabs']
 }) {
-  const { d, u, dec, h2h, teamId } = props
+  const fixture: Fixture = {
+    mine: { id: props.mine, name: props.names.mine },
+    theirs: { id: props.theirs, name: props.names.theirs },
+    tabs: props.tabs,
+    search: props.search,
+    query: props.query,
+  }
+  const keys = props.section === 'players' ? ['players', 'roles', 'edge', 'duels'] : [props.section]
+  if (!EVIDENCE.some(([k]) => k === props.section))
+    return (
+      <Panel>
+        <Empty>Ийм хэсэг алга: {props.section}</Empty>
+      </Panel>
+    )
+  return (
+    <div className="v2-legacy gp-page flex flex-col gap-4">
+      {keys.map((k) => (
+        <LegacyPanel key={k} tab={k} fixture={fixture} />
+      ))}
+    </div>
+  )
+}
+
+function LegacyPanel({ tab, fixture }: { tab: string; fixture: Fixture }) {
+  const q = $api.useQuery(
+    'get',
+    '/gameplan/{mine}/vs/{theirs}/s/{tab}',
+    { params: { path: { mine: fixture.mine.id, theirs: fixture.theirs.id, tab }, query: fixture.query } },
+    { staleTime: 5 * 60_000 },
+  )
+  if (q.isError) return <LoadError error={q.error} what="хэсэг" retry={() => void q.refetch()} />
+  if (!q.data) return <p className="none">Тооцоолж байна…</p>
+  const data = q.data.data as never
+  switch (tab) {
+    case 'decision':
+      return <Decision data={data as GP.DecisionPanel} fixture={fixture} />
+    case 'players':
+      return <Players data={data as GP.PlayersPanel} />
+    case 'roles':
+      return <Roles data={data as GP.RolesPanel} />
+    case 'edge':
+      return <Edge data={data as GP.EdgePanel} />
+    case 'duels':
+      return <DuelsPanelView data={data as GP.DuelsPanel} />
+    case 'maps':
+      return <Maps data={data as GP.MapsPanel} fixture={fixture} />
+    case 'h2h':
+      return <H2H data={data as GP.H2HPanel} />
+    default:
+      return null
+  }
+}
+
+type H2HSummary = { totals?: { maps_played?: number; maps_won?: number }; matches?: { my_maps_won: number; their_maps_won: number }[] }
+
+function Header(props: { d: Scouting; u: Upcoming | null; query: LineupQuery; teamId: number }) {
+  const { d, u, teamId } = props
+  const tab = (t: string) => ({ params: { path: { mine: teamId, theirs: d.opponent.id, tab: t }, query: props.query } })
+  const dec = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/s/{tab}', tab('decision')).data?.data as DecisionPanel | undefined
+  const h2h = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/s/{tab}', tab('h2h')).data?.data as H2HSummary | undefined
   const [adding, setAdding] = useState(false)
   const fmt = `BO${u?.best_of ?? 3}`
   const series = dec?.decision.forecast.series.find((s) => s.format.toUpperCase() === fmt)
@@ -310,7 +505,7 @@ function Style({ mine, theirs, map, names }: { mine: number; theirs: number; map
         ))
       )}
       {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-t border-line pt-3">
+        <div className="flex flex-wrap gap-1.5 border-t-1 border-line pt-3">
           <span className="lbl w-full">Тэдний төрх</span>
           {tags.map((t) => (
             <span key={t} className="rounded-full border border-line-strong px-2.5 py-1 text-[13px] text-ink-2">
@@ -326,16 +521,18 @@ function Style({ mine, theirs, map, names }: { mine: number; theirs: number; map
 function MapPlan(props: {
   teamId: number
   theirs: number
+  query: LineupQuery
   maps: TodoPanel['maps']
   map: string | null
   onMap: (m: string) => void
   counters: components['schemas']['CounterPick'][]
+  full: string
 }) {
   const { teamId, theirs, maps, map } = props
   const q = $api.useQuery(
     'get',
     '/gameplan/{mine}/vs/{theirs}/playbook/{map_name}',
-    { params: { path: { mine: teamId, theirs, map_name: map ?? '' } } },
+    { params: { path: { mine: teamId, theirs, map_name: map ?? '' }, query: props.query } },
     { enabled: !!map, retry: false },
   )
   const book = q.data?.data as PlaybookPanel | undefined
@@ -376,7 +573,7 @@ function MapPlan(props: {
             <span className="text-sm text-ink-2">
               {book.sample.theirs.maps} Map тэднийх, {book.sample.mine.maps} Map манайх ·{' '}
               <Link to={`/gameplan/${teamId}/vs/${theirs}/sheet/${map}`}>Map sheet</Link> ·{' '}
-              <Link to={`/gameplan/${teamId}/vs/${theirs}/s/todo/m/${map}`}>Бүтэн Playbook (v1)</Link>
+              <Link to={props.full}>Бүтэн Playbook →</Link>
             </span>
           </div>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-3">
@@ -402,7 +599,7 @@ function MapPlan(props: {
             ))}
           </div>
           {props.counters.length > 0 && (
-            <div className="flex flex-col gap-2 border-t border-line pt-3">
+            <div className="flex flex-col gap-2 border-t-1 border-line pt-3">
               <span className="lbl">Скаутингаас сонгосон хариу</span>
               {props.counters.map((c) => (
                 <span key={c.key} className="text-sm">
@@ -452,42 +649,6 @@ function Triggers({ mine, theirs, map }: { mine: number; theirs: number; map: st
   )
 }
 
-function Duels({ mine, theirs, map }: { mine: number; theirs: number; map: string }) {
-  const q = $api.useQuery('get', '/gameplan/{mine}/vs/{theirs}/playbook/{map_name}', { params: { path: { mine, theirs, map_name: map } } }, { retry: false })
-  const players = (q.data?.data as PlaybookPanel | undefined)?.players ?? []
-  return (
-    <Panel title="Тоглогчийн тулаан" sub="Тэдний тоглогч бүр: байрлал, нээлт, бидэнтэй хийсэн duel" className="flex-[999_1_640px]">
-      {players.length === 0 ? (
-        <Empty>{q.isPending ? 'Уншиж байна…' : 'Мэдээлэл алга.'}</Empty>
-      ) : (
-        players.map((p) => (
-          <div key={p.player} className="flex flex-col gap-1 border-t border-line py-3">
-            <div className="flex flex-wrap items-baseline gap-2.5">
-              <span className="cond text-[17px] font-bold">{p.player}</span>
-              {p.tags.map((t) => (
-                <Tag key={t} color="var(--ink-3)">
-                  {t}
-                </Tag>
-              ))}
-            </div>
-            {p.lines.map((l) => (
-              <span key={l} className="text-[13px] text-ink-2">
-                {l}
-              </span>
-            ))}
-            {p.duels && <span className="text-[13px] text-ink-3">{p.duels}</span>}
-            {(p.card ?? []).slice(0, 2).map((l) => (
-              <span key={l} className="text-[13px] text-ink-3">
-                {l}
-              </span>
-            ))}
-          </div>
-        ))
-      )}
-    </Panel>
-  )
-}
-
 function Novel({ data }: { data?: components['schemas']['Between'] }) {
   return (
     <Panel title="Тэдэнд шинээр гарсан зүйлс" right={data?.played && <span className="lbl">{data.played.label ?? ''}</span>}>
@@ -498,12 +659,12 @@ function Novel({ data }: { data?: components['schemas']['Between'] }) {
       ) : (
         <>
           {data.lines.slice(0, 4).map((l) => (
-            <span key={`${l.side}-${l.key}`} className="border-t border-line pt-2.5 text-sm leading-snug">
+            <span key={`${l.side}-${l.key}`} className="border-t-1 border-line pt-2.5 text-sm leading-snug">
               {l.text}
             </span>
           ))}
           {data.players.filter((p) => p.hot || p.cold).slice(0, 3).map((p) => (
-            <span key={p.sid} className="border-t border-line pt-2.5 text-[13px] text-ink-2">
+            <span key={p.sid} className="border-t-1 border-line pt-2.5 text-[13px] text-ink-2">
               {p.name} {p.hot ? 'халуун' : p.cold ? 'хүйтэн' : ''}: Swing/раунд {(100 * p.here).toFixed(1)}% (ердийн{' '}
               {(100 * p.usual).toFixed(1)}%, {p.rounds} раунд)
             </span>
@@ -539,7 +700,7 @@ function Checklist({ u, teamId, opponent }: { u: Upcoming | null; teamId: number
   return (
     <Panel title="Тоглолтын өмнөх шалгах жагсаалт" right={<span className="num text-[13px] text-ink-3">{items.filter((i) => i.done).length}/{items.length}</span>}>
       {items.map((it, i) => (
-        <label key={`${i}-${it.text}`} className="flex min-h-11 cursor-pointer items-center gap-3 border-t border-line">
+        <label key={`${i}-${it.text}`} className="flex min-h-11 cursor-pointer items-center gap-3 border-t-1 border-line">
           <input type="checkbox" checked={it.done} onChange={() => put(items.map((x, j) => (j === i ? { ...x, done: !x.done } : x)))} className="h-5 w-5 accent-[var(--accent)]" />
           <span className="flex-1 text-sm" style={{ opacity: it.done ? 0.6 : 1 }}>
             {it.text}

@@ -2,9 +2,11 @@
 the page reads the Game Plan's Playbook for the Map.
 
 What they played and where it went (per Map: their Match Maps and record, ours,
-and the Forecast's model of what they would pick and ban, since no veto history
-is read: DATA-3); on one Map, where their T Rounds put the bomb by their buy, and
-when. Scrims never count (docs/adr/0010): the scope hides them.
+and the Forecast's model of what they would pick and ban, leaning on their own
+Vetoes once the backtest shows those help); on one Map, where their T Rounds put
+the bomb by their buy, and when. Both Teams' Veto histories ride along (the
+router, :func:`self_scout.veto_summary`). Scrims never count (docs/adr/0010):
+the scope hides them.
 
 Bind a session with ``dbctx.using``.
 """
@@ -75,17 +77,19 @@ def build(mine: Team, theirs: Team, map_name: str | None) -> dict:
 
 
 def _policy(mine: Team, theirs: Team, pool: list[str]) -> tuple[dict, dict]:
-    """The Forecast's model of their picks and bans: by how often they play each Map
-    and our chance there (forecast._their_policy), not a veto they made."""
+    """The Forecast's model of their picks and bans (forecast._their_policy): by how
+    often they play each Map and our chance there, moved toward their Bo3 Vetoes once
+    the backtest shows those help (forecast.veto_history_helps)."""
     built = forecast.build(mine, theirs)
     p = {r["map"]: r["p"] for r in built["maps"]}
     if not p or any(m not in p for m in pool):
         p = {m: 0.5 for m in pool}
     p = {m: min(0.99, max(0.01, v)) for m, v in p.items()}
     share = forecast.play_share(forecast.played(theirs.id), pool)
+    habit = forecast.their_habit(theirs, 3)
     return (
-        forecast._their_policy(pool, "pick", p, share),
-        forecast._their_policy(pool, "ban", p, share),
+        forecast._their_policy(pool, "pick", p, share, habit),
+        forecast._their_policy(pool, "ban", p, share, habit),
     )
 
 

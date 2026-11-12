@@ -24,6 +24,7 @@ const NAV: [string, string][][] = [
   [
     ['scouting', 'Скаутинг'],
     ['gameplan', 'Game plan'],
+    ['self-scout', 'Self-scout'],
   ],
   [
     ['practice', 'Бэлтгэл'],
@@ -178,7 +179,7 @@ function TeamSwitch({ teamId }: { teamId: number }) {
   // Switching keeps the section (overview, practice...) but drops what belongs to
   // the old team (a Match, a Player, an opponent).
   const section = location.pathname.split('/')[4] ?? ''
-  const keep = ['spatial', 'utility', 'practice', 'owner', 'matches', 'replay', 'players', 'scouting', 'gameplan',
+  const keep = ['spatial', 'utility', 'practice', 'owner', 'matches', 'replay', 'players', 'scouting', 'gameplan', 'self-scout',
     ...MORE.flatMap(([, items]) => items.map(([key]) => key))]
   return (
     <Popover

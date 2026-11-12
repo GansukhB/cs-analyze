@@ -91,6 +91,26 @@ class FakeClient:
     def demo_link(self, match):
         return f"/download/demo/{match.id}"
 
+    pages: list = []
+
+    def match_page(self, match):
+        from app.services import veto
+        from app.services.client import MatchPage
+
+        FakeClient.pages.append(match.id)
+        page = veto.parse(
+            {
+                "boxes": [
+                    f"1. {match.team1} removed Anubis\n2. {match.team2} removed Nuke\n"
+                    "3. Mirage was left over",
+                    "Best of 1 (LAN)",
+                ],
+                "names": [match.team1, match.team2],
+                "links": ["/team/9565/vitality", "/team/7020/spirit"],
+            }
+        )
+        return MatchPage(demo=self.demo_link(match), veto=page)
+
 
 class FakeParsed:
     map_name = "de_anubis"
@@ -150,6 +170,7 @@ def pipeline(monkeypatch, tmp_path, db, user):
     monkeypatch.setattr(tickdata, "pack", lambda parsed, scratch: b"tick data")
     FakeBrowser.downloads = []
     FakeBrowser.recovered = 0
+    FakeClient.pages = []
     INGESTED.clear()
 
     def run(**fields):
@@ -217,13 +238,37 @@ def test_downloads_unpacks_and_parses(pipeline, db, tmp_path, published):
 
 def test_second_run_skips_everything(pipeline, db):
     pipeline()
+    from app.models import MatchVeto
+
+    kept = db.query(MatchVeto).order_by(MatchVeto.match_id, MatchVeto.step).all()
+    assert len(kept) == 9 and {v.action for v in kept} == {"ban", "decider"}
+    assert {v.map for v in kept} == {"de_anubis", "de_nuke", "de_mirage"}
+    assert all(m.best_of == 1 and m.lan for m in db.query(Match).all())
+    FakeClient.pages.clear()
     again = pipeline()
+    assert FakeClient.pages == []  # Vetoes are read once
     assert again.status == "success"
     assert [s["state"] for s in jobs.stage_ladder(again)] == ["done"] * 4
     assert again.result["totals"]["fetching"]["skipped"] == 3
     assert again.result["totals"]["unpacking"] == {"archives": 0, "maps": 0, "failed": 0}
     assert again.result["totals"]["parsing"] == {"parsed": 0, "rounds": 0, "failed": 0}
     assert len(FakeBrowser.downloads) == 3
+
+
+def test_a_parsed_match_without_its_veto_reads_the_page_once(pipeline, db):
+    from app.models import MatchVeto
+
+    pipeline()
+    row = db.query(Match).filter_by(hltv_id=102).one()
+    db.query(MatchVeto).filter_by(match_id=row.id).delete()
+    row.veto_checked_at = None
+    db.commit()
+    FakeClient.pages.clear()
+    again = pipeline()
+    assert FakeClient.pages == [102]
+    assert again.result["totals"]["fetching"]["skipped"] == 3
+    assert len(FakeBrowser.downloads) == 3  # nothing downloaded again
+    assert db.query(MatchVeto).filter_by(match_id=row.id).count() == 3
 
 
 def test_a_crashed_tab_skips_that_match_only(pipeline, db, monkeypatch):

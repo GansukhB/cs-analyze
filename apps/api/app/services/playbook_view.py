@@ -137,6 +137,10 @@ def panel(my_team: Team, opponent: Team, map_name: str, view: dict | None = None
             for side, habits in raw["self_scout"].items()
         ],
         "predictability": mn.playbook_predictability(raw.get("predictability") or {}),
+        "tells": {
+            whose: [mn.tell(t, whose=whose) for t in (raw.get("tells") or {}).get(whose) or []]
+            for whose in ("theirs", "mine")
+        },
         "beaten_by": mn.playbook_beaten(raw.get("beaten_by") or {}, opponent.name),
         "slots": raw.get("slots") or {},
     }
