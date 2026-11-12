@@ -281,10 +281,18 @@ def hltv_canary(team: str) -> None:
     print(f"HLTV reads as expected ({team}).")
 
 
-def hltv_veto(limit: int | None) -> None:
+# Cloudflare began refusing the host after ~45 match pages read 3 s apart
+# (2026-11-12): the backfill goes slower than a Scout, and stops at the first
+# few refusals in a row rather than spend the host's standing on retries.
+VETO_PAUSE_SECONDS = 8.0
+VETO_MAX_REFUSED = 3
+
+
+def hltv_veto(limit: int | None, pause: float = VETO_PAUSE_SECONDS) -> None:
     """Read the Veto of every stored HLTV Match that has none yet, one match page each
     (CONTEXT.md: Veto). Refuses while a Scout runs, and stops if one starts: the two
-    would share HLTV's patience. Re-runnable: a Match read once is never opened again."""
+    would share HLTV's patience. Stops too once HLTV refuses ``VETO_MAX_REFUSED``
+    pages in a row. Re-runnable: a Match read once is never opened again."""
     from app.models import Match as MatchRow
     from app.models import MatchKind
     from app.services import jobs as job_service
@@ -311,13 +319,15 @@ def hltv_veto(limit: int | None) -> None:
         print(f"{len(rows)} Matches without a Veto read.")
         if not rows:
             return
-        read = steps = 0
+        read = steps = refused = 0
         with HltvBrowser() as browser:
             client = HltvClient(browser)
-            for row in rows:
+            for i, row in enumerate(rows):
                 if job_service.scout_busy(db):
                     print("A Scout started; stopping here (run again later).")
                     break
+                if i:
+                    time.sleep(pause)
                 scraped = Scraped(
                     id=row.hltv_id,
                     slug=row.slug,
@@ -330,15 +340,20 @@ def hltv_veto(limit: int | None) -> None:
                 try:
                     page = client.match_page(scraped)
                 except HltvBlocked as exc:
-                    print(f"  ✗ {row.hltv_id}: {exc}")
+                    print(f"  ✗ {row.hltv_id}: {exc}", flush=True)
+                    refused += 1
+                    if refused >= VETO_MAX_REFUSED:
+                        print("HLTV refuses this host; stopping here (run again in a few hours).")
+                        break
                     if not browser.is_connected():
                         break
                     browser.recover_page()
                     continue
+                refused = 0
                 n = veto.record(db, row, page.veto)
                 read += 1
                 steps += n
-                print(f"  {row.hltv_id} {row.slug}: {n} steps")
+                print(f"  {row.hltv_id} {row.slug}: {n} steps", flush=True)
         print(f"Read {read} pages, kept {steps} Veto steps.")
 
 
@@ -531,8 +546,10 @@ def main() -> None:
     sub.add_parser("hltv-canary").add_argument(
         "--team", default="Vitality", help="A Team HLTV lists with recent demos."
     )
-    sub.add_parser("hltv-veto").add_argument(
-        "--limit", type=int, help="Only the N most recent Matches without a Veto."
+    hv = sub.add_parser("hltv-veto")
+    hv.add_argument("--limit", type=int, help="Only the N most recent Matches without a Veto.")
+    hv.add_argument(
+        "--pause", type=float, default=VETO_PAUSE_SECONDS, help="Seconds between match pages."
     )
     sub.add_parser("watch")
     al = sub.add_parser("alert")
@@ -583,7 +600,7 @@ def main() -> None:
         alert(args.key, args.text)
         return
     if args.command == "hltv-veto":
-        hltv_veto(args.limit)
+        hltv_veto(args.limit, args.pause)
         return
     if args.command == "hltv-canary":
         hltv_canary(args.team)
