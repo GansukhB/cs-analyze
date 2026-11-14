@@ -3940,26 +3940,39 @@ export interface components {
         };
         /**
          * JobCreate
-         * @description The scout form: two team names, and how much to pull.
+         * @description The scout form: two team names and how much to pull, or (``kind`` "team",
+         *     a Team Scout) one Team and how many of its latest Matches.
          */
         JobCreate: {
+            /**
+             * Kind
+             * @default scout
+             * @enum {string}
+             */
+            kind: "scout" | "team";
             /** My Team */
             my_team: string;
-            /** Opponent */
+            /**
+             * Opponent
+             * @description Empty for a Team Scout.
+             * @default
+             */
             opponent: string;
             /**
              * N My Matches
-             * @description Latest matches against anyone but the opponent.
+             * @description Latest matches against anyone but the opponent (a Team Scout: anyone).
              */
             n_my_matches: number;
             /**
              * N Opponent Matches
              * @description Latest matches against anyone but my team.
+             * @default 0
              */
             n_opponent_matches: number;
             /**
              * N H2H Matches
              * @description Latest matches the two played each other.
+             * @default 0
              */
             n_h2h_matches: number;
             /**
@@ -4085,6 +4098,8 @@ export interface components {
             windows: string;
             /** My Team Name */
             my_team_name: string;
+            /** My Team Id */
+            my_team_id?: number | null;
             /** Opponent Name */
             opponent_name: string;
             /** Download */
@@ -6446,6 +6461,10 @@ export interface components {
             matches: number;
             /** Max Matches */
             max_matches: number;
+            /** Team Matches */
+            team_matches: number;
+            /** Team Max Matches */
+            team_max_matches: number;
         };
         /** ScoutMap */
         ScoutMap: {

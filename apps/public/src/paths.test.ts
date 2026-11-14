@@ -46,4 +46,10 @@ describe('pathsFor', () => {
     expect(p.gameplan(11, 13)).toBe('/v2/t/11/gameplan/13')
     expect(p.gameplan(12, 13)).toBe('/gameplan/12/vs/13')
   })
+
+  it('opens the my team in the URL on its overview, any other Team on v1', () => {
+    expect(pathsFor(11).teamPage(11)).toBe('/v2/t/11')
+    expect(pathsFor(11).teamPage(8)).toBe('/teams/8')
+    expect(pathsFor(null).teamPage(11)).toBe('/teams/11')
+  })
 })

@@ -312,7 +312,7 @@ def jobs() -> list[dict]:
     )
     out = []
     for j in live + ended:
-        label = f"{j.my_team_name} vs {j.opponent_name}" if j.kind == JobKind.SCOUT else j.kind
+        label = j.label if j.kind in (JobKind.SCOUT, JobKind.TEAM) else j.kind
         out.append(
             {
                 "public_id": str(j.public_id),

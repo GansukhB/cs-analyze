@@ -48,6 +48,7 @@ from app.models import (
 )
 from app.security import hash_password
 from app.services.members import MIN_PASSWORD_LENGTH
+from app.services.veto import PAUSE_SECONDS
 
 
 def _workspace(db, name: str | None) -> Workspace:
@@ -310,10 +311,9 @@ def hltv_canary(team: str) -> None:
     print(f"HLTV reads as expected ({team}).")
 
 
-# Cloudflare began refusing the host after ~45 match pages read 3 s apart
-# (2026-11-12): the backfill goes slower than a Scout, and stops at the first
-# few refusals in a row rather than spend the host's standing on retries.
-VETO_PAUSE_SECONDS = 8.0
+# The backfill keeps veto.PAUSE_SECONDS between match pages, and stops at the
+# first few refusals in a row rather than spend the host's standing on retries.
+VETO_PAUSE_SECONDS = PAUSE_SECONDS
 VETO_MAX_REFUSED = 3
 
 

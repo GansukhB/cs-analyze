@@ -209,6 +209,10 @@ _Avoid_: Task (that's the worker-level mechanism), report
 **Scout**:
 An Analysis Job about one fixture: "my team" versus an opponent, named as typed and resolved to Teams.
 
+**Team Scout**:
+An Analysis Job about one Team with no opponent. It takes that Team's latest Matches against anyone on HLTV, up to forty, and downloads and parses the ones not yet parsed. It waits its turn behind other Scouts like any of them.
+_Avoid_: Backfill, bulk scout
+
 **Window**:
 How many recent Matches a Scout looks at in one category: my team's own, the opponent's own, or Head-to-head. "My own" and "their own" never include Matches between the two Teams.
 _Avoid_: Limit, sample size

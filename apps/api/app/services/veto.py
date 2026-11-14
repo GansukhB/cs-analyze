@@ -30,6 +30,11 @@ _LEFT = re.compile(r"^\s*(\d+)\.\s+(.+?)\s+was left over\s*$")
 _BEST_OF = re.compile(r"Best of (\d)", re.I)
 _TEAM_HREF = re.compile(r"^/team/(\d+)/")
 
+# Cloudflare began refusing the host after ~45 match pages read 3 s apart
+# (2026-11-12): a match page opened for its Veto alone (the `hltv:veto` backfill,
+# or a Scout walking parsed Matches) waits this long after the last one.
+PAUSE_SECONDS = 8.0
+
 # JavaScript run on the match page: the blocks' text and the two Teams.
 PAGE_JS = """() => ({
     boxes: Array.from(document.querySelectorAll('.veto-box')).map(b => b.innerText || ''),

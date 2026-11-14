@@ -11842,6 +11842,15 @@
       },
       "JobCreate": {
         "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "scout",
+              "team"
+            ],
+            "title": "Kind",
+            "default": "scout"
+          },
           "my_team": {
             "type": "string",
             "maxLength": 120,
@@ -11851,26 +11860,29 @@
           "opponent": {
             "type": "string",
             "maxLength": 120,
-            "minLength": 1,
-            "title": "Opponent"
+            "title": "Opponent",
+            "description": "Empty for a Team Scout.",
+            "default": ""
           },
           "n_my_matches": {
             "type": "integer",
             "minimum": 0.0,
             "title": "N My Matches",
-            "description": "Latest matches against anyone but the opponent."
+            "description": "Latest matches against anyone but the opponent (a Team Scout: anyone)."
           },
           "n_opponent_matches": {
             "type": "integer",
             "minimum": 0.0,
             "title": "N Opponent Matches",
-            "description": "Latest matches against anyone but my team."
+            "description": "Latest matches against anyone but my team.",
+            "default": 0
           },
           "n_h2h_matches": {
             "type": "integer",
             "minimum": 0.0,
             "title": "N H2H Matches",
-            "description": "Latest matches the two played each other."
+            "description": "Latest matches the two played each other.",
+            "default": 0
           },
           "download": {
             "type": "boolean",
@@ -11882,13 +11894,10 @@
         "type": "object",
         "required": [
           "my_team",
-          "opponent",
-          "n_my_matches",
-          "n_opponent_matches",
-          "n_h2h_matches"
+          "n_my_matches"
         ],
         "title": "JobCreate",
-        "description": "The scout form: two team names, and how much to pull."
+        "description": "The scout form: two team names and how much to pull, or (``kind`` \"team\",\na Team Scout) one Team and how many of its latest Matches."
       },
       "JobCycle": {
         "properties": {
@@ -12210,6 +12219,17 @@
           "my_team_name": {
             "type": "string",
             "title": "My Team Name"
+          },
+          "my_team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Team Id"
           },
           "opponent_name": {
             "type": "string",
@@ -19442,12 +19462,22 @@
           "max_matches": {
             "type": "integer",
             "title": "Max Matches"
+          },
+          "team_matches": {
+            "type": "integer",
+            "title": "Team Matches"
+          },
+          "team_max_matches": {
+            "type": "integer",
+            "title": "Team Max Matches"
           }
         },
         "type": "object",
         "required": [
           "matches",
-          "max_matches"
+          "max_matches",
+          "team_matches",
+          "team_max_matches"
         ],
         "title": "ScoutDefaults"
       },

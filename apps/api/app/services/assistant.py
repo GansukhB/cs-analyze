@@ -49,6 +49,7 @@ from app.config import get_settings
 from app.models import (
     AnalysisJob,
     GameMap,
+    JobKind,
     JobStatus,
     MapRoster,
     Match,
@@ -1436,6 +1437,16 @@ class Context:
                 text += f", at {jobs.STAGE_LABELS.get(j.stage, j.stage)} ({j.progress}%)"
             if j.error:
                 text += f", with the error {j.error[:200]!r}"
+            if j.kind == JobKind.TEAM:
+                return text + (
+                    ". A Team Scout downloads and parses one Team's latest Matches, with no "
+                    "opponent; its numbers are on the Team page"
+                    + (
+                        f" (team_id {j.my_team_id}: use team_matches and the Team's tools)."
+                        if j.my_team_id
+                        else "."
+                    )
+                )
             text += ". A Scout downloads and parses the Teams' Matches; the analysis is on the "
             if j.status == JobStatus.SUCCESS and j.my_team_id and j.opponent_id:
                 text += (

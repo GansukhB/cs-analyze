@@ -62,32 +62,47 @@ class UserRead(BaseModel):
 
 # -- scout jobs ------------------------------------------------------------------
 class JobCreate(BaseModel):
-    """The scout form: two team names, and how much to pull."""
+    """The scout form: two team names and how much to pull, or (``kind`` "team",
+    a Team Scout) one Team and how many of its latest Matches."""
 
+    kind: Literal["scout", "team"] = "scout"
     my_team: str = Field(min_length=1, max_length=120)
-    opponent: str = Field(min_length=1, max_length=120)
-    n_my_matches: int = Field(ge=0, description="Latest matches against anyone but the opponent.")
-    n_opponent_matches: int = Field(ge=0, description="Latest matches against anyone but my team.")
-    n_h2h_matches: int = Field(ge=0, description="Latest matches the two played each other.")
+    opponent: str = Field("", max_length=120, description="Empty for a Team Scout.")
+    n_my_matches: int = Field(
+        ge=0, description="Latest matches against anyone but the opponent (a Team Scout: anyone)."
+    )
+    n_opponent_matches: int = Field(
+        0, ge=0, description="Latest matches against anyone but my team."
+    )
+    n_h2h_matches: int = Field(0, ge=0, description="Latest matches the two played each other.")
     download: bool = Field(True, description="False: analyse only what is already stored.")
 
-    @field_validator("my_team", "opponent")
+    @field_validator("my_team")
     @classmethod
     def strip(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("must not be blank")
         return value.strip()
 
-    @field_validator("n_my_matches", "n_opponent_matches", "n_h2h_matches")
+    @field_validator("opponent")
     @classmethod
-    def within_max(cls, value: int) -> int:
-        limit = get_settings().analysis_max_matches
-        if value > limit:
-            raise ValueError(f"at most {limit}")
-        return value
+    def strip_opponent(cls, value: str) -> str:
+        return value.strip()
 
     @model_validator(mode="after")
     def sensible(self) -> "JobCreate":
+        settings = get_settings()
+        if self.kind == "team":
+            limit = settings.analysis_team_max_matches
+            if not 1 <= self.n_my_matches <= limit:
+                raise ValueError(f"Ask for 1 to {limit} matches.")
+            self.opponent, self.n_opponent_matches, self.n_h2h_matches = "", 0, 0
+            return self
+        if not self.opponent:
+            raise ValueError("Name the opponent.")
+        limit = settings.analysis_max_matches
+        if max(self.n_my_matches, self.n_opponent_matches, self.n_h2h_matches) > limit:
+            raise ValueError(f"At most {limit} matches in each of a, b and c.")
         if self.my_team.casefold() == self.opponent.casefold():
             raise ValueError("Pick two different teams.")
         if not (self.n_my_matches or self.n_opponent_matches or self.n_h2h_matches):
@@ -107,6 +122,8 @@ class JobRow(BaseModel):
     progress: int
     windows: str
     my_team_name: str
+    # Resolved once the run starts (a Team Scout's page links to that Team).
+    my_team_id: int | None = None
     opponent_name: str
     download: bool
     error: str
@@ -133,6 +150,7 @@ class JobRow(BaseModel):
             progress=job.progress,
             windows=job.windows,
             my_team_name=job.my_team_name,
+            my_team_id=job.my_team_id,
             opponent_name=job.opponent_name,
             download=job.download,
             error=job.error,
@@ -253,6 +271,9 @@ class JobList(BaseModel):
 class ScoutDefaults(BaseModel):
     matches: int
     max_matches: int
+    # A Team Scout's one window.
+    team_matches: int
+    team_max_matches: int
 
 
 class JobTiming(BaseModel):

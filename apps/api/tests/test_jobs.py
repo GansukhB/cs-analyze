@@ -51,6 +51,40 @@ def test_create_dispatches_and_records_requester(client, auth, dispatched, db, u
     assert job.requested_by_id == user.id
 
 
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"opponent": ""},
+        {"opponent": "   "},
+        {"n_my_matches": 6},
+    ],
+)
+def test_a_scout_needs_its_opponent_and_small_windows(client, auth, dispatched, overrides):
+    assert create(client, auth, **overrides).status_code == 422
+    assert dispatched == []
+
+
+def test_a_team_scout_takes_one_team_and_up_to_forty(client, auth, dispatched, db):
+    """CONTEXT.md: Team Scout. No opponent, one window of up to 40 Matches; an
+    opponent or other windows sent along are dropped, not used."""
+    team = {"kind": "team", "my_team": "Vitality", "n_my_matches": 40}
+    assert client.post("/jobs", json={**team, "n_my_matches": 41}, headers=auth).status_code == 422
+    assert client.post("/jobs", json={**team, "n_my_matches": 0}, headers=auth).status_code == 422
+    made = client.post(
+        "/jobs", json={**team, "opponent": "Spirit", "n_h2h_matches": 5}, headers=auth
+    )
+    assert made.status_code == 201
+    body = made.json()
+    assert body["kind"] == "team" and body["label"] == "Vitality · сүүлийн 40"
+    assert body["windows"] == "40" and body["opponent_name"] == ""
+    job = stored(db, body)
+    assert (job.n_my_matches, job.n_opponent_matches, job.n_h2h_matches) == (40, 0, 0)
+    assert dispatched == [job.id]
+    # It holds HLTV's one slot like a Scout: the next Scout waits behind it.
+    waiting = stored(db, create(client, auth).json())
+    assert waiting.celery_task_id == "" and len(dispatched) == 1
+
+
 def test_only_one_job_in_flight(client, auth, dispatched, db):
     first = create(client, auth).json()
     second = create(client, auth, my_team="FaZe").json()
@@ -150,7 +184,12 @@ def test_home(client, auth, db):
     db.commit()
     home = client.get("/home", headers=auth).json()
     assert home["known_teams"] == ["Vitality"]
-    assert home["defaults"] == {"matches": 1, "max_matches": 5}
+    assert home["defaults"] == {
+        "matches": 1,
+        "max_matches": 5,
+        "team_matches": 20,
+        "team_max_matches": 40,
+    }
     assert home["parsed_maps"] == 0 and home["recent_jobs"] == []
 
 

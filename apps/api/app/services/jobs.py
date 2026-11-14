@@ -87,7 +87,9 @@ def _json_safe(value):
 # waiting job. A job that loses the race stays QUEUED with no `celery_task_id`.
 # The one slot is HLTV's (one Chromium); an upload has nothing to fetch and runs
 # beside it on the parse queue (OPS-6), taking the heavy permit to parse.
-SLOT_KINDS = (JobKind.SCOUT, JobKind.REPARSE_MAP)
+SLOT_KINDS = (JobKind.SCOUT, JobKind.TEAM, JobKind.REPARSE_MAP)
+# The two that read HLTV for Teams' Matches: a Scout and a Team Scout.
+SCOUT_KINDS = (JobKind.SCOUT, JobKind.TEAM)
 
 
 def _in_flight(*, all_kinds: bool = False):
@@ -522,7 +524,7 @@ def timings(db: Session) -> dict:
 
     rows = db.scalars(
         select(AnalysisJob)
-        .where(AnalysisJob.status == JobStatus.SUCCESS, AnalysisJob.kind == JobKind.SCOUT)
+        .where(AnalysisJob.status == JobStatus.SUCCESS, AnalysisJob.kind.in_(SCOUT_KINDS))
         .order_by(AnalysisJob.finished_at.desc())
         .limit(TIMING_JOBS)
     ).all()

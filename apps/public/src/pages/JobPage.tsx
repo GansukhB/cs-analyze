@@ -48,12 +48,22 @@ export default function JobPage() {
   if (error) return <LoadError error={error} what="Job" />
   if (!detail || !status) return <PageSkeleton />
   const { job, words } = detail
+  // A Team Scout (CONTEXT.md): one Team's latest Matches, no opponent.
+  const teamScout = job.kind === 'team'
 
   return (
     <div className="space-y-6">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold text-ink">
-          {job.my_team_name} <span className="text-ink-3">vs</span> {job.opponent_name}
+          {teamScout ? (
+            <>
+              {job.my_team_name} <span className="text-ink-3">· сүүлийн {job.windows} тоглолт</span>
+            </>
+          ) : (
+            <>
+              {job.my_team_name} <span className="text-ink-3">vs</span> {job.opponent_name}
+            </>
+          )}
         </h1>
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <StatusPill status={status.status} />
@@ -75,7 +85,7 @@ export default function JobPage() {
           <span className="ml-auto text-xs text-ink-3">{conn}</span>
         </div>
         <p className="text-xs text-ink-3">
-          a/b/c {job.windows} · {job.download ? 'HLTV-ээс татна' : 'зөвхөн диск дээрх demo'} · {when(job.created_at)}
+          {teamScout ? 'Team Scout' : `a/b/c ${job.windows}`} · {job.download ? 'HLTV-ээс татна' : 'зөвхөн диск дээрх demo'} · {when(job.created_at)}
           {job.requested_by && ` · ${job.requested_by}`}
         </p>
       </header>
@@ -106,7 +116,7 @@ export default function JobPage() {
 
       <Stages rows={status.stages} words={words} cycle={status.finished ? null : status.cycle ?? null} />
       <Log events={events} />
-      {detail.result && <Result result={detail.result} words={words.counts} />}
+      {detail.result && <Result result={detail.result} words={words.counts} team={teamScout ? job.my_team_id ?? null : undefined} />}
     </div>
   )
 }
@@ -176,8 +186,10 @@ const WINDOW_TITLES: Record<string, string> = {
   theirs: 'Өрсөлдөгчийн тоглолтууд',
 }
 
-function Result({ result, words }: { result: JobResult; words: Record<string, string> }) {
+/** `team`: a Team Scout's Team (null until resolved); undefined for a Scout. */
+function Result({ result, words, team }: { result: JobResult; words: Record<string, string>; team?: number | null }) {
   const paths = usePaths()
+  const teamScout = team !== undefined
   const totals = Object.entries(result.totals).filter(([, counts]) => tally(counts, words))
   return (
     <section className="space-y-4">
@@ -193,7 +205,7 @@ function Result({ result, words }: { result: JobResult; words: Record<string, st
       )}
       {result.windows &&
         Object.entries(result.windows).map(([key, matches]) => (
-          <Matches key={key} title={WINDOW_TITLES[key] ?? key} matches={matches} />
+          <Matches key={key} title={teamScout ? 'Багийн сүүлийн тоглолтууд' : WINDOW_TITLES[key] ?? key} matches={matches} />
         ))}
       {result.match_id ? (
         <p className="text-sm">
@@ -205,7 +217,19 @@ function Result({ result, words }: { result: JobResult; words: Record<string, st
           </Link>
         </p>
       ) : (
-        <Matches title="Энэ хоёр багийн parse хийгдсэн бүх тоглолт" matches={result.parsed_matches} />
+        <>
+          {team != null && (
+            <p className="text-sm">
+              <Link to={paths.teamPage(team)} className="text-ct hover:underline">
+                Багийн хуудсыг нээх →
+              </Link>
+            </p>
+          )}
+          <Matches
+            title={teamScout ? 'Энэ багийн parse хийгдсэн бүх тоглолт' : 'Энэ хоёр багийн parse хийгдсэн бүх тоглолт'}
+            matches={result.parsed_matches}
+          />
+        </>
       )}
     </section>
   )

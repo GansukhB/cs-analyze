@@ -52,6 +52,9 @@ class JobKind(StrEnum):
     REPARSE_MAP = "reparse_map"
     # A Workspace's own Demo file (DATA-1): parsed on the parse queue, beside a Scout.
     UPLOAD = "upload"
+    # A Team Scout (CONTEXT.md): one Team's latest Matches against anyone, no
+    # opponent. `my_team_*` names the Team and `n_my_matches` is its one window.
+    TEAM = "team"
 
 
 class JobStatus(StrEnum):
@@ -165,11 +168,16 @@ class AnalysisJob(TimestampMixin, Base):
                 map_name = (self.demo.map or "").replace("de_", "").title() or "map"
                 return f"Re-parse {map_name} — {self.demo.match}"
             return "Re-parse map"
+        if self.kind == JobKind.TEAM:
+            return f"{self.my_team_name} · сүүлийн {self.n_my_matches}"
         return f"{self.my_team_name} vs {self.opponent_name}"
 
     @property
     def windows(self) -> str:
-        """The three request sizes, as they read on the page: a / b / c."""
+        """The three request sizes, as they read on the page: a / b / c (a Team
+        Scout's one)."""
+        if self.kind == JobKind.TEAM:
+            return str(self.n_my_matches)
         return f"{self.n_my_matches}/{self.n_opponent_matches}/{self.n_h2h_matches}"
 
     @property

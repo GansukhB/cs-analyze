@@ -24,6 +24,15 @@ def _unchecked_parse(monkeypatch):
     monkeypatch.setattr(demo_parser, "quality", lambda parsed: ([], []))
 
 
+@pytest.fixture(autouse=True)
+def _no_veto_pause(monkeypatch):
+    """Pages read for a Veto alone wait veto.PAUSE_SECONDS on the host, not here."""
+    from app.services import veto
+
+    monkeypatch.setattr(veto, "PAUSE_SECONDS", 0.0)
+    monkeypatch.setattr(tasks, "_last_veto_page", 0.0)
+
+
 VITALITY = client.Team(id=9565, name="Vitality", slug="vitality")
 SPIRIT = client.Team(id=7020, name="Spirit", slug="spirit")
 
@@ -175,13 +184,15 @@ def pipeline(monkeypatch, tmp_path, db, user):
 
     def run(**fields):
         job = AnalysisJob(
-            my_team_name="Vitality",
-            opponent_name="Spirit",
-            n_my_matches=2,
-            n_opponent_matches=1,
-            n_h2h_matches=0,
-            requested_by_id=user.id,
-            **fields,
+            **{
+                "my_team_name": "Vitality",
+                "opponent_name": "Spirit",
+                "n_my_matches": 2,
+                "n_opponent_matches": 1,
+                "n_h2h_matches": 0,
+                "requested_by_id": user.id,
+                **fields,
+            }
         )
         db.add(job)
         db.commit()
@@ -547,3 +558,49 @@ def test_a_match_that_fails_to_fetch_fails_alone(pipeline, db, monkeypatch):
     }
     assert job.result["totals"]["parsing"]["parsed"] == 2
     assert any("энэ матчийг алгаслаа" in e.message for e in job.events)
+
+
+def test_a_team_scout_takes_its_latest_matches_with_no_opponent(pipeline, db, monkeypatch):
+    """CONTEXT.md: Team Scout. Its Team's latest Matches against anyone, as many as
+    asked (HLTV lists only what it has), parsed one by one; nothing about Spirit."""
+    from app.models import JobKind
+
+    looked: list = []
+    real = FakeClient.latest_matches
+    monkeypatch.setattr(
+        FakeClient,
+        "latest_matches",
+        lambda self, t, n: looked.append((t.id, n)) or real(self, t, n),
+    )
+    job = pipeline(kind=JobKind.TEAM, opponent_name="", n_my_matches=40, n_opponent_matches=0)
+
+    assert job.status == "success" and job.progress == 100
+    assert [s["state"] for s in jobs.stage_ladder(job)] == ["done"] * 4
+    assert looked == [(VITALITY.id, 40)]
+    assert job.my_team.hltv_id == VITALITY.id and job.opponent_id is None
+    assert job.label == "Vitality · сүүлийн 40" and job.windows == "40"
+    assert len(FakeBrowser.downloads) == 2
+    assert list(job.result["windows"]) == ["mine"]
+    assert [m["hltv_id"] for m in job.result["windows"]["mine"]] == [101, 102]
+    assert {m.hltv_id for m in job.matches} == {101, 102}
+    assert any("сүүлийн 2 тоглолтыг авна" in e.message for e in job.events)
+
+
+def test_pages_read_for_a_veto_alone_keep_their_pace(pipeline, db, monkeypatch):
+    """A Team Scout over forty parsed Matches opens their pages back to back: each
+    waits veto.PAUSE_SECONDS after the one before, as `hltv:veto` does."""
+    from app.models import MatchVeto
+    from app.services import veto
+
+    pipeline()
+    for row in db.query(Match).filter(Match.hltv_id.in_([101, 102])):
+        db.query(MatchVeto).filter_by(match_id=row.id).delete()
+        row.veto_checked_at = None
+    db.commit()
+    slept: list = []
+    monkeypatch.setattr(veto, "PAUSE_SECONDS", 8.0)
+    monkeypatch.setattr(tasks.time, "sleep", slept.append)
+    FakeClient.pages.clear()
+    pipeline()
+    assert FakeClient.pages == [101, 102]
+    assert len(slept) == 1 and 7.0 < slept[0] <= 8.0

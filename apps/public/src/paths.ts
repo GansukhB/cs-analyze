@@ -20,6 +20,8 @@ export interface Paths {
   workspace: () => string
   gameplan: (mine: number, theirs: number) => string
   gameplanPick: () => string
+  /** A Team's page: the v2 overview when it is the my team in the URL. */
+  teamPage: (id: number) => string
   /** A Match, a Match Map, or a moment of one (`round`). */
   match: (id: number, map?: number | null, round?: number | null) => string
 }
@@ -48,6 +50,7 @@ export function pathsFor(team: number | null): Paths {
       workspace: () => '/workspace',
       gameplan: (mine, theirs) => `/gameplan/${mine}/vs/${theirs}`,
       gameplanPick: () => '/gameplan',
+      teamPage: (id) => `/teams/${id}`,
       match: (id, map, round) => (map ? `/matches/${id}/m/${map}${round ? `?round=${round}` : ''}` : `/matches/${id}`),
     }
   return {
@@ -67,6 +70,7 @@ export function pathsFor(team: number | null): Paths {
     workspace: () => v2('workspace'),
     gameplan: (mine, theirs) => (mine === team ? v2('gameplan', theirs) : `/gameplan/${mine}/vs/${theirs}`),
     gameplanPick: () => v2('gameplan'),
+    teamPage: (id) => (id === team ? v2() : `/teams/${id}`),
     // A moment opens the Replay; a Match Map its report; a Match its first Map's.
     match: (id, map, round) =>
       round ? `${v2('replay', id, map ?? 1)}?round=${round}` : v2('matches', id, 'm', map ?? 1),

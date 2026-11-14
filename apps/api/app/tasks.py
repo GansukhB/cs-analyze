@@ -451,32 +451,39 @@ def refresh_reviews() -> dict:
 
 
 def run_pipeline(job_db: Session, db: Session, job: AnalysisJob) -> dict:
+    """A Scout, or a Team Scout (CONTEXT.md): the same stages, with no opponent."""
+    team_scout = job.kind == JobKind.TEAM
     jobs.check_cancelled(job_db, job)
     jobs.set_stage(
         job_db,
         job,
         STAGE.RESOLVING,
         _at(STAGE.RESOLVING),
-        f"{job.my_team_name} багийг {job.opponent_name}-ийн эсрэг бэлдэж байна. "
-        f"Хүсэлт: манай {job.n_my_matches}, тэдний {job.n_opponent_matches}, "
-        f"хоорондын {job.n_h2h_matches} тоглолт"
+        (
+            f"{job.my_team_name} багийн HLTV дээрх сүүлийн {job.n_my_matches} тоглолтыг "
+            "өрсөлдөгч харгалзахгүйгээр бэлдэж байна"
+            if team_scout
+            else f"{job.my_team_name} багийг {job.opponent_name}-ийн эсрэг бэлдэж байна. "
+            f"Хүсэлт: манай {job.n_my_matches}, тэдний {job.n_opponent_matches}, "
+            f"хоорондын {job.n_h2h_matches} тоглолт"
+        )
         + (" · demo татна." if job.download else " · зөвхөн диск дээрх demo."),
     )
 
-    my_team = _resolve(job_db, db, job, job.my_team_name, "манай баг")
-    opponent = _resolve(job_db, db, job, job.opponent_name, "өрсөлдөгч")
-    job.my_team_id, job.opponent_id = my_team.id, opponent.id
+    my_team = _resolve(job_db, db, job, job.my_team_name, "баг" if team_scout else "манай баг")
+    opponent = None if team_scout else _resolve(job_db, db, job, job.opponent_name, "өрсөлдөгч")
+    teams = [my_team] if opponent is None else [my_team, opponent]
+    named = " vs ".join(t.name for t in teams)
+    job.my_team_id, job.opponent_id = my_team.id, opponent.id if opponent else None
     job_db.commit()
     jobs.log(
         job_db,
         job,
-        f"Багууд тодорхой болов: {my_team.name} vs {opponent.name}.",
+        f"Баг тодорхой болов: {named}." if team_scout else f"Багууд тодорхой болов: {named}.",
         level=LEVEL.SUCCESS,
         stage=STAGE.RESOLVING,
     )
-    jobs.finish_stage(
-        job_db, job, STAGE.RESOLVING, f"{my_team.name} vs {opponent.name}", {"teams": 2}
-    )
+    jobs.finish_stage(job_db, job, STAGE.RESOLVING, named, {"teams": len(teams)})
 
     jobs.check_cancelled(job_db, job)
     outcome: dict = {}
@@ -500,12 +507,12 @@ def run_pipeline(job_db: Session, db: Session, job: AnalysisJob) -> dict:
             jobs.set_stage(job_db, job, STAGE.UNPACKING, MATCHES[1])
             jobs.finish_stage(job_db, job, STAGE.UNPACKING, "задлах архив байхгүй")
         jobs.check_cancelled(job_db, job)
-        reparsed = _reparse(job_db, db, job, _own_match_ids(db, my_team, opponent))
+        reparsed = _reparse(job_db, db, job, _own_match_ids(db, *teams))
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     jobs.check_cancelled(job_db, job)
 
-    linked = _link_matches(job_db, db, job, my_team, opponent)
+    linked = _link_matches(job_db, db, job, *teams)
     windows = outcome.get("windows")
     result = {
         "windows": (
@@ -698,14 +705,35 @@ def _is_between(match, team_a: Team, team_b: Team) -> bool:
 H2H_SCAN_DEPTH = 40
 
 
-def _plan_matches(job_db: Session, job: AnalysisJob, client, my_team: Team, opponent: Team) -> dict:
+def _plan_matches(
+    job_db: Session, job: AnalysisJob, client, my_team: Team, opponent: Team | None
+) -> dict:
     """Split each team's recent results into head-to-head and everything else.
 
     HLTV's results page is one list per team, so both categories come from the
     same read. A wider window than requested is scanned, because the matches
-    that are *not* against the opponent may sit behind several that are.
+    that are *not* against the opponent may sit behind several that are. A Team
+    Scout (no opponent) takes its Team's latest Matches as HLTV lists them.
     """
     plan: dict = {"h2h": [], "mine": [], "theirs": []}
+    if opponent is None:
+        jobs.check_cancelled(job_db, job)
+        results = client.latest_matches(_as_scraped(my_team), job.n_my_matches)
+        plan["mine"] = results[: job.n_my_matches]
+        plan["window"] = job.n_my_matches
+        plan["scanned"] = len(results)
+        jobs.log(
+            job_db,
+            job,
+            f"{my_team.name}: HLTV-ийн сүүлийн {len(plan['mine'])} тоглолтыг авна"
+            + (
+                f" (хүссэн {job.n_my_matches}-аас HLTV {len(results)}-ийг жагсаасан)."
+                if len(results) < job.n_my_matches
+                else "."
+            ),
+            stage=STAGE.FETCHING,
+        )
+        return plan
     window = max(job.n_my_matches, job.n_opponent_matches) + 8
     if job.n_h2h_matches:
         window = max(window, H2H_SCAN_DEPTH)
@@ -788,7 +816,12 @@ def _scratch(job: AnalysisJob) -> Path:
 
 
 def _fetch(
-    job_db: Session, db: Session, job: AnalysisJob, my_team: Team, opponent: Team, scratch: Path
+    job_db: Session,
+    db: Session,
+    job: AnalysisJob,
+    my_team: Team,
+    opponent: Team | None,
+    scratch: Path,
 ) -> dict:
     """The three windows the job asked for, one match at a time.
 
@@ -804,7 +837,9 @@ def _fetch(
         job,
         STAGE.FETCHING,
         MATCHES[0],
-        f"HLTV-ээс тоглолтуудыг харж байна: {my_team.name}-ийн {job.n_my_matches}, "
+        f"HLTV-ээс {my_team.name}-ийн сүүлийн {job.n_my_matches} тоглолтыг харж байна."
+        if opponent is None
+        else f"HLTV-ээс тоглолтуудыг харж байна: {my_team.name}-ийн {job.n_my_matches}, "
         f"{opponent.name}-ийн {job.n_opponent_matches}, хоорондын {job.n_h2h_matches}.",
     )
     totals = {
@@ -828,14 +863,13 @@ def _fetch(
             plan = _plan_matches(job_db, job, client, my_team, opponent)
             outcome["h2h_found"] = len(plan["h2h"])
             outcome["scanned"] = plan.get("scanned", 0)
-            outcome["windows"] = {
-                key: [m.id for m in plan[key]] for key in ("h2h", "mine", "theirs")
-            }
+            keys = ("mine",) if opponent is None else ("h2h", "mine", "theirs")
+            outcome["windows"] = {key: [m.id for m in plan[key]] for key in keys}
 
-            windows = (("h2h", plan["h2h"]), ("mine", plan["mine"]), ("theirs", plan["theirs"]))
+            windows = tuple((key, plan[key]) for key in keys)
             steps = _Steps(sum(len(matches) for _key, matches in windows))
             for key, matches in windows:
-                label = mn.window(key, my_team.name, opponent.name)
+                label = mn.window(key, my_team.name, opponent.name if opponent else "")
                 if not matches:
                     jobs.log(
                         job_db, job, f"── {label}: хүсээгүй эсвэл олдсонгүй.", stage=STAGE.FETCHING
@@ -1010,14 +1044,26 @@ def _keep_veto(job_db, db, job, row, page_veto, step) -> None:
     jobs.log(job_db, job, mn.veto_line(n, row.best_of, row.lan), stage=STAGE.FETCHING, step=step)
 
 
+# When the last match page read for its Veto alone was opened (time.monotonic()).
+# Scouts run one at a time, so one clock serves them all.
+_last_veto_page = 0.0
+
+
 def _veto_only(job_db, db, job, client, browser, match, row, step) -> None:
     """A Match parsed before Vetoes were read: open its page once for the Veto alone.
     Any failure is logged and the Scout goes on; a dead browser is left for the
-    next page to find."""
+    next page to find. These pages come back to back when a Team Scout walks
+    forty parsed Matches, so they keep `hltv:veto`'s pace (veto.PAUSE_SECONDS)."""
+    global _last_veto_page
     from playwright.sync_api import Error as PlaywrightError
 
+    from app.services import veto
     from app.services.browser import HltvBlocked
 
+    wait = veto.PAUSE_SECONDS - (time.monotonic() - _last_veto_page)
+    if _last_veto_page and wait > 0:
+        time.sleep(wait)
+    _last_veto_page = time.monotonic()
     try:
         page = client.match_page(match)
     except (HltvBlocked, PlaywrightError) as exc:
@@ -1598,12 +1644,13 @@ def _ingest_reporter(job_db: Session, job: AnalysisJob, map_label: str):
 
 
 # -- the result --------------------------------------------------------------
-def _own_match_ids(db: Session, my_team: Team, opponent: Team) -> list[int]:
-    """HLTV ids of every match either side of this fixture has played.
+def _own_match_ids(db: Session, *teams: Team) -> list[int]:
+    """HLTV ids of every match either side of this fixture (or a Team Scout's one
+    Team) has played.
 
-    Scopes UNPACKING/PARSING to this job's own two teams.
+    Scopes UNPACKING/PARSING to this job's own teams.
     """
-    ids = (my_team.id, opponent.id)
+    ids = tuple(t.id for t in teams)
     return list(
         db.scalars(
             select(Match.hltv_id).where(or_(Match.team1_id.in_(ids), Match.team2_id.in_(ids)))
@@ -1611,16 +1658,14 @@ def _own_match_ids(db: Session, my_team: Team, opponent: Team) -> list[int]:
     )
 
 
-def _link_matches(
-    job_db: Session, db: Session, job: AnalysisJob, my_team: Team, opponent: Team
-) -> list[int]:
-    """Attach every match with a parsed map for either team; returns their HLTV ids."""
+def _link_matches(job_db: Session, db: Session, job: AnalysisJob, *teams: Team) -> list[int]:
+    """Attach every match with a parsed map for the job's teams; returns their HLTV ids."""
     rows = db.execute(
         # played_at is selected because MySQL refuses DISTINCT ordered by an unselected column.
         select(Match.id, Match.hltv_id, Match.played_at)
         .join(MatchMap, MatchMap.match_id == Match.id)
         .join(MapRoster, MapRoster.match_map_id == MatchMap.id)
-        .where(MapRoster.team_id.in_((my_team.id, opponent.id)), MatchMap.parsed_at.is_not(None))
+        .where(MapRoster.team_id.in_([t.id for t in teams]), MatchMap.parsed_at.is_not(None))
         .distinct()
         .order_by(Match.played_at.desc())
     ).all()

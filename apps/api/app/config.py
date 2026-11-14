@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     # The a/b/c windows on the scout form.
     analysis_default_matches: int = 1
     analysis_max_matches: int = 5
+    # A Team Scout's one window (CONTEXT.md): that Team's latest Matches on HLTV.
+    analysis_team_default_matches: int = 20
+    analysis_team_max_matches: int = 40
 
     # The Assistant (app/services/assistant.py). Both halves are optional: with no
     # Claude key the chat says it isn't configured; with no ElevenLabs pair it

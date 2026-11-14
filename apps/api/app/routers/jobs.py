@@ -24,7 +24,7 @@ from app import db as database
 from app.celery_app import celery_app
 from app.config import get_settings
 from app.deps import DbSession, StaffUser, user_from_token
-from app.models import AnalysisEvent, AnalysisJob, JobStatus, MatchMap, Team
+from app.models import AnalysisEvent, AnalysisJob, JobKind, JobStatus, MatchMap, Team
 from app.schemas import (
     BrokerState,
     HomeInfo,
@@ -84,7 +84,10 @@ def home(db: DbSession, _: StaffUser) -> HomeInfo:
         known_teams=list(dict.fromkeys(teams)),
         parsed_maps=parsed or 0,
         defaults=ScoutDefaults(
-            matches=settings.analysis_default_matches, max_matches=settings.analysis_max_matches
+            matches=settings.analysis_default_matches,
+            max_matches=settings.analysis_max_matches,
+            team_matches=settings.analysis_team_default_matches,
+            team_max_matches=settings.analysis_team_max_matches,
         ),
     )
 
@@ -92,6 +95,7 @@ def home(db: DbSession, _: StaffUser) -> HomeInfo:
 @router.post("/jobs", status_code=status.HTTP_201_CREATED)
 def create_job(body: JobCreate, db: DbSession, user: StaffUser) -> JobRow:
     job = AnalysisJob(
+        kind=JobKind.TEAM if body.kind == "team" else JobKind.SCOUT,
         my_team_name=body.my_team,
         opponent_name=body.opponent,
         n_my_matches=body.n_my_matches,
