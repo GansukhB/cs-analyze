@@ -141,3 +141,48 @@ def test_the_week_is_the_template_filled_from_the_workspace(client, db, auth, wo
     assert week["team"]["name"] == "Huns" and len(week["days"]) == 7
     assert week["days"][0]["blocks"] == ["review", "goals"] and week["days"][6]["blocks"] == []
     assert week["review"] == [] and week["goals"] == [] and week["prep"] == []
+
+
+def test_the_cli_moves_a_user_into_another_workspace(client, db, engine, auth, user, workspace,
+                                                     monkeypatch, capsys):  # fmt: skip
+    """A demo login moved into its own Workspace switches between its my teams there,
+    leaves the old one's Staff and data behind, and never leaves it without Staff."""
+    import pytest
+    from sqlalchemy.orm import sessionmaker
+
+    from app import cli
+    from app.models import Team, WorkspaceTeam
+
+    monkeypatch.setattr(cli, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    demo = Workspace(name="Demo")
+    mongolz, huns = Team(name="The MongolZ"), Team(name="The Huns")
+    db.add_all([demo, mongolz, huns])
+    db.add(WorkspaceTeam(workspace=workspace, team=huns))
+    db.add_all(
+        [WorkspaceTeam(workspace=demo, team=mongolz), WorkspaceTeam(workspace=demo, team=huns)]
+    )
+    db.commit()
+
+    with pytest.raises(SystemExit, match="last active Staff"):
+        cli.move_user("Bat", "Demo")
+    guest = _staff(db, workspace, name="demo")
+    with pytest.raises(SystemExit, match="already in"):
+        cli.move_user("demo", "The Huns")
+
+    cli.move_user("demo", "Demo")
+    assert "Moved 'demo' from 'The Huns' to 'Demo'" in capsys.readouterr().out
+    db.expire_all()  # the CLI wrote on its own session, as on the server
+    theirs = {"Authorization": f"Bearer {create_access_token(guest.id)}"}
+    me = client.get("/auth/me", headers=theirs).json()
+    assert me["workspace"]["name"] == "Demo"
+    assert [t["name"] for t in me["workspace"]["my_teams"]] == ["The MongolZ", "The Huns"]
+    assert client.get(f"/v2/teams/{mongolz.id}/overview", headers=theirs).status_code == 200
+    assert client.get(f"/v2/teams/{mongolz.id}/overview", headers=auth).status_code == 404
+    people = client.get("/workspace/members", headers=auth).json()["members"]
+    assert [m["username"] for m in people] == ["Bat"]
+    left = client.get("/workspace/audit", headers=auth).json()
+    joined = client.get("/workspace/audit", headers=theirs).json()
+    assert [(e["action"], e["actor"], e["detail"]) for e in left] == [
+        ("member.move", "server", {"to": "Demo"})
+    ]
+    assert [e["detail"] for e in joined] == [{"from": "The Huns"}]

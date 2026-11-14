@@ -5,7 +5,7 @@ A private tool for scouting and coaching professional Counter-Strike teams: it c
 ## Access
 
 **User**:
-A person who signs in to cs-analyze with a Username and password and works inside one Workspace, either as Staff or tied to one of its Players. Nobody can sign up on their own: someone with server access creates a Workspace and its first Staff, and Staff invite everyone else.
+A person who signs in to cs-analyze with a Username and password and works inside one Workspace, either as Staff or tied to one of its Players. Nobody can sign up on their own: someone with server access creates a Workspace and its first Staff, and Staff invite everyone else. Only someone with server access can move a User into another Workspace. What the User made stays with the Workspace they left, and a move that would leave it with no active Staff is refused.
 _Avoid_: Account, member, customer
 
 **Staff**:

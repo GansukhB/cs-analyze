@@ -111,7 +111,7 @@ def accept(db: Session, token: str, username: str, password: str) -> User:
     return user
 
 
-def _active_staff(db: Session, workspace_id: int) -> int:
+def active_staff(db: Session, workspace_id: int) -> int:
     return db.scalar(
         select(func.count(User.id)).where(
             User.workspace_id == workspace_id,
@@ -138,7 +138,7 @@ def change(
     )
     if leaves_staff and member.id == by.id:
         raise MemberError("Өөрийгөө идэвхгүй болгох эсвэл Staff-аас гаргах боломжгүй.")
-    if leaves_staff and member.role == UserRole.STAFF and _active_staff(db, by.workspace_id) <= 1:
+    if leaves_staff and member.role == UserRole.STAFF and active_staff(db, by.workspace_id) <= 1:
         raise MemberError("Workspace-д дор хаяж нэг идэвхтэй Staff үлдэх ёстой.")
     if role is not None:
         if role not in (UserRole.STAFF, UserRole.PLAYER):

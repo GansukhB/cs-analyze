@@ -7,6 +7,7 @@ python -m app.cli add-my-team <workspace> <team> [--label main]
 python -m app.cli create-user [username] [--workspace NAME] [--role staff|player] [--player STEAMID]
 python -m app.cli deactivate-user [username]
 python -m app.cli activate-user [username]
+python -m app.cli move-user [username] --workspace NAME  # into another Workspace
 python -m app.cli import-tickdata [folder]   # parquet bundles on disk -> MySQL
 python -m app.cli rebuild-tickdata           # Replays, walks, geometry from the stored bundles
 python -m app.cli fit-winprob                # refit the Review's Win probability model
@@ -143,6 +144,34 @@ def set_active(username: str, active: bool) -> None:
                          is_active=active)  # fmt: skip
         db.commit()
     print(f"User {username!r} is now {'active' if active else 'deactivated'}.")
+
+
+def move_user(username: str, workspace: str) -> None:
+    """Move a User into another Workspace. What they made stays with the Workspace
+    they leave (docs/adr/0011), which always keeps an active Staff."""
+    from app.services import audit_log
+    from app.services.members import active_staff
+
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.username == username))
+        if user is None:
+            sys.exit(f"No user {username!r}.")
+        target = _workspace(db, workspace)
+        source = user.workspace
+        if target.id == source.id:
+            sys.exit(f"{username!r} is already in {target.name!r}.")
+        if user.is_active and user.role == UserRole.STAFF and active_staff(db, source.id) <= 1:
+            sys.exit(
+                f"{username!r} is the last active Staff of {source.name!r},"
+                " which would be left without one."
+            )
+        user.workspace = target
+        audit_log.record(db, None, "member.move", username, workspace_id=source.id, to=target.name)
+        audit_log.record(
+            db, None, "member.move", username, workspace_id=target.id, **{"from": source.name}
+        )
+        db.commit()
+    print(f"Moved {username!r} from {source.name!r} to {target.name!r}.")
 
 
 def import_tickdata(folder: Path) -> None:
@@ -523,9 +552,11 @@ def main() -> None:
     team.add_argument("workspace")
     team.add_argument("team", help="The Team's name, as stored.")
     team.add_argument("--label", default="main", help="main, academy, ...")
-    for name in ("create-user", "deactivate-user", "activate-user"):
+    for name in ("create-user", "deactivate-user", "activate-user", "move-user"):
         command = sub.add_parser(name)
         command.add_argument("username", nargs="?", help="Prompted for if omitted.")
+        if name == "move-user":
+            command.add_argument("--workspace", required=True, help="The Workspace to move into.")
         if name == "create-user":
             command.add_argument("--workspace", help="Needed when there is more than one.")
             command.add_argument("--role", default="staff", choices=[r.value for r in UserRole])
@@ -622,6 +653,8 @@ def main() -> None:
 
     if args.command == "create-user":
         create_user(username, args.workspace, args.role, args.player)
+    elif args.command == "move-user":
+        move_user(username, args.workspace)
     else:
         set_active(username, active=args.command == "activate-user")
 

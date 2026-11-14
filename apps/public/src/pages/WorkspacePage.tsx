@@ -90,6 +90,7 @@ export default function WorkspacePage() {
 // WS-7: what was done in the Workspace and by whom, newest first.
 const ACTIONS: Record<string, string> = {
   'member.change': 'гишүүнийг өөрчилсөн',
+  'member.move': 'гишүүнийг Workspace шилжүүлсэн',
   'invite.create': 'урилга үүсгэсэн',
   'invite.revoke': 'урилга цуцалсан',
   'invite.accept': 'урилгаар нэвтэрсэн',
@@ -102,6 +103,8 @@ const DETAIL: Record<string, (v: unknown) => string> = {
   is_active: (v) => (v ? 'идэвхжүүлсэн' : 'идэвхгүй болгосон'),
   role: (v) => `role: ${String(v)}`,
   reset: (v) => (v ? 'нууц үг сэргээх' : ''),
+  to: (v) => `→ ${String(v)}`,
+  from: (v) => `${String(v)}-аас`,
 }
 
 function AuditLog() {
