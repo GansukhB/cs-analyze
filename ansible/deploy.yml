@@ -66,7 +66,8 @@
         msg: >-
           A Scout is running: it stops at its next step (up to a few minutes, the
           download or parse in hand finishes first) and resumes after the restart.
-      when: ((running_scouts.query_result | default([[{'n': 0}]]))[0][0].n | int) > 0
+      when: >-
+        ((running_scouts.query_result | default([[{'n': 0}]]))[0][0].n | int) > 0
       tags: [services, sync, deps, env]
 
     # --- public app, built here ----------------------------------------------
