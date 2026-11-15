@@ -8,7 +8,7 @@ team the rest of the app can say little about.
 
 from collections import defaultdict
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -34,6 +34,7 @@ from app.schemas import (
 )
 from app.services import (
     after_contact,
+    answers,
     dbctx,
     map_pool,
     review_pool,
@@ -113,10 +114,16 @@ def list_teams(db: DbSession, _: StaffUser) -> TeamList:
 
 
 @router.get("/{team_id}")
-def get_team(team_id: int, db: DbSession, _: StaffUser) -> TeamDetail:
-    team = db.get(Team, team_id)
-    if team is None:
+def get_team(team_id: int, db: DbSession, _: StaffUser, response: Response) -> TeamDetail:
+    if db.get(Team, team_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such team")
+    return TeamDetail(**answers.serve(db, "team.page", {"team": team_id}, response=response))
+
+
+@answers.kind("team.page", 1, daily=True)
+def _team_page(db: Session, p: dict) -> dict:
+    """The team page, computed ahead of time (docs/adr/0014)."""
+    team = db.get(Team, p["team"])
     matches = list(
         db.scalars(
             select(Match)
@@ -168,7 +175,7 @@ def get_team(team_id: int, db: DbSession, _: StaffUser) -> TeamDetail:
         strength=_strength(db, team),
         map_pool=_map_pool(db, team),
         profile=_profile(db, team),
-    )
+    ).model_dump(mode="json")
 
 
 def _profile(db: Session, team: Team) -> TeamProfile | None:

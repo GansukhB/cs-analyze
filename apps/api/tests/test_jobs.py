@@ -1,9 +1,11 @@
+import threading
 import uuid
 
 import pytest
 from fastapi import WebSocketDisconnect
+from sqlalchemy.orm import sessionmaker
 
-from app.models import AnalysisJob, JobStatus, Team
+from app.models import AnalysisEvent, AnalysisJob, JobStatus, Team
 from app.routers import jobs as jobs_router
 from app.services import jobs
 
@@ -122,15 +124,57 @@ def test_running_job_is_asked_to_stop(client, auth, dispatched, db):
         jobs.check_cancelled(db, job)
 
 
-def test_worker_start_fails_the_orphan_and_starts_the_next(client, auth, dispatched, db):
+def test_worker_start_resumes_the_orphan_once_then_fails_it(client, auth, dispatched, db):
     first = create(client, auth).json()
     second = create(client, auth, my_team="FaZe").json()
     orphan = stored(db, first)
     jobs.set_stage(db, orphan, "fetching", 20)
 
+    # A worker that died mid-Scout (a deploy's kill): back to the head of the queue.
+    jobs.recover(db)
+    assert orphan.status == JobStatus.QUEUED and dispatched == [orphan.id, orphan.id]
+    said = [e.message for e in db.query(AnalysisEvent).filter_by(job_id=orphan.id)]
+    assert jobs.RESUMED_AFTER_DEATH in said
+
+    # Dying again on the same job (a Demo that runs the host out of memory) ends it.
+    jobs.set_stage(db, orphan, "fetching", 20)
     jobs.recover(db)
     assert orphan.status == JobStatus.FAILED and "тасарлаа" in orphan.error
-    assert dispatched == [orphan.id, stored(db, second).id]
+    assert dispatched == [orphan.id, orphan.id, stored(db, second).id]
+
+
+def test_a_shutting_down_worker_puts_the_running_scout_back(
+    client, auth, dispatched, db, monkeypatch
+):
+    from app import tasks
+
+    job = stored(db, create(client, auth).json())
+    queued = stored(db, create(client, auth, my_team="FaZe").json())
+    factory = sessionmaker(bind=db.get_bind(), expire_on_commit=False)
+    monkeypatch.setattr(tasks, "SessionLocal", factory)
+    job.celery_task_id = ""  # as the worker receives it
+    db.commit()
+
+    def pipeline(job_db, data_db, row):
+        jobs.set_stage(job_db, row, "fetching", 20)
+        jobs.check_cancelled(job_db, row)  # between two Matches
+        raise AssertionError("should have stopped")
+
+    monkeypatch.setattr(tasks, "run_pipeline", pipeline)
+    monkeypatch.setattr(jobs, "STOPPING", threading.Event())
+    jobs.STOPPING.set()
+    out = tasks.run_analysis.run(job.id)
+    db.refresh(job)
+    assert out["status"] == "queued" and job.status == JobStatus.QUEUED
+    assert job.celery_task_id == "" and job.error == ""
+    said = [e.message for e in db.query(AnalysisEvent).filter_by(job_id=job.id)]
+    assert jobs.RESUMED_ON_RESTART in said
+    # The next worker starts it again before the one that waited behind it.
+    jobs.STOPPING.clear()
+    jobs.recover(db)
+    db.refresh(queued)
+    assert dispatched[-1] == job.id
+    assert queued.status == JobStatus.QUEUED and queued.celery_task_id == ""
 
 
 def test_worker_start_sends_a_dispatched_job_again(client, auth, dispatched, db):

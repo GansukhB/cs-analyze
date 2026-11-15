@@ -2,26 +2,24 @@
 
 Ported from cstat's ``gameplan_pick``, ``gameplan`` and the three grid views.
 The page asks for its header once and then one panel at a time, so a tab only
-pays for what it shows (see :class:`app.services.gameplan.Report`). A computed
-panel is kept in Redis under the parse stamp: the first visit computes, every
-later one -- and every tab the page prefetched on hover -- is a cache read, and
-a new parse makes all of them recompute.
+pays for what it shows (see :class:`app.services.gameplan.Report`). Every
+answer is a stored answer (`app/services/answers.py`, docs/adr/0014): the
+worker computes each my team's Game Plan against every Team ahead of time, a
+page reads it at once, and after a parse it still reads the last one while the
+worker computes the new one.
 
 Each side's Lineup (CONTEXT.md) rides along as a query parameter of Steam ids,
 so a picked plan is a link like any other; it joins the cache key, and a side
 left out keeps the five from the Team's most recent parsed Match.
 """
 
-import json
 import logging
 import re
 import time
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
-from redis.exceptions import RedisError
+from fastapi import APIRouter, HTTPException, Query, Response, status
 
-from app.cache import get_cache
 from app.deps import DbSession, StaffUser
 from app.models import Player, Team
 from app.schemas import (
@@ -41,6 +39,7 @@ from app.schemas import (
     VetoLabAsk,
 )
 from app.services import (
+    answers,
     audit,
     between,
     dbctx,
@@ -64,29 +63,43 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/gameplan", tags=["gameplan"])
 
-# Cached panels outlive a deploy: the stamp moves on a parse or a Review rebuilt,
+# Stored answers outlive a deploy: the stamp moves on a parse or a Review rebuilt,
 # not when the code that words a panel changes. Bump with any such change.
-CACHE_VERSION = 34
+CACHE_VERSION = 35
 
-CACHE_TTL = 7 * 24 * 3600
 LEVELS = {heatmap_groups.ALL_LEVELS, radar.UPPER, radar.LOWER}
 SIDES = {"all", "ct", "t"}
+MAP_NAME = re.compile(r"de_[a-z0-9_]{2,30}")
 
 
-def _cache_get(key: str) -> dict | None:
-    try:
-        raw = get_cache().get(key)
-    except RedisError:
-        logger.warning("game plan cache unavailable; computing %s", key)
-        return None
-    return json.loads(raw) if raw else None
+def _map_name(map_name: str) -> None:
+    if not MAP_NAME.fullmatch(map_name):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
 
 
-def _cache_set(key: str, value: dict) -> None:
-    try:
-        get_cache().set(key, json.dumps(value, default=str), ex=CACHE_TTL)
-    except RedisError:
-        logger.warning("could not cache %s", key)
+def _report(my_team: Team, opponent: Team) -> gameplan.Report:
+    """The fixture's lazy Report, built once per session: the warm-up computes a
+    fixture's tabs on one session, so they share it (a request has its own)."""
+    part = lineup.cache_part(lineup.chosen(my_team) or [], lineup.chosen(opponent) or [])
+    key = ("gp.report", my_team.id, opponent.id, part, window.cache_part())
+    return dbctx.memo(key, lambda: gameplan.build(my_team, opponent))
+
+
+def _indexes(my_team: Team, opponent: Team) -> tuple[dict, dict]:
+    def build():
+        return (
+            heatmap_groups.build_index(my_team, opponent),
+            movement.build_index(my_team, opponent),
+        )
+
+    return dbctx.memo(("gp.indexes", my_team.id, opponent.id), build)
+
+
+def _fixture_params(
+    mine: int, theirs: int, my_lineup: str = "", their_lineup: str = "", since: str = ""
+):
+    return {"mine": mine, "theirs": theirs, "my_lineup": my_lineup,
+            "their_lineup": their_lineup, "since": since}  # fmt: skip
 
 
 def _fixture(db, mine: int, theirs: int) -> tuple[Team, Team]:
@@ -180,42 +193,40 @@ def header(
     theirs: int,
     db: DbSession,
     _: StaffUser,
+    response: Response,
     my_lineup: str = _lineup_query(),
     their_lineup: str = _lineup_query(),
     since: str = _since_query(),
 ) -> GameplanHeader:
     """The page header, the tab list and both Lineups, on every tab."""
     my_team, opponent = _fixture(db, mine, theirs)
-    my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
-    picked = {my_team.id: my_five, opponent.id: their_five}
-    with dbctx.using(db), lineup.using(picked), window.using(window.parse(since)):
+    _lineups(db, my_team, opponent, my_lineup, their_lineup)
+    with dbctx.using(db):
         # Opening a Game Plan is when stale Reviews matter: have the worker
         # rebuild them (docs/adr/0008). A no-op while one rebuild is running.
         review_pool.request_refresh()
+    params = _fixture_params(mine, theirs, my_lineup, their_lineup, since)
+    return GameplanHeader(**answers.serve(db, "gp.header", params, response=response))
+
+
+@answers.kind("gp.header", CACHE_VERSION)
+def _header(db, p: dict) -> dict:
+    my_team, opponent = _fixture(db, p["mine"], p["theirs"])
+    my_five, their_five = _lineups(db, my_team, opponent, p["my_lineup"], p["their_lineup"])
+    picked = {my_team.id: my_five, opponent.id: their_five}
+    with dbctx.using(db), lineup.using(picked), window.using(window.parse(p["since"])):
         stamp = gameplan_view.stamp()
-        part = lineup.cache_part(my_five, their_five) + scope.cache_part(db) + window.cache_part()
-        key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:header:{stamp}"
-        cached = _cache_get(key)
-        if cached is None:
-            report = gameplan.build(my_team, opponent)
-            cached = {
-                "lede": report["lede"],
-                "tabs": gameplan_view.tabs(
-                    heatmap_groups.build_index(my_team, opponent),
-                    movement.build_index(my_team, opponent),
-                ),
-            }
-            _cache_set(key, cached)
-        lineups = GameplanLineups(mine=_lineup_out(my_team), theirs=_lineup_out(opponent))
-    return GameplanHeader(
-        my_team=TeamRef(id=my_team.id, name=my_team.name),
-        opponent=TeamRef(id=opponent.id, name=opponent.name),
-        lede=cached["lede"],
-        tabs=cached["tabs"],
-        default_tab=gameplan_view.DEFAULT_TAB,
-        stamp=stamp,
-        lineups=lineups,
-    )
+        report = _report(my_team, opponent)
+        out = GameplanHeader(
+            my_team=TeamRef(id=my_team.id, name=my_team.name),
+            opponent=TeamRef(id=opponent.id, name=opponent.name),
+            lede=report["lede"],
+            tabs=gameplan_view.tabs(*_indexes(my_team, opponent)),
+            default_tab=gameplan_view.DEFAULT_TAB,
+            stamp=stamp,
+            lineups=GameplanLineups(mine=_lineup_out(my_team), theirs=_lineup_out(opponent)),
+        )
+    return out.model_dump(mode="json")
 
 
 @router.get("/{mine}/vs/{theirs}/s/{tab}")
@@ -225,96 +236,135 @@ def panel(
     tab: str,
     db: DbSession,
     _: StaffUser,
+    response: Response,
     my_lineup: str = _lineup_query(),
     their_lineup: str = _lineup_query(),
     since: str = _since_query(),
 ) -> GameplanPanel:
-    """One panel's data, computed once per parse stamp, pair of Lineups and window."""
+    """One panel's data, computed ahead of time per pair of Lineups and window."""
     if tab not in gameplan_view.TAB_KEYS:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such section: {tab}")
     my_team, opponent = _fixture(db, mine, theirs)
-    my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
+    _lineups(db, my_team, opponent, my_lineup, their_lineup)
     started = time.perf_counter()
-    picked = {my_team.id: my_five, opponent.id: their_five}
-    with dbctx.using(db), lineup.using(picked), window.using(window.parse(since)):
-        stamp = gameplan_view.stamp()
-        part = lineup.cache_part(my_five, their_five) + scope.cache_part(db) + window.cache_part()
-        key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:{tab}:{stamp}"
-        data = _cache_get(key)
-        hit = data is not None
-        if data is None:
-            report = gameplan.build(my_team, opponent)
-            grids = {}
-            if tab == "heatmaps":
-                grids["heatmaps"] = heatmap_groups.build_index(my_team, opponent)
-            elif tab == "movement":
-                grids["movement"] = movement.build_index(my_team, opponent)
-            data = gameplan_view.panel(tab, report, my_team, opponent, **grids)
-            data = json.loads(json.dumps(data, default=str))
-            _cache_set(key, data)
+    params = {**_fixture_params(mine, theirs, my_lineup, their_lineup, since), "tab": tab}
+    found = answers.lookup(db, "gp.panel", params)
+    answers.mark(response, found)
     return GameplanPanel(
         tab=tab,
-        stamp=stamp,
-        cached=hit,
+        stamp=found.data["stamp"],
+        cached=not found.computed,
         ms=round((time.perf_counter() - started) * 1000, 1),
-        data=data,
+        data=found.data["data"],
     )
+
+
+@answers.kind("gp.panel", CACHE_VERSION)
+def _panel(db, p: dict) -> dict:
+    my_team, opponent = _fixture(db, p["mine"], p["theirs"])
+    my_five, their_five = _lineups(db, my_team, opponent, p["my_lineup"], p["their_lineup"])
+    picked = {my_team.id: my_five, opponent.id: their_five}
+    tab = p["tab"]
+    with dbctx.using(db), lineup.using(picked), window.using(window.parse(p["since"])):
+        stamp = gameplan_view.stamp()
+        report = _report(my_team, opponent)
+        grids = {}
+        if tab == "heatmaps":
+            grids["heatmaps"] = _indexes(my_team, opponent)[0]
+        elif tab == "movement":
+            grids["movement"] = _indexes(my_team, opponent)[1]
+        data = gameplan_view.panel(tab, report, my_team, opponent, **grids)
+    return {"stamp": stamp, "data": data}
 
 
 @router.post("/{mine}/vs/{theirs}/veto")
 def veto_lab_step(
-    mine: int, theirs: int, body: VetoLabAsk, db: DbSession, user: StaffUser
+    mine: int, theirs: int, body: VetoLabAsk, db: DbSession, user: StaffUser, response: Response
 ) -> VetoLab:
     """The veto from where it stands, with each Map's chance as Staff set it (GP-10)."""
-    my_team, opponent = _fixture(db, mine, theirs)
-    scope.allow_scrims(db)  # our own Scrims, for our readiness only
+    _fixture(db, mine, theirs)
+    params = {"mine": mine, "theirs": theirs, "workspace_id": user.workspace_id,
+              **body.model_dump(mode="json")}  # fmt: skip
+    try:
+        return VetoLab(**answers.serve(db, "gp.veto", params, response=response))
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from None
+
+
+@answers.kind("gp.veto", CACHE_VERSION)
+def _veto(db, p: dict) -> dict:
+    my_team, opponent = _fixture(db, p["mine"], p["theirs"])
+    # Our own Scrims, for our readiness only: the Workspace's, whoever computes it.
+    scope.bind(db, p["workspace_id"], scrims=True)
     with dbctx.using(db):
-        try:
-            out = veto_lab.lab(
-                my_team, opponent, user.workspace_id, body.format, body.we_start, body.done,
-                body.adjust,
-            )  # fmt: skip
-        except ValueError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from None
-    return VetoLab(**out)
+        out = veto_lab.lab(
+            my_team, opponent, p["workspace_id"], p["format"], p["we_start"], p["done"],
+            p["adjust"],
+        )  # fmt: skip
+    return VetoLab(**out).model_dump(mode="json")
 
 
 @router.get("/{mine}/vs/{theirs}/timeout/{map_name}")
 def fixture_timeout(
-    mine: int, theirs: int, map_name: str, db: DbSession, _: StaffUser
+    mine: int, theirs: int, map_name: str, db: DbSession, _: StaffUser, response: Response
 ) -> TimeoutCard:
     """What the opponent changes when this Map goes against them, and our answer;
     with the Pool's next Round after a run of losses, with and without a timeout (GP-4)."""
-    if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
-    my_team, opponent = _fixture(db, mine, theirs)
+    _map_name(map_name)
+    _fixture(db, mine, theirs)
+    params = {"mine": mine, "theirs": theirs, "map": map_name}
+    return TimeoutCard(**answers.serve(db, "gp.timeout", params, response=response))
+
+
+@answers.kind("gp.timeout", CACHE_VERSION)
+def _timeout(db, p: dict) -> dict:
+    my_team, opponent = _fixture(db, p["mine"], p["theirs"])
     with dbctx.using(db):
-        return TimeoutCard(**timeout_card.card(opponent, my_team, map_name), pool=audit.pool())
+        card = timeout_card.card(opponent, my_team, p["map"])
+        return TimeoutCard(**card, pool=audit.pool()).model_dump(mode="json")
 
 
 @router.get("/{mine}/vs/{theirs}/between")
 def fixture_between(
-    mine: int, theirs: int, db: DbSession, _: StaffUser, played: int | None = None
+    mine: int,
+    theirs: int,
+    db: DbSession,
+    _: StaffUser,
+    response: Response,
+    played: int | None = None,
 ) -> Between:
     """What the opponent did differently on a Map they just played (default their
     newest reviewed), against their other Maps: for the break before the next (GP-4)."""
-    _my_team, opponent = _fixture(db, mine, theirs)
+    _fixture(db, mine, theirs)
+    params = {"mine": mine, "theirs": theirs, "played": played}
+    return Between(**answers.serve(db, "gp.between", params, response=response))
+
+
+@answers.kind("gp.between", CACHE_VERSION)
+def _between(db, p: dict) -> dict:
+    _my_team, opponent = _fixture(db, p["mine"], p["theirs"])
     with dbctx.using(db):
-        return Between(**between.changes(opponent, played))
+        return Between(**between.changes(opponent, p.get("played"))).model_dump(mode="json")
 
 
 @router.get("/{mine}/vs/{theirs}/style/{map_name}")
 def fixture_style(
-    mine: int, theirs: int, map_name: str, db: DbSession, _: StaffUser
+    mine: int, theirs: int, map_name: str, db: DbSession, _: StaffUser, response: Response
 ) -> FixtureStyle:
     """Both Teams' style on one Map, each against every Team's (TM-5)."""
-    if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
-    my_team, opponent = _fixture(db, mine, theirs)
+    _map_name(map_name)
+    _fixture(db, mine, theirs)
+    params = {"mine": mine, "theirs": theirs, "map": map_name}
+    return FixtureStyle(**answers.serve(db, "gp.style", params, response=response))
+
+
+@answers.kind("gp.style", CACHE_VERSION)
+def _style(db, p: dict) -> dict:
+    my_team, opponent = _fixture(db, p["mine"], p["theirs"])
     with dbctx.using(db):
         return FixtureStyle(
-            mine=style.team(my_team.id, map_name), theirs=style.team(opponent.id, map_name)
-        )
+            mine=style.team(my_team.id, p["map"]), theirs=style.team(opponent.id, p["map"])
+        ).model_dump(mode="json")
 
 
 @router.get("/{mine}/vs/{theirs}/utility/{map_name}")
@@ -324,17 +374,24 @@ def utility(
     map_name: str,
     db: DbSession,
     _: StaffUser,
+    response: Response,
     side: str = Query("t", pattern="^(t|ct)$"),
     whose: str = Query("theirs", pattern="^(mine|theirs)$"),
 ) -> dict[str, Any]:
     """VIZ-10: where a Team's utility lands on a Map and Side, from where, when,
     and the lineups it repeats; drawn by the page over the overview."""
-    if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
-    my_team, opponent = _fixture(db, mine, theirs)
-    team = opponent if whose == "theirs" else my_team
+    _map_name(map_name)
+    _fixture(db, mine, theirs)
+    params = {"mine": mine, "theirs": theirs, "map": map_name, "side": side, "whose": whose}
+    return answers.serve(db, "gp.utility", params, response=response)
+
+
+@answers.kind("gp.utility", CACHE_VERSION)
+def _utility(db, p: dict) -> dict:
+    my_team, opponent = _fixture(db, p["mine"], p["theirs"])
+    team = opponent if p["whose"] == "theirs" else my_team
     with dbctx.using(db):
-        return {"team": team.name, **utility_map.build(team.id, map_name, side)}
+        return {"team": team.name, **utility_map.build(team.id, p["map"], p["side"])}
 
 
 @router.get("/{mine}/vs/{theirs}/playbook/{map_name}")
@@ -344,6 +401,7 @@ def playbook(
     map_name: str,
     db: DbSession,
     _: StaffUser,
+    response: Response,
     my_lineup: str = _lineup_query(),
     their_lineup: str = _lineup_query(),
     buy: str = Query("", pattern="^(|full|light)$"),
@@ -351,48 +409,54 @@ def playbook(
     since: str = Query("", pattern=r"^(|\d{4}-\d{2}-\d{2})$"),
     score: str = Query("", pattern="^(|ahead|close|behind)$"),
 ) -> GameplanPanel:
-    """One Map's Playbook for the «Юу хийх» tab, computed once per parse stamp.
+    """One Map's Playbook for the «Юу хийх» tab, computed ahead of time.
     ``buy``, ``days`` and ``since`` (a patch's day, DATA-7) read the habits over
     those Rounds only (GP-9)."""
-    if not re.fullmatch(r"de_[a-z0-9_]{2,30}", map_name):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No such map: {map_name}")
+    _map_name(map_name)
     my_team, opponent = _fixture(db, mine, theirs)
-    my_five, their_five = _lineups(db, my_team, opponent, my_lineup, their_lineup)
+    _lineups(db, my_team, opponent, my_lineup, their_lineup)
     view = {
         k: v for k, v in (("buy", buy), ("days", days), ("since", since), ("score", score)) if v
     }
     started = time.perf_counter()
-    with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
-        stamp = gameplan_view.stamp()
-        data, hit = playbook_data(
-            db, my_team, opponent, my_five, their_five, map_name, stamp, view or None
-        )
+    params = {"mine": mine, "theirs": theirs, "map": map_name, "my_lineup": my_lineup,
+              "their_lineup": their_lineup, "view": view or None}  # fmt: skip
+    found = answers.lookup(db, "gp.playbook", params)
+    answers.mark(response, found)
     return GameplanPanel(
         tab="todo",
-        stamp=stamp,
-        cached=hit,
+        stamp=found.data["stamp"],
+        cached=not found.computed,
         ms=round((time.perf_counter() - started) * 1000, 1),
-        data=data,
+        data=found.data["data"],
     )
+
+
+@answers.kind("gp.playbook", CACHE_VERSION)
+def _playbook(db, p: dict) -> dict:
+    my_team, opponent = _fixture(db, p["mine"], p["theirs"])
+    my_five, their_five = _lineups(db, my_team, opponent, p["my_lineup"], p["their_lineup"])
+    with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
+        stamp = gameplan_view.stamp()
+        data = playbook_view.panel(my_team, opponent, p["map"], p.get("view"))
+    return {"stamp": stamp, "data": data}
+
+
+def _steamids(players) -> str:
+    return ",".join(str(p.steamid) for p in players)
 
 
 def playbook_data(
     db, my_team, opponent, my_five, their_five, map_name: str, stamp: str, view: dict | None = None
 ):
-    """One Map's Playbook panel and whether it came from the cache. The caller has
-    bound ``dbctx`` and the Lineups; a Briefing freezes its lines from the same.
-    ``view`` reads the habits over some Rounds only (GP-9)."""
-    part = lineup.cache_part(my_five, their_five) + scope.cache_part(db)
-    if view:
-        part += ":" + ",".join(f"{k}={v}" for k, v in sorted(view.items()))
-    key = f"gp:v{CACHE_VERSION}:{my_team.id}:{opponent.id}{part}:playbook:{map_name}:{stamp}"
-    data = _cache_get(key)
-    if data is not None:
-        return data, True
-    built = playbook_view.panel(my_team, opponent, map_name, view)
-    data = json.loads(json.dumps(built, default=str))
-    _cache_set(key, data)
-    return data, False
+    """One Map's Playbook panel as it reads now, and whether it was stored. A
+    Briefing freezes its lines from it, so it is never a stale one. ``view`` reads
+    the habits over some Rounds only (GP-9)."""
+    params = {"mine": my_team.id, "theirs": opponent.id, "map": map_name,
+              "my_lineup": _steamids(my_five), "their_lineup": _steamids(their_five),
+              "view": view or None}  # fmt: skip
+    found = answers.lookup(db, "gp.playbook", params, fresh=True)
+    return found.data["data"], not found.computed
 
 
 def _grid_team(mine: int, theirs: int, team: int, side: str, level: str) -> None:

@@ -46,7 +46,9 @@
         quiet: true
       tags: [always]
 
-    # A deploy restarts the worker, and a running Scout is killed 10 min later.
+    # A deploy restarts the worker. A running Scout stops at its next step and
+    # goes back to the head of the queue, then picks up where it was once the new
+    # worker is up (jobs.STOPPING, jobs.requeue); what it parsed is kept.
     - name: Look for a running Scout
       community.mysql.mysql_query:
         login_db: "{{ mysql_database }}"
@@ -59,15 +61,12 @@
       failed_when: false
       tags: [services, sync, deps, env]
 
-    - name: Wait for the Scout to end (or pass -e restart_under_scout=true)
-      ansible.builtin.assert:
-        that: >-
-          ((running_scouts.query_result | default([[{'n': 0}]]))[0][0].n | int) == 0
-          or (restart_under_scout | default(false) | bool)
-        fail_msg: >-
-          A Scout is running and restarting the worker would kill it. Wait for it
-          (cs2.bizon.mn/jobs), or pass -e restart_under_scout=true.
-        quiet: true
+    - name: Say what happens to the running Scout
+      ansible.builtin.debug:
+        msg: >-
+          A Scout is running: it stops at its next step (up to a few minutes, the
+          download or parse in hand finishes first) and resumes after the restart.
+      when: ((running_scouts.query_result | default([[{'n': 0}]]))[0][0].n | int) > 0
       tags: [services, sync, deps, env]
 
     # --- public app, built here ----------------------------------------------

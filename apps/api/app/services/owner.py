@@ -242,6 +242,23 @@ def _players(team: Team, maps: list[MatchMap], today: date) -> list[dict]:
     return out
 
 
+def practice_hours(team: Team, workspace_id: int | None, since: date | str) -> dict:
+    """The Practice schedule's hours from ``since`` to today, as :func:`build`
+    counts them: Staff edit the schedule at any time, so the page reads it live."""
+    since = date.fromisoformat(since) if isinstance(since, str) else since
+    end = datetime.now(UTC).date() + timedelta(days=1)
+    return _hours(team, workspace_id, since, end)
+
+
+def month_hours(team: Team, workspace_id: int | None, start: date) -> float:
+    """One month's practice hours, as :func:`_months` counts them."""
+    return _hours(team, workspace_id, start, _month_start(start, -1))["total"]
+
+
+def goals(team: Team, workspace_id: int) -> list[dict]:
+    return _goals(team, workspace_id)
+
+
 def _goals(team: Team, workspace_id: int) -> list[dict]:
     goals = db().scalars(
         select(TeamGoal)

@@ -5,6 +5,7 @@ import Assistant from './assistant/Assistant'
 import { tokenStore } from './auth/token'
 import { useMe } from './auth/useMe'
 import SystemFooter from './system/SystemFooter'
+import Refreshing from './ui/Refreshing'
 import { PageSkeleton } from './ui/Skeleton'
 
 const link = ({ isActive }: { isActive: boolean }) =>
@@ -115,6 +116,7 @@ export default function Layout() {
       <div className="print:hidden">
         {staff && <SystemFooter width={width} />}
         {me.data && <Assistant />}
+        <Refreshing />
       </div>
     </div>
   )

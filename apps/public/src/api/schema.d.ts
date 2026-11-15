@@ -772,7 +772,7 @@ export interface paths {
         };
         /**
          * Panel
-         * @description One panel's data, computed once per parse stamp, pair of Lineups and window.
+         * @description One panel's data, computed ahead of time per pair of Lineups and window.
          */
         get: operations["panel_gameplan__mine__vs__theirs__s__tab__get"];
         put?: never;
@@ -895,7 +895,7 @@ export interface paths {
         };
         /**
          * Playbook
-         * @description One Map's Playbook for the «Юу хийх» tab, computed once per parse stamp.
+         * @description One Map's Playbook for the «Юу хийх» tab, computed ahead of time.
          *     ``buy``, ``days`` and ``since`` (a patch's day, DATA-7) read the habits over
          *     those Rounds only (GP-9).
          */
@@ -2311,6 +2311,28 @@ export interface paths {
         };
         /** Owner Summary */
         get: operations["owner_summary_v2_teams__team_id__owner_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/teams/{team_id}/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ready
+         * @description The opponents the warm-up computes this my team's Game Plan against, in
+         *     its order (the latest Scouts', the Upcoming matches', the Teams met last,
+         *     then the most parsed), and how each one stands.
+         */
+        get: operations["ready_v2_teams__team_id__ready_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5900,6 +5922,23 @@ export interface components {
             /** Week */
             week?: string | null;
         };
+        /** ReadyFixtures */
+        ReadyFixtures: {
+            /** Opponents */
+            opponents: components["schemas"]["ReadyOpponent"][];
+            warm: components["schemas"]["WarmState"] | null;
+        };
+        /** ReadyOpponent */
+        ReadyOpponent: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Maps */
+            maps: number;
+            /** State */
+            state: string;
+        };
         /** ReliabilityBand */
         ReliabilityBand: {
             /** Lo */
@@ -7397,6 +7436,7 @@ export interface components {
             queued: number;
             /** Version */
             version: string;
+            warm?: components["schemas"]["WarmState"] | null;
         };
         /** TeamDetail */
         TeamDetail: {
@@ -8472,6 +8512,56 @@ export interface components {
             share: number;
             /** Pool P75 */
             pool_p75: number | null;
+        };
+        /**
+         * WarmState
+         * @description The warm-up's progress (docs/adr/0014): pages computed ahead of time.
+         */
+        WarmState: {
+            /** State */
+            state: string;
+            /**
+             * Done
+             * @default 0
+             */
+            done: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Missing
+             * @default 0
+             */
+            missing: number;
+            /**
+             * Stale
+             * @default 0
+             */
+            stale: number;
+            /**
+             * Planned
+             * @default 0
+             */
+            planned: number;
+            /**
+             * Fixtures Ready
+             * @default 0
+             */
+            fixtures_ready: number;
+            /**
+             * Fixtures Total
+             * @default 0
+             */
+            fixtures_total: number;
+            /**
+             * Current
+             * @default
+             */
+            current: string;
+            /** Updated At */
+            updated_at?: string | null;
         };
         /** WeekDay */
         WeekDay: {
@@ -12857,6 +12947,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Owner"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ready_v2_teams__team_id__ready_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadyFixtures"];
                 };
             };
             /** @description Validation Error */

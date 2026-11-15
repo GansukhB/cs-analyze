@@ -45,7 +45,7 @@ app.add_middleware(
     allow_origins=get_settings().cors_origins,
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
-    expose_headers=["Server-Timing"],
+    expose_headers=["Server-Timing", "X-Answer", "X-Answer-At"],
 )
 
 app.include_router(auth.router)

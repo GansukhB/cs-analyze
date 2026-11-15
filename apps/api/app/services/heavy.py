@@ -26,6 +26,9 @@ from app.cache import get_cache
 logger = logging.getLogger(__name__)
 
 KEY = "heavy:permit"
+# Set by whoever waits for the permit, so a holder that can stop at will (the
+# warm-up, `app/services/warmer.py`) hands it over at once.
+WAITING = "heavy:waiting"
 TTL_SECONDS = 60 * 60
 POLL_SECONDS = 2.0
 
@@ -59,6 +62,7 @@ def permit(
         except RedisError:
             logger.warning("heavy permit unavailable: going ahead without it")
             break
+        _say_waiting(owner, poll)
         if not told and on_wait is not None:
             on_wait(_owner(holder))
             told = True
@@ -88,6 +92,36 @@ def _release(token: str) -> None:
             cache.delete(KEY)
     except RedisError:
         logger.warning("could not release the heavy permit; it expires on its own")
+
+
+def _say_waiting(owner: str, poll: float) -> None:
+    try:
+        get_cache().set(WAITING, owner, ex=max(3, int(poll * 3)))
+    except RedisError:
+        pass
+
+
+def try_hold(owner: str) -> str | None:
+    """Take the permit if it is free, without waiting: the token, else None.
+    With Redis unreachable it goes ahead, as :func:`permit` does."""
+    token = f"{owner}|{uuid.uuid4().hex}"
+    try:
+        return token if get_cache().set(KEY, token, nx=True, ex=TTL_SECONDS) else None
+    except RedisError:
+        return token
+
+
+def release(token: str | None) -> None:
+    if token:
+        _release(token)
+
+
+def someone_waiting() -> bool:
+    """Whether a parse (or anything else that needs the permit) waits for it now."""
+    try:
+        return bool(get_cache().get(WAITING))
+    except RedisError:
+        return False
 
 
 def holder() -> str | None:

@@ -41,6 +41,7 @@ from app.models.analysis import (
     TeamAlias,
     TickDataset,
 )
+from app.models.answers import StoredAnswer
 from app.models.assistant import AssistantUsage
 from app.models.audit import AuditEvent
 from app.models.base import TimestampMixin
@@ -169,4 +170,5 @@ __all__ = [
     "StratStatus",
     "StratVersion",
     "StratVisibility",
+    "StoredAnswer",
 ]

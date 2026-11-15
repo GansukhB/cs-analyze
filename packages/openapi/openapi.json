@@ -2181,7 +2181,7 @@
           "gameplan"
         ],
         "summary": "Panel",
-        "description": "One panel's data, computed once per parse stamp, pair of Lineups and window.",
+        "description": "One panel's data, computed ahead of time per pair of Lineups and window.",
         "operationId": "panel_gameplan__mine__vs__theirs__s__tab__get",
         "security": [
           {
@@ -2648,7 +2648,7 @@
           "gameplan"
         ],
         "summary": "Playbook",
-        "description": "One Map's Playbook for the \u00ab\u042e\u0443 \u0445\u0438\u0439\u0445\u00bb tab, computed once per parse stamp.\n``buy``, ``days`` and ``since`` (a patch's day, DATA-7) read the habits over\nthose Rounds only (GP-9).",
+        "description": "One Map's Playbook for the \u00ab\u042e\u0443 \u0445\u0438\u0439\u0445\u00bb tab, computed ahead of time.\n``buy``, ``days`` and ``since`` (a patch's day, DATA-7) read the habits over\nthose Rounds only (GP-9).",
         "operationId": "playbook_gameplan__mine__vs__theirs__playbook__map_name__get",
         "security": [
           {
@@ -7404,6 +7404,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Owner"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/teams/{team_id}/ready": {
+      "get": {
+        "tags": [
+          "v2"
+        ],
+        "summary": "Ready",
+        "description": "The opponents the warm-up computes this my team's Game Plan against, in\nits order (the latest Scouts', the Upcoming matches', the Teams met last,\nthen the most parsed), and how each one stands.",
+        "operationId": "ready_v2_teams__team_id__ready_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyFixtures"
                 }
               }
             }
@@ -17872,6 +17920,61 @@
         ],
         "title": "QueueWrite"
       },
+      "ReadyFixtures": {
+        "properties": {
+          "opponents": {
+            "items": {
+              "$ref": "#/components/schemas/ReadyOpponent"
+            },
+            "type": "array",
+            "title": "Opponents"
+          },
+          "warm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WarmState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "opponents",
+          "warm"
+        ],
+        "title": "ReadyFixtures"
+      },
+      "ReadyOpponent": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "maps": {
+            "type": "integer",
+            "title": "Maps"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "maps",
+          "state"
+        ],
+        "title": "ReadyOpponent"
+      },
       "ReliabilityBand": {
         "properties": {
           "lo": {
@@ -22060,6 +22163,16 @@
           "version": {
             "type": "string",
             "title": "Version"
+          },
+          "warm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WarmState"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -25188,6 +25301,71 @@
           "pool_p75"
         ],
         "title": "VetoTell"
+      },
+      "WarmState": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "done": {
+            "type": "integer",
+            "title": "Done",
+            "default": 0
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "missing": {
+            "type": "integer",
+            "title": "Missing",
+            "default": 0
+          },
+          "stale": {
+            "type": "integer",
+            "title": "Stale",
+            "default": 0
+          },
+          "planned": {
+            "type": "integer",
+            "title": "Planned",
+            "default": 0
+          },
+          "fixtures_ready": {
+            "type": "integer",
+            "title": "Fixtures Ready",
+            "default": 0
+          },
+          "fixtures_total": {
+            "type": "integer",
+            "title": "Fixtures Total",
+            "default": 0
+          },
+          "current": {
+            "type": "string",
+            "title": "Current",
+            "default": ""
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "WarmState",
+        "description": "The warm-up's progress (docs/adr/0014): pages computed ahead of time."
       },
       "WeekDay": {
         "properties": {

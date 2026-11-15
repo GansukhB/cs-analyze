@@ -19,10 +19,10 @@ from app.models import (
     PlayerMapRoute,
     PlayerRound,
     Round,
+    StoredAnswer,
     Team,
 )
 from app.models.base import utcnow
-from app.routers import gameplan as gameplan_router
 from app.services import dbctx, gameplan, heatmap_groups, lineup, mapstrategy, playbook, roles
 
 TABS = ["decision", "verdict", "metrics", "h2h", "maps", "players", "duels", "roles", "edge",
@@ -33,10 +33,6 @@ TABS = ["decision", "verdict", "metrics", "h2h", "maps", "players", "duels", "ro
 def memory_cache(monkeypatch, tmp_path):
     """Redis replaced by a dict, and the drawn pictures kept out of the repo."""
     store: dict = {}
-    monkeypatch.setattr(gameplan_router, "_cache_get", lambda key: store.get(key))
-    monkeypatch.setattr(
-        gameplan_router, "_cache_set", lambda key, value: store.__setitem__(key, value)
-    )
     monkeypatch.setattr(get_settings(), "hltv_data_dir", tmp_path)
     return store
 
@@ -204,7 +200,7 @@ def test_lineup_candidates_and_search(client, auth, league):
     assert client.get("/gameplan/players?q=b", headers=auth).status_code == 422
 
 
-def test_a_picked_lineup_decides_whose_numbers_show(client, auth, league, memory_cache):
+def test_a_picked_lineup_decides_whose_numbers_show(client, auth, league, db):
     a, b, c = league["a"], league["b"], league["c"]
     alpha, bravo, charlie = (league["players"][t.id] for t in (a, b, c))
     url = f"/gameplan/{a.id}/vs/{b.id}"
@@ -233,8 +229,9 @@ def test_a_picked_lineup_decides_whose_numbers_show(client, auth, league, memory
     assert signing["own"] and signing["vs"] is None
     duels = client.get(f"{url}/s/duels{query}", headers=auth).json()["data"]
     assert duels["has_rows"]
-    # Each pair of Lineups is its own cached panel.
-    assert any(":L" in key and ":players:" in key for key in memory_cache)
+    # Each pair of Lineups is its own stored answer.
+    keys = db.scalars(select(StoredAnswer.key)).all()
+    assert any("my_lineup=" in key and "tab=players" in key for key in keys)
 
 
 def test_only_the_lineup_is_named_to_kill_first_or_protect(db, league, monkeypatch):

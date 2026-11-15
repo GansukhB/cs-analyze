@@ -2,22 +2,11 @@
 
 from collections import defaultdict
 
-import pytest
 from sqlalchemy import select
 
 from app.models import Match, Round
-from app.routers import gameplan as gameplan_router
 from app.services import dbctx, mn, playbook
 from tests.test_gameplan import league  # noqa: F401 -- the shared three-team fixture
-
-
-@pytest.fixture(autouse=True)
-def memory_cache(monkeypatch):
-    store: dict = {}
-    monkeypatch.setattr(gameplan_router, "_cache_get", lambda key: store.get(key))
-    monkeypatch.setattr(
-        gameplan_router, "_cache_set", lambda key, value: store.__setitem__(key, value)
-    )
 
 
 def _round(rid, map_id, number, *, plant=None, site="", winner=None, h2h=False, buy="full"):

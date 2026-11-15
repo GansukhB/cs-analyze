@@ -340,6 +340,21 @@ class ScoutNow(BaseModel):
     cycle: JobCycle | None
 
 
+class WarmState(BaseModel):
+    """The warm-up's progress (docs/adr/0014): pages computed ahead of time."""
+
+    state: str  # working, paused (a parse holds the host), idle, starting
+    done: int = 0
+    total: int = 0
+    missing: int = 0
+    stale: int = 0
+    planned: int = 0
+    fixtures_ready: int = 0
+    fixtures_total: int = 0
+    current: str = ""
+    updated_at: str | None = None
+
+
 class SystemState(BaseModel):
     """What the footer shows: the host, the worker's pulse, and the Scouts."""
 
@@ -349,6 +364,7 @@ class SystemState(BaseModel):
     queued: int
     # The commit this API runs ("" when it wasn't deployed, as in development).
     version: str
+    warm: WarmState | None = None
 
 
 # -- teams -------------------------------------------------------------------------

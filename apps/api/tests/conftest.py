@@ -13,7 +13,15 @@ from app.db import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import User, Workspace  # noqa: E402
 from app.security import create_access_token, hash_password  # noqa: E402
-from app.services import heavy, live, pool_cache, ratelimit, review_pool  # noqa: E402
+from app.services import (  # noqa: E402
+    answers,
+    heavy,
+    live,
+    pool_cache,
+    ratelimit,
+    review_pool,
+    warmer,
+)
 
 
 @pytest.fixture
@@ -70,7 +78,17 @@ class FakeRedis:
         return True
 
     def delete(self, key):
-        self.store.pop(key, None)
+        return 1 if self.store.pop(key, None) is not None else 0
+
+    def rpush(self, key, value):
+        self.store.setdefault(key, []).append(value)
+
+    def ltrim(self, key, start, end):
+        self.store[key] = self.store.get(key, [])[start:] if start < 0 else self.store.get(key, [])
+
+    def blpop(self, key, timeout=0):
+        items = self.store.get(key) or []
+        return (key, items.pop(0)) if items else None
 
     def incr(self, key):
         self.store[key] = int(self.store.get(key) or 0) + 1
@@ -85,6 +103,17 @@ def pool_redis(monkeypatch) -> FakeRedis:
     """The Pool's Redis as a dict, empty for every test."""
     fake = FakeRedis()
     monkeypatch.setattr(pool_cache, "get_cache", lambda: fake)
+    return fake
+
+
+@pytest.fixture(autouse=True)
+def answers_redis(monkeypatch) -> FakeRedis:
+    """The stored answers' wake-ups and the warm-up's status, as a dict."""
+    fake = FakeRedis()
+    monkeypatch.setattr(answers, "get_cache", lambda: fake)
+    monkeypatch.setattr(warmer, "get_cache", lambda: fake)
+    # Every read sees the data as it is now.
+    monkeypatch.setattr(answers, "STAMP_SECONDS", 0.0)
     return fake
 
 

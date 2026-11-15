@@ -1,24 +1,12 @@
 """Levers and Cautions: the Reviews cut into tallies, judged against the Pool,
 paired across facing Sides, worded, and lifted into the action list."""
 
-import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app import tasks
-from app.routers import gameplan as gameplan_router
 from app.services import gameplan_view, levers, mn, review, review_pool
 from tests.test_gameplan import league  # noqa: F401 -- the shared three-team fixture
 from tests.test_review_summary import ALPHA, BRAVO, _finding, _round, _stored
-
-
-@pytest.fixture(autouse=True)
-def memory_cache(monkeypatch):
-    store: dict = {}
-    monkeypatch.setattr(gameplan_router, "_cache_get", lambda key: store.get(key))
-    monkeypatch.setattr(
-        gameplan_router, "_cache_set", lambda key, value: store.__setitem__(key, value)
-    )
-
 
 META = {"mm": 7, "match": 70, "num": 1, "map": "de_inferno"}
 

@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, Field
 
-from app.schemas import TeamRef, _utc
+from app.schemas import TeamRef, WarmState, _utc
 
 # Stored datetimes are naive UTC; every v2 one says so.
 Utc = Annotated[dt.datetime, AfterValidator(_utc)]
@@ -1049,3 +1049,17 @@ class Owner(BaseModel):
     players: list[OwnerPlayer]
     goals: list[TeamGoalRead]
     risks: list[OwnerRisk]
+
+
+# -- which Game Plans are ready (docs/adr/0014) ---------------------------------
+class ReadyOpponent(BaseModel):
+    id: int
+    name: str
+    maps: int  # parsed Match Maps
+    # fresh: current; stale: opens at once, then refreshes; none: its first visit computes.
+    state: str
+
+
+class ReadyFixtures(BaseModel):
+    opponents: list[ReadyOpponent]
+    warm: WarmState | None

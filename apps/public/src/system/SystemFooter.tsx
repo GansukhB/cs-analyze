@@ -5,6 +5,7 @@ import { $api } from '../api/client'
 import type { components } from '../api/schema'
 
 type Usage = components['schemas']['Usage']
+type WarmState = components['schemas']['WarmState']
 
 const POLL_MS = 10_000
 
@@ -108,6 +109,10 @@ export default function SystemFooter({ width }: { width: string }) {
               )}
               {data.queued > 0 && <span className="ml-2">+{data.queued} queued</span>}
             </span>
+            <span>Урьдчилсан</span>
+            <span>
+              <Warm warm={data.warm} />
+            </span>
             <span>Build</span>
             <span className="font-mono">{data.version || 'dev'}</span>
             <span>Data</span>
@@ -119,4 +124,20 @@ export default function SystemFooter({ width }: { width: string }) {
       </div>
     </footer>
   )
+}
+
+// docs/adr/0014: how far the worker is in computing every Game Plan and team page
+// ahead of time; «бэлэн» counts the Game Plans current to the latest parse.
+function Warm({ warm }: { warm?: WarmState | null }) {
+  if (!warm) return <>—</>
+  const plans = warm.fixtures_total ? `${warm.fixtures_ready}/${warm.fixtures_total} Game Plan бэлэн` : ''
+  if (warm.state === 'working')
+    return (
+      <span title={warm.current}>
+        {plans} · {warm.done}/{warm.total} хуудас тооцоолж байна
+        {warm.current && <span className="ml-1 text-ink-3">({warm.current})</span>}
+      </span>
+    )
+  if (warm.state === 'paused') return <>{plans} · parse дуусахыг хүлээж байна</>
+  return <>{plans || 'бэлэн'}</>
 }

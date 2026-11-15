@@ -40,7 +40,7 @@ import uuid
 from collections import deque
 from pathlib import Path
 
-from celery.signals import worker_ready, worker_shutdown
+from celery.signals import worker_ready, worker_shutdown, worker_shutting_down
 from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.orm import Session, object_session
 
@@ -80,6 +80,7 @@ from app.services import (
     system,
     tickdata,
     uploads,
+    warmer,
 )
 
 logger = logging.getLogger(__name__)
@@ -138,6 +139,12 @@ def run_analysis(self, job_id: int) -> dict:
         job_db.commit()
         try:
             return run_pipeline(job_db, db, job)
+        except jobs.JobInterrupted:
+            # A deploy restarts the worker: back to the head of the queue, and on
+            # from where it was once the worker is up (what it parsed is kept).
+            db.rollback()
+            jobs.requeue(job_db, job, jobs.RESUMED_ON_RESTART)
+            return {"job": str(job.public_id), "status": job.status}
         except jobs.JobCancelled:
             db.rollback()
             jobs.cancel(job_db, job)
@@ -186,9 +193,24 @@ def _heartbeat(**_) -> None:
     system.start_heartbeat()
 
 
+@worker_ready.connect
+def _start_warmer(**_) -> None:
+    """Every analytic page computed ahead of time (docs/adr/0014)."""
+    warmer.start()
+
+
+@worker_shutting_down.connect
+def _stopping(**_) -> None:
+    """A deploy: the running Scout stops at its next step and waits in the queue
+    for the next worker, instead of being killed when the stop times out."""
+    jobs.STOPPING.set()
+    warmer.stop()
+
+
 @worker_shutdown.connect
 def _flatline(**_) -> None:
     system.stop_heartbeat()
+    warmer.stop()
 
 
 @celery_app.task(bind=True, name="cs_analyze.ingest_upload")

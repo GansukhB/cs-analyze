@@ -24,8 +24,9 @@ ExecStart={{ api_path }}/.venv/bin/celery -A app.celery_app worker \
     --hostname={{ worker_service }}@%%h
 Restart=always
 RestartSec=10
-# SIGTERM is Celery's warm shutdown: a deploy waits this long for the running
-# job to finish; after that it is killed, and failed on the next start.
+# SIGTERM is Celery's warm shutdown: a running Scout stops at its next step and
+# goes back to the head of the queue (jobs.STOPPING), so the stop is quick; one
+# killed past this timeout goes back to the queue once on the next start.
 KillSignal=SIGTERM
 TimeoutStopSec=600
 # This host's /tmp is a tmpfs, in RAM. Chromium spills shared memory to the

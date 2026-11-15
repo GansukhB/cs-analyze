@@ -25,6 +25,7 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import logging
+import threading
 import time
 from decimal import Decimal
 
@@ -185,10 +186,13 @@ def recover(db: Session) -> None:
 
     There is one worker, so at its start nothing can be running: a RUNNING row
     is a job the previous process died in (a deploy's SIGKILL, the OOM killer)
-    and would otherwise hold the slot forever. It is failed. A job that was
-    sent to Celery but never started loses its task id, because the caller
-    purged the broker first, and is sent again in its turn; ``run_analysis``
-    ignores any old message that resurfaces.
+    and would otherwise hold the slot forever. It goes back to the head of the
+    queue once, as an interrupted job does (:func:`requeue`): what it parsed is
+    kept, so it picks up where it was. A job that dies a second time (a Demo
+    that runs the host out of memory) is failed. A job that was sent to Celery
+    but never started loses its task id, because the caller purged the broker
+    first, and is sent again in its turn; ``run_analysis`` ignores any old
+    message that resurfaces.
     """
     orphans = db.scalars(select(AnalysisJob).where(AnalysisJob.status == JobStatus.RUNNING)).all()
     for job in db.scalars(
@@ -199,8 +203,51 @@ def recover(db: Session) -> None:
         job.celery_task_id = ""
     db.commit()
     for job in orphans:
-        fail(db, job, "Worker дахин эхэлсэн тул энэ job дундаа тасарлаа. Дахин эхлүүлнэ үү.")
+        if _resumed(db, job) < RESUME_LIMIT:
+            requeue(db, job, RESUMED_AFTER_DEATH)
+        else:
+            fail(db, job, "Worker дахин эхэлсэн тул энэ job дундаа тасарлаа. Дахин эхлүүлнэ үү.")
     start_next(db)
+
+
+# -- a restart is not the end of a job ----------------------------------------
+# Set when the worker begins to shut down (a deploy): a running job stops at its
+# next check, between two items, and goes back to the head of the queue.
+STOPPING = threading.Event()
+RESUME_LIMIT = 1
+RESUMED_PREFIX = "⟳ "
+RESUMED_ON_RESTART = (
+    RESUMED_PREFIX + "Worker дахин эхэлж байгаа тул энд түр зогслоо. Дахин асмагц тасарсан "
+    "газраасаа үргэлжилнэ: parse хийсэн тоглолтууд нь алгасагдана."
+)
+RESUMED_AFTER_DEATH = (
+    RESUMED_PREFIX + "Worker гэнэт унтарсан тул энэ job тасарлаа. Дарааллын эхэнд буцлаа, "
+    "parse хийсэн тоглолтууд нь алгасагдана."
+)
+
+
+def _resumed(db: Session, job: AnalysisJob) -> int:
+    """How many times this job went back to the queue after dying mid-run."""
+    return len(
+        db.scalars(
+            select(AnalysisEvent.id).where(
+                AnalysisEvent.job_id == job.id,
+                AnalysisEvent.message == RESUMED_AFTER_DEATH,
+            )
+        ).all()
+    )
+
+
+def requeue(db: Session, job: AnalysisJob, why: str) -> None:
+    """Back to the head of the queue, its story kept: it runs again first."""
+    job.status = JobStatus.QUEUED
+    job.stage = JobStage.QUEUED
+    job.celery_task_id = ""
+    job.activity = {}
+    _set_stage_log(job, _closed(job.stage_log))
+    db.commit()
+    log(db, job, why, level=EventLevel.WARNING, stage=JobStage.QUEUED)
+    live.publish(job.public_id, "status", status_payload(job))
 
 
 # -- the story ---------------------------------------------------------------
@@ -377,10 +424,14 @@ def finish_stage(
 
 
 def _terminate(job: AnalysisJob, status: str) -> None:
+    from app.services import answers
+
     job.status = status
     job.finished_at = utcnow()
     _set_stage_log(job, _closed(job.stage_log))
     job.activity = {}
+    # What it parsed changes the pages: the warm-up starts over, this fixture first.
+    answers.replan()
 
 
 def finish(db: Session, job: AnalysisJob, result: dict) -> None:
@@ -412,6 +463,12 @@ class JobCancelled(Exception):
     """
 
 
+class JobInterrupted(JobCancelled):
+    """Raised inside a running Scout once the worker begins to shut down. A
+    kind of stop, so every handler that lets a stop through lets it through;
+    ``run_analysis`` puts the job back in the queue instead of cancelling it."""
+
+
 def check_cancelled(db: Session, job: AnalysisJob) -> None:
     """Raise :class:`JobCancelled` if the STOP button has been pressed.
 
@@ -425,6 +482,9 @@ def check_cancelled(db: Session, job: AnalysisJob) -> None:
         )
     if requested:
         raise JobCancelled()
+    # An upload is short and its parts go once it is in: a restart waits for it.
+    if STOPPING.is_set() and job.kind in SLOT_KINDS:
+        raise JobInterrupted()
 
 
 def cancel(db: Session, job: AnalysisJob) -> None:

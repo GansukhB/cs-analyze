@@ -1,6 +1,7 @@
 import createFetchClient, { type Middleware } from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 import { tokenStore } from '../auth/token'
+import { markStale } from './answers'
 import type { paths } from './schema'
 
 const auth: Middleware = {
@@ -36,7 +37,28 @@ const stamp: Middleware = {
   },
 }
 
+// docs/adr/0014: an answer read from before the latest parse comes marked, so
+// the page shows it at once and `watchStaleAnswers` fetches it again.
+const stale: Middleware = {
+  async onResponse({ response }) {
+    if (!response.ok || response.headers.get('X-Answer') !== 'stale') return response
+    let body: unknown
+    try {
+      body = await response.clone().json()
+    } catch {
+      return response
+    }
+    const headers = new Headers(response.headers)
+    headers.delete('Content-Length')
+    return new Response(JSON.stringify(markStale(body, response.headers.get('X-Answer-At') ?? '')), {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    })
+  },
+}
+
 export const fetchClient = createFetchClient<paths>({ baseUrl: import.meta.env.VITE_API_URL })
-fetchClient.use(auth, stamp)
+fetchClient.use(auth, stamp, stale)
 
 export const $api = createClient(fetchClient)

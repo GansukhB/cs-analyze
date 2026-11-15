@@ -5,11 +5,14 @@ import { BrowserRouter } from 'react-router'
 import './index.css'
 import App from './App.tsx'
 import { retryOnce } from './api/errors'
+import { watchStaleAnswers } from './api/staleAnswers'
 
 const queryClient = new QueryClient({
   // A 5xx or a lost connection gets one more go; a 404 or a 4xx none (OPS-8).
   defaultOptions: { queries: { retry: retryOnce } },
 })
+// docs/adr/0014: a page shown from before the latest parse fetches itself again.
+watchStaleAnswers(queryClient)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

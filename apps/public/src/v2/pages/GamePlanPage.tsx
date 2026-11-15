@@ -367,7 +367,7 @@ function Keys({ dec, loading }: { dec?: DecisionPanel; loading: boolean }) {
       ) : (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-3">
           {keys.map((k, i) => (
-            <article key={k.what} className="flex flex-col gap-3 rounded-lg border border-t-[3px] border-line border-t-accent bg-surface p-5">
+            <article key={`${i}-${k.what}`} className="flex flex-col gap-3 rounded-lg border border-t-[3px] border-line border-t-accent bg-surface p-5">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="num text-4xl leading-none font-semibold text-accent">{String(i + 1).padStart(2, '0')}</span>
                 <Tag color={k.lever ? GOOD : WARN}>{k.lever ? 'Lever' : 'Caution'}</Tag>

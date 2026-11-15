@@ -7,6 +7,7 @@ import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } 
 import Assistant from '../assistant/Assistant'
 import { tokenStore } from '../auth/token'
 import { useMe, useMyTeams } from '../auth/useMe'
+import Refreshing from '../ui/Refreshing'
 import { PageSkeleton } from '../ui/Skeleton'
 import { at, initials } from './team'
 import './v2.css'
@@ -77,6 +78,7 @@ export default function V2Layout() {
       </main>
       <div className="print:hidden">
         <Assistant />
+        <Refreshing />
       </div>
     </div>
   )

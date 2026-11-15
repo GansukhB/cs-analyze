@@ -6,9 +6,17 @@ from sqlalchemy import func, select
 from app.config import get_settings
 from app.deps import DbSession, StaffUser
 from app.models import AnalysisJob, JobStatus
-from app.schemas import HostStats, JobCycle, PatchList, PatchRef, ScoutNow, SystemState
+from app.schemas import (
+    HostStats,
+    JobCycle,
+    PatchList,
+    PatchRef,
+    ScoutNow,
+    SystemState,
+    WarmState,
+)
 from app.services import jobs as job_service
-from app.services import map_pool, patches, system
+from app.services import map_pool, patches, system, warmer
 from app.services.dbctx import using
 
 router = APIRouter(tags=["system"])
@@ -41,7 +49,16 @@ def system_state(db: DbSession, _: StaffUser) -> SystemState:
         scout=scout,
         queued=queued or 0,
         version=get_settings().deployed_commit,
+        warm=_warm(),
     )
+
+
+def _warm() -> WarmState | None:
+    found = warmer.status()
+    if not found:
+        return None
+    fields = WarmState.model_fields
+    return WarmState(**{k: v for k, v in found.items() if k in fields})
 
 
 @router.get("/patches")

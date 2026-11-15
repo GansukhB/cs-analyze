@@ -2,17 +2,26 @@
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, HTTPException, Path, Response, status
 from sqlalchemy import select
 
 from app.deps import DbSession, StaffUser
-from app.models import DevelopmentNote, MatchKind, Player, PlayerAlias
+from app.models import DevelopmentNote, MatchKind, Player, PlayerAlias, Team
 from app.routers.v2.common import my_team
 from app.schemas_v2 import DevNote, Five, NoteWrite, PlayerProfile
-from app.services import dbctx, player_cards, player_profile, scope, team_numbers, team_overview
+from app.services import (
+    answers,
+    dbctx,
+    player_cards,
+    player_profile,
+    scope,
+    team_numbers,
+    team_overview,
+)
 
 router = APIRouter()
 Steamid = Annotated[str, Path(pattern=r"^\d{1,20}$")]
+VERSION = 1
 KPIS = ("rating", "adr", "kast", "opening_pct", "hs", "traded_pct")
 
 
@@ -50,31 +59,57 @@ def profile(
     steamid: Steamid,
     db: DbSession,
     user: StaffUser,
+    response: Response,
     scrims: bool = False,
     map: str | None = None,
     side: Literal["t", "ct"] = "t",
 ) -> PlayerProfile:
-    team = my_team(db, user, team_id)
-    player = _player(db, steamid)
+    my_team(db, user, team_id)
+    _player(db, steamid)
+    params = {"team": team_id, "steamid": steamid, "scrims": scrims, "map": map, "side": side}
+    built = answers.serve(
+        db, "v2.player", params, response=response, workspace_id=user.workspace_id
+    )
+    return PlayerProfile(**built)
+
+
+def _note(db, p: dict, data: dict, workspace_id: int | None) -> dict:
+    """Staff's note on him is edited at any time: read on every request."""
+    player = _player(db, p["steamid"])
+    note = db.scalar(
+        select(DevelopmentNote).where(
+            DevelopmentNote.workspace_id == workspace_id,
+            DevelopmentNote.player_id == player.id,
+        )
+    )
+    found = {"text": note.text, "updated_at": note.updated_at.isoformat()} if note else None
+    return {**data, "note": found}
+
+
+@answers.kind("v2.player", VERSION, live=_note)
+def _profile(db, p: dict) -> dict:
+    team = db.get(Team, p["team"])
+    player = _player(db, p["steamid"])
+    scrims, map, side = bool(p.get("scrims")), p.get("map"), p.get("side") or "t"
     with dbctx.using(db):
         # The Pool first, before this request may see Scrims (docs/adr/0010).
         pool = player_profile.pool()
         mates = player_profile.teammates(team.id, player.id)
         team_maps = [m.id for m in team_numbers.team_maps(team.id, kind=MatchKind.OFFICIAL)]
-        mate_raw = player_profile._raw(team_maps, [p.id for p in mates])
+        mate_raw = player_profile._raw(team_maps, [m.id for m in mates])
         if scrims:
             scope.allow_scrims(db)
         maps = player_profile.maps_of(player.id)
         ids = [m.id for m in maps]
         mine = player_profile.derive(player_profile._raw(ids, [player.id]).get(player.id, {}))
         mate_lines = []
-        for p in mates:
-            d = player_profile.derive(mate_raw.get(p.id, {}))
+        for mate in mates:
+            d = player_profile.derive(mate_raw.get(mate.id, {}))
             if d:
                 mate_lines.append(
                     {
-                        "steamid": str(p.steamid),
-                        "name": p.name,
+                        "steamid": str(mate.steamid),
+                        "name": mate.name,
                         "axes": player_profile.axes(d, pool),
                         "kpis": _kpis(d),
                     }
@@ -84,18 +119,12 @@ def profile(
             values = [m["axes"][axis] for m in mate_lines if m["axes"].get(axis) is not None]
             team_axes[axis] = round(sum(values) / len(values)) if values else None
         cards = player_cards.lines(team, [player.id]).get(player.id) or {}
-        note = db.scalar(
-            select(DevelopmentNote).where(
-                DevelopmentNote.workspace_id == user.workspace_id,
-                DevelopmentNote.player_id == player.id,
-            )
-        )
         aliases = sorted(
             set(db.scalars(select(PlayerAlias.name).where(PlayerAlias.player_id == player.id)))
             - {player.name}
         )
         axes = player_profile.axes(mine, pool) if mine else {}
-        return PlayerProfile(
+        out = PlayerProfile(
             steamid=str(player.steamid),
             name=player.name,
             aliases=aliases,
@@ -117,8 +146,9 @@ def profile(
             positions=player_profile.positions(player.id, maps, map, side),
             weapons=player_profile.weapons(player.id, ids),
             lines=_lines(cards, axes),
-            note={"text": note.text, "updated_at": note.updated_at} if note else None,
+            note=None,
         )
+    return out.model_dump(mode="json")
 
 
 AXIS_LABEL = {
