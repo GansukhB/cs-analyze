@@ -13,6 +13,7 @@ from app.models import (
     JobStatus,
     Match,
     StoredAnswer,
+    Workspace,
     WorkspaceTeam,
 )
 from app.models.base import utcnow
@@ -137,6 +138,22 @@ def test_the_plan_puts_the_latest_scout_first(db, ours, monkeypatch):
     first_fixture = next(i for i, it in enumerate(plan.items) if it.fixture)
     assert plan.items[first_fixture].fixture == (a.id, c.id)
     assert len({it.digest for it in plan.items}) == len(plan.items)
+
+
+def test_two_workspaces_with_one_my_team_share_its_fixtures(db, ours, monkeypatch):
+    monkeypatch.setattr(warmer, "MIN_MAPS", 1)
+    demo = Workspace(name="Demo")
+    db.add(demo)
+    db.flush()
+    db.add(WorkspaceTeam(workspace_id=demo.id, team_id=ours["a"].id))
+    db.commit()
+    plan = warmer.build_plan(db)
+    a, b, c = ours["a"].id, ours["b"].id, ours["c"].id
+    assert sorted(plan.fixtures) == [(a, b), (a, c)]
+    # Only the veto lab (it reads the Workspace's own Scrims) is computed for each.
+    vetoes = [it for it in plan.items if it.kind == "gp.veto"]
+    assert len(vetoes) == 4 and len({it.params["workspace_id"] for it in vetoes}) == 2
+    assert sum(1 for it in plan.items if it.kind == "gp.header") == 2
 
 
 def test_a_round_stores_every_planned_page_as_its_page_asks_for_it(

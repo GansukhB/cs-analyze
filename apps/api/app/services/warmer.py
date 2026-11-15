@@ -277,9 +277,10 @@ def build_plan(db: Session) -> Plan:
             if theirs is None:
                 continue
             where = {"ws": workspace_id, "scrims": False}
-            before = len(plan.items)
             keep(fixture_items(team, theirs, where, workspace_id, maps), parts[workspace_id])
-            if len(plan.items) > before or (team_id, opponent_id) not in plan.fixtures:
+            # Two Workspaces with the same my team share the fixture (only its
+            # veto lab is each one's own): it is counted once.
+            if (team_id, opponent_id) not in plan.fixtures:
                 plan.fixtures.append((team_id, opponent_id))
     db.info.pop(scope.KEY, None)
     return plan

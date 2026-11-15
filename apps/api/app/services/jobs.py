@@ -244,6 +244,8 @@ def requeue(db: Session, job: AnalysisJob, why: str) -> None:
     job.stage = JobStage.QUEUED
     job.celery_task_id = ""
     job.activity = {}
+    job.progress = 0
+    job.finished_at = None
     _set_stage_log(job, _closed(job.stage_log))
     db.commit()
     log(db, job, why, level=EventLevel.WARNING, stage=JobStage.QUEUED)

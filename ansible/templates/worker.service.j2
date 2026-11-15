@@ -28,6 +28,11 @@ RestartSec=10
 # goes back to the head of the queue (jobs.STOPPING), so the stop is quick; one
 # killed past this timeout goes back to the queue once on the next start.
 KillSignal=SIGTERM
+# Only Celery gets the SIGTERM: Chromium must outlive the warm shutdown, or the
+# download in hand breaks and the Scout reads a dead browser as HLTV refusing it
+# (2026-11-15: a deploy ended a 40-Match Team Scout at Match 19 as a success).
+# Whatever is left when Celery has exited is killed then.
+KillMode=mixed
 TimeoutStopSec=600
 # This host's /tmp is a tmpfs, in RAM. Chromium spills shared memory to the
 # temp dir (--disable-dev-shm-usage) and Playwright streams each 500 MB demo

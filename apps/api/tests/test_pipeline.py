@@ -535,6 +535,36 @@ def test_a_download_again_that_breaks_off_fails_that_match_only(pipeline, db, mo
     assert all(not d.error for d in db.query(Demo).filter_by(map="").all())
 
 
+def test_a_browser_lost_to_a_stopping_worker_interrupts_the_scout(pipeline, db, monkeypatch):
+    # Production, 2026-11-15: a deploy's SIGTERM closed Chromium under a Team Scout,
+    # which read the dead browser as HLTV refusing it, skipped Matches 20-40 and
+    # ended as a success.
+    import threading
+
+    stopping = threading.Event()
+    monkeypatch.setattr(jobs, "STOPPING", stopping)
+
+    def gone(*args, **kwargs):
+        raise browser.HltvBlocked("BrowserContext.new_page: Target page has been closed")
+
+    monkeypatch.setattr(tasks, "_plan_matches", gone)
+    # HLTV refusing a worker that stays up: the Scout goes on with what is stored.
+    assert pipeline().status == "success"
+
+    # The same while the worker shuts down: a stop to resume, never a success.
+    def gone_with_the_worker(*args, **kwargs):
+        stopping.set()  # the SIGTERM that took the browser
+        gone()
+
+    monkeypatch.setattr(tasks, "_plan_matches", gone_with_the_worker)
+    with pytest.raises(jobs.JobInterrupted):
+        pipeline()
+    job = db.query(AnalysisJob).order_by(AnalysisJob.id.desc()).first()
+    assert job.status == "running"  # `run_analysis` puts it back in the queue
+    jobs.requeue(db, job, jobs.RESUMED_ON_RESTART)
+    assert (job.status, job.progress, job.finished_at) == ("queued", 0, None)
+
+
 def test_a_match_that_fails_to_fetch_fails_alone(pipeline, db, monkeypatch):
     from app.services import store
 

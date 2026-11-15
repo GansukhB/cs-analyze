@@ -930,6 +930,9 @@ def _fetch(
                 stage=STAGE.FETCHING,
             )
     except HltvBlocked as exc:
+        # A worker that is shutting down may take the browser with it: that is a
+        # stop to pick up later (jobs.JobInterrupted), not HLTV refusing us.
+        jobs.check_cancelled(job_db, job)
         # Cloudflare is not a reason to lose whatever is already parsed.
         jobs.log(
             job_db,
