@@ -1,18 +1,19 @@
 """A my team's Matches and one Match Map's report (v2 screen 03)."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.deps import DbSession, StaffUser
-from app.models import Match, MatchKind, MatchMap
-from app.routers.matches import _map, _match
+from app.models import Match, MatchKind, MatchMap, Team
+from app.routers.matches import _allowed, load_map, load_match
 from app.routers.teams import map_label
 from app.routers.v2.common import my_team
 from app.schemas_v2 import MatchList, MatchReport
-from app.services import dbctx, match_report, scope, team_numbers
+from app.services import answers, dbctx, match_report, scope, team_numbers
 
 router = APIRouter()
+VERSION = 1
 
 
 def _tabs(team_id: int, match: Match) -> list[dict]:
@@ -31,10 +32,21 @@ def _tabs(team_id: int, match: Match) -> list[dict]:
 
 
 @router.get("/teams/{team_id}/matches")
-def team_matches(team_id: int, db: DbSession, user: StaffUser, scrims: bool = False) -> MatchList:
+def team_matches(
+    team_id: int, db: DbSession, user: StaffUser, response: Response, scrims: bool = False
+) -> MatchList:
     """The my team's Matches, newest first, each with its Maps."""
-    team = my_team(db, user, team_id)
+    my_team(db, user, team_id)
     if scrims:
+        scope.allow_scrims(db)
+    params = {"team": team_id, "scrims": scrims}
+    return MatchList(**answers.serve(db, "v2.matches", params, response=response))
+
+
+@answers.kind("v2.matches", VERSION, deps=answers.teams("team"))
+def _team_matches(db, p: dict) -> dict:
+    team = db.get(Team, p["team"])
+    if p.get("scrims"):
         scope.allow_scrims(db)
     q = (
         select(Match)
@@ -64,18 +76,30 @@ def team_matches(team_id: int, db: DbSession, user: StaffUser, scrims: bool = Fa
                 "maps": _tabs(team.id, m),
             }
         )
-    return MatchList(matches=out)
+    return MatchList(matches=out).model_dump(mode="json")
 
 
 @router.get("/teams/{team_id}/matches/{match_id}/maps/{map_number}/report")
 def report(
-    team_id: int, match_id: int, map_number: int, db: DbSession, user: StaffUser
-) -> MatchReport:
+    team_id: int, match_id: int, map_number: int, db: DbSession, user: StaffUser,
+    response: Response,
+) -> MatchReport:  # fmt: skip
     """One Match Map from the my team's side; from the first Team's when the my
     team did not play it."""
-    team = my_team(db, user, team_id)
-    match = _match(db, match_id, user)
-    mm = _map(db, match_id, map_number, user)
+    my_team(db, user, team_id)
+    _allowed(db, user, match_id)
+    scope.allow_scrims(db)  # a Match's own pages show the Workspace's Scrims too
+    load_map(db, match_id, map_number)  # a 404 before anything is stored
+    params = {"team": team_id, "match": match_id, "map_number": map_number}
+    return MatchReport(**answers.serve(db, "v2.report", params, response=response))
+
+
+@answers.kind("v2.report", VERSION, deps=answers.match("match"))
+def _report(db, p: dict) -> dict:
+    scope.allow_scrims(db)
+    team = db.get(Team, p["team"])
+    match = load_match(db, p["match"])
+    mm = load_map(db, p["match"], p["map_number"])
     us = team.id if team.id in (mm.team1_id, mm.team2_id) else (mm.team1_id or team.id)
     them = mm.team2 if mm.team1_id == us else mm.team1
     me = mm.team1 if mm.team1_id == us else mm.team2
@@ -97,4 +121,4 @@ def report(
         theirs=theirs,
         maps=_tabs(us, match),
         **built,
-    )
+    ).model_dump(mode="json")

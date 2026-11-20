@@ -34,6 +34,9 @@ def using(session: Session) -> Iterator[Session]:
         _current.reset(token)
 
 
+MEMO = "analysis_memo"  # where :func:`memo` keeps what it computed, in ``session.info``
+
+
 def memo(key, compute):
     """``compute()`` once per bound session and ``key``.
 
@@ -42,7 +45,7 @@ def memo(key, compute):
     and the map matrix alike). Cached on the session, a request pays once, and
     the next request starts clean.
     """
-    store = db().info.setdefault("analysis_memo", {})
+    store = db().info.setdefault(MEMO, {})
     if key not in store:
         store[key] = compute()
     return store[key]

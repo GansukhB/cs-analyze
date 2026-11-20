@@ -2,24 +2,33 @@
 
 One thread of the worker (`tasks._start_warmer`), at a low CPU priority, keeps
 the stored answers (`app/services/answers.py`) current. Each round it plans the
-pages Staff are likely to open and works through them in this order:
+pages Staff are likely to open and works through them in this order
+(docs/adr/0015):
 
 1. the answers a page has just read stale (``wanted_at``), newest first:
    someone is looking at it now; checked again between every two pages;
-2. the planned pages with no answer yet, which a first visit would compute
+2. the answers whose own Teams or Matches changed (a Match parsed, a Review
+   rebuilt), the latest change first: after each Match a Scout parses, the
+   fixtures of its two Teams come before anything else; the other pages
+   someone opened in the last :data:`LEARNED_DAYS` days (a picked Lineup, a
+   Playbook view, another period) among them;
+3. the planned pages with no answer yet, which a first visit would compute
    inside the request;
-3. the planned pages whose answer is stale, in the same order;
-4. the other pages someone opened in the last :data:`LEARNED_DAYS` days (a
-   picked Lineup, a Playbook view, another period), when stale.
+4. the answers only the Pool moved under (any parse anywhere), oldest first,
+   none younger than :data:`POOL_MIN_AGE`: the page calls them fresh, and
+   they come round once every day or two.
 
-The plan: for each my team of every Workspace, its own pages (the team page,
-the overview, management, utility and Self-scout over each window and Map, the
-five's profiles, positions), then its whole Game Plan against each opponent
-(header, every tab, each Map's Playbook, style, timeout card and utility, the
-break between Maps, the veto lab, the scouting page by Map, their team page):
-first the latest Scouts' fixtures, then the Upcoming matches', the Teams it met
-most recently, then every other Team with :data:`MIN_MAPS` parsed Maps, most
-Maps first.
+The plan: for each my team of every Workspace, its own pages (the overview,
+management, utility and Self-scout over each window and Map, the five's
+profiles, positions) and its Matches' pages (the list, each Map's report and
+audit, each Match's summary and agenda), then its whole Game Plan against each
+opponent (header, every tab, each Map's Playbook and timeout card, the break
+between Maps, the veto lab, the scouting page by Map): first the latest Scouts'
+fixtures, then the Upcoming matches', the Teams it met most recently, then every
+other Team with :data:`MIN_MAPS` parsed Maps, most Maps first. Every Team in a
+fixture brings its own pages, shared by every fixture it is in: the team page,
+its roster, its style, after-contact and utility map by Map, and the first view
+of its heatmaps and routes.
 
 It never runs beside a parse: each page takes the host's heavy permit first,
 and the permit goes back as soon as a parse waits for it (`heavy.someone_waiting`).
@@ -63,6 +72,8 @@ STATUS_TTL = 300
 MIN_MAPS = 3
 LEARNED_DAYS = 30
 RECENT_JOB_DAYS = 7
+# An answer only the Pool moved under is not computed again sooner than this.
+POOL_MIN_AGE = timedelta(hours=6)
 IDLE_SECONDS = 60
 PAUSE_SECONDS = 5.0
 START_DELAY = 20.0
@@ -74,6 +85,7 @@ GP_TABS = ("todo", "decision", "maps", "players", "roles", "edge", "duels", "h2h
            "heatmaps", "movement")  # fmt: skip
 SIDES = ("t", "ct")
 MODES = ("heat", "move", "trade", "lurk")
+HEAT_KINDS = ("kills", "deaths", "positions")
 
 
 @dataclass
@@ -85,6 +97,7 @@ class Item:
     fixture: tuple[int, int] | None = None
     key: str = ""
     digest: str = ""
+    tier: str = ""  # wanted, stale, missing, pool: why this round computes it
 
 
 @dataclass
@@ -190,9 +203,8 @@ def team_items(db: Session, team: Team, where: dict, maps: tuple[str, ...]) -> l
     """A my team's own pages, each over the windows and Maps it offers."""
     group = team.name
     t = team.id
-    out = [Item("team.page", {"team": t}, where, group)]
-    out += [Item("v2.overview", {"team": t, "period": p, "scrims": False}, where, group)
-            for p in PERIODS]  # fmt: skip
+    out = [Item("v2.overview", {"team": t, "period": p, "scrims": False}, where, group)
+           for p in PERIODS]  # fmt: skip
     out += [Item("v2.owner", {"team": t, "period": p}, where, group) for p in OWNER_PERIODS]
     out += [Item("v2.utility", {"team": t, "period": p, "scrims": False, "map": None}, where,
                  group) for p in PERIODS]  # fmt: skip
@@ -206,6 +218,78 @@ def team_items(db: Session, team: Team, where: dict, maps: tuple[str, ...]) -> l
         for mode in MODES:
             params = {"team": t, "opponent": None, "map": None, "side": side, "mode": mode}
             out.append(Item("v2.spatial", params, where, group))
+    out.append(Item("v2.matches", {"team": t, "scrims": False}, where, group))
+    return out
+
+
+def _team_maps(db: Session, team_id: int) -> list[str]:
+    from app.services import style
+
+    with dbctx.using(db):
+        return list(style.maps_of(team_id))
+
+
+def shared_items(
+    db: Session, team: Team, where: dict, maps: tuple[str, ...], group: str,
+    fixture: tuple[int, int] | None = None,
+) -> list[Item]:  # fmt: skip
+    """Any Team's own pages, which every fixture it is in shares: the team page,
+    its roster, style, after-contact and utility map by Map, and the first view
+    of its heatmaps and routes (both Sides, everyone, the whole Round)."""
+    t = team.id
+
+    def item(kind: str, params: dict) -> Item:
+        return Item(kind, params, where, group, fixture)
+
+    out = [item("team.page", {"team": t}), item("team.roster", {"team": t})]
+    for m in _team_maps(db, t):
+        out.append(item("team.after_contact", {"team": t, "map": m}))
+    for m in maps:
+        out.append(item("team.style", {"team": t, "map": m}))
+        for side in SIDES:
+            out.append(item("team.utility", {"team": t, "map": m, "side": side}))
+        for k in HEAT_KINDS:
+            out.append(item("gp.heatmap", heatmap_params(t, m, k)))
+        out.append(item("gp.movement", movement_params(t, m)))
+    return out
+
+
+def heatmap_params(team: int, map_name: str, kind: str, **view) -> dict:
+    """A heatmap cell's parameters as the page asks for them (`MapGrid.tsx`)."""
+    return {"team": team, "map": map_name, "player": "all", "side": "all", "kind": kind,
+            "level": "all", "phase": "all", "buy": "all", "compare": False, "place": "",
+            **view}  # fmt: skip
+
+
+def movement_params(team: int, map_name: str, **view) -> dict:
+    return {"team": team, "map": map_name, "player": "all", "side": "all", "kind": "routes",
+            "level": "all", **view}  # fmt: skip
+
+
+def match_items(db: Session, team: Team, where: dict) -> list[Item]:
+    """A my team's Matches' pages, newest first: each Match's summary and agenda,
+    each parsed Map's report and audit. ``where`` lets the Workspace's Scrims in,
+    as a Match's own page does."""
+    group = f"{team.name} · Match"
+    rows = db.execute(
+        select(MatchMap.match_id, MatchMap.map_number)
+        .join(Match, Match.id == MatchMap.match_id)
+        .where(
+            or_(Match.team1_id == team.id, Match.team2_id == team.id),
+            MatchMap.parsed_at.is_not(None),
+        )
+        .order_by(Match.played_at.desc(), Match.id.desc(), MatchMap.map_number)
+    ).all()
+    out: list[Item] = []
+    seen: set[int] = set()
+    for match_id, number in rows:
+        if match_id not in seen:
+            seen.add(match_id)
+            out.append(Item("match.summary", {"match": match_id}, where, group))
+            out.append(Item("match.agenda", {"match": match_id, "team": team.id}, where, group))
+        out.append(Item("v2.report", {"team": team.id, "match": match_id, "map_number": number},
+                        where, group))  # fmt: skip
+        out.append(Item("match.audit", {"match": match_id, "map_number": number}, where, group))
     return out
 
 
@@ -231,12 +315,7 @@ def fixture_items(
         out.append(item("gp.playbook", {**base, "map": m, "my_lineup": "", "their_lineup": "",
                                         "view": None}))  # fmt: skip
         out.append(item("v2.scouting", {"team": mine.id, "opponent": theirs.id, "map": m}))
-        out.append(item("gp.style", {**base, "map": m}))
         out.append(item("gp.timeout", {**base, "map": m}))
-        for side in SIDES:
-            for whose in ("theirs", "mine"):
-                out.append(item("gp.utility", {**base, "map": m, "side": side, "whose": whose}))
-    out.append(item("team.page", {"team": theirs.id}))
     # Last: it lets the session see our Scrims, and the session goes with it.
     veto = VetoLabAsk(format="bo3", we_start=True, done=[], adjust={}).model_dump(mode="json")
     out.append(item("gp.veto", {**base, "workspace_id": workspace_id, **veto}))
@@ -259,25 +338,36 @@ def build_plan(db: Session) -> Plan:
                 seen.add(it.digest)
                 plan.items.append(it)
 
-    # A Workspace's own pages first, then the Game Plans, my team by my team.
-    parts: dict[int, str] = {}
-    for team_id, workspace_id in pairs:
-        answers.bind_spec(db, {"ws": workspace_id, "scrims": False})
-        parts[workspace_id] = answers.scope_part(db)
-        team = names.get(team_id)
-        if team is not None:
-            keep(team_items(db, team, {"ws": workspace_id, "scrims": False}, maps),
-                 parts[workspace_id])  # fmt: skip
+    def part_of(where: dict) -> str:
+        answers.bind_spec(db, where)
+        return answers.scope_part(db)
+
+    # A Workspace's own pages first, then its Matches', then the Game Plans, my
+    # team by my team.
     for team_id, workspace_id in pairs:
         team = names.get(team_id)
         if team is None:
             continue
+        where = {"ws": workspace_id, "scrims": False}
+        part = part_of(where)
+        keep(team_items(db, team, where, maps), part)
+        keep(shared_items(db, team, where, maps, team.name), part)
+        own = {"ws": workspace_id, "scrims": True}
+        own_part = part_of(own)  # bound first: the query must see the Scrims
+        keep(match_items(db, team, own), own_part)
+    for team_id, workspace_id in pairs:
+        team = names.get(team_id)
+        if team is None:
+            continue
+        where = {"ws": workspace_id, "scrims": False}
+        part = part_of(where)
         for opponent_id in opponents(db, team_id, counts):
             theirs = names.get(opponent_id)
             if theirs is None:
                 continue
-            where = {"ws": workspace_id, "scrims": False}
-            keep(fixture_items(team, theirs, where, workspace_id, maps), parts[workspace_id])
+            keep(fixture_items(team, theirs, where, workspace_id, maps), part)
+            group = f"{team.name} vs {theirs.name}"
+            keep(shared_items(db, theirs, where, maps, group, (team_id, opponent_id)), part)
             # Two Workspaces with the same my team share the fixture (only its
             # veto lab is each one's own): it is counted once.
             if (team_id, opponent_id) not in plan.fixtures:
@@ -293,7 +383,10 @@ def wanted_items(db: Session) -> list[Item]:
         .order_by(StoredAnswer.wanted_at.desc())
         .limit(50)
     ).all()
-    return [_from_row(r, "wanted") for r in rows if r.kind in answers.KINDS]
+    out = [_from_row(r, "wanted") for r in rows if r.kind in answers.KINDS]
+    for it in out:
+        it.tier = "wanted"
+    return out
 
 
 def learned_items(db: Session, planned: set[str]) -> list[Item]:
@@ -337,18 +430,20 @@ def readiness(db: Session, mine: int, opponents_: list[int]) -> dict[int, str]:
     """For a my team's picker: each opponent's Game Plan ``fresh``, ``stale`` (it
     opens at once, then refreshes) or ``none`` (its first visit computes)."""
     part = answers.scope_part(db)
-    k = answers.KINDS["gp.panel"]
-    current = answers.stamp_for(k, answers.data_stamp(db))
-    keys = {}
+    keys, current = {}, {}
     for o in opponents_:
         params = {"mine": mine, "theirs": o, "my_lineup": "", "their_lineup": "", "since": "",
                   "tab": "todo"}  # fmt: skip
         keys[o] = answers.hash_of(answers.key_of("gp.panel", params, part))
+        current[o] = answers.stamp(db, "gp.panel", params)
     stored = answers.stamps(db, list(keys.values()))
     out = {}
     for o, digest in keys.items():
         found = stored.get(digest)
-        out[o] = "none" if found is None else ("fresh" if found == current else "stale")
+        if found is None:
+            out[o] = "none"
+        else:
+            out[o] = "fresh" if answers.is_fresh(found, current[o]) else "stale"
     return out
 
 
@@ -423,25 +518,22 @@ class Warmer:
             plan = build_plan(db)
             planned = {it.digest for it in plan.items}
             self._prune(db, planned)
-            stored = answers.stamps(db, [it.digest for it in plan.items])
-            current = _Stamps(self.sessions)
-            missing = [it for it in plan.items if it.digest not in stored]
-            stale = [
-                it for it in plan.items
-                if it.digest in stored and stored[it.digest] != current.of(it)
-            ]  # fmt: skip
             others = learned_items(db, planned)
-            known = answers.stamps(db, [it.digest for it in others])
-            learned = [it for it in others if known.get(it.digest) != current.of(it)]
-        queue = missing + stale + learned
+        everything = plan.items + others
+        current, changed = current_stamps(self.sessions, everything)
+        with self.sessions() as db:
+            stored = answers.stored(db, [it.digest for it in everything])
+            adopt_legacy(db, everything, stored, current, changed)
+        queue = order(plan.items, others, stored, current, changed)
         todo = {fx: 0 for fx in plan.fixtures}
         for it in queue:
-            if it.fixture in todo:
+            if it.fixture in todo and it.tier != "pool":
                 todo[it.fixture] += 1
         ready = sum(1 for n in todo.values() if n == 0)
+        tiers = {t: sum(1 for it in queue if it.tier == t) for t in ("stale", "missing", "pool")}
         self._say(state="working", round_started_at=datetime.now(UTC).isoformat(),
-                  total=len(queue), done=0, missing=len(missing), stale=len(stale),
-                  learned=len(learned), planned=len(plan.items),
+                  total=len(queue), done=0, missing=tiers["missing"], stale=tiers["stale"],
+                  pool=tiers["pool"], learned=len(others), planned=len(plan.items),
                   fixtures_total=len(plan.fixtures), fixtures_ready=ready, current="")  # fmt: skip
         did = self._wanted()
         done = 0
@@ -449,7 +541,7 @@ class Warmer:
         try:
             for it in queue:
                 if self.stop.is_set() or answers.take_replan():
-                    break  # a job ended: plan again, its fixture first
+                    break  # a Match was parsed: plan again, its Teams first
                 if self._wanted():
                     did = True
                 # One session per run of a group: a fixture's tabs share its Report.
@@ -461,7 +553,7 @@ class Warmer:
                 if self._compute(db, it):
                     did = True
                 done += 1
-                if it.fixture in todo:
+                if it.fixture in todo and it.tier != "pool":
                     todo[it.fixture] -= 1
                     if todo[it.fixture] == 0:
                         ready += 1
@@ -503,10 +595,13 @@ class Warmer:
             if db.info.get("warm_stamp") not in (None, base):
                 db.info.pop("analysis_memo", None)
             db.info["warm_stamp"] = base
-            stamp = answers.stamp_for(answers.KINDS[it.kind], base)
+            stamp = answers.stamp(db, it.kind, it.params)
             if self.failed.get(it.digest) == stamp:
                 return False
-            if answers.stamps(db, [it.digest]).get(it.digest) == stamp:
+            found = answers.stamps(db, [it.digest]).get(it.digest)
+            if answers.is_fresh(found, stamp) and (
+                it.tier != "pool" or answers.pool_part(found) == answers.pool_part(stamp)
+            ):
                 _unwant(self.sessions, it.digest)
                 return False
             self._say(state="working", current=f"{it.group} · {_label(it)}")
@@ -517,9 +612,10 @@ class Warmer:
         except Exception as exc:
             db.rollback()
             logger.warning("warm-up: %s failed (%s: %s)", it.key, type(exc).__name__, exc)
-            self.failed[it.digest] = answers.stamp_for(
-                answers.KINDS[it.kind], answers.data_stamp(db)
-            )
+            try:
+                self.failed[it.digest] = answers.stamp(db, it.kind, it.params)
+            except Exception:  # the stamp's own queries failed: try it next round
+                self.failed.pop(it.digest, None)
             return False
         finally:
             # A page that let itself see the Workspace's Scrims (the veto lab) must
@@ -538,27 +634,81 @@ class Warmer:
             logger.info("warm-up: %s stored answers no longer served were dropped", gone)
 
 
-class _Stamps:
-    """The current stamp of each scope, read once a minute rather than per page."""
+def current_stamps(session_factory, items: list[Item]):
+    """Each item's current stamp and when what it reads last changed, read once
+    per scope."""
+    stamps: dict[str, str] = {}
+    changed: dict[str, datetime | None] = {}
+    by_scope: dict[str, list[Item]] = {}
+    for it in items:
+        by_scope.setdefault(json.dumps(it.scope, sort_keys=True), []).append(it)
+    for where, group in by_scope.items():
+        with session_factory() as db:
+            answers.bind_spec(db, json.loads(where))
+            for it in group:
+                if it.kind not in answers.KINDS:
+                    continue
+                stamps[it.digest] = answers.stamp(db, it.kind, it.params)
+                changed[it.digest] = answers.changed_at(db, it.kind, it.params)
+    return stamps, changed
 
-    TTL = 60.0
 
-    def __init__(self, session_factory):
-        self.sessions = session_factory
-        self.cache: dict[str, tuple[float, str]] = {}
+def adopt_legacy(db: Session, items: list[Item], stored: dict, current: dict, changed: dict):
+    """An answer stored under the old, global stamp (before docs/adr/0015) whose
+    Teams and Matches have not changed since it was computed is fresh: it gets the
+    current stamp with no Pool part, so it waits in the Pool's turn rather than
+    show every page as being refreshed after the deploy. Daily kinds are left to
+    their day."""
+    adopted = 0
+    for it in items:
+        found = stored.get(it.digest)
+        if found is None or answers.POOL_SEP in (found[0] or "") or it.digest not in current:
+            continue
+        k = answers.KINDS.get(it.kind)
+        if k is None or k.daily or k.deps is None:
+            continue
+        when = changed.get(it.digest)
+        if when is not None and when > found[1]:
+            continue
+        legacy = f"{answers.fresh_part(current[it.digest])}{answers.POOL_SEP}legacy"
+        answers.restamp(db, it.digest, legacy)
+        stored[it.digest] = (legacy, found[1])
+        adopted += 1
+    if adopted:
+        db.commit()
+        logger.info("warm-up: %s stored answers from before per-Team stamps kept", adopted)
+    return adopted
 
-    def forget(self) -> None:
-        self.cache.clear()
 
-    def of(self, it: Item) -> str:
-        scope_key = json.dumps(it.scope, sort_keys=True)
-        hit = self.cache.get(scope_key)
-        if hit is None or time.monotonic() - hit[0] > self.TTL:
-            with self.sessions() as db:
-                answers.bind_spec(db, it.scope)
-                hit = (time.monotonic(), answers.data_stamp(db))
-            self.cache[scope_key] = hit
-        return answers.stamp_for(answers.KINDS[it.kind], hit[1])
+def order(planned: list[Item], learned: list[Item], stored: dict, current: dict,
+          changed: dict) -> list[Item]:  # fmt: skip
+    """The round's queue: stale (latest change first), missing (in plan order),
+    then the Pool's turn (oldest first)."""
+    stale: list[tuple] = []
+    missing: list[Item] = []
+    pool: list[tuple] = []
+    cutoff = utcnow() - POOL_MIN_AGE
+    for i, it in enumerate(planned + learned):
+        if it.digest not in current:
+            continue
+        found = stored.get(it.digest)
+        is_learned = i >= len(planned)
+        if found is None:
+            if not is_learned:
+                it.tier = "missing"
+                missing.append(it)
+            continue
+        stamp_, at = found
+        if not answers.is_fresh(stamp_, current[it.digest]):
+            it.tier = "stale"
+            when = changed.get(it.digest) or datetime.min
+            stale.append((-when.timestamp() if when != datetime.min else 0, is_learned, i, it))
+        elif answers.pool_part(stamp_) != answers.pool_part(current[it.digest]) and at < cutoff:
+            it.tier = "pool"
+            pool.append((at, i, it))
+    stale.sort(key=lambda r: r[:3])
+    pool.sort(key=lambda r: r[:2])
+    return [r[-1] for r in stale] + missing + [r[-1] for r in pool]
 
 
 def _unwant(session_factory, digest: str) -> None:
@@ -575,7 +725,10 @@ LABELS = {
     "gp.utility": "utility", "gp.veto": "veto lab", "v2.scouting": "scouting",
     "v2.overview": "тойм", "v2.owner": "менежмент", "v2.utility": "utility",
     "v2.self_scout": "Self-scout", "v2.player": "тоглогч", "v2.spatial": "байрлал",
-    "team.page": "багийн хуудас",
+    "team.page": "багийн хуудас", "team.roster": "roster", "team.after_contact": "after-contact",
+    "team.style": "style", "team.utility": "utility", "gp.heatmap": "heatmap",
+    "gp.movement": "movement", "v2.matches": "матчууд", "v2.report": "report",
+    "match.summary": "тойм", "match.agenda": "agenda", "match.audit": "audit",
 }  # fmt: skip
 
 

@@ -52,7 +52,6 @@ from app.services import (
     radar,
     review_pool,
     scope,
-    style,
     timeout_card,
     utility_map,
     veto_lab,
@@ -187,6 +186,17 @@ def search_players(
         return LineupPlayers(players=[LineupPlayer(**p) for p in lineup.search(q)])
 
 
+# A fixture's answers read its two Teams (docs/adr/0015).
+FIXTURE = answers.teams("mine", "theirs")
+TEAM = answers.teams("team")
+
+
+def fixture_stamp(db, mine: int, theirs: int) -> str:
+    """Where the fixture's two Teams stood: the Game Plan's ``stamp``, which a
+    Briefing sends back and is refused (409) once it moved."""
+    return answers.fresh_part(answers.stamp(db, "gp.header", {"mine": mine, "theirs": theirs}))
+
+
 @router.get("/{mine}/vs/{theirs}")
 def header(
     mine: int,
@@ -209,13 +219,13 @@ def header(
     return GameplanHeader(**answers.serve(db, "gp.header", params, response=response))
 
 
-@answers.kind("gp.header", CACHE_VERSION)
+@answers.kind("gp.header", CACHE_VERSION, deps=FIXTURE)
 def _header(db, p: dict) -> dict:
     my_team, opponent = _fixture(db, p["mine"], p["theirs"])
     my_five, their_five = _lineups(db, my_team, opponent, p["my_lineup"], p["their_lineup"])
     picked = {my_team.id: my_five, opponent.id: their_five}
+    stamp = fixture_stamp(db, my_team.id, opponent.id)
     with dbctx.using(db), lineup.using(picked), window.using(window.parse(p["since"])):
-        stamp = gameplan_view.stamp()
         report = _report(my_team, opponent)
         out = GameplanHeader(
             my_team=TeamRef(id=my_team.id, name=my_team.name),
@@ -259,14 +269,14 @@ def panel(
     )
 
 
-@answers.kind("gp.panel", CACHE_VERSION)
+@answers.kind("gp.panel", CACHE_VERSION, deps=FIXTURE)
 def _panel(db, p: dict) -> dict:
     my_team, opponent = _fixture(db, p["mine"], p["theirs"])
     my_five, their_five = _lineups(db, my_team, opponent, p["my_lineup"], p["their_lineup"])
     picked = {my_team.id: my_five, opponent.id: their_five}
     tab = p["tab"]
+    stamp = fixture_stamp(db, my_team.id, opponent.id)
     with dbctx.using(db), lineup.using(picked), window.using(window.parse(p["since"])):
-        stamp = gameplan_view.stamp()
         report = _report(my_team, opponent)
         grids = {}
         if tab == "heatmaps":
@@ -291,7 +301,7 @@ def veto_lab_step(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from None
 
 
-@answers.kind("gp.veto", CACHE_VERSION)
+@answers.kind("gp.veto", CACHE_VERSION, deps=FIXTURE)
 def _veto(db, p: dict) -> dict:
     my_team, opponent = _fixture(db, p["mine"], p["theirs"])
     # Our own Scrims, for our readiness only: the Workspace's, whoever computes it.
@@ -316,7 +326,7 @@ def fixture_timeout(
     return TimeoutCard(**answers.serve(db, "gp.timeout", params, response=response))
 
 
-@answers.kind("gp.timeout", CACHE_VERSION)
+@answers.kind("gp.timeout", CACHE_VERSION, deps=FIXTURE)
 def _timeout(db, p: dict) -> dict:
     my_team, opponent = _fixture(db, p["mine"], p["theirs"])
     with dbctx.using(db):
@@ -340,7 +350,7 @@ def fixture_between(
     return Between(**answers.serve(db, "gp.between", params, response=response))
 
 
-@answers.kind("gp.between", CACHE_VERSION)
+@answers.kind("gp.between", CACHE_VERSION, deps=FIXTURE)
 def _between(db, p: dict) -> dict:
     _my_team, opponent = _fixture(db, p["mine"], p["theirs"])
     with dbctx.using(db):
@@ -351,20 +361,14 @@ def _between(db, p: dict) -> dict:
 def fixture_style(
     mine: int, theirs: int, map_name: str, db: DbSession, _: StaffUser, response: Response
 ) -> FixtureStyle:
-    """Both Teams' style on one Map, each against every Team's (TM-5)."""
+    """Both Teams' style on one Map, each against every Team's (TM-5): each Team's
+    own stored answer, which every fixture it is in shares."""
     _map_name(map_name)
     _fixture(db, mine, theirs)
-    params = {"mine": mine, "theirs": theirs, "map": map_name}
-    return FixtureStyle(**answers.serve(db, "gp.style", params, response=response))
-
-
-@answers.kind("gp.style", CACHE_VERSION)
-def _style(db, p: dict) -> dict:
-    my_team, opponent = _fixture(db, p["mine"], p["theirs"])
-    with dbctx.using(db):
-        return FixtureStyle(
-            mine=style.team(my_team.id, p["map"]), theirs=style.team(opponent.id, p["map"])
-        ).model_dump(mode="json")
+    ours = answers.lookup(db, "team.style", {"team": mine, "map": map_name})
+    their = answers.lookup(db, "team.style", {"team": theirs, "map": map_name})
+    answers.mark(response, answers.worst(ours, their))
+    return FixtureStyle(mine=ours.data["style"], theirs=their.data["style"])
 
 
 @router.get("/{mine}/vs/{theirs}/utility/{map_name}")
@@ -379,17 +383,17 @@ def utility(
     whose: str = Query("theirs", pattern="^(mine|theirs)$"),
 ) -> dict[str, Any]:
     """VIZ-10: where a Team's utility lands on a Map and Side, from where, when,
-    and the lineups it repeats; drawn by the page over the overview."""
+    and the lineups it repeats; drawn by the page over the overview. The Team's
+    own stored answer: ours is the same against every opponent."""
     _map_name(map_name)
     _fixture(db, mine, theirs)
-    params = {"mine": mine, "theirs": theirs, "map": map_name, "side": side, "whose": whose}
-    return answers.serve(db, "gp.utility", params, response=response)
+    params = {"team": theirs if whose == "theirs" else mine, "map": map_name, "side": side}
+    return answers.serve(db, "team.utility", params, response=response)
 
 
-@answers.kind("gp.utility", CACHE_VERSION)
+@answers.kind("team.utility", 1, deps=TEAM)
 def _utility(db, p: dict) -> dict:
-    my_team, opponent = _fixture(db, p["mine"], p["theirs"])
-    team = opponent if p["whose"] == "theirs" else my_team
+    team = db.get(Team, p["team"])
     with dbctx.using(db):
         return {"team": team.name, **utility_map.build(team.id, p["map"], p["side"])}
 
@@ -432,12 +436,12 @@ def playbook(
     )
 
 
-@answers.kind("gp.playbook", CACHE_VERSION)
+@answers.kind("gp.playbook", CACHE_VERSION, deps=FIXTURE)
 def _playbook(db, p: dict) -> dict:
     my_team, opponent = _fixture(db, p["mine"], p["theirs"])
     my_five, their_five = _lineups(db, my_team, opponent, p["my_lineup"], p["their_lineup"])
+    stamp = fixture_stamp(db, my_team.id, opponent.id)
     with dbctx.using(db), lineup.using({my_team.id: my_five, opponent.id: their_five}):
-        stamp = gameplan_view.stamp()
         data = playbook_view.panel(my_team, opponent, p["map"], p.get("view"))
     return {"stamp": stamp, "data": data}
 
@@ -474,6 +478,7 @@ def heatmap(
     theirs: int,
     db: DbSession,
     _: StaffUser,
+    response: Response,
     team: int,
     map: str = Query(""),
     player: str = heatmap_groups.ALL_PLAYERS,
@@ -487,19 +492,29 @@ def heatmap(
 ) -> dict[str, Any]:
     """One heatmap cell for a fixture: the positions and the map they go on (the page
     draws it); by phase of the Round and buy, against every other Team's, and kept
-    to one game Callout (VIZ-9)."""
+    to one game Callout (VIZ-9). The Team's own stored answer, whichever fixture
+    asks (docs/adr/0015)."""
     _grid_team(mine, theirs, team, side, level)
     if kind not in {"kills", "deaths", "positions"}:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Bad selection")
+    params = {"team": team, "map": map, "player": player, "side": side, "kind": kind,
+              "level": level, "phase": phase, "buy": buy, "compare": compare,
+              "place": place}  # fmt: skip
     try:
-        with dbctx.using(db):
-            result = heatmap_groups.points(
-                map_name=map, team_id=team, player_id=player, side=side, kind=kind, level=level,
-                phase=phase, buy=buy, compare=compare, place=place,
-            )  # fmt: skip
+        return answers.serve(db, "gp.heatmap", params, response=response)
     except Exception:  # a heatmap must never take the page down with it
         logger.exception("heatmap failed for %s vs %s", mine, theirs)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Heatmap failed") from None
+
+
+@answers.kind("gp.heatmap", 1, deps=TEAM)
+def _heatmap(db, p: dict) -> dict:
+    with dbctx.using(db):
+        result = heatmap_groups.points(
+            map_name=p["map"], team_id=p["team"], player_id=p["player"], side=p["side"],
+            kind=p["kind"], level=p["level"], phase=p["phase"], buy=p["buy"],
+            compare=p["compare"], place=p["place"],
+        )  # fmt: skip
     return result or {"empty": True}
 
 
@@ -509,6 +524,7 @@ def movement_map(
     theirs: int,
     db: DbSession,
     _: StaffUser,
+    response: Response,
     team: int,
     map: str = Query(""),
     player: str = heatmap_groups.ALL_PLAYERS,
@@ -516,16 +532,25 @@ def movement_map(
     kind: str = "routes",
     level: str = heatmap_groups.ALL_LEVELS,
 ) -> dict[str, Any]:
-    """One movement cell for a fixture: the scene to animate and its tables."""
+    """One movement cell for a fixture: the scene to animate and its tables, the
+    Team's own stored answer."""
     _grid_team(mine, theirs, team, side, level)
+    params = {"team": team, "map": map, "player": player, "side": side, "kind": kind,
+              "level": level}  # fmt: skip
     try:
-        with dbctx.using(db):
-            result = movement.render(
-                map_name=map, team_id=team, player_id=player, side=side, kind=kind, level=level
-            )
+        return answers.serve(db, "gp.movement", params, response=response)
     except Exception:  # a render must never take the page down with it
         logger.exception("movement render failed for %s vs %s", mine, theirs)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Render failed") from None
+
+
+@answers.kind("gp.movement", 1, deps=TEAM)
+def _movement(db, p: dict) -> dict:
+    with dbctx.using(db):
+        result = movement.render(
+            map_name=p["map"], team_id=p["team"], player_id=p["player"], side=p["side"],
+            kind=p["kind"], level=p["level"],
+        )  # fmt: skip
     return result or {"empty": True}
 
 

@@ -38,7 +38,7 @@ def _upcoming(db, p: dict, data: dict, workspace_id: int | None) -> dict:
     return {**data, "upcoming": found}
 
 
-@answers.kind("v2.scouting", VERSION, live=_upcoming)
+@answers.kind("v2.scouting", VERSION, live=_upcoming, deps=answers.teams("team", "opponent"))
 def _scouting(db, p: dict) -> dict:
     mine, theirs = team(db, p["team"]), team(db, p["opponent"])
     with dbctx.using(db):

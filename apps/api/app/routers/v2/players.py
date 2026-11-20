@@ -86,7 +86,7 @@ def _note(db, p: dict, data: dict, workspace_id: int | None) -> dict:
     return {**data, "note": found}
 
 
-@answers.kind("v2.player", VERSION, live=_note)
+@answers.kind("v2.player", VERSION, live=_note, deps=answers.teams("team"))
 def _profile(db, p: dict) -> dict:
     team = db.get(Team, p["team"])
     player = _player(db, p["steamid"])

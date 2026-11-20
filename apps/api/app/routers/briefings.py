@@ -32,7 +32,6 @@ from app.services import (
     decision,
     drawn_notes,
     forecast,
-    gameplan_view,
     lineup,
     mn,
     plan_check,
@@ -94,8 +93,8 @@ def _strats(db, workspace_id: int, team_id: int, map_name: str, ids: list[int]) 
 
 def _frozen(db, body, my_team, opponent, my_five, their_five, workspace_id: int):
     """Each Map's picked lines frozen from its Playbook as it reads now, and the
-    stamp; 409 when a parse moved the Game Plan since the page loaded."""
-    stamp = gameplan_view.stamp()
+    stamp; 409 when a parse of either Team moved the Game Plan since the page loaded."""
+    stamp = gp.fixture_stamp(db, my_team.id, opponent.id)
     if body.stamp and body.stamp != stamp:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "The Game Plan changed since this page loaded: reload it"

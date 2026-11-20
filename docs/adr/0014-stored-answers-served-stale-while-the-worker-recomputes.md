@@ -6,6 +6,8 @@ Every analytic page now asks `answers.serve` (`app/services/answers.py`) for its
 
 We chose this over a longer cache TTL or precomputing into Redis because the problem was the first read after every change, not expiry: only computing ahead of time removes it, and only serving the previous answer meanwhile removes the wait while the worker catches up (a full warm-up of ~110 fixtures takes hours on this host). MySQL rather than Redis because the rows must survive a Redis restart and a deploy (Redis there is cstat's, without persistence we control), and a primary-key read of a ~10 KB blob costs a few milliseconds.
 
+Since docs/adr/0015 an answer goes stale only when its own Teams or Matches change, not on every parse. When only the Pool moved, it comes round in the warm-up's last turn, oldest first.
+
 ## Consequences
 
 - A page can show numbers from before the latest parse for a while; it says so, and Briefings never freeze a stale answer (`lookup(..., fresh=True)`): they 409 on a stamp the page showed, as before.

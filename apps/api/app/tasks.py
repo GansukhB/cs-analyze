@@ -468,6 +468,10 @@ def refresh_reviews() -> dict:
                 done += 1
     finally:
         review_pool.release_refresh(review_pool.REFRESH_RETRY_SECONDS if failed else 0)
+    if done:
+        from app.services import answers
+
+        answers.replan()  # their Teams' pages read those Reviews
     logger.info("Review refresh: %s rebuilt, %s failed", done, failed)
     return {"rebuilt": done, "failed": failed}
 
@@ -1628,9 +1632,14 @@ def _reparse(job_db: Session, db: Session, job: AnalysisJob, match_ids: list[int
 
 def _warm_pool(job_db: Session, job: AnalysisJob) -> None:
     """Measure the Pool on what was just parsed, so a Game Plan opened meanwhile
-    finds it ready instead of computing it inside the request (`pool_cache`)."""
+    finds it ready instead of computing it inside the request (`pool_cache`);
+    then have the warm-up plan again, so the pages of the Match's two Teams are
+    computed before anything else while the next Match downloads (docs/adr/0015)."""
+    from app.services import answers
+
     jobs.activity(job_db, job, key="pool", stage=STAGE.PARSING, text=mn.POOL_WARMING)
     gameplan.warm_pool()
+    answers.replan()
 
 
 def _why_parse(demo: Demo) -> str:

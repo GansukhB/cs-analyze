@@ -30,7 +30,7 @@ def utility(
     return UtilityReport(**answers.serve(db, "v2.utility", params, response=response))
 
 
-@answers.kind("v2.utility", VERSION, daily=True)
+@answers.kind("v2.utility", VERSION, daily=True, deps=answers.teams("team"))
 def _utility(db, p: dict) -> dict:
     found = team(db, p["team"])
     scrims = bool(p.get("scrims"))

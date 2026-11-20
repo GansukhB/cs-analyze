@@ -32,7 +32,7 @@ def spatial_view(
     return Spatial(**answers.serve(db, "v2.spatial", params, response=response))
 
 
-@answers.kind("v2.spatial", VERSION)
+@answers.kind("v2.spatial", VERSION, deps=answers.teams("team", "opponent"))
 def _spatial(db, p: dict) -> dict:
     mine = team(db, p["team"])
     theirs = team(db, p["opponent"]) if p.get("opponent") else None

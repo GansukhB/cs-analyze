@@ -2492,7 +2492,7 @@
           "gameplan"
         ],
         "summary": "Fixture Style",
-        "description": "Both Teams' style on one Map, each against every Team's (TM-5).",
+        "description": "Both Teams' style on one Map, each against every Team's (TM-5): each Team's\nown stored answer, which every fixture it is in shares.",
         "operationId": "fixture_style_gameplan__mine__vs__theirs__style__map_name__get",
         "security": [
           {
@@ -2558,7 +2558,7 @@
           "gameplan"
         ],
         "summary": "Utility",
-        "description": "VIZ-10: where a Team's utility lands on a Map and Side, from where, when,\nand the lineups it repeats; drawn by the page over the overview.",
+        "description": "VIZ-10: where a Team's utility lands on a Map and Side, from where, when,\nand the lineups it repeats; drawn by the page over the overview. The Team's\nown stored answer: ours is the same against every opponent.",
         "operationId": "utility_gameplan__mine__vs__theirs__utility__map_name__get",
         "security": [
           {
@@ -2785,7 +2785,7 @@
           "gameplan"
         ],
         "summary": "Heatmap",
-        "description": "One heatmap cell for a fixture: the positions and the map they go on (the page\ndraws it); by phase of the Round and buy, against every other Team's, and kept\nto one game Callout (VIZ-9).",
+        "description": "One heatmap cell for a fixture: the positions and the map they go on (the page\ndraws it); by phase of the Round and buy, against every other Team's, and kept\nto one game Callout (VIZ-9). The Team's own stored answer, whichever fixture\nasks (docs/adr/0015).",
         "operationId": "heatmap_gameplan__mine__vs__theirs__heatmap_get",
         "security": [
           {
@@ -2946,7 +2946,7 @@
           "gameplan"
         ],
         "summary": "Movement Map",
-        "description": "One movement cell for a fixture: the scene to animate and its tables.",
+        "description": "One movement cell for a fixture: the scene to animate and its tables, the\nTeam's own stored answer.",
         "operationId": "movement_map_gameplan__mine__vs__theirs__movement_get",
         "security": [
           {

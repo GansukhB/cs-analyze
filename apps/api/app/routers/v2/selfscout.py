@@ -31,7 +31,7 @@ def selfscout(
     return SelfScout(**answers.serve(db, "v2.self_scout", params, response=response))
 
 
-@answers.kind("v2.self_scout", VERSION, daily=True)
+@answers.kind("v2.self_scout", VERSION, daily=True, deps=answers.teams("team"))
 def _selfscout(db, p: dict) -> dict:
     mine = team(db, p["team"])
     view = {k: p[k] for k in ("buy", "days", "since") if p.get(k)}

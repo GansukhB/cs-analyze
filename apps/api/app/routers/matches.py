@@ -31,7 +31,7 @@ from app.schemas import (
     ScoreboardSide,
     TeamRef,
 )
-from app.services import agenda, audit, dbctx, patches, replay, review_view, scope
+from app.services import agenda, answers, audit, dbctx, patches, replay, review_view, scope
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,11 @@ def _match(db: Session, match_id: int, user: User) -> Match:
     _allowed(db, user, match_id)
     # A Match's own pages show the Workspace's Scrims too (docs/adr/0010).
     scope.allow_scrims(db)
+    return load_match(db, match_id)
+
+
+def load_match(db: Session, match_id: int) -> Match:
+    """The Match with its Teams, Tournament and Maps; 404 if the session can't see it."""
     match = db.scalar(
         select(Match)
         .where(Match.id == match_id)
@@ -73,6 +78,10 @@ def _match(db: Session, match_id: int, user: User) -> Match:
 def _map(db: Session, match_id: int, map_number: int, user: User) -> MatchMap:
     _allowed(db, user, match_id)
     scope.allow_scrims(db)
+    return load_map(db, match_id, map_number)
+
+
+def load_map(db: Session, match_id: int, map_number: int) -> MatchMap:
     match_map = db.scalar(
         select(MatchMap)
         .where(MatchMap.match_id == match_id, MatchMap.map_number == map_number)
@@ -188,18 +197,27 @@ def get_round(
 
 
 @router.get("/{match_id}/summary")
-def get_summary(match_id: int, db: DbSession, user: CurrentUser) -> MatchReviewSummary:
+def get_summary(
+    match_id: int, db: DbSession, user: CurrentUser, response: Response
+) -> MatchReviewSummary:
     """Each Team's Summary of the Match, from its Maps' Reviews (built first
     where missing or stale). A Map with no Tick Data shows its score only."""
-    match = _match(db, match_id, user)
+    _match(db, match_id, user)
     try:
-        built = review_view.match_panel(db, match)
+        built = answers.serve(db, "match.summary", {"match": match_id}, response=response)
     except Exception as exc:  # like the Review: never take the page down with it
         logger.exception("summary failed for match %s", match_id)
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not build this match's summary"
         ) from exc
     return MatchReviewSummary(**built)
+
+
+@answers.kind("match.summary", 1, deps=answers.match("match"))
+def _summary(db: Session, p: dict) -> dict:
+    scope.allow_scrims(db)
+    built = review_view.match_panel(db, load_match(db, p["match"]))
+    return MatchReviewSummary(**built).model_dump(mode="json")
 
 
 @router.get("/{match_id}/maps/{map_number}/review")
@@ -295,8 +313,9 @@ def _scoreboard(db: Session, match_map: MatchMap) -> list[ScoreboardSide]:
 
 @router.get("/{match_id}/agenda")
 def get_agenda(
-    match_id: int, db: DbSession, user: CurrentUser, team_id: int | None = None
-) -> Agenda:
+    match_id: int, db: DbSession, user: CurrentUser, response: Response,
+    team_id: int | None = None,
+) -> Agenda:  # fmt: skip
     """A Review meeting's agenda for one of the Match's Teams (RV-10): ours when
     one of them is a my team, else the first."""
     match = _match(db, match_id, user)
@@ -309,15 +328,33 @@ def get_agenda(
     team_id = team_id or next((t for t in sides if t in mine), sides[0])
     if team_id not in sides:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "That team did not play this match")
-    return Agenda(**agenda.build(db, match, team_id))
+    params = {"match": match_id, "team": team_id}
+    return Agenda(**answers.serve(db, "match.agenda", params, response=response))
+
+
+@answers.kind("match.agenda", 1, deps=answers.match("match"))
+def _agenda(db: Session, p: dict) -> dict:
+    scope.allow_scrims(db)
+    match = load_match(db, p["match"])
+    return Agenda(**agenda.build(db, match, p["team"])).model_dump(mode="json")
 
 
 @router.get("/{match_id}/maps/{map_number}/audit")
-def get_audit(match_id: int, map_number: int, db: DbSession, user: CurrentUser) -> MapAudit:
+def get_audit(
+    match_id: int, map_number: int, db: DbSession, user: CurrentUser, response: Response
+) -> MapAudit:
     """The Match Map's timeouts, the losing runs that went without one, and each
     Player's opening duels (RV-8); the Pool's next Round after a run beside them."""
-    match_map = _map(db, match_id, map_number, user)
+    _map(db, match_id, map_number, user)
+    params = {"match": match_id, "map_number": map_number}
+    return MapAudit(**answers.serve(db, "match.audit", params, response=response))
+
+
+@answers.kind("match.audit", 1, deps=answers.match("match"))
+def _audit(db: Session, p: dict) -> dict:
+    scope.allow_scrims(db)
+    match_map = load_map(db, p["match"], p["map_number"])
     with dbctx.using(db):
         out = audit.map_audit(match_map)
         out["pool"] = audit.pool()
-    return MapAudit(**out)
+    return MapAudit(**out).model_dump(mode="json")

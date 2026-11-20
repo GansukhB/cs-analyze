@@ -42,7 +42,7 @@ def _live(db, p: dict, data: dict, workspace_id: int | None) -> dict:
     return {**data, "kpis": {**data["kpis"], "hours": hours}, "months": months, "goals": goals}
 
 
-@answers.kind("v2.owner", VERSION, live=_live, daily=True)
+@answers.kind("v2.owner", VERSION, live=_live, daily=True, deps=answers.teams("team"))
 def _owner(db, p: dict) -> dict:
     found = team(db, p["team"])
     with dbctx.using(db):

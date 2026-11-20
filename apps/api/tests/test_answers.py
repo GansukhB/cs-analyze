@@ -1,6 +1,7 @@
 """Stored answers and the warm-up (docs/adr/0014): pages answer at once."""
 
 import dataclasses
+import itertools
 from datetime import timedelta
 
 import pytest
@@ -12,7 +13,9 @@ from app.models import (
     JobKind,
     JobStatus,
     Match,
+    MatchMap,
     StoredAnswer,
+    Team,
     Workspace,
     WorkspaceTeam,
 )
@@ -32,6 +35,7 @@ def _echo(db, p: dict) -> dict:
 @pytest.fixture(autouse=True)
 def _fresh_calls():
     calls.clear()
+    team_calls.clear()
 
 
 def _move_stamp(db):
@@ -134,7 +138,9 @@ def test_the_plan_puts_the_latest_scout_first(db, ours, monkeypatch):
     plan = warmer.build_plan(db)
     assert plan.fixtures == [(a.id, c.id), (a.id, b.id)]
     kinds = [it.kind for it in plan.items]
-    assert kinds[0] == "team.page" and "v2.overview" in kinds and "gp.veto" in kinds
+    assert kinds[0] == "v2.overview" and "team.page" in kinds and "gp.veto" in kinds
+    # Each Team brings its own pages once, whichever fixtures it is in.
+    assert "team.style" in kinds and "gp.heatmap" in kinds and "gp.style" not in kinds
     first_fixture = next(i for i, it in enumerate(plan.items) if it.fixture)
     assert plan.items[first_fixture].fixture == (a.id, c.id)
     assert len({it.digest for it in plan.items}) == len(plan.items)
@@ -236,3 +242,126 @@ def test_what_a_session_remembered_goes_when_the_data_moves(db, factory):
         _move_stamp(db)
         assert w._compute(s, item) is True
         assert "analysis_memo" not in s.info
+
+
+# ------------------------------------------------- per-Team stamps (ADR 0015) ---
+team_calls: list[dict] = []
+
+
+@answers.kind("test.team", 1, deps=answers.teams("team"))
+def _team_echo(db, p: dict) -> dict:
+    team_calls.append(p)
+    return {"team": p["team"], "computed": len(team_calls)}
+
+
+_ticks = itertools.count(1)
+
+
+def _parse_again(db, match_map):
+    """The Match Map was parsed again (a Scout's re-parse, a new schema), a few
+    seconds after the last: the Pool's stamp reads the second."""
+    match_map.parsed_at = utcnow() + timedelta(seconds=5 * next(_ticks))
+    db.commit()
+
+
+def _map_between(db, home, away):
+    return db.scalar(
+        select(MatchMap).where(MatchMap.team1_id == home.id, MatchMap.team2_id == away.id)
+    )
+
+
+def test_a_parse_of_other_teams_leaves_an_answer_fresh(db, league):  # noqa: F811
+    a, b, c = league["a"], league["b"], league["c"]
+    answers.lookup(db, "test.team", {"team": a.id})
+    pool_before = answers.pool_part(answers.stamp(db, "test.team", {"team": a.id}))
+    # Bravo against Charlie: nothing Alpha's page reads, only the Pool moved.
+    _parse_again(db, _map_between(db, b, c))
+    kept = answers.lookup(db, "test.team", {"team": a.id})
+    assert kept.state == answers.FRESH and not kept.computed
+    now = answers.stamp(db, "test.team", {"team": a.id})
+    assert answers.pool_part(now) != pool_before and answers.is_fresh(kept.stamp, now)
+    # Alpha's own Match Map: stale, and wanted.
+    _parse_again(db, _map_between(db, a, c))
+    moved = answers.lookup(db, "test.team", {"team": a.id})
+    assert moved.state == answers.STALE and len(team_calls) == 1
+
+
+def test_the_game_plan_stamp_moves_with_its_two_teams_only(db, league):  # noqa: F811
+    from app.routers.gameplan import fixture_stamp
+
+    a, b, c = league["a"], league["b"], league["c"]
+    before = fixture_stamp(db, a.id, c.id)
+    _parse_again(db, _map_between(db, a, b))  # Charlie did not play: still Alpha's
+    assert fixture_stamp(db, a.id, c.id) != before
+    before = fixture_stamp(db, a.id, b.id)
+    d, e = Team(name="Delta", hltv_id=40), Team(name="Echo", hltv_id=41)
+    db.add_all([d, e])
+    db.flush()
+    db.add(Match(hltv_id=4000, team1_id=d.id, team2_id=e.id))
+    db.commit()
+    # A Briefing on Alpha vs Bravo is not refused for a Match of two other Teams.
+    assert fixture_stamp(db, a.id, b.id) == before
+
+
+def test_an_answer_computed_again_the_same_rewrites_its_stamp_only(db, monkeypatch):
+    answers.lookup(db, "test.echo", {"n": 7})
+    row = db.scalar(select(StoredAnswer))
+    packed = []
+    real = answers.gzip.compress
+    monkeypatch.setattr(
+        answers.gzip, "compress", lambda raw, lvl: packed.append(1) or real(raw, lvl)
+    )
+    calls.clear()  # test.echo says how many times it ran: make it say the same again
+    key = answers.key_of("test.echo", {"n": 7}, ":all")
+    answers.compute_and_store(db, "test.echo", {"n": 7}, key=key, stamp="new~pool")
+    assert packed == []  # the payload was not written again
+    db.expire_all()
+    again = db.scalar(select(StoredAnswer))
+    assert again.stamp == "new~pool" and again.digest == row.digest and again.id == row.id
+
+
+def test_the_pools_turn_takes_the_oldest_and_none_too_young():
+    def item(n):
+        it = warmer.Item("test.echo", {"n": n}, {"all": True}, "test")
+        it.digest = str(n)
+        return it
+
+    now = utcnow()
+    old, young, stale_new, stale_old, new = item(1), item(2), item(3), item(4), item(5)
+    current = {i.digest: "f~p2" for i in (old, young, stale_new, stale_old, new)}
+    current[stale_new.digest] = current[stale_old.digest] = "g~p2"
+    stored = {
+        old.digest: ("f~p1", now - timedelta(days=2)),
+        young.digest: ("f~p1", now - timedelta(minutes=5)),
+        stale_new.digest: ("f~p1", now - timedelta(days=1)),
+        stale_old.digest: ("f~p1", now - timedelta(days=1)),
+    }
+    changed = {stale_new.digest: now, stale_old.digest: now - timedelta(hours=3)}
+    queue = warmer.order([old, young, stale_new, stale_old, new], [], stored, current, changed)
+    # The latest change first, then what was never computed, then the Pool's oldest.
+    assert [i.digest for i in queue] == ["3", "4", "5", "1"]
+    assert [i.tier for i in queue] == ["stale", "stale", "missing", "pool"]
+
+
+def test_answers_from_before_per_team_stamps_are_kept_while_their_teams_stand(db, league):  # noqa: F811
+    a, b = league["a"], league["b"]
+    answers.lookup(db, "test.team", {"team": a.id})
+    answers.lookup(db, "test.team", {"team": b.id})
+    # As the deploy finds them: the old, global stamp.
+    db.execute(update(StoredAnswer).values(stamp="old-global-stamp"))
+    db.commit()
+    _parse_again(db, _map_between(db, b, league["c"]))  # Bravo moved since
+    items = []
+    for team in (a, b):
+        it = warmer.Item("test.team", {"team": team.id}, {"all": True}, "test")
+        it.key = answers.key_of("test.team", {"team": team.id}, ":all")
+        it.digest = answers.hash_of(it.key)
+        items.append(it)
+    current, changed = {}, {}
+    for it in items:
+        current[it.digest] = answers.stamp(db, it.kind, it.params)
+        changed[it.digest] = answers.changed_at(db, it.kind, it.params)
+    stored = answers.stored(db, [it.digest for it in items])
+    assert warmer.adopt_legacy(db, items, stored, current, changed) == 1
+    assert answers.lookup(db, "test.team", {"team": a.id}).state == answers.FRESH
+    assert answers.lookup(db, "test.team", {"team": b.id}).state == answers.STALE

@@ -36,6 +36,8 @@ class StoredAnswer(Base):
     spec: Mapped[dict] = mapped_column(JSON, default=dict)
     stamp: Mapped[str] = mapped_column(String(200))
     payload: Mapped[bytes] = mapped_column(MediumBlob)
+    # sha1 of the JSON: an answer computed again the same rewrites its stamp only.
+    digest: Mapped[str | None] = mapped_column(String(40))
     size: Mapped[int] = mapped_column(Integer, default=0, doc="Bytes of JSON before gzip.")
     compute_ms: Mapped[int] = mapped_column(Integer, default=0)
     computed_at: Mapped[datetime] = mapped_column(DateTime6, default=utcnow)

@@ -854,7 +854,8 @@ export interface paths {
         };
         /**
          * Fixture Style
-         * @description Both Teams' style on one Map, each against every Team's (TM-5).
+         * @description Both Teams' style on one Map, each against every Team's (TM-5): each Team's
+         *     own stored answer, which every fixture it is in shares.
          */
         get: operations["fixture_style_gameplan__mine__vs__theirs__style__map_name__get"];
         put?: never;
@@ -875,7 +876,8 @@ export interface paths {
         /**
          * Utility
          * @description VIZ-10: where a Team's utility lands on a Map and Side, from where, when,
-         *     and the lineups it repeats; drawn by the page over the overview.
+         *     and the lineups it repeats; drawn by the page over the overview. The Team's
+         *     own stored answer: ours is the same against every opponent.
          */
         get: operations["utility_gameplan__mine__vs__theirs__utility__map_name__get"];
         put?: never;
@@ -919,7 +921,8 @@ export interface paths {
          * Heatmap
          * @description One heatmap cell for a fixture: the positions and the map they go on (the page
          *     draws it); by phase of the Round and buy, against every other Team's, and kept
-         *     to one game Callout (VIZ-9).
+         *     to one game Callout (VIZ-9). The Team's own stored answer, whichever fixture
+         *     asks (docs/adr/0015).
          */
         get: operations["heatmap_gameplan__mine__vs__theirs__heatmap_get"];
         put?: never;
@@ -939,7 +942,8 @@ export interface paths {
         };
         /**
          * Movement Map
-         * @description One movement cell for a fixture: the scene to animate and its tables.
+         * @description One movement cell for a fixture: the scene to animate and its tables, the
+         *     Team's own stored answer.
          */
         get: operations["movement_map_gameplan__mine__vs__theirs__movement_get"];
         put?: never;

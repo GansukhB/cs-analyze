@@ -120,7 +120,7 @@ def get_team(team_id: int, db: DbSession, _: StaffUser, response: Response) -> T
     return TeamDetail(**answers.serve(db, "team.page", {"team": team_id}, response=response))
 
 
-@answers.kind("team.page", 1, daily=True)
+@answers.kind("team.page", 1, daily=True, deps=answers.teams("team"))
 def _team_page(db: Session, p: dict) -> dict:
     """The team page, computed ahead of time (docs/adr/0014)."""
     team = db.get(Team, p["team"])
@@ -319,38 +319,72 @@ def _players(db: Session, team: Team) -> list[TeamPlayer]:
 
 
 @router.get("/{team_id}/roster", response_model_by_alias=True)
-def team_roster(team_id: int, db: DbSession, _: StaffUser) -> RosterTimeline:
+def team_roster(team_id: int, db: DbSession, _: StaffUser, response: Response) -> RosterTimeline:
     """Who played for the Team when, in stretches (TM-10)."""
     if db.get(Team, team_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such team")
+    built = answers.serve(db, "team.roster", {"team": team_id}, response=response)
+    return RosterTimeline.model_validate(built)
+
+
+@answers.kind("team.roster", 1, deps=answers.teams("team"))
+def _roster(db: Session, p: dict) -> dict:
     with dbctx.using(db):
-        return RosterTimeline.model_validate(roster.timeline(team_id))
+        return RosterTimeline.model_validate(roster.timeline(p["team"])).model_dump(
+            mode="json", by_alias=True
+        )
+
+
+def _chosen_map(db: Session, team_id: int, asked: str | None) -> tuple[list[str], str | None]:
+    """The Team's Maps, most played first, and the one asked for or else the first."""
+    with dbctx.using(db):
+        maps = style.maps_of(team_id)
+    return maps, (asked if asked in maps else (maps[0] if maps else None))
 
 
 @router.get("/{team_id}/after-contact")
 def team_after_contact(
-    team_id: int, db: DbSession, _: StaffUser, map: str | None = None
+    team_id: int, db: DbSession, _: StaffUser, response: Response, map: str | None = None
 ) -> AfterContactView:
     """What the Team does after the first contact on one Map (TM-7): its most
     played Map unless one is named."""
-    team = db.get(Team, team_id)
-    if team is None:
+    if db.get(Team, team_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such team")
+    maps, chosen = _chosen_map(db, team_id, map)
+    if chosen is None:
+        return AfterContactView(maps=maps, after=None)
+    params = {"team": team_id, "map": chosen}
+    return AfterContactView(**answers.serve(db, "team.after_contact", params, response=response))
+
+
+@answers.kind("team.after_contact", 1, deps=answers.teams("team"))
+def _after_contact(db: Session, p: dict) -> dict:
+    maps, chosen = _chosen_map(db, p["team"], p["map"])
     with dbctx.using(db):
-        maps = style.maps_of(team_id)
-        chosen = map if map in maps else (maps[0] if maps else None)
-        after = after_contact.team(team_id, chosen) if chosen else None
-        return AfterContactView(maps=maps, after=after)
+        after = after_contact.team(p["team"], chosen) if chosen else None
+    return AfterContactView(maps=maps, after=after).model_dump(mode="json")
 
 
 @router.get("/{team_id}/style")
-def team_style(team_id: int, db: DbSession, _: StaffUser, map: str | None = None) -> TeamStyleView:
+def team_style(
+    team_id: int, db: DbSession, _: StaffUser, response: Response, map: str | None = None
+) -> TeamStyleView:
     """The Team's style on one Map against every Team's (TM-5): its most played
     Map unless one is named."""
-    team = db.get(Team, team_id)
-    if team is None:
+    if db.get(Team, team_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such team")
+    maps, chosen = _chosen_map(db, team_id, map)
+    if chosen is None:
+        return TeamStyleView(maps=maps, style=None)
+    params = {"team": team_id, "map": chosen}
+    return TeamStyleView(**answers.serve(db, "team.style", params, response=response))
+
+
+@answers.kind("team.style", 1, deps=answers.teams("team"))
+def _team_style(db: Session, p: dict) -> dict:
+    """One Team on one Map, also asked for any Map of a fixture's (the Game Plan's
+    style, `routers/gameplan.fixture_style`), played there or not."""
     with dbctx.using(db):
-        maps = style.maps_of(team_id)
-        chosen = map if map in maps else (maps[0] if maps else None)
-        return TeamStyleView(maps=maps, style=style.team(team_id, chosen) if chosen else None)
+        maps = style.maps_of(p["team"])
+        found = style.team(p["team"], p["map"]) if p.get("map") else None
+    return TeamStyleView(maps=maps, style=found).model_dump(mode="json")

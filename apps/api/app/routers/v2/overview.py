@@ -53,7 +53,7 @@ def _live(db, p: dict, data: dict, workspace_id: int | None) -> dict:
     return out
 
 
-@answers.kind("v2.overview", VERSION, live=_live, daily=True)
+@answers.kind("v2.overview", VERSION, live=_live, daily=True, deps=answers.teams("team"))
 def _overview(db, p: dict) -> dict:
     found = team(db, p["team"])
     if p.get("scrims"):
