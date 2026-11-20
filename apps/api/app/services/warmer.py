@@ -549,6 +549,9 @@ class Warmer:
                     if db is not None:
                         db.close()
                     db = self.sessions()
+                    # Each page ends its transaction (`_compute`) and keeps what
+                    # the session remembered, so its objects must not expire.
+                    db.expire_on_commit = False
                     group = (it.group, json.dumps(it.scope, sort_keys=True))
                 if self._compute(db, it):
                     did = True
@@ -622,6 +625,13 @@ class Warmer:
             # not hand what it read to the next page: the memo goes with it.
             if scope.current(db) != bound:
                 db.info.pop("analysis_memo", None)
+            # End the read's transaction: an open one holds its tables' metadata
+            # locks for the whole fixture, and a migration's ALTER, then every page
+            # behind it, waited on that (2026-11-20).
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
             self._yield()
 
     def _prune(self, db: Session, planned: set[str]) -> None:
