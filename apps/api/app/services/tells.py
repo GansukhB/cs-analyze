@@ -153,8 +153,10 @@ def _bars(map_name: str | None) -> dict[str, float]:
 
 
 def pool_bars(map_name: str | None) -> dict[str, float]:
-    """The Pool's bars on one Map, or over every Map with ``None``."""
-    stamp = f"{pool_cache.parse_stamp()}{scope.cache_part(db())}"
+    """The Pool's bars on one Map, or over every Map with ``None``, cut again at
+    most every few hours (`pool_cache.epoch_stamp`, docs/adr/0015): a Team's own
+    choices are read from its Rounds on every call."""
+    stamp = f"{pool_cache.epoch_stamp()}{scope.cache_part(db())}"
     key = f"tells:v{TELLS_SCHEMA}:{map_name or '*'}:{stamp}"
     return pool_cache.remember(key, lambda: _bars(map_name))
 

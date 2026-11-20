@@ -21,17 +21,21 @@ import json
 import logging
 import time
 from collections.abc import Callable
+from datetime import timedelta
 
 from redis.exceptions import RedisError
 from sqlalchemy import func, select
 
 from app.cache import get_cache
 from app.models import MatchMap
+from app.models.base import utcnow
 from app.services.dbctx import db
 
 logger = logging.getLogger(__name__)
 
 TTL = 7 * 24 * 3600
+# A Pool other Teams are ranked against moves at most once in this long (docs/adr/0015).
+EPOCH_HOURS = 6
 # How long one computation may hold the lock, and so how long the others wait for
 # it. Past that the holder is presumed dead and a waiter computes it itself.
 LOCK_SECONDS = 3 * 60
@@ -50,6 +54,28 @@ def parse_stamp() -> str:
         .one()
     )
     return f"{count}-{int(latest.timestamp()) if latest else 0}"
+
+
+def epoch_stamp() -> str:
+    """Like :func:`parse_stamp`, but over the Match Maps parsed before the latest
+    :data:`EPOCH_HOURS` boundary (UTC): a Pool the others are ranked against is
+    cut again at most once in that long, however often a Scout parses. Each
+    Team's own numbers are read fresh beside it (ADR 0015: the Pool may be a day
+    behind, a Team's own data never)."""
+    now = utcnow()
+    boundary = now.replace(minute=0, second=0, microsecond=0) - timedelta(
+        hours=now.hour % EPOCH_HOURS
+    )
+    count, latest = (
+        db()
+        .execute(
+            select(func.count(MatchMap.id), func.max(MatchMap.parsed_at)).where(
+                MatchMap.parsed_at.is_not(None), MatchMap.parsed_at < boundary
+            )
+        )
+        .one()
+    )
+    return f"e{count}-{int(latest.timestamp()) if latest else 0}"
 
 
 def remember(key: str, compute: Callable[[], object]) -> object:

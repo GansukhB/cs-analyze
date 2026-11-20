@@ -8,6 +8,14 @@
 #   daily/   everything but tick_datasets, whole, every night (a few hundred MB)
 #   monthly/ tick_datasets whole, on the 1st (or when no full copy exists yet)
 #   ticks/   tick_datasets rows written since the previous run, as REPLACE INTO
+{% if not backup_tick_data %}
+#
+# Rendered with backup_tick_data off: daily/ only, without the Tick Data and the
+# tables cut from it (replay_rounds, stored_answers), so a week of it is a few
+# GB at most on the host's own disk. What Staff wrote by hand (Strats, Notes,
+# Briefings, goals, the Workspace) is kept; the Tick Data is not, until a
+# backup_remote holds its full copies (~18 GB each on 2026-11-21).
+{% endif %}
 #
 # Restore, into an empty database, in this order:
 #   zstd -dc daily/<newest>.sql.zst | mysql DB
@@ -35,8 +43,14 @@ write() {  # write <path> <dump args...>
   mv "$out.part" "$out"
 }
 
+{% if backup_tick_data %}
 write "$DIR/daily/$DB-$DAY.sql.zst" --routines --ignore-table="$DB.tick_datasets" "$DB"
+{% else %}
+write "$DIR/daily/$DB-$DAY.sql.zst" --routines --ignore-table="$DB.tick_datasets" \
+  --ignore-table="$DB.replay_rounds" --ignore-table="$DB.stored_answers" "$DB"
+{% endif %}
 
+{% if backup_tick_data %}
 if [[ $(date -u +%d) == 01 || -z $(ls -A "$DIR/monthly") ]]; then
   write "$DIR/monthly/$DB-tick_datasets-$DAY.sql.zst" "$DB" tick_datasets
 else
@@ -45,6 +59,7 @@ else
     --where="updated_at >= '$SINCE'" "$DB" tick_datasets
 fi
 echo "$NOW" > "$STATE"
+{% endif %}
 
 # Kept here: a week of daily dumps, six months of full Tick Data, and the
 # increments that sit on top of the oldest full copy still kept.

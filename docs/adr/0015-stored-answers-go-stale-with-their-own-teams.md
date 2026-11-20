@@ -18,6 +18,8 @@ We chose per-Team stamps over a faster global round. No speed-up of a 24-hour ro
 - **Per-answer dependency rows.** Every row would list what it read. That is exact, but it is a second table to keep right, for little over Teams and Matches.
 - **A Pool frozen once a night.** It would make Pool numbers consistent across pages, but every Pool cache and the Review tallies would need to split into a frozen Pool and the Team's live numbers.
 
+Pool caches that only rank a Team or set a bar are cut at most every 6 h (`pool_cache.epoch_stamp`): the style Pool, the Tells' bars, the economy's worth of each choice. Cutting them per parse meant the whole Map's Rounds again after every Match a Scout parsed: style took 30 s a page on production. Each Team's own numbers are read from its Match Maps on every call (`style.own`), so its page is current while the others' stand where the Pool last cut them.
+
 ## Consequences
 
 - A page's numbers against the Pool (percentiles, Pool priors, Levers judged against every Team) can be a day or two behind, while its Teams' own numbers are current. The page does not say so. Only a change to its own Teams marks it as being refreshed.

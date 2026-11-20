@@ -22137,6 +22137,46 @@
         ],
         "title": "SyncBin"
       },
+      "SystemAlert": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "text"
+        ],
+        "title": "SystemAlert",
+        "description": "An alert Staff see on every page (OPS-5): one the latest check still finds\n(``active``), or one said in the last day."
+      },
       "SystemState": {
         "properties": {
           "host": {
@@ -22173,6 +22213,14 @@
                 "type": "null"
               }
             ]
+          },
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/SystemAlert"
+            },
+            "type": "array",
+            "title": "Alerts",
+            "default": []
           }
         },
         "type": "object",

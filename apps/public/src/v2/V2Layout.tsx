@@ -7,6 +7,7 @@ import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } 
 import Assistant from '../assistant/Assistant'
 import { tokenStore } from '../auth/token'
 import { useMe, useMyTeams } from '../auth/useMe'
+import SystemAlerts from '../system/SystemAlerts'
 import Refreshing from '../ui/Refreshing'
 import { PageSkeleton } from '../ui/Skeleton'
 import { at, initials } from './team'
@@ -71,6 +72,7 @@ export default function V2Layout() {
   return (
     <div className="v2 flex flex-col">
       <Header teamId={id} />
+      <SystemAlerts />
       <main className="mx-auto flex w-full max-w-[1376px] flex-1 flex-col gap-6 px-4 pt-7 pb-16 sm:px-8">
         <Suspense fallback={<PageSkeleton />}>
           <Outlet />

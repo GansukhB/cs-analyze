@@ -4,6 +4,7 @@ import { NavLink, Outlet, useMatch } from 'react-router'
 import Assistant from './assistant/Assistant'
 import { tokenStore } from './auth/token'
 import { useMe } from './auth/useMe'
+import SystemAlerts from './system/SystemAlerts'
 import SystemFooter from './system/SystemFooter'
 import Refreshing from './ui/Refreshing'
 import { PageSkeleton } from './ui/Skeleton'
@@ -108,6 +109,7 @@ export default function Layout() {
           </div>
         </div>
       </header>
+      {staff && <SystemAlerts width={width} />}
       <main className={`mx-auto w-full ${width} flex-1 px-4 py-8`}>
         <Suspense fallback={<PageSkeleton />}>
           <Outlet />

@@ -12,11 +12,12 @@ from app.schemas import (
     PatchList,
     PatchRef,
     ScoutNow,
+    SystemAlert,
     SystemState,
     WarmState,
 )
+from app.services import alerts, map_pool, patches, system, warmer
 from app.services import jobs as job_service
-from app.services import map_pool, patches, system, warmer
 from app.services.dbctx import using
 
 router = APIRouter(tags=["system"])
@@ -50,6 +51,7 @@ def system_state(db: DbSession, _: StaffUser) -> SystemState:
         queued=queued or 0,
         version=get_settings().deployed_commit,
         warm=_warm(),
+        alerts=[SystemAlert(**a) for a in alerts.shown()],
     )
 
 

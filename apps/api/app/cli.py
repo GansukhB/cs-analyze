@@ -392,6 +392,7 @@ def watch() -> None:
 
     with SessionLocal() as db:
         found = alerts.checks(db)
+    alerts.set_active(found)  # shown to Staff on every page while it stands
     for key, text in found:
         alerts.send(key, text)
     print(f"{len(found)} problem(s)" + (": " + "; ".join(t for _k, t in found) if found else "."))

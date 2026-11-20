@@ -355,6 +355,17 @@ class WarmState(BaseModel):
     updated_at: str | None = None
 
 
+class SystemAlert(BaseModel):
+    """An alert Staff see on every page (OPS-5): one the latest check still finds
+    (``active``), or one said in the last day."""
+
+    key: str
+    title: str
+    text: str
+    at: str | None = None
+    active: bool = False
+
+
 class SystemState(BaseModel):
     """What the footer shows: the host, the worker's pulse, and the Scouts."""
 
@@ -365,6 +376,7 @@ class SystemState(BaseModel):
     # The commit this API runs ("" when it wasn't deployed, as in development).
     version: str
     warm: WarmState | None = None
+    alerts: list[SystemAlert] = []
 
 
 # -- teams -------------------------------------------------------------------------

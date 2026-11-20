@@ -17,7 +17,9 @@ Side of the Map, and a Team's number is said as its percentile among them:
   a T lurk (one away from three or more at :data:`LURK_AT`), and how fast
   another CT reaches a site after losing its opening (:data:`ROTATE_WITHIN`).
 
-The Pool is computed once per parse and Map and shared (:mod:`pool_cache`).
+The Pool is cut once every few hours per Map and shared (:mod:`pool_cache`,
+``epoch_stamp``); a Team's own numbers are read from its Match Maps on every
+call, so they never wait for it (docs/adr/0015).
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ import json
 import statistics
 from collections import Counter, defaultdict
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.models import GameMap, GrenadeThrow, KillEvent, MatchMap, ReplayRound, Round
 from app.services import after_contact, mn, playbook, pool_cache
@@ -72,20 +74,23 @@ METRICS = {
 }
 
 
-def _rows(map_name: str) -> list:
-    return list(
-        db().execute(
-            select(
-                Round.id, Round.match_map_id, Round.number, Round.freeze_end_tick,
-                Round.bomb_plant_tick, Round.bomb_site, Round.winner_team_id,
-                Round.ct_team_id, Round.t_team_id, Round.ct_buy, Round.t_buy, MatchMap.tickrate,
-            )
-            .join(MatchMap, MatchMap.id == Round.match_map_id)
-            .join(GameMap, GameMap.id == MatchMap.game_map_id)
-            .where(GameMap.name == map_name, MatchMap.parsed_at.is_not(None))
-            .order_by(Round.match_map_id, Round.number)
+def _rows(map_name: str, team_id: int | None = None) -> list:
+    """The Map's Rounds, or only those of the Match Maps one Team played (all of
+    each, so a Round's previous one is there)."""
+    q = (
+        select(
+            Round.id, Round.match_map_id, Round.number, Round.freeze_end_tick,
+            Round.bomb_plant_tick, Round.bomb_site, Round.winner_team_id,
+            Round.ct_team_id, Round.t_team_id, Round.ct_buy, Round.t_buy, MatchMap.tickrate,
         )
+        .join(MatchMap, MatchMap.id == Round.match_map_id)
+        .join(GameMap, GameMap.id == MatchMap.game_map_id)
+        .where(GameMap.name == map_name, MatchMap.parsed_at.is_not(None))
+        .order_by(Round.match_map_id, Round.number)
     )  # fmt: skip
+    if team_id is not None:
+        q = q.where(or_(MatchMap.team1_id == team_id, MatchMap.team2_id == team_id))
+    return list(db().execute(q))
 
 
 def _first_kills(ids: list[int]) -> dict[int, tuple]:
@@ -162,9 +167,10 @@ def _ct_deaths_after_plant(ids: list[int]) -> dict[int, list[int]]:
     return out
 
 
-def _values(map_name: str) -> dict[str, dict[str, list]]:
-    """``{team: {metric: [per-Round values]}}`` for every Team on the Map."""
-    rows = _rows(map_name)
+def _values(map_name: str, team_id: int | None = None) -> dict[str, dict[str, list]]:
+    """``{team: {metric: [per-Round values]}}`` for every Team on the Map (or, given
+    ``team_id``, for the Teams in its Match Maps, of which only its own is whole)."""
+    rows = _rows(map_name, team_id)
     ids = [r.id for r in rows]
     if not ids:
         return {}
@@ -274,17 +280,26 @@ def _summary(values: dict[str, list]) -> dict[str, tuple]:
 
 
 def pool(map_name: str) -> dict[str, dict[str, list]]:
-    """Every Team's numbers on the Map, ``{team: {metric: [value, n]}}``, shared."""
-    key = f"style:v{STYLE_SCHEMA}:{map_name}:{pool_cache.parse_stamp()}"
+    """Every Team's numbers on the Map, ``{team: {metric: [value, n]}}``, shared and
+    cut again at most every few hours (`pool_cache.epoch_stamp`): the whole Map's
+    Rounds take half a minute on the host, and a Scout parses every few minutes."""
+    key = f"style:v{STYLE_SCHEMA}:{map_name}:{pool_cache.epoch_stamp()}"
     return pool_cache.remember(
         key, lambda: {team: _summary(v) for team, v in _values(map_name).items()}
     )
 
 
+def own(team_id: int, map_name: str) -> dict[str, tuple]:
+    """The Team's own numbers on the Map, read now from its Match Maps alone."""
+    return _summary(_values(map_name, team_id).get(str(team_id)) or {})
+
+
 def team(team_id: int, map_name: str) -> dict:
-    """The Team's style on the Map, each number with its percentile in the Pool."""
-    everyone = pool(map_name)
-    mine = everyone.get(str(team_id)) or {}
+    """The Team's style on the Map, each number with its percentile in the Pool:
+    its own numbers as they stand, the others' as the Pool last cut them."""
+    mine = own(team_id, map_name)
+    everyone = {t: v for t, v in pool(map_name).items() if t != str(team_id)}
+    everyone[str(team_id)] = mine
     sides: dict[str, list] = defaultdict(list)
     for key, (side, label, unit, more) in METRICS.items():
         if key not in mine:

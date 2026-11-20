@@ -63,3 +63,46 @@ def test_the_checks_name_what_is_wrong(db, monkeypatch):
     assert keys == ["worker", "stage", "hltv-blocked"]
     alerts.hltv_through()
     assert "hltv-blocked" not in [k for k, _t in alerts.checks(db)]
+
+
+class ListRedis(FakeRedis):
+    """With the lists the pages' copy of the alerts is kept in."""
+
+    def rpush(self, key, value):
+        self.store.setdefault(key, []).append(value)
+
+    def ltrim(self, key, start, end):
+        self.store[key] = self.store.get(key, [])[start : (None if end == -1 else end + 1)]
+
+    def expire(self, key, seconds):
+        pass
+
+    def lrange(self, key, start, end):
+        return list(self.store.get(key, []))
+
+
+def test_staff_see_what_stands_and_what_was_said_today(monkeypatch):
+    redis = ListRedis()
+    monkeypatch.setattr(app.cache, "get_cache", lambda: redis)
+    alerts.send("unit:cs2-backup.service", "cs2-backup.service failed")
+    alerts.set_active([("disk", "the data disk is 91% full")])
+    shown = alerts.shown()
+    assert [(a["key"], a["active"]) for a in shown] == [
+        ("disk", True), ("unit:cs2-backup.service", False),
+    ]  # fmt: skip
+    assert shown[0]["title"] == "Диск дүүрч байна"
+    assert shown[1]["title"] == "Шөнийн backup амжилтгүй болсон" and shown[1]["at"]
+
+
+def test_a_silent_warm_up_is_said_after_half_an_hour(monkeypatch):
+    from app.services import warmer
+
+    redis = ListRedis()
+    monkeypatch.setattr(app.cache, "get_cache", lambda: redis)
+    monkeypatch.setattr(system, "worker_alive", lambda: True)
+    monkeypatch.setattr(warmer, "status", lambda: None)
+    assert alerts._warm_silent() is None  # first miss: one long page writes nothing
+    redis.store[alerts.WARM_SILENT_KEY] = (utcnow() - timedelta(minutes=40)).isoformat()
+    assert alerts._warm_silent() == 40
+    monkeypatch.setattr(warmer, "status", lambda: {"state": "working"})
+    assert alerts._warm_silent() is None and alerts.WARM_SILENT_KEY not in redis.store

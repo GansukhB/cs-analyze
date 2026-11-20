@@ -44,3 +44,32 @@ def test_lurks_and_rotations_read_from_the_round_tokens():
           "ct": [[11, 0, 1], [12, 0, 1], [15, 0, 2]]}  # fmt: skip
     assert style._rotated(ct, {"A1"}, 10) == 5.0
     assert style._rotated(ct, {"B1"}, 10) is None
+
+
+def test_a_teams_own_numbers_are_current_while_the_pool_waits(
+    db, league, memory_cache, monkeypatch
+):
+    """docs/adr/0015: the Pool is cut every few hours, a Team's own Rounds every time."""
+    from sqlalchemy import select
+
+    from app.models import Round
+
+    a = league["a"].id
+    with dbctx.using(db):
+        before = _metric(style.team(a, "de_mirage"), "t", "early_plant")["value"]
+    cut = []
+    real = style._values
+    monkeypatch.setattr(
+        style, "_values", lambda m, team_id=None: cut.append(team_id) or real(m, team_id)
+    )
+    # Alpha planted one more Round early, just now.
+    rnd = db.scalar(
+        select(Round).where(Round.t_team_id == a, Round.bomb_plant_tick.is_(None)).limit(1)
+    )
+    rnd.bomb_plant_tick = rnd.freeze_end_tick + 64 * 5
+    rnd.bomb_site = "A"
+    db.commit()
+    with dbctx.using(db):
+        after = _metric(style.team(a, "de_mirage"), "t", "early_plant")["value"]
+    assert after > before
+    assert cut == [a]  # its own Rounds only: the Pool was not cut again

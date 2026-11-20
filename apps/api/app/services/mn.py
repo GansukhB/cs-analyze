@@ -3597,3 +3597,33 @@ def veto_tell(t: dict, *, whose: str) -> dict:
         "share": t["share"],
         "pool_p75": t.get("pool_p75"),
     }
+
+
+# -- Alerts shown to Staff on every page (OPS-5; app/services/alerts.py) ---------------
+ALERTS = {
+    "worker": "Worker зогссон: Scout болон Review-ийн шинэчлэл хүлээгдэж байна",
+    "stage": "Scout нэг шатандаа хэт удаан байна",
+    "disk": "Диск дүүрч байна",
+    "hltv-blocked": "HLTV browser-ийг дараалан хориглож байна",
+    "warmup": "Урьдчилсан тооцоо (warm-up) зогссон",
+    "mysql-lock": "MySQL-ийн түгжээнд хүсэлтүүд хүлээгдэж байна",
+    "canary": "HLTV-ийн хуудасны бүтэц өөрчлөгдсөн (canary)",
+    "backup": "Шөнийн backup амжилтгүй болсон",
+    "assistant": "Assistant-ийн өдрийн хязгаар хүрсэн",
+}
+
+
+def alert_title(key: str) -> str:
+    """An alert's title by its key (``stage:<job>:<stage>`` is a ``stage``; a unit's
+    OnFailure, ``unit:<name>``, names the unit)."""
+    head, _, rest = key.partition(":")
+    if head == "unit":
+        if "backup" in rest:
+            return ALERTS["backup"]
+        if "canary" in rest:
+            return ALERTS["canary"]
+        return f"{rest.removesuffix('.service')} амжилтгүй болсон"
+    for name, title in ALERTS.items():
+        if head == name or head.startswith(name):
+            return title
+    return "Анхааруулга"

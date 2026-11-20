@@ -7428,6 +7428,26 @@ export interface components {
             won: number;
         };
         /**
+         * SystemAlert
+         * @description An alert Staff see on every page (OPS-5): one the latest check still finds
+         *     (``active``), or one said in the last day.
+         */
+        SystemAlert: {
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /** At */
+            at?: string | null;
+            /**
+             * Active
+             * @default false
+             */
+            active: boolean;
+        };
+        /**
          * SystemState
          * @description What the footer shows: the host, the worker's pulse, and the Scouts.
          */
@@ -7441,6 +7461,11 @@ export interface components {
             /** Version */
             version: string;
             warm?: components["schemas"]["WarmState"] | null;
+            /**
+             * Alerts
+             * @default []
+             */
+            alerts: components["schemas"]["SystemAlert"][];
         };
         /** TeamDetail */
         TeamDetail: {

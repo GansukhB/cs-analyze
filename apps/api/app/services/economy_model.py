@@ -87,7 +87,9 @@ def pool() -> dict[str, dict[str, list[float]]]:
             out[spot][choice][1] += won
         return out
 
-    key = f"economy:v{ECONOMY_SCHEMA}:{pool_cache.parse_stamp()}"
+    # The Pool's worth of each choice moves slowly; the Team's own choices are
+    # counted from its Rounds on every call (docs/adr/0015).
+    key = f"economy:v{ECONOMY_SCHEMA}:{pool_cache.epoch_stamp()}"
     return pool_cache.remember(key, compute)
 
 

@@ -72,3 +72,7 @@ backup_time: "03:30:00"
 backup_keep_days: 7
 backup_remote_keep_days: 30
 backup_keep_days_monthly: 186
+# Full Tick Data copies (monthly/, ticks/): ~18 GB each on 2026-11-21, too much for
+# the host's own disk, where a full disk stopped Redis and the worker on 2026-11-20.
+# Off until backup_remote is set; then pass -e backup_tick_data=true.
+backup_tick_data: false
