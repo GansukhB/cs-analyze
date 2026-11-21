@@ -7,9 +7,19 @@ the next Scout fits. Read with psutil on every request; nothing is stored.
 The worker can't be asked cheaply: ``inspect`` is a broadcast that waits its
 whole timeout when nobody answers. So the worker says it is alive instead, a
 Redis key it rewrites every few seconds and that lapses shortly after it stops.
+
+The key is written by a small child process (`app/services/heartbeat.py`), not
+by a thread of the worker. A demo's parse holds the GIL for seconds at a time,
+and on the 2-CPU host a thread went 30 s without a turn during a big Map's
+parse: on 2026-11-21 three "heartbeat is gone" alerts came in one afternoon,
+each mid-parse, while the worker was fine. The child beats while the worker
+lives and stops when it goes.
 """
 
 import contextlib
+import logging
+import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -19,9 +29,13 @@ import psutil
 from app.cache import get_cache
 from app.config import get_settings
 
+logger = logging.getLogger(__name__)
+
 HEARTBEAT_KEY = "system:worker"
 BEAT_SECONDS = 10
 BEAT_TTL = 30
+# Where `python -m app.services.heartbeat` resolves (apps/api).
+APP_ROOT = Path(__file__).resolve().parents[2]
 
 # CPU % is the busy share of CPU time between two readings. Polls closer than
 # this reuse the last figure; after a long gap the first poll samples afresh
@@ -35,7 +49,9 @@ CPU_SAMPLE_SECONDS = 0.3
 _cpu_lock = threading.Lock()
 _cpu: dict = {"at": 0.0, "times": None, "percent": 0.0}
 _stop = threading.Event()
-_beater: threading.Thread | None = None
+_keeper: threading.Thread | None = None
+_child: subprocess.Popen | None = None
+_child_lock = threading.Lock()
 
 
 def _cpu_times() -> tuple[float, float]:
@@ -100,25 +116,53 @@ def beat() -> None:
         get_cache().set(HEARTBEAT_KEY, str(time.time()), ex=BEAT_TTL)
 
 
-def _beat_loop() -> None:
-    while True:
-        beat()
-        if _stop.wait(BEAT_SECONDS):
+def _spawn() -> subprocess.Popen:
+    return subprocess.Popen(
+        [sys.executable, "-m", "app.services.heartbeat"], cwd=APP_ROOT, stdin=subprocess.DEVNULL
+    )
+
+
+def _keep() -> None:
+    """Start the beating child, and start it again if it dies while the worker lives.
+    Waiting on it needs no GIL, so a parse doesn't hold this up either."""
+    global _child
+    while not _stop.is_set():
+        try:
+            with _child_lock:
+                if _stop.is_set():
+                    return
+                _child = _spawn()
+            code = _child.wait()
+        except Exception:  # noqa: BLE001 - a light that can't start must not stop the worker
+            logger.exception("heartbeat process could not start")
+            code = None
+        if _stop.wait(BEAT_SECONDS):  # stopped on purpose
             return
+        logger.warning("heartbeat process exited (%s); starting it again", code)
 
 
 def start_heartbeat() -> None:
     """Called once on the worker's start (`tasks._heartbeat`)."""
-    global _beater
+    global _keeper
     _stop.clear()
-    _beater = threading.Thread(target=_beat_loop, name="heartbeat", daemon=True)
-    _beater.start()
+    _keeper = threading.Thread(target=_keep, name="heartbeat", daemon=True)
+    _keeper.start()
 
 
 def stop_heartbeat() -> None:
     """On the worker's shutdown: the light goes out now, not when the key lapses."""
     _stop.set()
-    if _beater is not None:
-        _beater.join(timeout=2)
+    with _child_lock:
+        child = _child
+    if child is not None and child.poll() is None:
+        child.terminate()
+        try:
+            child.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            child.kill()
+            child.wait(timeout=2)
+    if _keeper is not None:
+        _keeper.join(timeout=2)
+    # After the child is gone, so no last beat lands behind it.
     with contextlib.suppress(Exception):
         get_cache().delete(HEARTBEAT_KEY)

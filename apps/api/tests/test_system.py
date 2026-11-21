@@ -1,5 +1,8 @@
 import datetime as dt
+import subprocess
+import sys
 import threading
+import time
 
 import pytest
 
@@ -66,6 +69,56 @@ def test_heartbeat_lights_the_worker_and_shutdown_puts_it_out(client, auth, hear
 
     system.stop_heartbeat()
     assert client.get("/system", headers=auth).json()["worker"] is False
+
+
+def test_heartbeat_child_beats_until_its_worker_is_gone(monkeypatch, heartbeat_redis):
+    from app.services import heartbeat
+
+    beats = []
+    parents = iter([100, 100, 100, 1])  # reparented on the fourth look: the worker died
+    monkeypatch.setattr(heartbeat.os, "getppid", lambda: next(parents))
+    monkeypatch.setattr(heartbeat, "CHECK_SECONDS", 0)
+    monkeypatch.setattr(system, "BEAT_SECONDS", 0)
+    monkeypatch.setattr(system, "beat", lambda: beats.append(1))
+
+    heartbeat.beat_while_parent_lives(100)
+
+    assert len(beats) == 3
+
+
+def _until(check, seconds=5.0):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if check():
+            return True
+        time.sleep(0.02)
+    return False
+
+
+def test_heartbeat_process_is_kept_alive_and_shutdown_ends_it(monkeypatch, heartbeat_redis):
+    # A stand-in child: the real one writes to the real Redis.
+    spawned = []
+
+    def spawn():
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        spawned.append(child)
+        return child
+
+    monkeypatch.setattr(system, "_spawn", spawn)
+    monkeypatch.setattr(system, "BEAT_SECONDS", 0.05)
+    heartbeat_redis.set(system.HEARTBEAT_KEY, "1")
+
+    system.start_heartbeat()
+    try:
+        assert _until(lambda: len(spawned) == 1)
+        spawned[0].kill()  # it died while the worker lives: started again
+        assert _until(lambda: len(spawned) == 2)
+    finally:
+        system.stop_heartbeat()
+
+    assert spawned[1].poll() is not None
+    assert not system._keeper.is_alive()
+    assert heartbeat_redis.get(system.HEARTBEAT_KEY) is None
 
 
 def test_cpu_share_runs_from_the_last_reading_whichever_thread_asks(monkeypatch):
